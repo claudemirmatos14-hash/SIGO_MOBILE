@@ -327,3 +327,68 @@ async function carregarListaDiariosOffline() {
       "<p class='lista-vazia'>Erro ao carregar diários.</p>";
   }
 }
+
+async function sincronizarSIGO() {
+
+  try {
+
+    const fila =
+      await listarRegistrosSIGO(
+        "TB_SYNC_QUEUE"
+      );
+
+    const pendentes =
+      fila.filter(
+        item =>
+          item.statusSync === "PENDENTE"
+      );
+
+    if (pendentes.length === 0) {
+
+      alert(
+        "Não existem registros pendentes."
+      );
+
+      return;
+    }
+
+    console.log(
+      "Pacotes pendentes:",
+      pendentes
+    );
+
+    for (const item of pendentes) {
+
+      item.statusSync = "SINCRONIZADO";
+
+      item.dataSync =
+        new Date().toISOString();
+
+      await atualizarRegistroSIGO(
+        "TB_SYNC_QUEUE",
+        item
+      );
+
+    }
+
+    atualizarIndicadoresMobile_();
+
+    alert(
+      pendentes.length +
+      " registros sincronizados."
+    );
+
+  } catch (erro) {
+
+    console.error(
+      "Erro de sincronização:",
+      erro
+    );
+
+    alert(
+      "Erro ao sincronizar."
+    );
+
+  }
+
+}
