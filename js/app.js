@@ -145,21 +145,74 @@ function montarTelaDiarioObra_() {
 }
 
 function salvarDiarioOffline(event) {
+
   event.preventDefault();
 
   const diario = {
-    idDiario: "DIA-LOCAL-" + Date.now(),
-    data: document.getElementById("diarioData").value,
-    idObra: document.getElementById("diarioObra").value,
-    responsavel: document.getElementById("diarioResponsavel").value,
-    clima: document.getElementById("diarioClima").value,
-    ocorrenciasGerais: document.getElementById("diarioOcorrencias").value,
-    observacoesGerais: document.getElementById("diarioObservacoes").value,
-    statusDiario: "ABERTO",
+
+    idDiario: "DIA-" + Date.now(),
+
+    data:
+      document.getElementById("diarioData").value,
+
+    idObra:
+      document.getElementById("diarioObra").value,
+
+    responsavel:
+      document.getElementById("diarioResponsavel").value,
+
+    clima:
+      document.getElementById("diarioClima").value,
+
+    ocorrencias:
+      document.getElementById("diarioOcorrencias").value,
+
+    observacoes:
+      document.getElementById("diarioObservacoes").value,
+
     statusSync: "PENDENTE"
+
   };
 
-  console.log("Diário salvo offline:", diario);
+  let diarios =
+    JSON.parse(localStorage.getItem("sigo_diarios")) || [];
 
-  alert("Diário salvo offline com sucesso.");
+  diarios.push(diario);
+
+  localStorage.setItem(
+    "sigo_diarios",
+    JSON.stringify(diarios)
+  );
+
+  atualizarIndicadoresMobile_();
+
+  alert(
+    "Diário salvo offline com sucesso."
+  );
+
+  console.log(diario);
+
 }
+
+function atualizarIndicadoresMobile_() {
+
+  const diarios =
+    JSON.parse(
+      localStorage.getItem("sigo_diarios")
+    ) || [];
+
+  const total = diarios.length;
+
+  const cardRegistros =
+    document.querySelector(".resumo .card strong");
+
+  if (cardRegistros) {
+    cardRegistros.textContent = total;
+  }
+
+}
+
+document.addEventListener(
+  "DOMContentLoaded",
+  atualizarIndicadoresMobile_
+);
