@@ -193,3 +193,43 @@ body {
   color: #475569;
 }
 
+.tela-app {
+  padding: 0 18px 20px;
+}
+
+.tela-card {
+  background: white;
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, .10);
+}
+
+.tela-card h2 {
+  margin-top: 10px;
+  font-size: 22px;
+  color: #0F172A;
+}
+
+.tela-card p {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #64748B;
+}
+
+.btn-voltar {
+  border: none;
+  background: #E2E8F0;
+  color: #0F172A;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-weight: bold;
+}
+
+.placeholder {
+  margin-top: 18px;
+  padding: 18px;
+  background: #F1F5F9;
+  border-radius: 14px;
+  color: #475569;
+  font-size: 14px;
+}
