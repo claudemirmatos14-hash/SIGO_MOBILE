@@ -38,6 +38,8 @@ function atualizarNomeObra_(seletor, nomeObra) {
 function navegarPara(tela) {
   const area = document.getElementById("telaApp");
 
+  alert("Clique funcionando: " + tela);
+
   if (!area) return;
 
   area.innerHTML = montarTela(tela);
