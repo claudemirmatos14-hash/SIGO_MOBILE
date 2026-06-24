@@ -494,13 +494,13 @@ function montarTelaMedicoes_() {
         <select id="medicaoAtividade" onchange="preencherDadosAtividadeMedicao()">
           <option value="">Selecione uma atividade</option>
           <option value="1.1.1" data-servico="Escavação manual de vala" data-qtde="100" data-un="m³">
-            1.1.1 - Escavação manual de vala
+            3.1.1 - Escavação manual de vala
           </option>
           <option value="2.1" data-servico="Locação e gabarito" data-qtde="50" data-un="m">
             2.1 - Locação e gabarito
           </option>
           <option value="3.1.1" data-servico="Administração da obra" data-qtde="160" data-un="H">
-            3.1.1 - Administração da obra
+            1.1 - ▸ Administração da obra
           </option>
         </select>
 
