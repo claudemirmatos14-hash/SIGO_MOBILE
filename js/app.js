@@ -138,6 +138,13 @@ function montarTelaDiarioObra_() {
           Salvar Offline
         </button>
 
+        <div class="lista-offline">
+          <h3>Diários salvos offline</h3>
+          <div id="listaDiariosOffline">
+            Carregando...
+          </div>
+        </div>
+
       </form>
 
     </div>
@@ -197,6 +204,7 @@ async function salvarDiarioOffline(event) {
     );
 
     atualizarIndicadoresMobile_();
+    carregarListaDiariosOffline();
 
   } catch (erro) {
 
