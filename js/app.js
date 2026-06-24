@@ -500,7 +500,7 @@ function montarTelaMedicoes_() {
             2.1 - Locação e gabarito
           </option>
           <option value="3.1.1" data-servico="Administração da obra" data-qtde="160" data-un="H">
-            1.1 - ▸ Administração da obra
+            1.1 - Administração da obra
           </option>
         </select>
 
