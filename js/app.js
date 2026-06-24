@@ -150,6 +150,7 @@ function montarTelaDiarioObra_() {
           </option>
         
         </select>
+        
         <label>Ocorrências gerais</label>
         <textarea id="diarioOcorrencias" rows="3" placeholder="Descreva ocorrências gerais"></textarea>
 
