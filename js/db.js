@@ -181,3 +181,37 @@ function adicionarNaFilaSyncSIGO(registro) {
 
   });
 }
+
+function atualizarRegistroSIGO(storeName, registro) {
+
+  return new Promise(async (resolve, reject) => {
+
+    try {
+
+      const db = SIGO_DB || await abrirBancoLocalSIGO();
+
+      const transaction =
+        db.transaction([storeName], "readwrite");
+
+      const store =
+        transaction.objectStore(storeName);
+
+      const request =
+        store.put(registro);
+
+      request.onsuccess = () => {
+        resolve(registro);
+      };
+
+      request.onerror = () => {
+        reject("Erro ao atualizar registro.");
+      };
+
+    } catch (erro) {
+
+      reject(erro);
+
+    }
+
+  });
+}
