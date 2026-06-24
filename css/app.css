@@ -273,3 +273,59 @@ body {
   font-weight: bold;
   font-size: 15px;
 }
+
+.lista-offline {
+  margin-top: 22px;
+}
+
+.lista-offline h3 {
+  font-size: 15px;
+  margin-bottom: 10px;
+  color: #0F172A;
+}
+
+.diario-item {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 14px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.diario-item strong {
+  display: block;
+  font-size: 14px;
+  color: #0F172A;
+}
+
+.diario-item span {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #475569;
+}
+
+.diario-item p {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #334155;
+}
+
+.diario-item small {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #FEF3C7;
+  color: #92400E;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.lista-vazia {
+  font-size: 13px;
+  color: #64748B;
+  background: #F8FAFC;
+  padding: 12px;
+  border-radius: 12px;
+}
