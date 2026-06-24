@@ -129,10 +129,23 @@ function montarTelaDiarioObra_() {
         <label>Clima</label>
         <select id="diarioClima">
           <option value="">Selecione</option>
-          <option value="ENSOLARADO">Ensolarado</option>
-          <option value="NUBLADO">Nublado</option>
-          <option value="CHUVA">Chuva</option>
-          <option value="CHUVA FORTE">Chuva forte</option>
+          <option value="ENSOLARADO">☀️ Ensolarado</option>
+
+          <option value="PARCIALMENTE_NUBLADO">
+          ⛅ Parcialmente Nublado
+          </option>
+          
+          <option value="NUBLADO">
+          ☁️ Nublado
+          </option>
+          
+          <option value="CHUVOSO">
+          🌧️ Chuvoso
+          </option>
+          
+          <option value="TEMPESTADE">
+          ⛈️ Tempestade
+          </option>
         </select>
 
         <label>Ocorrências gerais</label>
