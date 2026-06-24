@@ -1,3 +1,6 @@
+const SIGO_API_URL = "https://script.google.com/macros/s/AKfycbzVE7tdTSwHvKgLkrdcaQtGAm_muqNPo6n0wQZBDpmRwtAJuySfWyh6gdef0R6g_drKRw/exec";
+const SIGO_TOKEN_OFFLINE = "SIGO_TOKEN_OFFLINE";
+
 document.addEventListener("DOMContentLoaded", () => {
   iniciarSeletorObra();
 });
@@ -332,63 +335,90 @@ async function sincronizarSIGO() {
 
   try {
 
-    const fila =
-      await listarRegistrosSIGO(
-        "TB_SYNC_QUEUE"
-      );
+    const fila = await listarRegistrosSIGO("TB_SYNC_QUEUE");
 
-    const pendentes =
-      fila.filter(
-        item =>
-          item.statusSync === "PENDENTE"
-      );
+    const pendentes = fila.filter(
+      item => item.statusSync === "PENDENTE"
+    );
 
     if (pendentes.length === 0) {
-
-      alert(
-        "Não existem registros pendentes."
-      );
-
+      alert("Não existem registros pendentes.");
       return;
     }
 
-    console.log(
-      "Pacotes pendentes:",
-      pendentes
+    const diarios = await listarRegistrosSIGO("TB_DIARIOS");
+
+    const diariosPendentes = diarios.filter(diario =>
+      pendentes.some(item => item.idRegistro === diario.idDiario)
     );
 
+    const obraAtiva =
+      localStorage.getItem("obraAtiva") || "OBR002";
+
+    const payload = {
+      token: SIGO_TOKEN_OFFLINE,
+      idDispositivo: "WEB-MOBILE-001",
+      idUsuario: "USUARIO_APP",
+      idObra: obraAtiva,
+      dataEnvio: new Date().toISOString(),
+      pacote: {
+        diarios: diariosPendentes,
+        diarioItens: [],
+        medicoes: [],
+        ocorrencias: [],
+        clima: [],
+        evidencias: []
+      }
+    };
+
+    console.log("Enviando para API SIGO:", payload);
+
+    const resposta = await fetch(SIGO_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "text/plain;charset=utf-8"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const resultado = await resposta.json();
+
+    console.log("Resposta API SIGO:", resultado);
+
+    if (resultado.status !== "OK") {
+      throw new Error(resultado.mensagem || "Erro na API SIGO.");
+    }
+
     for (const item of pendentes) {
-
       item.statusSync = "SINCRONIZADO";
-
-      item.dataSync =
-        new Date().toISOString();
+      item.dataSync = new Date().toISOString();
 
       await atualizarRegistroSIGO(
         "TB_SYNC_QUEUE",
         item
       );
-
     }
 
-    atualizarIndicadoresMobile_();
+    for (const diario of diariosPendentes) {
+      diario.statusSync = "SINCRONIZADO";
+      diario.dataSync = new Date().toISOString();
 
-    alert(
-      pendentes.length +
-      " registros sincronizados."
-    );
+      await atualizarRegistroSIGO(
+        "TB_DIARIOS",
+        diario
+      );
+    }
+
+    await atualizarIndicadoresMobile_();
+    await carregarListaDiariosOffline();
+
+    alert("Sincronização enviada ao SIGO com sucesso.");
 
   } catch (erro) {
 
-    console.error(
-      "Erro de sincronização:",
-      erro
-    );
+    console.error("Erro ao sincronizar com API SIGO:", erro);
 
-    alert(
-      "Erro ao sincronizar."
-    );
+    alert("Erro ao sincronizar com o SIGO.");
 
   }
-
 }
