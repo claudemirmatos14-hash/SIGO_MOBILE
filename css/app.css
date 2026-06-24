@@ -329,3 +329,45 @@ body {
   padding: 12px;
   border-radius: 12px;
 }
+
+.item-offline {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 16px;
+  padding: 14px;
+  margin-bottom: 12px;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, .06);
+}
+
+.item-offline strong {
+  display: block;
+  font-size: 15px;
+  color: #0F172A;
+  margin-bottom: 4px;
+}
+
+.item-offline small {
+  display: block;
+  font-size: 12px;
+  color: #475569;
+  margin-top: 3px;
+}
+
+.badge-sync {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.badge-sync.pendente {
+  background: #FEF3C7;
+  color: #92400E;
+}
+
+.badge-sync.ok {
+  background: #DCFCE7;
+  color: #166534;
+}
