@@ -235,17 +235,24 @@ async function atualizarIndicadoresMobile_() {
 
   try {
 
-    const diarios = await listarRegistrosSIGO(
-      "TB_DIARIOS"
-    );
+    const diarios =
+      await listarRegistrosSIGO("TB_DIARIOS");
 
-    const total = diarios.length;
+    const fila =
+      await listarRegistrosSIGO("TB_SYNC_QUEUE");
 
-    const cardRegistros =
-      document.querySelector(".resumo .card strong");
+    const pendentes =
+      fila.filter(item => item.statusSync === "PENDENTE");
 
-    if (cardRegistros) {
-      cardRegistros.textContent = total;
+    const cards =
+      document.querySelectorAll(".resumo .card strong");
+
+    if (cards[0]) {
+      cards[0].textContent = diarios.length;
+    }
+
+    if (cards[1]) {
+      cards[1].textContent = pendentes.length;
     }
 
   } catch (erro) {
