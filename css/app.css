@@ -233,3 +233,43 @@ body {
   color: #475569;
   font-size: 14px;
 }
+
+.formulario {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.formulario label {
+  font-size: 12px;
+  font-weight: bold;
+  color: #334155;
+}
+
+.formulario input,
+.formulario select,
+.formulario textarea {
+  width: 100%;
+  border: 1px solid #CBD5E1;
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 14px;
+  color: #0F172A;
+  background: white;
+}
+
+.formulario textarea {
+  resize: vertical;
+}
+
+.btn-salvar {
+  margin-top: 10px;
+  height: 52px;
+  border: none;
+  border-radius: 14px;
+  background: #0F172A;
+  color: white;
+  font-weight: bold;
+  font-size: 15px;
+}
