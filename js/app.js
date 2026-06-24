@@ -212,22 +212,31 @@ async function salvarDiarioOffline(event) {
   }
 }
 
-function atualizarIndicadoresMobile_() {
+async function atualizarIndicadoresMobile_() {
 
-  const diarios =
-    JSON.parse(
-      localStorage.getItem("sigo_diarios")
-    ) || [];
+  try {
 
-  const total = diarios.length;
+    const diarios = await listarRegistrosSIGO(
+      "TB_DIARIOS"
+    );
 
-  const cardRegistros =
-    document.querySelector(".resumo .card strong");
+    const total = diarios.length;
 
-  if (cardRegistros) {
-    cardRegistros.textContent = total;
+    const cardRegistros =
+      document.querySelector(".resumo .card strong");
+
+    if (cardRegistros) {
+      cardRegistros.textContent = total;
+    }
+
+  } catch (erro) {
+
+    console.error(
+      "Erro ao atualizar indicadores:",
+      erro
+    );
+
   }
-
 }
 
 document.addEventListener(
