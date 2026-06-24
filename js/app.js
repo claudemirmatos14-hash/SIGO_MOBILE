@@ -42,7 +42,17 @@ function navegarPara(tela) {
 
   if (!area) return;
 
-  area.innerHTML = montarTela(tela);
+  area.innerHTML = `
+<div style="
+  background:red;
+  color:white;
+  padding:20px;
+  margin:20px 0;
+  border-radius:10px;
+">
+TESTE DE NAVEGAÇÃO FUNCIONANDO
+</div>
+`;
 
   window.scrollTo({
     top: area.offsetTop,
