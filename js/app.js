@@ -198,6 +198,13 @@ async function salvarDiarioOffline(event) {
       diario
     );
 
+    await adicionarNaFilaSyncSIGO({
+      tipo: "DIARIO_OBRA",
+      storeOrigem: "TB_DIARIOS",
+      idRegistro: diario.idDiario,
+      idObra: diario.idObra
+    });
+
     alert(
       "Diário salvo offline no banco local."
     );
