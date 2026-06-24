@@ -49,6 +49,14 @@ function navegarPara(tela) {
   setTimeout(carregarListaDiariosOffline, 100);
 }
 
+  if (tela === "medicoes") {
+
+  setTimeout(() => {
+    listarMedicoesOffline_();
+  }, 100);
+
+}
+
   window.scrollTo({
     top: area.offsetTop,
     behavior: "smooth"
@@ -504,6 +512,16 @@ function montarTelaMedicoes_() {
           Salvar Medição Offline
         </button>
 
+        <div class="lista-offline">
+
+          <h3>Medições salvas offline</h3>
+        
+          <div id="listaMedicoesOffline">
+            Carregando...
+          </div>
+        
+        </div>
+
       </form>
 
     </div>
@@ -584,6 +602,7 @@ async function salvarMedicaoOffline(event) {
     });
 
     await atualizarIndicadoresMobile_();
+    await listarMedicoesOffline_();
 
     alert("Medição salva offline no banco local.");
 
@@ -593,4 +612,90 @@ async function salvarMedicaoOffline(event) {
     console.error("Erro ao salvar medição:", erro);
     alert("Erro ao salvar medição offline.");
   }
+}
+
+async function listarMedicoesOffline_() {
+
+  const container =
+    document.getElementById("listaMedicoesOffline");
+
+  if (!container) return;
+
+  try {
+
+    const medicoes =
+      await listarRegistrosSIGO("TB_MEDICOES");
+
+    if (!medicoes.length) {
+
+      container.innerHTML = `
+        <div class="card-vazio">
+          Nenhuma medição salva.
+        </div>
+      `;
+
+      return;
+    }
+
+    container.innerHTML =
+      medicoes
+        .sort((a,b) =>
+          new Date(b.criadoEm) -
+          new Date(a.criadoEm)
+        )
+        .map(medicao => `
+
+          <div class="item-offline">
+
+            <strong>
+              ${medicao.atividade}
+            </strong>
+
+            <small>
+              ${medicao.servico}
+            </small>
+
+            <br>
+
+            <small>
+              ${medicao.qtdeExecutada}
+              /
+              ${medicao.qtdePlanejada}
+              ${medicao.un}
+            </small>
+
+            <br>
+
+            <small>
+              ${medicao.percentualExecutado}%
+            </small>
+
+            <br>
+
+            <span class="
+              badge-sync
+              ${medicao.statusSync === 'SINCRONIZADO'
+                ? 'ok'
+                : 'pendente'}
+            ">
+              ${medicao.statusSync}
+            </span>
+
+          </div>
+
+        `)
+        .join("");
+
+  } catch (erro) {
+
+    console.error(
+      "Erro ao listar medições:",
+      erro
+    );
+
+    container.innerHTML =
+      "Erro ao carregar.";
+
+  }
+
 }
