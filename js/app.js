@@ -127,7 +127,8 @@ function montarTelaDiarioObra_() {
         <input type="text" id="diarioResponsavel" placeholder="Nome do responsável">
 
         <label>Clima</label>
-        <select id="clima">
+        
+        <select id="diarioClima">
 
           <option value="ENSOLARADO">
             ☀️ Ensolarado
