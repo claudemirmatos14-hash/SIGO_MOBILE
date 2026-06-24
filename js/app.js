@@ -65,16 +65,20 @@ function montarTela(tela) {
     evidencias: "Registrar fotos, documentos e anexos."
   };
 
-  return `
-    <div class="tela-card">
-      <button class="btn-voltar" onclick="voltarHome()">← Voltar</button>
-      <h2>${titulos[tela] || "Tela"}</h2>
-      <p>${descricoes[tela] || ""}</p>
-      <div class="placeholder">
-        Tela em construção.
-      </div>
+if (tela === "diario") {
+  return montarTelaDiarioObra_();
+}
+
+return `
+  <div class="tela-card">
+    <button class="btn-voltar" onclick="voltarHome()">← Voltar</button>
+    <h2>${titulos[tela] || "Tela"}</h2>
+    <p>${descricoes[tela] || ""}</p>
+    <div class="placeholder">
+      Tela em construção.
     </div>
-  `;
+  </div>
+`;
 }
 
 function voltarHome() {
@@ -88,4 +92,74 @@ function voltarHome() {
     top: 0,
     behavior: "smooth"
   });
+}
+
+function montarTelaDiarioObra_() {
+  const obraAtiva = localStorage.getItem("obraAtiva") || "OBR002";
+
+  const hoje = new Date().toISOString().split("T")[0];
+
+  return `
+    <div class="tela-card">
+
+      <button class="btn-voltar" onclick="voltarHome()">← Voltar</button>
+
+      <h2>📘 Diário de Obra</h2>
+
+      <p>Registrar informações diárias da obra.</p>
+
+      <form class="formulario" onsubmit="salvarDiarioOffline(event)">
+
+        <label>Data</label>
+        <input type="date" id="diarioData" value="${hoje}">
+
+        <label>Obra</label>
+        <input type="text" id="diarioObra" value="${obraAtiva}" readonly>
+
+        <label>Responsável</label>
+        <input type="text" id="diarioResponsavel" placeholder="Nome do responsável">
+
+        <label>Clima</label>
+        <select id="diarioClima">
+          <option value="">Selecione</option>
+          <option value="ENSOLARADO">Ensolarado</option>
+          <option value="NUBLADO">Nublado</option>
+          <option value="CHUVA">Chuva</option>
+          <option value="CHUVA FORTE">Chuva forte</option>
+        </select>
+
+        <label>Ocorrências gerais</label>
+        <textarea id="diarioOcorrencias" rows="3" placeholder="Descreva ocorrências gerais"></textarea>
+
+        <label>Observações gerais</label>
+        <textarea id="diarioObservacoes" rows="3" placeholder="Observações do dia"></textarea>
+
+        <button type="submit" class="btn-salvar">
+          Salvar Offline
+        </button>
+
+      </form>
+
+    </div>
+  `;
+}
+
+function salvarDiarioOffline(event) {
+  event.preventDefault();
+
+  const diario = {
+    idDiario: "DIA-LOCAL-" + Date.now(),
+    data: document.getElementById("diarioData").value,
+    idObra: document.getElementById("diarioObra").value,
+    responsavel: document.getElementById("diarioResponsavel").value,
+    clima: document.getElementById("diarioClima").value,
+    ocorrenciasGerais: document.getElementById("diarioOcorrencias").value,
+    observacoesGerais: document.getElementById("diarioObservacoes").value,
+    statusDiario: "ABERTO",
+    statusSync: "PENDENTE"
+  };
+
+  console.log("Diário salvo offline:", diario);
+
+  alert("Diário salvo offline com sucesso.");
 }
