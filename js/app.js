@@ -144,7 +144,7 @@ function montarTelaDiarioObra_() {
   `;
 }
 
-function salvarDiarioOffline(event) {
+async function salvarDiarioOffline(event) {
 
   event.preventDefault();
 
@@ -170,28 +170,46 @@ function salvarDiarioOffline(event) {
     observacoes:
       document.getElementById("diarioObservacoes").value,
 
-    statusSync: "PENDENTE"
+    statusDiario: "ABERTO",
+
+    statusSync: "PENDENTE",
+
+    origem: "APP_OFFLINE",
+
+    criadoEm: new Date().toISOString()
 
   };
 
-  let diarios =
-    JSON.parse(localStorage.getItem("sigo_diarios")) || [];
+  try {
 
-  diarios.push(diario);
+    await salvarRegistroSIGO(
+      "TB_DIARIOS",
+      diario
+    );
 
-  localStorage.setItem(
-    "sigo_diarios",
-    JSON.stringify(diarios)
-  );
+    alert(
+      "Diário salvo offline no banco local."
+    );
 
-  atualizarIndicadoresMobile_();
+    console.log(
+      "Diário salvo no IndexedDB:",
+      diario
+    );
 
-  alert(
-    "Diário salvo offline com sucesso."
-  );
+    atualizarIndicadoresMobile_();
 
-  console.log(diario);
+  } catch (erro) {
 
+    console.error(
+      "Erro ao salvar diário:",
+      erro
+    );
+
+    alert(
+      "Erro ao salvar diário offline."
+    );
+
+  }
 }
 
 function atualizarIndicadoresMobile_() {
