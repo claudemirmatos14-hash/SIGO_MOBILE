@@ -88,6 +88,10 @@ if (tela === "medicoes") {
   return montarTelaMedicoes_();
 }
 
+if (tela === "evidencias") {
+  return montarTelaEvidencias_();
+}
+
 return `
   <div class="tela-card">
     <button class="btn-voltar" onclick="voltarHome()">← Voltar</button>
@@ -716,3 +720,213 @@ async function listarMedicoesOffline_() {
   }
 
 }
+
+function montarTelaEvidencias_() {
+
+  const obraAtiva =
+    localStorage.getItem("obraAtiva") || "OBR002";
+
+  const hoje =
+    new Date().toISOString().split("T")[0];
+
+  return `
+
+    <div class="tela-card">
+
+      <button
+        class="btn-voltar"
+        onclick="voltarHome()">
+
+        ← Voltar
+
+      </button>
+
+      <h2>📎 Evidências</h2>
+
+      <p>
+        Registrar fotos e documentos da obra.
+      </p>
+
+      <form
+        class="formulario"
+        onsubmit="salvarEvidenciaOffline(event)">
+
+        <label>Data</label>
+
+        <input
+          type="date"
+          id="evidenciaData"
+          value="${hoje}">
+
+        <label>Obra</label>
+
+        <input
+          type="text"
+          id="evidenciaObra"
+          value="${obraAtiva}"
+          readonly>
+
+        <label>Atividade</label>
+
+        <input
+          type="text"
+          id="evidenciaAtividade"
+          placeholder="Ex.: 2.1">
+
+        <label>Descrição</label>
+
+        <textarea
+          id="evidenciaDescricao"
+          rows="3"
+          placeholder="Descrição da evidência"></textarea>
+
+        <label>Arquivo</label>
+
+        <input
+          type="file"
+          id="evidenciaArquivo"
+          accept="image/*,.pdf">
+
+        <button
+          type="submit"
+          class="btn-salvar">
+
+          Salvar Evidência Offline
+
+        </button>
+
+      </form>
+
+    </div>
+
+  `;
+}
+
+async function converterArquivoBase64_(arquivo) {
+
+  return new Promise((resolve, reject) => {
+
+    const reader = new FileReader();
+
+    reader.onload = () =>
+      resolve(reader.result);
+
+    reader.onerror = reject;
+
+    reader.readAsDataURL(arquivo);
+
+  });
+
+}
+
+async function salvarEvidenciaOffline(event) {
+
+  event.preventDefault();
+
+  try {
+
+    const arquivo =
+      document.getElementById(
+        "evidenciaArquivo"
+      ).files[0];
+
+    if (!arquivo) {
+
+      alert(
+        "Selecione um arquivo."
+      );
+
+      return;
+    }
+
+    const base64 =
+      await converterArquivoBase64_(
+        arquivo
+      );
+
+    const evidencia = {
+
+      idEvidencia:
+        "EVD-" + Date.now(),
+
+      data:
+        document.getElementById(
+          "evidenciaData"
+        ).value,
+
+      idObra:
+        document.getElementById(
+          "evidenciaObra"
+        ).value,
+
+      idAtividade:
+        document.getElementById(
+          "evidenciaAtividade"
+        ).value,
+
+      descricao:
+        document.getElementById(
+          "evidenciaDescricao"
+        ).value,
+
+      nomeArquivo:
+        arquivo.name,
+
+      tipoArquivo:
+        arquivo.type,
+
+      arquivoBase64:
+        base64,
+
+      statusSync:
+        "PENDENTE",
+
+      origem:
+        "APP_OFFLINE",
+
+      criadoEm:
+        new Date().toISOString()
+
+    };
+
+    await salvarRegistroSIGO(
+      "TB_EVIDENCIAS",
+      evidencia
+    );
+
+    await adicionarNaFilaSyncSIGO({
+
+      tipo: "EVIDENCIA",
+
+      storeOrigem:
+        "TB_EVIDENCIAS",
+
+      idRegistro:
+        evidencia.idEvidencia,
+
+      idObra:
+        evidencia.idObra
+
+    });
+
+    alert(
+      "Evidência salva offline."
+    );
+
+    console.log(
+      "Evidência:",
+      evidencia
+    );
+
+  } catch (erro) {
+
+    console.error(erro);
+
+    alert(
+      "Erro ao salvar evidência."
+    );
+
+  }
+
+}
+
