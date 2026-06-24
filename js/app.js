@@ -57,6 +57,12 @@ function navegarPara(tela) {
 
 }
 
+  if (tela === "evidencias") {
+    setTimeout(() => {
+      listarEvidenciasOffline_();
+    }, 100);
+  }
+
   window.scrollTo({
     top: area.offsetTop,
     behavior: "smooth"
@@ -795,6 +801,16 @@ function montarTelaEvidencias_() {
 
         </button>
 
+        <div class="lista-offline">
+
+          <h3>Evidências salvas offline</h3>
+        
+          <div id="listaEvidenciasOffline">
+            Carregando...
+          </div>
+        
+        </div>
+
       </form>
 
     </div>
@@ -909,6 +925,8 @@ async function salvarEvidenciaOffline(event) {
 
     });
 
+    await listarEvidenciasOffline_();
+
     alert(
       "Evidência salva offline."
     );
@@ -930,3 +948,87 @@ async function salvarEvidenciaOffline(event) {
 
 }
 
+async function listarEvidenciasOffline_() {
+
+  const container =
+    document.getElementById("listaEvidenciasOffline");
+
+  if (!container) return;
+
+  try {
+
+    const evidencias =
+      await listarRegistrosSIGO("TB_EVIDENCIAS");
+
+    if (!evidencias.length) {
+
+      container.innerHTML = `
+        <div class="card-vazio">
+          Nenhuma evidência salva.
+        </div>
+      `;
+
+      return;
+    }
+
+    container.innerHTML =
+      evidencias
+        .sort((a, b) =>
+          new Date(b.criadoEm) - new Date(a.criadoEm)
+        )
+        .map(evidencia => {
+
+          const ehImagem =
+            String(evidencia.tipoArquivo || "")
+              .startsWith("image/");
+
+          return `
+            <div class="item-offline">
+
+              ${
+                ehImagem
+                  ? `<img
+                      src="${evidencia.arquivoBase64}"
+                      class="preview-evidencia"
+                      alt="Evidência">`
+                  : `<div class="preview-documento">📄</div>`
+              }
+
+              <strong>
+                ${evidencia.nomeArquivo || "Arquivo"}
+              </strong>
+
+              <small>
+                Atividade: ${evidencia.idAtividade || "-"}
+              </small>
+
+              <small>
+                ${evidencia.descricao || "Sem descrição"}
+              </small>
+
+              <span class="
+                badge-sync
+                ${evidencia.statusSync === "SINCRONIZADO"
+                  ? "ok"
+                  : "pendente"}
+              ">
+                ${evidencia.statusSync}
+              </span>
+
+            </div>
+          `;
+        })
+        .join("");
+
+  } catch (erro) {
+
+    console.error(
+      "Erro ao listar evidências:",
+      erro
+    );
+
+    container.innerHTML =
+      "Erro ao carregar evidências.";
+
+  }
+}
