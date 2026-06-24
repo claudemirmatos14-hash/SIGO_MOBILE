@@ -216,3 +216,16 @@ document.addEventListener(
   "DOMContentLoaded",
   atualizarIndicadoresMobile_
 );
+
+document.addEventListener("DOMContentLoaded", async () => {
+  try {
+    const db = await abrirBancoLocalSIGO();
+
+    console.log("Banco SIGO aberto:", db.name);
+    console.log("Versão:", db.version);
+    console.log("Stores:", Array.from(db.objectStoreNames));
+
+  } catch (erro) {
+    console.error("Erro IndexedDB:", erro);
+  }
+});
