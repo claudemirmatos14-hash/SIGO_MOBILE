@@ -42,6 +42,10 @@ function navegarPara(tela) {
 
  area.innerHTML = montarTela(tela);
 
+  if (tela === "diario") {
+  setTimeout(carregarListaDiariosOffline, 100);
+}
+
   window.scrollTo({
     top: area.offsetTop,
     behavior: "smooth"
@@ -270,3 +274,42 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
 });
+
+async function carregarListaDiariosOffline() {
+
+  const areaLista =
+    document.getElementById("listaDiariosOffline");
+
+  if (!areaLista) return;
+
+  try {
+
+    const diarios =
+      await listarRegistrosSIGO("TB_DIARIOS");
+
+    if (!diarios || diarios.length === 0) {
+      areaLista.innerHTML =
+        "<p class='lista-vazia'>Nenhum diário salvo offline.</p>";
+      return;
+    }
+
+    areaLista.innerHTML = diarios
+      .sort((a, b) => String(b.criadoEm).localeCompare(String(a.criadoEm)))
+      .map(diario => `
+        <div class="diario-item">
+          <strong>${diario.idObra}</strong>
+          <span>${diario.data}</span>
+          <p>${diario.responsavel || "Sem responsável"}</p>
+          <small>${diario.statusSync}</small>
+        </div>
+      `)
+      .join("");
+
+  } catch (erro) {
+
+    console.error("Erro ao carregar diários offline:", erro);
+
+    areaLista.innerHTML =
+      "<p class='lista-vazia'>Erro ao carregar diários.</p>";
+  }
+}
