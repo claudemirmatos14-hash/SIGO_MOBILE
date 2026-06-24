@@ -76,6 +76,10 @@ if (tela === "diario") {
   return montarTelaDiarioObra_();
 }
 
+if (tela === "medicoes") {
+  return montarTelaMedicoes_();
+}
+
 return `
   <div class="tela-card">
     <button class="btn-voltar" onclick="voltarHome()">← Voltar</button>
@@ -438,4 +442,137 @@ async function sincronizarSIGO() {
     alert("Erro ao sincronizar com o SIGO.");
 
   }
+}
+
+function montarTelaMedicoes_() {
+  const obraAtiva = localStorage.getItem("obraAtiva") || "OBR002";
+  const hoje = new Date().toISOString().split("T")[0];
+
+  return `
+    <div class="tela-card">
+
+      <button class="btn-voltar" onclick="voltarHome()">← Voltar</button>
+
+      <h2>📏 Medições</h2>
+
+      <p>Registrar avanço físico executado em campo.</p>
+
+      <form class="formulario" onsubmit="salvarMedicaoOffline(event)">
+
+        <label>Data</label>
+        <input type="date" id="medicaoData" value="${hoje}">
+
+        <label>Obra</label>
+        <input type="text" id="medicaoObra" value="${obraAtiva}" readonly>
+
+        <label>Atividade</label>
+        <select id="medicaoAtividade" onchange="preencherDadosAtividadeMedicao()">
+          <option value="">Selecione uma atividade</option>
+          <option value="1.1.1" data-servico="Escavação manual de vala" data-qtde="100" data-un="m³">
+            1.1.1 - Escavação manual de vala
+          </option>
+          <option value="2.1" data-servico="Locação e gabarito" data-qtde="50" data-un="m">
+            2.1 - Locação e gabarito
+          </option>
+          <option value="3.1.1" data-servico="Administração da obra" data-qtde="160" data-un="H">
+            3.1.1 - Administração da obra
+          </option>
+        </select>
+
+        <label>Serviço</label>
+        <input type="text" id="medicaoServico" readonly>
+
+        <label>Quantidade planejada</label>
+        <input type="number" id="medicaoQtdePlanejada" readonly>
+
+        <label>Quantidade executada</label>
+        <input type="number" id="medicaoQtdeExecutada" step="0.01" oninput="calcularPercentualMedicao()">
+
+        <label>Unidade</label>
+        <input type="text" id="medicaoUnidade" readonly>
+
+        <label>% Executado</label>
+        <input type="number" id="medicaoPercentual" readonly>
+
+        <label>Responsável</label>
+        <input type="text" id="medicaoResponsavel" placeholder="Nome do responsável">
+
+        <label>Observação</label>
+        <textarea id="medicaoObservacao" rows="3" placeholder="Observações da medição"></textarea>
+
+        <button type="submit" class="btn-salvar">
+          Salvar Medição Offline
+        </button>
+
+      </form>
+
+    </div>
+  `;
+}
+
+function preencherDadosAtividadeMedicao() {
+  const select = document.getElementById("medicaoAtividade");
+  const opcao = select.options[select.selectedIndex];
+
+  if (!opcao || !opcao.value) return;
+
+  document.getElementById("medicaoServico").value =
+    opcao.dataset.servico || "";
+
+  document.getElementById("medicaoQtdePlanejada").value =
+    opcao.dataset.qtde || "";
+
+  document.getElementById("medicaoUnidade").value =
+    opcao.dataset.un || "";
+
+  calcularPercentualMedicao();
+}
+
+function calcularPercentualMedicao() {
+  const qtdePlanejada =
+    Number(document.getElementById("medicaoQtdePlanejada").value || 0);
+
+  const qtdeExecutada =
+    Number(document.getElementById("medicaoQtdeExecutada").value || 0);
+
+  const campoPercentual =
+    document.getElementById("medicaoPercentual");
+
+  if (!qtdePlanejada || qtdePlanejada <= 0) {
+    campoPercentual.value = 0;
+    return;
+  }
+
+  const percentual =
+    (qtdeExecutada / qtdePlanejada) * 100;
+
+  campoPercentual.value =
+    percentual.toFixed(2);
+}
+
+
+function salvarMedicaoOffline(event) {
+  event.preventDefault();
+
+  const medicao = {
+    idMedicao: "MED-" + Date.now(),
+    data: document.getElementById("medicaoData").value,
+    idObra: document.getElementById("medicaoObra").value,
+    atividade: document.getElementById("medicaoAtividade").value,
+    servico: document.getElementById("medicaoServico").value,
+    qtdePlanejada: Number(document.getElementById("medicaoQtdePlanejada").value || 0),
+    qtdeExecutada: Number(document.getElementById("medicaoQtdeExecutada").value || 0),
+    un: document.getElementById("medicaoUnidade").value,
+    percentualExecutado: Number(document.getElementById("medicaoPercentual").value || 0),
+    responsavel: document.getElementById("medicaoResponsavel").value,
+    observacao: document.getElementById("medicaoObservacao").value,
+    statusMedicao: "MEDIDO",
+    statusSync: "PENDENTE",
+    origem: "APP_OFFLINE",
+    criadoEm: new Date().toISOString()
+  };
+
+  console.log("Medição offline:", medicao);
+
+  alert("Medição offline montada com sucesso.");
 }
