@@ -19,6 +19,7 @@
       <div>
         <h1>SIGO</h1>
         <p>Sistema Integrado de Gestão de Obras</p>
+        <section id="telaApp" class="tela-app"></section>
       </div>
 
       <span id="statusInternet" class="status offline">
@@ -74,7 +75,7 @@
 
     <main class="menu">
 
-  <div class="menu-card">
+  <div class="menu-card" onclick="navegarPara('diario')">
     <div class="icone">📘</div>
     <div>
       <h3>Diário de Obra</h3>
@@ -82,7 +83,7 @@
     </div>
   </div>
 
-  <div class="menu-card">
+  <div class="menu-card" onclick="navegarPara('medicoes')">
     <div class="icone">📏</div>
     <div>
       <h3>Medições</h3>
@@ -90,7 +91,7 @@
     </div>
   </div>
 
-  <div class="menu-card">
+  <div class="menu-card" onclick="navegarPara('ocorrencias')">
     <div class="icone">⚠️</div>
     <div>
       <h3>Ocorrências</h3>
@@ -98,7 +99,7 @@
     </div>
   </div>
 
-  <div class="menu-card">
+  <div class="menu-card" onclick="navegarPara('clima')">
     <div class="icone">🌦️</div>
     <div>
       <h3>Clima</h3>
@@ -106,7 +107,7 @@
     </div>
   </div>
 
-  <div class="menu-card">
+  <div class="menu-card" onclick="navegarPara('evidencias')">
     <div class="icone">📎</div>
     <div>
       <h3>Evidências</h3>
