@@ -551,7 +551,7 @@ function calcularPercentualMedicao() {
 }
 
 
-function salvarMedicaoOffline(event) {
+async function salvarMedicaoOffline(event) {
   event.preventDefault();
 
   const medicao = {
@@ -559,6 +559,7 @@ function salvarMedicaoOffline(event) {
     data: document.getElementById("medicaoData").value,
     idObra: document.getElementById("medicaoObra").value,
     atividade: document.getElementById("medicaoAtividade").value,
+    eap: document.getElementById("medicaoAtividade").value,
     servico: document.getElementById("medicaoServico").value,
     qtdePlanejada: Number(document.getElementById("medicaoQtdePlanejada").value || 0),
     qtdeExecutada: Number(document.getElementById("medicaoQtdeExecutada").value || 0),
@@ -572,7 +573,24 @@ function salvarMedicaoOffline(event) {
     criadoEm: new Date().toISOString()
   };
 
-  console.log("Medição offline:", medicao);
+  try {
+    await salvarRegistroSIGO("TB_MEDICOES", medicao);
 
-  alert("Medição offline montada com sucesso.");
+    await adicionarNaFilaSyncSIGO({
+      tipo: "MEDICAO",
+      storeOrigem: "TB_MEDICOES",
+      idRegistro: medicao.idMedicao,
+      idObra: medicao.idObra
+    });
+
+    await atualizarIndicadoresMobile_();
+
+    alert("Medição salva offline no banco local.");
+
+    console.log("Medição salva no IndexedDB:", medicao);
+
+  } catch (erro) {
+    console.error("Erro ao salvar medição:", erro);
+    alert("Erro ao salvar medição offline.");
+  }
 }
