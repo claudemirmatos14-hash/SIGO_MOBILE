@@ -138,3 +138,46 @@ function listarRegistrosSIGO(storeName) {
 
   });
 }
+
+function adicionarNaFilaSyncSIGO(registro) {
+
+  return new Promise(async (resolve, reject) => {
+
+    try {
+
+      const db = SIGO_DB || await abrirBancoLocalSIGO();
+
+      const transaction = db.transaction(
+        ["TB_SYNC_QUEUE"],
+        "readwrite"
+      );
+
+      const store = transaction.objectStore("TB_SYNC_QUEUE");
+
+      const itemFila = {
+        idSyncLocal: "SYNC-LOCAL-" + Date.now(),
+        tipo: registro.tipo,
+        storeOrigem: registro.storeOrigem,
+        idRegistro: registro.idRegistro,
+        idObra: registro.idObra,
+        statusSync: "PENDENTE",
+        tentativas: 0,
+        criadoEm: new Date().toISOString()
+      };
+
+      const request = store.put(itemFila);
+
+      request.onsuccess = () => {
+        resolve(itemFila);
+      };
+
+      request.onerror = () => {
+        reject("Erro ao adicionar item na fila de sincronização.");
+      };
+
+    } catch (erro) {
+      reject(erro);
+    }
+
+  });
+}
