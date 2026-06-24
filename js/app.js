@@ -218,14 +218,20 @@ document.addEventListener(
 );
 
 document.addEventListener("DOMContentLoaded", async () => {
-  try {
-    const db = await abrirBancoLocalSIGO();
 
-    console.log("Banco SIGO aberto:", db.name);
-    console.log("Versão:", db.version);
-    console.log("Stores:", Array.from(db.objectStoreNames));
+  try {
+
+    await abrirBancoLocalSIGO();
+
+    console.log("SIGO Mobile inicializado.");
 
   } catch (erro) {
-    console.error("Erro IndexedDB:", erro);
+
+    console.error(
+      "Falha ao inicializar banco local.",
+      erro
+    );
+
   }
+
 });
