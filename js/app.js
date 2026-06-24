@@ -1000,7 +1000,9 @@ async function listarEvidenciasOffline_() {
               .startsWith("image/");
 
           return `
-            <div class="item-offline">
+            <div
+              class="item-offline"
+              onclick="abrirEvidenciaOffline('${evidencia.idEvidencia}')">
 
               ${
                 ehImagem
@@ -1048,4 +1050,80 @@ async function listarEvidenciasOffline_() {
       "Erro ao carregar evidências.";
 
   }
+}
+
+async function abrirEvidenciaOffline(idEvidencia) {
+
+  const evidencias =
+    await listarRegistrosSIGO(
+      "TB_EVIDENCIAS"
+    );
+
+  const evidencia =
+    evidencias.find(e =>
+      e.idEvidencia === idEvidencia
+    );
+
+  if (!evidencia) return;
+
+  const area =
+    document.getElementById("telaApp");
+
+  if (!area) return;
+
+  area.innerHTML = `
+
+    <div class="tela-card">
+
+      <button
+        class="btn-voltar"
+        onclick="navegarPara('evidencias')">
+
+        ← Voltar
+
+      </button>
+
+      <h2>📎 Evidência</h2>
+
+      ${
+        evidencia.tipoArquivo.startsWith("image/")
+          ? `
+            <img
+              src="${evidencia.arquivoBase64}"
+              class="foto-evidencia-completa">
+          `
+          : `
+            <div class="arquivo-documento">
+              📄 Documento
+            </div>
+          `
+      }
+
+      <div class="detalhes-evidencia">
+
+        <p>
+          <strong>Atividade:</strong>
+          ${evidencia.idAtividade}
+        </p>
+
+        <p>
+          <strong>Descrição:</strong>
+          ${evidencia.descricao}
+        </p>
+
+        <p>
+          <strong>Arquivo:</strong>
+          ${evidencia.nomeArquivo}
+        </p>
+
+        <p>
+          <strong>Status:</strong>
+          ${evidencia.statusSync}
+        </p>
+
+      </div>
+
+    </div>
+
+  `;
 }
