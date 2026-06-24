@@ -74,3 +74,35 @@ function criarStoresSIGO_(db) {
     });
   }
 }
+
+function salvarRegistroSIGO(storeName, registro) {
+
+  return new Promise(async (resolve, reject) => {
+
+    try {
+
+      const db = SIGO_DB || await abrirBancoLocalSIGO();
+
+      const transaction = db.transaction(
+        [storeName],
+        "readwrite"
+      );
+
+      const store = transaction.objectStore(storeName);
+
+      const request = store.put(registro);
+
+      request.onsuccess = () => {
+        resolve(registro);
+      };
+
+      request.onerror = () => {
+        reject("Erro ao salvar registro em " + storeName);
+      };
+
+    } catch (erro) {
+      reject(erro);
+    }
+
+  });
+}
