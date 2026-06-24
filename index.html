@@ -2,21 +2,69 @@
 <html lang="pt-BR">
 
 <head>
-
   <meta charset="UTF-8">
 
   <meta name="viewport"
         content="width=device-width, initial-scale=1.0">
 
   <title>SIGO Mobile</title>
-
 </head>
 
 <body>
 
-  <h1>SIGO Mobile</h1>
+  <div class="app">
 
-  <p>Primeira versão do aplicativo.</p>
+    <header class="topo">
+      <div>
+        <h1>SIGO</h1>
+        <p>Sistema Integrado de Gestão de Obras</p>
+      </div>
+
+      <span id="statusInternet" class="status offline">
+        OFFLINE
+      </span>
+    </header>
+
+    <section class="obra-card">
+      <p>Obra ativa</p>
+      <h2>OBR002</h2>
+      <span>Residencial / Obra em execução</span>
+    </section>
+
+    <section class="resumo">
+      <div class="card">
+        <strong>0</strong>
+        <span>Diários</span>
+      </div>
+
+      <div class="card">
+        <strong>0</strong>
+        <span>Medições</span>
+      </div>
+
+      <div class="card">
+        <strong>0</strong>
+        <span>Pendentes</span>
+      </div>
+    </section>
+
+    <main class="menu">
+
+      <button>Diário de Obra</button>
+      <button>Medições</button>
+      <button>Ocorrências</button>
+      <button>Clima</button>
+      <button>Evidências</button>
+
+    </main>
+
+    <footer class="rodape">
+      <button class="btn-sync">
+        Sincronizar Dados
+      </button>
+    </footer>
+
+  </div>
 
 </body>
 
