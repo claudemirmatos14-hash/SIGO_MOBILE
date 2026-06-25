@@ -1424,17 +1424,17 @@ function montarTelaOcorrencias_() {
 
           <select id="ocorrenciaTipo">
           
-            <option value="Clima">🌧️ Clima</option>
-            <option value="Material">📦 Material</option>
-            <option value="Mão de Obra">👷 Mão de Obra</option>
-            <option value="Equipamento">🔧 Equipamento</option>
-            <option value="Projeto">📐 Projeto</option>
-            <option value="Segurança">🚨 Segurança</option>
-            <option value="Qualidade">📋 Qualidade</option>
-            <option value="Retrabalho">🔄 Retrabalho</option>
-            <option value="Cliente">🤝 Cliente</option>
-            <option value="Terceiros">🏗️ Terceiros</option>
-            <option value="Outros">⚠️ Outros</option>
+            <option value="🌧️ Clima">🌧️ Clima</option>
+            <option value="📦 Material">📦 Material</option>
+            <option value="👷 Mão de Obra">👷 Mão de Obra</option>
+            <option value="🔧 Equipamento">🔧 Equipamento</option>
+            <option value="📐 Projeto">📐 Projeto</option>
+            <option value="🚨 Segurança">🚨 Segurança</option>
+            <option value="📋 Qualidade">📋 Qualidade</option>
+            <option value="🔄 Retrabalho">🔄 Retrabalho</option>
+            <option value="🤝 Cliente">🤝 Cliente</option>
+            <option value="🏗️ Terceiros">🏗️ Terceiros</option>
+            <option value="⚠️ Outros">⚠️ Outros</option>
           
           </select>
 
