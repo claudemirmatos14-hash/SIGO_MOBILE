@@ -108,6 +108,10 @@ if (tela === "clima") {
   return montarTelaClima_();
 }
 
+if (tela === "ocorrencias") {
+  return montarTelaOcorrencias_();
+}
+
 return `
   <div class="tela-card">
     <button class="btn-voltar" onclick="voltarHome()">← Voltar</button>
@@ -1342,4 +1346,234 @@ async function listarClimasOffline_() {
     container.innerHTML =
       "Erro ao carregar registros de clima.";
   }
+}
+
+function montarTelaOcorrencias_() {
+
+  const obraAtiva =
+    localStorage.getItem("obraAtiva") || "OBR002";
+
+  const hoje =
+    new Date().toISOString().split("T")[0];
+
+  return `
+
+    <div class="tela-card">
+
+      <button
+        class="btn-voltar"
+        onclick="voltarHome()">
+
+        ← Voltar
+
+      </button>
+
+      <h2>⚠️ Ocorrências</h2>
+
+      <p>
+        Registrar ocorrências operacionais.
+      </p>
+
+      <form
+        class="formulario"
+        onsubmit="salvarOcorrenciaOffline(event)">
+
+        <label>Data</label>
+
+        <input
+          type="date"
+          id="ocorrenciaData"
+          value="${hoje}">
+
+        <label>Obra</label>
+
+        <input
+          type="text"
+          id="ocorrenciaObra"
+          value="${obraAtiva}"
+          readonly>
+
+        <label>Tipo</label>
+
+        <select id="ocorrenciaTipo">
+
+          <option value="MATERIAL">
+            📦 Material
+          </option>
+
+          <option value="MAO_DE_OBRA">
+            👷 Mão de Obra
+          </option>
+
+          <option value="EQUIPAMENTO">
+            🔧 Equipamento
+          </option>
+
+          <option value="CLIMA">
+            🌧️ Clima
+          </option>
+
+          <option value="SEGURANCA">
+            🚨 Segurança
+          </option>
+
+          <option value="QUALIDADE">
+            📋 Qualidade
+          </option>
+
+          <option value="OUTRO">
+            ⚠️ Outro
+          </option>
+
+        </select>
+
+        <label>Severidade</label>
+
+        <select id="ocorrenciaSeveridade">
+
+          <option value="BAIXA">
+            🟢 Baixa
+          </option>
+
+          <option value="MEDIA">
+            🟡 Média
+          </option>
+
+          <option value="ALTA">
+            🟠 Alta
+          </option>
+
+          <option value="CRITICA">
+            🔴 Crítica
+          </option>
+
+        </select>
+
+        <label>Atividade afetada</label>
+
+        <input
+          type="text"
+          id="ocorrenciaAtividade"
+          placeholder="Ex.: 3.7.1">
+
+        <label>Responsável</label>
+
+        <input
+          type="text"
+          id="ocorrenciaResponsavel"
+          placeholder="Responsável">
+
+        <label>Descrição</label>
+
+        <textarea
+          id="ocorrenciaDescricao"
+          rows="4"
+          placeholder="Descreva a ocorrência">
+        </textarea>
+
+        <button
+          type="submit"
+          class="btn-salvar">
+
+          Salvar Ocorrência Offline
+
+        </button>
+
+      </form>
+
+    </div>
+
+  `;
+}
+
+async function salvarOcorrenciaOffline(event) {
+
+  event.preventDefault();
+
+  const ocorrencia = {
+
+    idOcorrencia:
+      "OCR-" + Date.now(),
+
+    data:
+      document.getElementById("ocorrenciaData").value,
+
+    idObra:
+      document.getElementById("ocorrenciaObra").value,
+
+    tipo:
+      document.getElementById("ocorrenciaTipo").value,
+
+    severidade:
+      document.getElementById("ocorrenciaSeveridade").value,
+
+    atividadeAfetada:
+      document.getElementById("ocorrenciaAtividade").value,
+
+    responsavel:
+      document.getElementById("ocorrenciaResponsavel").value,
+
+    descricao:
+      document.getElementById("ocorrenciaDescricao").value,
+
+    statusOcorrencia:
+      "ABERTA",
+
+    statusSync:
+      "PENDENTE",
+
+    origem:
+      "APP_OFFLINE",
+
+    criadoEm:
+      new Date().toISOString()
+
+  };
+
+  try {
+
+    await salvarRegistroSIGO(
+      "TB_OCORRENCIAS",
+      ocorrencia
+    );
+
+    await adicionarNaFilaSyncSIGO({
+
+      tipo: "OCORRENCIA",
+
+      storeOrigem:
+        "TB_OCORRENCIAS",
+
+      idRegistro:
+        ocorrencia.idOcorrencia,
+
+      idObra:
+        ocorrencia.idObra
+
+    });
+
+    await atualizarIndicadoresMobile_();
+
+    alert(
+      "Ocorrência salva offline."
+    );
+
+    console.log(
+      "Ocorrência offline:",
+      ocorrencia
+    );
+
+  } catch (erro) {
+
+    console.error(
+      "Erro ao salvar ocorrência:",
+      erro
+    );
+
+    alert(
+      "Erro ao salvar ocorrência."
+    );
+
+  }
+
 }
