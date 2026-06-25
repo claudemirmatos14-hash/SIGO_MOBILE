@@ -249,3 +249,30 @@ function atualizarRegistroSIGO(storeName, registro) {
 
   });
 }
+
+function limparTabelaSIGO_(nomeStore) {
+  return new Promise(async (resolve, reject) => {
+
+    try {
+
+      const db = SIGO_DB || await abrirBancoLocalSIGO();
+
+      const tx = db.transaction(nomeStore, "readwrite");
+      const store = tx.objectStore(nomeStore);
+
+      store.clear();
+
+      tx.oncomplete = () => {
+        resolve(true);
+      };
+
+      tx.onerror = () => {
+        reject(tx.error);
+      };
+
+    } catch (erro) {
+      reject(erro);
+    }
+
+  });
+}
