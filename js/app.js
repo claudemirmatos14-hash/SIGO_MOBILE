@@ -1714,6 +1714,11 @@ function montarTelaDiarioItens_() {
   const obraAtiva = localStorage.getItem("obraAtiva") || "OBR002";
   const hoje = new Date().toISOString().split("T")[0];
 
+  setTimeout(
+    listarItensDiarioOffline_,
+    100
+  );
+
   return `
     <div class="tela-card">
 
@@ -1776,6 +1781,17 @@ function montarTelaDiarioItens_() {
           Salvar Item Offline
         </button>
 
+        <div class="secao-offline">
+
+          <h3>
+            📋 Itens salvos offline
+          </h3>
+        
+          <div id="listaItensDiarioOffline">
+          </div>
+        
+        </div>
+
       </form>
 
     </div>
@@ -1829,6 +1845,7 @@ async function salvarItemDiarioOffline(event) {
     });
 
     await atualizarIndicadoresMobile_();
+    await listarItensDiarioOffline_();
 
     alert("Item do diário salvo offline no banco local.");
 
@@ -1837,5 +1854,87 @@ async function salvarItemDiarioOffline(event) {
   } catch (erro) {
     console.error("Erro ao salvar item do diário:", erro);
     alert("Erro ao salvar item do diário offline.");
+  }
+}
+
+async function listarItensDiarioOffline_() {
+
+  const container =
+    document.getElementById(
+      "listaItensDiarioOffline"
+    );
+
+  if (!container) return;
+
+  try {
+
+    const itens =
+      await listarRegistrosSIGO(
+        "TB_DIARIO_ITENS"
+      );
+
+    if (!itens.length) {
+
+      container.innerHTML = `
+        <div class="card-vazio">
+          Nenhum item registrado.
+        </div>
+      `;
+
+      return;
+    }
+
+    container.innerHTML =
+      itens
+        .sort((a,b)=>
+          new Date(b.criadoEm) -
+          new Date(a.criadoEm)
+        )
+        .map(item => `
+          <div class="item-offline">
+
+            <strong>
+              ${item.atividade}
+            </strong>
+
+            <small>
+              ${item.servico}
+            </small>
+
+            <small>
+              ${item.qtdeExecutada}
+              ${item.un}
+            </small>
+
+            <small>
+              ${item.equipe}
+            </small>
+
+            <small>
+              ${item.horasTrabalhadas} h
+            </small>
+
+            <span class="
+              badge-sync
+              ${
+                item.statusSync === "SINCRONIZADO"
+                ? "ok"
+                : "pendente"
+              }
+            ">
+              ${item.statusSync}
+            </span>
+
+          </div>
+        `)
+        .join("");
+
+  } catch (erro) {
+
+    console.error(
+      "Erro ao listar itens:",
+      erro
+    );
+
   }
 }
