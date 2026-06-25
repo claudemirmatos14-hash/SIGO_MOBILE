@@ -57,17 +57,17 @@ function navegarPara(tela) {
 
 }
 
-  if (tela === "clima") {
-  setTimeout(() => {
-    listarClimasOffline_();
-  }, 100);
-}
-
   if (tela === "evidencias") {
     setTimeout(() => {
       listarEvidenciasOffline_();
     }, 100);
   }
+
+   if (tela === "clima") {
+  setTimeout(() => {
+    listarClimasOffline_();
+  }, 100);
+}
 
   window.scrollTo({
     top: area.offsetTop,
@@ -100,12 +100,12 @@ if (tela === "medicoes") {
   return montarTelaMedicoes_();
 }
 
-if (tela === "clima") {
-  return montarTelaClima_();
-}
-
 if (tela === "evidencias") {
   return montarTelaEvidencias_();
+}
+
+if (tela === "clima") {
+  return montarTelaClima_();
 }
 
 return `
@@ -413,6 +413,12 @@ async function sincronizarSIGO() {
       pendentes.some(item => item.idRegistro === evidencia.idEvidencia)
     );
 
+    const climas = await listarRegistrosSIGO("TB_CLIMA");
+
+    const climasPendentes = climas.filter(clima =>
+      pendentes.some(item => item.idRegistro === clima.idClima)
+    );
+
     const obraAtiva =
       localStorage.getItem("obraAtiva") || "OBR002";
 
@@ -480,16 +486,6 @@ async function sincronizarSIGO() {
         );
       }
 
-    for (const clima of climasPendentes) {
-        clima.statusSync = "SINCRONIZADO";
-        clima.dataSync = new Date().toISOString();
-      
-        await atualizarRegistroSIGO(
-          "TB_CLIMA",
-          clima
-        );
-      }
-
     for (const evidencia of evidenciasPendentes) {
         evidencia.statusSync = "SINCRONIZADO";
         evidencia.dataSync = new Date().toISOString();
@@ -497,6 +493,16 @@ async function sincronizarSIGO() {
         await atualizarRegistroSIGO(
           "TB_EVIDENCIAS",
           evidencia
+        );
+      }
+
+     for (const clima of climasPendentes) {
+        clima.statusSync = "SINCRONIZADO";
+        clima.dataSync = new Date().toISOString();
+      
+        await atualizarRegistroSIGO(
+          "TB_CLIMA",
+          clima
         );
       }
 
