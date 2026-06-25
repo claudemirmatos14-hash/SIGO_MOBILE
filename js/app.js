@@ -1739,8 +1739,8 @@ function montarTelaDiarioItens_() {
   return `
     <div class="tela-card">
 
-      <button class="btn-voltar" onclick="navegarPara('diario')">← Voltar</button>
-
+      <button class="btn-voltar" onclick="voltarHome()">
+         ← Voltar</button>
       <h2>📋 Itens do Diário</h2>
 
       <p>Registrar atividades executadas no dia.</p>
