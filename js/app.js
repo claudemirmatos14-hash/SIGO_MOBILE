@@ -1395,37 +1395,53 @@ function montarTelaOcorrencias_() {
 
         <label>Tipo</label>
 
-        <select id="ocorrenciaTipo">
-
-          <option value="MATERIAL">
-            📦 Material
-          </option>
-
-          <option value="MAO_DE_OBRA">
-            👷 Mão de Obra
-          </option>
-
-          <option value="EQUIPAMENTO">
-            🔧 Equipamento
-          </option>
-
-          <option value="CLIMA">
-            🌧️ Clima
-          </option>
-
-          <option value="SEGURANCA">
-            🚨 Segurança
-          </option>
-
-          <option value="QUALIDADE">
-            📋 Qualidade
-          </option>
-
-          <option value="OUTRO">
-            ⚠️ Outro
-          </option>
-
-        </select>
+          <select id="ocorrenciaTipo">
+          
+            <option value="CLIMA">
+              🌧️ Clima
+            </option>
+          
+            <option value="MATERIAL">
+              📦 Material
+            </option>
+          
+            <option value="MÃO_DE_OBRA">
+              👷 Mão de Obra
+            </option>
+          
+            <option value="EQUIPAMENTO">
+              🔧 Equipamento
+            </option>
+          
+            <option value="PROJETO">
+              📐 Projeto
+            </option>
+          
+            <option value="SEGURANÇA">
+              🚨 Segurança
+            </option>
+          
+            <option value="QUALIDADE">
+              📋 Qualidade
+            </option>
+          
+            <option value="RETRABALHO">
+              🔄 Retrabalho
+            </option>
+          
+            <option value="CLIENTE">
+              🤝 Cliente
+            </option>
+          
+            <option value="TERCEIROS">
+              🏗️ Terceiros
+            </option>
+          
+            <option value="OUTROS">
+              ⚠️ Outros
+            </option>
+          
+          </select>
 
         <label>Severidade</label>
 
