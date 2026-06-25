@@ -785,6 +785,8 @@ async function salvarMedicaoOffline(event) {
   };
 
   try {
+    await validarSaldoOfflineMedicao_(medicao);
+    
     await salvarRegistroSIGO("TB_MEDICOES", medicao);
 
     await adicionarNaFilaSyncSIGO({
@@ -803,8 +805,46 @@ async function salvarMedicaoOffline(event) {
 
   } catch (erro) {
     console.error("Erro ao salvar medição:", erro);
-    alert("Erro ao salvar medição offline.");
+    alert(erro.message || "Erro ao salvar medição offline.");
   }
+}
+
+async function validarSaldoOfflineMedicao_(medicao) {
+
+  const atividades = await listarRegistrosSIGO("TB_ATIVIDADES_OBRA");
+
+  const atividadeBase = atividades.find(item =>
+    String(item.idAtividade) === String(medicao.atividade) ||
+    String(item.eap) === String(medicao.eap)
+  );
+
+  if (!atividadeBase) {
+    throw new Error(
+      "Atividade não encontrada nos dados-base offline. Atualize os dados-base da obra."
+    );
+  }
+
+  const saldoDisponivel = Number(atividadeBase.saldoDisponivel || 0);
+  const qtdeExecutada = Number(medicao.qtdeExecutada || 0);
+
+  if (qtdeExecutada <= 0) {
+    throw new Error("Informe uma quantidade executada maior que zero.");
+  }
+
+  if (qtdeExecutada > saldoDisponivel) {
+    throw new Error(
+      "Saldo insuficiente para esta atividade.\n\n" +
+      "Atividade: " + atividadeBase.servico + "\n" +
+      "Saldo disponível: " + saldoDisponivel + " " + atividadeBase.unidade + "\n" +
+      "Quantidade informada: " + qtdeExecutada + " " + atividadeBase.unidade
+    );
+  }
+
+  medicao.saldoDisponivelAntes = saldoDisponivel;
+  medicao.saldoDisponivelDepois = saldoDisponivel - qtdeExecutada;
+  medicao.validacaoSaldoOffline = "OK";
+
+  return true;
 }
 
 async function listarMedicoesOffline_() {
