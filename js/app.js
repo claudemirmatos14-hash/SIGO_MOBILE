@@ -1204,10 +1204,9 @@ function montarTelaClima_() {
         <label>Impacto na execução</label>
         <select id="climaImpacto">
           <option value="SEM IMPACTO">Sem impacto</option>
-          <option value="BAIXO">Baixo</option>
-          <option value="MÉDIO">Médio</option>
-          <option value="ALTO">Alto</option>
-          <option value="CRÍTICO">Crítico</option>
+          <option value="REDUZIU PRODUTIVIDADE">Reduziu Produtividade</option>
+          <option value="PARALISOU ATIVIDADE">Paralisou Atividade</option>
+          <option value="PARALISOU OBRA">Paralisou Obra</option>
         </select>
 
         <label>Atividade afetada</label>
