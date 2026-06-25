@@ -94,6 +94,10 @@ if (tela === "medicoes") {
   return montarTelaMedicoes_();
 }
 
+if (tela === "clima") {
+  return montarTelaClima_();
+}
+
 if (tela === "evidencias") {
   return montarTelaEvidencias_();
 }
@@ -1126,4 +1130,116 @@ async function abrirEvidenciaOffline(idEvidencia) {
     </div>
 
   `;
+}
+
+function montarTelaClima_() {
+  const obraAtiva = localStorage.getItem("obraAtiva") || "OBR002";
+  const hoje = new Date().toISOString().split("T")[0];
+
+  return `
+    <div class="tela-card">
+
+      <button class="btn-voltar" onclick="voltarHome()">← Voltar</button>
+
+      <h2>🌦️ Clima</h2>
+
+      <p>Registrar condições climáticas da obra.</p>
+
+      <form class="formulario" onsubmit="salvarClimaOffline(event)">
+
+        <label>Data</label>
+        <input type="date" id="climaData" value="${hoje}">
+
+        <label>Obra</label>
+        <input type="text" id="climaObra" value="${obraAtiva}" readonly>
+
+        <label>Período</label>
+        <select id="climaPeriodo">
+          <option value="MANHÃ">Manhã</option>
+          <option value="TARDE">Tarde</option>
+          <option value="NOITE">Noite</option>
+          <option value="DIA INTEIRO">Dia inteiro</option>
+        </select>
+
+        <label>Condição climática</label>
+        <select id="climaCondicao">
+          <option value="☀️ ENSOLARADO">☀️ Ensolarado</option>
+          <option value="⛅ PARCIALMENTE NUBLADO">⛅ Parcialmente Nublado</option>
+          <option value="☁️ NUBLADO">☁️ Nublado</option>
+          <option value="🌧️ CHUVOSO">🌧️ Chuvoso</option>
+          <option value="⛈️ TEMPESTADE">⛈️ Tempestade</option>
+        </select>
+
+        <label>Intensidade</label>
+        <select id="climaIntensidade">
+          <option value="BAIXA">Baixa</option>
+          <option value="MÉDIA">Média</option>
+          <option value="ALTA">Alta</option>
+          <option value="CRÍTICA">Crítica</option>
+        </select>
+
+        <label>Impacto na execução</label>
+        <select id="climaImpacto">
+          <option value="SEM IMPACTO">Sem impacto</option>
+          <option value="BAIXO">Baixo</option>
+          <option value="MÉDIO">Médio</option>
+          <option value="ALTO">Alto</option>
+          <option value="CRÍTICO">Crítico</option>
+        </select>
+
+        <label>Atividade afetada</label>
+        <input type="text" id="climaAtividadeAfetada" placeholder="Ex.: 3.7.1">
+
+        <label>Observação</label>
+        <textarea id="climaObservacao" rows="3" placeholder="Observações sobre o clima"></textarea>
+
+        <button type="submit" class="btn-salvar">
+          Salvar Clima Offline
+        </button>
+
+      </form>
+
+    </div>
+  `;
+}
+
+async function salvarClimaOffline(event) {
+  event.preventDefault();
+
+  const clima = {
+    idClima: "CLI-" + Date.now(),
+    data: document.getElementById("climaData").value,
+    idObra: document.getElementById("climaObra").value,
+    periodo: document.getElementById("climaPeriodo").value,
+    condicaoClimatica: document.getElementById("climaCondicao").value,
+    intensidade: document.getElementById("climaIntensidade").value,
+    impactoExecucao: document.getElementById("climaImpacto").value,
+    atividadeAfetada: document.getElementById("climaAtividadeAfetada").value,
+    observacao: document.getElementById("climaObservacao").value,
+    statusClima: "REGISTRADO",
+    statusSync: "PENDENTE",
+    origem: "APP_OFFLINE",
+    criadoEm: new Date().toISOString()
+  };
+
+  try {
+    await salvarRegistroSIGO("TB_CLIMA", clima);
+
+    await adicionarNaFilaSyncSIGO({
+      tipo: "CLIMA_OBRA",
+      storeOrigem: "TB_CLIMA",
+      idRegistro: clima.idClima,
+      idObra: clima.idObra
+    });
+
+    await atualizarIndicadoresMobile_();
+
+    alert("Clima salvo offline no banco local.");
+
+    console.log("Clima salvo no IndexedDB:", clima);
+
+  } catch (erro) {
+    console.error("Erro ao salvar clima:", erro);
+    alert("Erro ao salvar clima offline.");
+  }
 }
