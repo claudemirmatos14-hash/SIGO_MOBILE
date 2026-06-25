@@ -618,13 +618,17 @@ async function sincronizarDadosBaseObraMobile() {
       throw new Error("A API não retornou uma lista de atividades válida.");
     }
 
-    console.log("Primeira atividade:", atividades[0]);
+    console.log( "Primeira atividade JSON:",
+  JSON.stringify(atividades[0], null, 2)
+);
     console.log("Total de atividades recebidas:", atividades.length);
 
     await limparTabelaSIGO_("TB_ATIVIDADES_OBRA");
 
     for (const atividade of atividades) {
-      console.log("Salvando atividade:", atividade);
+      console.log("Salvando atividade JSON:",
+  JSON.stringify(atividade, null, 2)
+);
 
       await salvarRegistroSIGO(
         "TB_ATIVIDADES_OBRA",
