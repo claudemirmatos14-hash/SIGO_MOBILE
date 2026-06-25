@@ -433,6 +433,12 @@ async function sincronizarSIGO() {
       pendentes.some(item => item.idRegistro === clima.idClima)
     );
 
+    const ocorrencias = await listarRegistrosSIGO("TB_OCORRENCIAS");
+
+    const ocorrenciasPendentes = ocorrencias.filter(ocorrencia =>
+      pendentes.some(item => item.idRegistro === ocorrencia.idOcorrencia)
+    );
+
     const obraAtiva =
       localStorage.getItem("obraAtiva") || "OBR002";
 
@@ -446,7 +452,7 @@ async function sincronizarSIGO() {
         diarios: diariosPendentes,
         diarioItens: [],
         medicoes: medicoesPendentes,
-        ocorrencias: [],
+        ocorrencias: ocorrenciasPendentes,
         clima: climasPendentes,
         evidencias: evidenciasPendentes
       }
@@ -520,11 +526,22 @@ async function sincronizarSIGO() {
         );
       }
 
+    for (const ocorrencia of ocorrenciasPendentes) {
+        ocorrencia.statusSync = "SINCRONIZADO";
+        ocorrencia.dataSync = new Date().toISOString();
+      
+        await atualizarRegistroSIGO(
+          "TB_OCORRENCIAS",
+          ocorrencia
+        );
+      }
+
     await atualizarIndicadoresMobile_();
     await carregarListaDiariosOffline();
     await listarMedicoesOffline_();
     await listarEvidenciasOffline_();
     await listarClimasOffline_();
+    await listarOcorrenciasOffline_();
 
     alert("Sincronização enviada ao SIGO com sucesso.");
 
