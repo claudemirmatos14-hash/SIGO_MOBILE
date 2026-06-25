@@ -603,40 +603,47 @@ async function sincronizarDadosBaseObraMobile() {
 
     const resultado = await resposta.json();
 
-    console.log("Dados-base recebidos:", resultado);
+  console.log("Dados-base recebidos:", resultado);
 
-    if (resultado.status !== "OK") {
-      throw new Error(resultado.mensagem || "Erro ao buscar dados-base.");
-    }
+if (resultado.status !== "OK") {
+  throw new Error(resultado.mensagem || "Erro ao buscar dados-base.");
+}
 
-    const atividades =
-      resultado.atividades ||
-      resultado.detalhes?.atividades ||
-      [];
-    
-    if (!Array.isArray(atividades)) {
-      throw new Error("A API não retornou uma lista de atividades válida.");
-    }
-    
-    await limparTabelaSIGO_("TB_ATIVIDADES_OBRA");
-    
-    for (const atividade of atividades) {
-      await salvarRegistroSIGO(
-        "TB_ATIVIDADES_OBRA",
-        atividade
-      );
-    }
-    
-    alert(
-      "Dados-base atualizados com sucesso. Atividades: " +
-      atividades.length
-    );
+const atividades =
+  resultado.atividades ||
+  resultado.detalhes?.atividades ||
+  [];
 
-  } catch (erro) {
+if (!Array.isArray(atividades)) {
+  throw new Error("A API não retornou uma lista de atividades válida.");
+}
 
-    console.error("Erro ao sincronizar dados-base:", erro);
+console.log(
+  "Primeira atividade:",
+  atividades[0]
+);
 
-    alert("Erro ao sincronizar dados-base da obra.");
+console.log(
+  "Total de atividades recebidas:",
+  atividades.length
+);
+
+await limparTabelaSIGO_("TB_ATIVIDADES_OBRA");
+
+for (const atividade of atividades) {
+
+  console.log("Salvando atividade:", atividade);
+
+  await salvarRegistroSIGO(
+    "TB_ATIVIDADES_OBRA",
+    atividade
+  );
+}
+
+alert(
+  "Dados-base atualizados com sucesso. Atividades: " +
+  atividades.length
+);
 
   }
 }
