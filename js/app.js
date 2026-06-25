@@ -1478,7 +1478,7 @@ function montarTelaOcorrencias_() {
             🟢 Baixa
           </option>
 
-          <option value="MEDIA">
+          <option value="MÉDIA">
             🟡 Média
           </option>
 
