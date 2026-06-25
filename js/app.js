@@ -1650,7 +1650,7 @@ async function listarOcorrenciasOffline_() {
             </small>
 
             <small>
-              Impacto:
+              sincronizarSIGO:
               ${ocorrencia.severidade}
             </small>
 
