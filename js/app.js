@@ -824,24 +824,44 @@ async function validarSaldoOfflineMedicao_(medicao) {
     );
   }
 
-  const saldoDisponivel = Number(atividadeBase.saldoDisponivel || 0);
+  const medicoesOffline = await listarRegistrosSIGO("TB_MEDICOES");
+
+  const totalJaMedidoOffline = medicoesOffline
+    .filter(item =>
+      String(item.idObra) === String(medicao.idObra) &&
+      (
+        String(item.atividade) === String(medicao.atividade) ||
+        String(item.eap) === String(medicao.eap)
+      ) &&
+      item.idMedicao !== medicao.idMedicao
+    )
+    .reduce((total, item) => {
+      return total + Number(item.qtdeExecutada || 0);
+    }, 0);
+
+  const saldoBase = Number(atividadeBase.saldoDisponivel || 0);
+  const saldoDisponivelAtual = saldoBase - totalJaMedidoOffline;
   const qtdeExecutada = Number(medicao.qtdeExecutada || 0);
 
   if (qtdeExecutada <= 0) {
     throw new Error("Informe uma quantidade executada maior que zero.");
   }
 
-  if (qtdeExecutada > saldoDisponivel) {
+  if (qtdeExecutada > saldoDisponivelAtual) {
     throw new Error(
       "Saldo insuficiente para esta atividade.\n\n" +
       "Atividade: " + atividadeBase.servico + "\n" +
-      "Saldo disponível: " + saldoDisponivel + " " + atividadeBase.unidade + "\n" +
+      "Saldo base: " + saldoBase + " " + atividadeBase.unidade + "\n" +
+      "Já medido offline: " + totalJaMedidoOffline + " " + atividadeBase.unidade + "\n" +
+      "Saldo disponível atual: " + saldoDisponivelAtual + " " + atividadeBase.unidade + "\n" +
       "Quantidade informada: " + qtdeExecutada + " " + atividadeBase.unidade
     );
   }
 
-  medicao.saldoDisponivelAntes = saldoDisponivel;
-  medicao.saldoDisponivelDepois = saldoDisponivel - qtdeExecutada;
+  medicao.saldoBaseOffline = saldoBase;
+  medicao.totalJaMedidoOffline = totalJaMedidoOffline;
+  medicao.saldoDisponivelAntes = saldoDisponivelAtual;
+  medicao.saldoDisponivelDepois = saldoDisponivelAtual - qtdeExecutada;
   medicao.validacaoSaldoOffline = "OK";
 
   return true;
