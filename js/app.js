@@ -609,18 +609,27 @@ async function sincronizarDadosBaseObraMobile() {
       throw new Error(resultado.mensagem || "Erro ao buscar dados-base.");
     }
 
+    const atividades =
+      resultado.atividades ||
+      resultado.detalhes?.atividades ||
+      [];
+    
+    if (!Array.isArray(atividades)) {
+      throw new Error("A API não retornou uma lista de atividades válida.");
+    }
+    
     await limparTabelaSIGO_("TB_ATIVIDADES_OBRA");
-
-    for (const atividade of resultado.atividades) {
+    
+    for (const atividade of atividades) {
       await salvarRegistroSIGO(
         "TB_ATIVIDADES_OBRA",
         atividade
       );
     }
-
+    
     alert(
       "Dados-base atualizados com sucesso. Atividades: " +
-      resultado.atividades.length
+      atividades.length
     );
 
   } catch (erro) {
