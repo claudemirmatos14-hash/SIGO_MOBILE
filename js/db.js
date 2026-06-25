@@ -1,5 +1,5 @@
 const SIGO_DB_NAME = "SIGO_OFFLINE_DB";
-const SIGO_DB_VERSION = 1;
+const SIGO_DB_VERSION = 2;
 
 let SIGO_DB = null;
 
@@ -73,6 +73,18 @@ function criarStoresSIGO_(db) {
       keyPath: "idSyncLocal"
     });
   }
+
+  if (!db.objectStoreNames.contains("TB_ATIVIDADES_OBRA")) {
+  db.createObjectStore("TB_ATIVIDADES_OBRA", {
+    keyPath: "idRegistro"
+  });
+}
+
+if (!db.objectStoreNames.contains("TB_PARAMETROS_OBRA")) {
+  db.createObjectStore("TB_PARAMETROS_OBRA", {
+    keyPath: "idObra"
+  });
+}
 }
 
 function salvarRegistroSIGO(storeName, registro) {
