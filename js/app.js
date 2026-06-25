@@ -57,6 +57,12 @@ function navegarPara(tela) {
 
 }
 
+  if (tela === "clima") {
+  setTimeout(() => {
+    listarClimasOffline_();
+  }, 100);
+}
+
   if (tela === "evidencias") {
     setTimeout(() => {
       listarEvidenciasOffline_();
@@ -1197,6 +1203,14 @@ function montarTelaClima_() {
           Salvar Clima Offline
         </button>
 
+        <div class="lista-offline">
+          <h3>Climas salvos offline</h3>
+        
+          <div id="listaClimasOffline">
+            Carregando...
+          </div>
+        </div>
+
       </form>
 
     </div>
@@ -1233,6 +1247,7 @@ async function salvarClimaOffline(event) {
     });
 
     await atualizarIndicadoresMobile_();
+    await listarClimasOffline_();
 
     alert("Clima salvo offline no banco local.");
 
@@ -1241,5 +1256,74 @@ async function salvarClimaOffline(event) {
   } catch (erro) {
     console.error("Erro ao salvar clima:", erro);
     alert("Erro ao salvar clima offline.");
+  }
+}
+
+async function listarClimasOffline_() {
+
+  const container =
+    document.getElementById("listaClimasOffline");
+
+  if (!container) return;
+
+  try {
+
+    const climas =
+      await listarRegistrosSIGO("TB_CLIMA");
+
+    if (!climas.length) {
+      container.innerHTML = `
+        <div class="card-vazio">
+          Nenhum registro de clima salvo.
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML =
+      climas
+        .sort((a, b) =>
+          new Date(b.criadoEm) - new Date(a.criadoEm)
+        )
+        .map(clima => `
+          <div class="item-offline">
+
+            <strong>
+              ${clima.condicaoClimatica || "Clima"}
+            </strong>
+
+            <small>
+              ${clima.data || "-"} • ${clima.periodo || "-"}
+            </small>
+
+            <small>
+              Intensidade: ${clima.intensidade || "-"}
+            </small>
+
+            <small>
+              Impacto: ${clima.impactoExecucao || "-"}
+            </small>
+
+            <small>
+              Atividade: ${clima.atividadeAfetada || "-"}
+            </small>
+
+            <span class="
+              badge-sync
+              ${clima.statusSync === "SINCRONIZADO" ? "ok" : "pendente"}
+            ">
+              ${clima.statusSync}
+            </span>
+
+          </div>
+        `)
+        .join("");
+
+  } catch (erro) {
+
+    console.error("Erro ao listar climas:", erro);
+
+    container.innerHTML =
+      "Erro ao carregar registros de clima.";
   }
 }
