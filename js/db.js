@@ -75,10 +75,32 @@ function criarStoresSIGO_(db) {
   }
 
   if (!db.objectStoreNames.contains("TB_ATIVIDADES_OBRA")) {
-  db.createObjectStore("TB_ATIVIDADES_OBRA", {
-    keyPath: "idRegistro"
-  });
-}
+
+    const store = db.createObjectStore(
+      "TB_ATIVIDADES_OBRA",
+      {
+        keyPath: "idAtividade"
+      }
+    );
+  
+    store.createIndex(
+      "idObra",
+      "idObra",
+      { unique: false }
+    );
+  
+    store.createIndex(
+      "eap",
+      "eap",
+      { unique: false }
+    );
+  
+    store.createIndex(
+      "status",
+      "status",
+      { unique: false }
+    );
+  }
 
 if (!db.objectStoreNames.contains("TB_PARAMETROS_OBRA")) {
   db.createObjectStore("TB_PARAMETROS_OBRA", {
