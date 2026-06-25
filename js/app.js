@@ -69,6 +69,16 @@ function navegarPara(tela) {
   }, 100);
 }
 
+  if (tela === "ocorrencias") {
+
+  setTimeout(() => {
+
+    listarOcorrenciasOffline_();
+
+  }, 100);
+
+}
+
   window.scrollTo({
     top: area.offsetTop,
     behavior: "smooth"
@@ -1495,6 +1505,20 @@ function montarTelaOcorrencias_() {
 
         </button>
 
+        <div class="lista-offline">
+
+          <h3>
+            Ocorrências salvas offline
+          </h3>
+        
+          <div id="listaOcorrenciasOffline">
+        
+            Carregando...
+        
+          </div>
+        
+        </div>
+
       </form>
 
     </div>
@@ -1569,6 +1593,7 @@ async function salvarOcorrenciaOffline(event) {
     });
 
     await atualizarIndicadoresMobile_();
+    await listarOcorrenciasOffline_();
 
     alert(
       "Ocorrência salva offline."
@@ -1589,6 +1614,95 @@ async function salvarOcorrenciaOffline(event) {
     alert(
       "Erro ao salvar ocorrência."
     );
+
+  }
+
+}
+
+async function listarOcorrenciasOffline_() {
+
+  const container =
+    document.getElementById(
+      "listaOcorrenciasOffline"
+    );
+
+  if (!container) return;
+
+  try {
+
+    const ocorrencias =
+      await listarRegistrosSIGO(
+        "TB_OCORRENCIAS"
+      );
+
+    if (!ocorrencias.length) {
+
+      container.innerHTML = `
+        <div class="card-vazio">
+          Nenhuma ocorrência registrada.
+        </div>
+      `;
+
+      return;
+    }
+
+    container.innerHTML =
+      ocorrencias
+        .sort((a, b) =>
+          new Date(b.criadoEm) -
+          new Date(a.criadoEm)
+        )
+        .map(ocorrencia => `
+
+          <div class="item-offline">
+
+            <strong>
+              ${ocorrencia.tipo}
+            </strong>
+
+            <small>
+              ${ocorrencia.data}
+            </small>
+
+            <small>
+              Impacto:
+              ${ocorrencia.severidade}
+            </small>
+
+            <small>
+              Atividade:
+              ${ocorrencia.atividadeAfetada || "-"}
+            </small>
+
+            <small>
+              ${ocorrencia.descricao || ""}
+            </small>
+
+            <span class="
+              badge-sync
+              ${
+                ocorrencia.statusSync === "SINCRONIZADO"
+                  ? "ok"
+                  : "pendente"
+              }
+            ">
+              ${ocorrencia.statusSync}
+            </span>
+
+          </div>
+
+        `)
+        .join("");
+
+  } catch (erro) {
+
+    console.error(
+      "Erro ao listar ocorrências:",
+      erro
+    );
+
+    container.innerHTML =
+      "Erro ao carregar ocorrências.";
 
   }
 
