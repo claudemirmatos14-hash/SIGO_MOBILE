@@ -1462,11 +1462,21 @@ function montarTelaOcorrencias_() {
 
         <label>Atividade afetada</label>
 
-        <input
-          type="text"
-          id="ocorrenciaAtividade"
-          placeholder="Ex.: 3.7.1">
-
+        <select id="ocorrenciaAtividade">
+          <option value="">Selecione uma atividade</option>
+        
+          <option value="3.7.1">
+            3.7.1 - REATERRO MANUAL DE VALA
+          </option>
+        
+          <option value="2.1">
+            2.1 - LOCAÇÃO E GABARITO
+          </option>
+        
+          <option value="3.1.2">
+            3.1.2 - ESCAVAÇÃO MANUAL
+          </option>
+        </select>
         <label>Responsável</label>
 
         <input
@@ -1519,6 +1529,9 @@ async function salvarOcorrenciaOffline(event) {
 
     idOcorrencia:
       "OCR-" + Date.now(),
+
+    idDiario:
+      "DIA-REF-" + document.getElementById("ocorrenciaData").value,
 
     data:
       document.getElementById("ocorrenciaData").value,
