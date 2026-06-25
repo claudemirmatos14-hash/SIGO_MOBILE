@@ -427,7 +427,7 @@ async function sincronizarSIGO() {
         diarioItens: [],
         medicoes: medicoesPendentes,
         ocorrencias: [],
-        clima: [],
+        clima: climasPendentes,
         evidencias: evidenciasPendentes
       }
     };
@@ -480,6 +480,16 @@ async function sincronizarSIGO() {
         );
       }
 
+    for (const clima of climasPendentes) {
+        clima.statusSync = "SINCRONIZADO";
+        clima.dataSync = new Date().toISOString();
+      
+        await atualizarRegistroSIGO(
+          "TB_CLIMA",
+          clima
+        );
+      }
+
     for (const evidencia of evidenciasPendentes) {
         evidencia.statusSync = "SINCRONIZADO";
         evidencia.dataSync = new Date().toISOString();
@@ -494,6 +504,7 @@ async function sincronizarSIGO() {
     await carregarListaDiariosOffline();
     await listarMedicoesOffline_();
     await listarEvidenciasOffline_();
+    await listarClimasOffline_();
 
     alert("Sincronização enviada ao SIGO com sucesso.");
 
