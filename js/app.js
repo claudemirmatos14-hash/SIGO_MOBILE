@@ -122,6 +122,10 @@ if (tela === "ocorrencias") {
   return montarTelaOcorrencias_();
 }
 
+if (tela === "diarioItens") {
+  return montarTelaDiarioItens_();
+}
+
 return `
   <div class="tela-card">
     <button class="btn-voltar" onclick="voltarHome()">← Voltar</button>
@@ -1704,4 +1708,155 @@ async function listarOcorrenciasOffline_() {
 
   }
 
+}
+
+function montarTelaDiarioItens_() {
+  const obraAtiva = localStorage.getItem("obraAtiva") || "OBR002";
+  const hoje = new Date().toISOString().split("T")[0];
+
+  return `
+    <div class="tela-card">
+
+      <button class="btn-voltar" onclick="navegarPara('diario')">← Voltar</button>
+
+      <h2>📋 Itens do Diário</h2>
+
+      <p>Registrar atividades executadas no dia.</p>
+
+      <form class="formulario" onsubmit="salvarItemDiarioOffline(event)">
+
+        <label>Data</label>
+        <input type="date" id="itemDiarioData" value="${hoje}">
+
+        <label>Obra</label>
+        <input type="text" id="itemDiarioObra" value="${obraAtiva}" readonly>
+
+        <label>ID Diário</label>
+        <input type="text" id="itemDiarioIdDiario" placeholder="Ex.: DIA-LOCAL-...">
+
+        <label>Atividade</label>
+        <select id="itemDiarioAtividade" onchange="preencherDadosAtividadeItemDiario()">
+          <option value="">Selecione uma atividade</option>
+
+          <option value="3.7.1" data-servico="REATERRO MANUAL DE VALA" data-un="m³">
+            3.7.1 - REATERRO MANUAL DE VALA
+          </option>
+
+          <option value="2.1" data-servico="LOCAÇÃO E GABARITO" data-un="m">
+            2.1 - LOCAÇÃO E GABARITO
+          </option>
+
+          <option value="3.1.2" data-servico="ESCAVAÇÃO MANUAL" data-un="m³">
+            3.1.2 - ESCAVAÇÃO MANUAL
+          </option>
+        </select>
+
+        <label>Serviço</label>
+        <input type="text" id="itemDiarioServico" readonly>
+
+        <label>Quantidade executada</label>
+        <input type="number" id="itemDiarioQtdeExecutada" step="0.01">
+
+        <label>Unidade</label>
+        <input type="text" id="itemDiarioUnidade" readonly>
+
+        <label>Equipe</label>
+        <input type="text" id="itemDiarioEquipe" placeholder="Ex.: Equipe A">
+
+        <label>Equipamento</label>
+        <input type="text" id="itemDiarioEquipamento" placeholder="Ex.: Escavadeira CAT 320">
+
+        <label>Horas trabalhadas</label>
+        <input type="number" id="itemDiarioHoras" step="0.5">
+
+        <label>Observação</label>
+        <textarea id="itemDiarioObservacao" rows="3" placeholder="Observações do item"></textarea>
+
+        <button type="submit" class="btn-salvar">
+          Salvar Item Offline
+        </button>
+
+      </form>
+
+    </div>
+  `;
+}
+
+function preencherDadosAtividadeItemDiario() {
+  const select = document.getElementById("itemDiarioAtividade");
+  const opcao = select.options[select.selectedIndex];
+
+  if (!opcao || !opcao.value) return;
+
+  document.getElementById("itemDiarioServico").value =
+    opcao.dataset.servico || "";
+
+  document.getElementById("itemDiarioUnidade").value =
+    opcao.dataset.un || "";
+}
+
+function salvarItemDiarioOffline(event) {
+  event.preventDefault();
+
+    const item = {
+
+      idItemDiario:
+        "DIT-" + Date.now(),
+    
+      idDiario:
+        document.getElementById("itemDiarioIdDiario").value,
+    
+      data:
+        document.getElementById("itemDiarioData").value,
+    
+      idObra:
+        document.getElementById("itemDiarioObra").value,
+    
+      atividade:
+        document.getElementById("itemDiarioAtividade").value,
+    
+      eap:
+        document.getElementById("itemDiarioAtividade").value,
+    
+      servico:
+        document.getElementById("itemDiarioServico").value,
+    
+      equipe:
+        document.getElementById("itemDiarioEquipe").value,
+    
+      equipamento:
+        document.getElementById("itemDiarioEquipamento").value,
+    
+      qtdeExecutada:
+        Number(
+          document.getElementById("itemDiarioQtdeExecutada").value || 0
+        ),
+    
+      un:
+        document.getElementById("itemDiarioUnidade").value,
+    
+      horasTrabalhadas:
+        Number(
+          document.getElementById("itemDiarioHoras").value || 0
+        ),
+    
+      observacao:
+        document.getElementById("itemDiarioObservacao").value,
+    
+      statusItem:
+        "EXECUTADO",
+    
+      statusSync:
+        "PENDENTE",
+    
+      origem:
+        "APP_OFFLINE",
+    
+      criadoEm:
+        new Date().toISOString()
+    };
+
+  console.log("Item diário offline:", item);
+
+  alert("Item do diário montado com sucesso.");
 }
