@@ -575,6 +575,63 @@ async function sincronizarSIGO() {
   }
 }
 
+async function sincronizarDadosBaseObraMobile() {
+
+  try {
+
+    const obraAtiva =
+      localStorage.getItem("obraAtiva") || "OBR002";
+
+    const payload = {
+      token: SIGO_TOKEN_OFFLINE,
+      acao: "OBTER_DADOS_BASE_OBRA",
+      idDispositivo: "WEB-MOBILE-001",
+      idUsuario: "USUARIO_APP",
+      idObra: obraAtiva,
+      dataSolicitacao: new Date().toISOString()
+    };
+
+    console.log("Solicitando dados-base da obra:", payload);
+
+    const resposta = await fetch(SIGO_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "text/plain;charset=utf-8"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const resultado = await resposta.json();
+
+    console.log("Dados-base recebidos:", resultado);
+
+    if (resultado.status !== "OK") {
+      throw new Error(resultado.mensagem || "Erro ao buscar dados-base.");
+    }
+
+    await limparTabelaSIGO_("TB_ATIVIDADES_OBRA");
+
+    for (const atividade of resultado.atividades) {
+      await salvarRegistroSIGO(
+        "TB_ATIVIDADES_OBRA",
+        atividade
+      );
+    }
+
+    alert(
+      "Dados-base atualizados com sucesso. Atividades: " +
+      resultado.atividades.length
+    );
+
+  } catch (erro) {
+
+    console.error("Erro ao sincronizar dados-base:", erro);
+
+    alert("Erro ao sincronizar dados-base da obra.");
+
+  }
+}
+
 function montarTelaMedicoes_() {
   const obraAtiva = localStorage.getItem("obraAtiva") || "OBR002";
   const hoje = new Date().toISOString().split("T")[0];
