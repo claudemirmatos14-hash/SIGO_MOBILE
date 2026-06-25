@@ -1795,68 +1795,47 @@ function preencherDadosAtividadeItemDiario() {
     opcao.dataset.un || "";
 }
 
-function salvarItemDiarioOffline(event) {
+async function salvarItemDiarioOffline(event) {
   event.preventDefault();
 
-    const item = {
+  const item = {
+    idItemDiario: "DIT-" + Date.now(),
+    idDiario: document.getElementById("itemDiarioIdDiario").value,
+    data: document.getElementById("itemDiarioData").value,
+    idObra: document.getElementById("itemDiarioObra").value,
+    atividade: document.getElementById("itemDiarioAtividade").value,
+    eap: document.getElementById("itemDiarioAtividade").value,
+    servico: document.getElementById("itemDiarioServico").value,
+    equipe: document.getElementById("itemDiarioEquipe").value,
+    equipamento: document.getElementById("itemDiarioEquipamento").value,
+    qtdeExecutada: Number(document.getElementById("itemDiarioQtdeExecutada").value || 0),
+    un: document.getElementById("itemDiarioUnidade").value,
+    horasTrabalhadas: Number(document.getElementById("itemDiarioHoras").value || 0),
+    observacao: document.getElementById("itemDiarioObservacao").value,
+    statusItem: "EXECUTADO",
+    statusSync: "PENDENTE",
+    origem: "APP_OFFLINE",
+    criadoEm: new Date().toISOString()
+  };
 
-      idItemDiario:
-        "DIT-" + Date.now(),
-    
-      idDiario:
-        document.getElementById("itemDiarioIdDiario").value,
-    
-      data:
-        document.getElementById("itemDiarioData").value,
-    
-      idObra:
-        document.getElementById("itemDiarioObra").value,
-    
-      atividade:
-        document.getElementById("itemDiarioAtividade").value,
-    
-      eap:
-        document.getElementById("itemDiarioAtividade").value,
-    
-      servico:
-        document.getElementById("itemDiarioServico").value,
-    
-      equipe:
-        document.getElementById("itemDiarioEquipe").value,
-    
-      equipamento:
-        document.getElementById("itemDiarioEquipamento").value,
-    
-      qtdeExecutada:
-        Number(
-          document.getElementById("itemDiarioQtdeExecutada").value || 0
-        ),
-    
-      un:
-        document.getElementById("itemDiarioUnidade").value,
-    
-      horasTrabalhadas:
-        Number(
-          document.getElementById("itemDiarioHoras").value || 0
-        ),
-    
-      observacao:
-        document.getElementById("itemDiarioObservacao").value,
-    
-      statusItem:
-        "EXECUTADO",
-    
-      statusSync:
-        "PENDENTE",
-    
-      origem:
-        "APP_OFFLINE",
-    
-      criadoEm:
-        new Date().toISOString()
-    };
+  try {
+    await salvarRegistroSIGO("TB_DIARIO_ITENS", item);
 
-  console.log("Item diário offline:", item);
+    await adicionarNaFilaSyncSIGO({
+      tipo: "DIARIO_ITEM",
+      storeOrigem: "TB_DIARIO_ITENS",
+      idRegistro: item.idItemDiario,
+      idObra: item.idObra
+    });
 
-  alert("Item do diário montado com sucesso.");
+    await atualizarIndicadoresMobile_();
+
+    alert("Item do diário salvo offline no banco local.");
+
+    console.log("Item diário salvo no IndexedDB:", item);
+
+  } catch (erro) {
+    console.error("Erro ao salvar item do diário:", erro);
+    alert("Erro ao salvar item do diário offline.");
+  }
 }
