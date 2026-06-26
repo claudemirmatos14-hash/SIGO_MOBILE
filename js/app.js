@@ -726,9 +726,6 @@ async function sincronizarDadosBaseObraMobile() {
     console.log("Primeira atividade:", atividades[0]);
     console.log("Total de atividades recebidas:", atividades.length);
 
-    const obraAtiva =
-        localStorage.getItem("obraAtiva") || "OBR002";
-
     const obrasLocais =
       await listarRegistrosSIGO("TB_OBRAS");
     
