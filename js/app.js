@@ -739,7 +739,9 @@ async function sincronizarDadosBaseObraMobile() {
         "Limite de 3 obras offline atingido. Remova uma obra antes de baixar outra."
       );
     }
-      
+      console.log("Nome obra recebido direto:", resultado.nomeObra);
+      console.log("Nome obra recebido em detalhes:", resultado.detalhes?.nomeObra);
+    
       await salvarRegistroSIGO("TB_OBRAS", {
         idObra: obraAtiva,
         nomeObra:
