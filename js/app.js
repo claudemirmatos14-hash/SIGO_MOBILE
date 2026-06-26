@@ -726,6 +726,19 @@ async function sincronizarDadosBaseObraMobile() {
     console.log("Primeira atividade:", atividades[0]);
     console.log("Total de atividades recebidas:", atividades.length);
 
+    const obraAtiva =
+        localStorage.getItem("obraAtiva") || "OBR002";
+      
+      await salvarRegistroSIGO("TB_OBRAS", {
+        idObra: obraAtiva,
+        nomeObra:
+          resultado.detalhes?.nomeObra ||
+          resultado.nomeObra ||
+          obraAtiva,
+        status: "ATIVA",
+        dataSync: new Date().toISOString()
+      });
+
     await limparTabelaSIGO_("TB_ATIVIDADES_OBRA");
 
     for (const atividade of atividades) {
