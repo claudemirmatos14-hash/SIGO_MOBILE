@@ -151,6 +151,8 @@ return `
 
 function voltarHome() {
   const area = document.getElementById("telaApp");
+  document.getElementById("homeApp").style.display = "block";
+  document.getElementById("telaApp").innerHTML = "";
 
   if (!area) return;
 
@@ -2441,7 +2443,8 @@ async function carregarObrasMobile_() {
 
 async function abrirGerenciadorObrasOffline_() {
   const area = document.getElementById("telaApp");
-
+  document.getElementById("homeApp").style.display = "none";
+  
   if (!area) return;
 
   area.innerHTML = `
