@@ -728,6 +728,20 @@ async function sincronizarDadosBaseObraMobile() {
 
     const obraAtiva =
         localStorage.getItem("obraAtiva") || "OBR002";
+
+    const obrasLocais =
+      await listarRegistrosSIGO("TB_OBRAS");
+    
+    const jaExiste =
+      obrasLocais.some(obra =>
+        String(obra.idObra) === String(obraAtiva)
+      );
+    
+    if (!jaExiste && obrasLocais.length >= 3) {
+      throw new Error(
+        "Limite de 3 obras offline atingido. Remova uma obra antes de baixar outra."
+      );
+    }
       
       await salvarRegistroSIGO("TB_OBRAS", {
         idObra: obraAtiva,
@@ -739,7 +753,7 @@ async function sincronizarDadosBaseObraMobile() {
         dataSync: new Date().toISOString()
       });
 
-    await limparTabelaSIGO_("TB_ATIVIDADES_OBRA");
+   await removerAtividadesPorObraSIGO_(obraAtiva);
 
     for (const atividade of atividades) {
       console.log("Salvando atividade:", atividade);
