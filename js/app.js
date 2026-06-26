@@ -79,6 +79,15 @@ function navegarPara(tela) {
 
 }
 
+  if (tela === "diarioItens") {
+
+  setTimeout(async () => {
+    await carregarAtividadesItemDiarioOffline_();
+    await listarItensDiarioOffline_();
+  }, 100);
+
+}
+
   window.scrollTo({
     top: area.offsetTop,
     behavior: "smooth"
@@ -1912,18 +1921,6 @@ function montarTelaDiarioItens_() {
         <label>Atividade</label>
         <select id="itemDiarioAtividade" onchange="preencherDadosAtividadeItemDiario()">
           <option value="">Selecione uma atividade</option>
-
-          <option value="3.7.1" data-servico="REATERRO MANUAL DE VALA" data-un="m³">
-            3.7.1 - REATERRO MANUAL DE VALA
-          </option>
-
-          <option value="2.1" data-servico="LOCAÇÃO E GABARITO" data-un="m">
-            2.1 - LOCAÇÃO E GABARITO
-          </option>
-
-          <option value="3.1.2" data-servico="ESCAVAÇÃO MANUAL" data-un="m³">
-            3.1.2 - ESCAVAÇÃO MANUAL
-          </option>
         </select>
 
         <label>Serviço</label>
@@ -1968,17 +1965,37 @@ function montarTelaDiarioItens_() {
   `;
 }
 
-function preencherDadosAtividadeItemDiario() {
+async function preencherDadosAtividadeItemDiario() {
   const select = document.getElementById("itemDiarioAtividade");
-  const opcao = select.options[select.selectedIndex];
+  const idAtividade = select.value;
 
-  if (!opcao || !opcao.value) return;
+  if (!idAtividade) return;
+
+  const atividades = await listarRegistrosSIGO("TB_ATIVIDADES_OBRA");
+
+  const atividadeBase = atividades.find(item =>
+    String(item.idAtividade) === String(idAtividade) ||
+    String(item.eap) === String(idAtividade)
+  );
+
+  if (!atividadeBase) {
+    alert("Atividade não encontrada nos dados-base offline. Atualize os dados-base da obra.");
+    return;
+  }
 
   document.getElementById("itemDiarioServico").value =
-    opcao.dataset.servico || "";
+    atividadeBase.servico || "";
 
   document.getElementById("itemDiarioUnidade").value =
-    opcao.dataset.un || "";
+    atividadeBase.unidade || "";
+
+  const campoQtdePlanejada =
+    document.getElementById("itemDiarioQtdePlanejada");
+
+  if (campoQtdePlanejada) {
+    campoQtdePlanejada.value =
+      Number(atividadeBase.qtdePlanejada || 0);
+  }
 }
 
 async function salvarItemDiarioOffline(event) {
@@ -2005,6 +2022,8 @@ async function salvarItemDiarioOffline(event) {
   };
 
   try {
+    await validarAtividadeItemDiarioOffline_(item);
+    
     await salvarRegistroSIGO("TB_DIARIO_ITENS", item);
 
     await adicionarNaFilaSyncSIGO({
@@ -2023,8 +2042,37 @@ async function salvarItemDiarioOffline(event) {
 
   } catch (erro) {
     console.error("Erro ao salvar item do diário:", erro);
-    alert("Erro ao salvar item do diário offline.");
+    alert(erro.message || "Erro ao salvar item do diário offline.");
   }
+}
+
+async function validarAtividadeItemDiarioOffline_(item) {
+
+  const atividades = await listarRegistrosSIGO("TB_ATIVIDADES_OBRA");
+
+  const atividadeBase = atividades.find(atividade =>
+    String(atividade.idAtividade) === String(item.atividade) ||
+    String(atividade.eap) === String(item.eap)
+  );
+
+  if (!atividadeBase) {
+    throw new Error(
+      "Atividade não encontrada nos dados-base offline. Atualize os dados-base da obra."
+    );
+  }
+
+  if (Number(item.qtdeExecutada || 0) <= 0) {
+    throw new Error("Informe uma quantidade executada maior que zero.");
+  }
+
+  item.eap = atividadeBase.eap || item.eap;
+  item.servico = atividadeBase.servico || item.servico;
+  item.un = atividadeBase.unidade || item.un;
+  item.qtdePlanejada = Number(atividadeBase.qtdePlanejada || 0);
+  item.saldoDisponivelBase = Number(atividadeBase.saldoDisponivel || 0);
+  item.validacaoDadosBaseOffline = "OK";
+
+  return true;
 }
 
 async function listarItensDiarioOffline_() {
@@ -2107,4 +2155,23 @@ async function listarItensDiarioOffline_() {
     );
 
   }
+}
+
+async function carregarAtividadesItemDiarioOffline_() {
+  const select = document.getElementById("itemDiarioAtividade");
+
+  if (!select) return;
+
+  const atividades = await listarRegistrosSIGO("TB_ATIVIDADES_OBRA");
+
+  select.innerHTML = '<option value="">Selecione uma atividade</option>';
+
+  atividades.forEach(item => {
+    const option = document.createElement("option");
+
+    option.value = item.idAtividade;
+    option.textContent = item.eap + " - " + item.servico;
+
+    select.appendChild(option);
+  });
 }
