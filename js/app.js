@@ -721,20 +721,32 @@ function montarTelaMedicoes_() {
   `;
 }
 
-function preencherDadosAtividadeMedicao() {
+async function preencherDadosAtividadeMedicao() {
   const select = document.getElementById("medicaoAtividade");
-  const opcao = select.options[select.selectedIndex];
+  const idAtividade = select.value;
 
-  if (!opcao || !opcao.value) return;
+  if (!idAtividade) return;
+
+  const atividades = await listarRegistrosSIGO("TB_ATIVIDADES_OBRA");
+
+  const atividadeBase = atividades.find(item =>
+    String(item.idAtividade) === String(idAtividade) ||
+    String(item.eap) === String(idAtividade)
+  );
+
+  if (!atividadeBase) {
+    alert("Atividade não encontrada nos dados-base offline. Atualize os dados-base da obra.");
+    return;
+  }
 
   document.getElementById("medicaoServico").value =
-    opcao.dataset.servico || "";
+    atividadeBase.servico || "";
 
   document.getElementById("medicaoQtdePlanejada").value =
-    opcao.dataset.qtde || "";
+    Number(atividadeBase.qtdePlanejada || 0);
 
   document.getElementById("medicaoUnidade").value =
-    opcao.dataset.un || "";
+    atividadeBase.unidade || "";
 
   calcularPercentualMedicao();
 }
