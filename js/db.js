@@ -276,3 +276,27 @@ function limparTabelaSIGO_(nomeStore) {
 
   });
 }
+
+async function removerAtividadesPorObraSIGO_(idObra) {
+  const atividades = await listarRegistrosSIGO("TB_ATIVIDADES_OBRA");
+
+  const db = SIGO_DB || await abrirBancoLocalSIGO();
+
+  const transaction = db.transaction(
+    ["TB_ATIVIDADES_OBRA"],
+    "readwrite"
+  );
+
+  const store = transaction.objectStore("TB_ATIVIDADES_OBRA");
+
+  atividades
+    .filter(item => String(item.idObra) === String(idObra))
+    .forEach(item => {
+      store.delete(item.idRegistro);
+    });
+
+  return new Promise((resolve, reject) => {
+    transaction.oncomplete = () => resolve(true);
+    transaction.onerror = () => reject(transaction.error);
+  });
+}
