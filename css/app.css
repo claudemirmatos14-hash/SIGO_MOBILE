@@ -471,3 +471,244 @@ body {
   background: #ecfdf5;
   color: #166534;
 }
+
+
+
+/* =====================================================
+   UX.07.UI.3 — HOME PREMIUM SIGO MOBILE
+===================================================== */
+
+body {
+  background: #e5eaf0;
+}
+
+.app {
+  max-width: 430px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background: #f8fafc;
+  padding-bottom: 78px;
+}
+
+.topo-premium {
+  background: #020617;
+  color: #ffffff;
+  padding: 22px 20px 38px;
+  border-radius: 0 0 28px 28px;
+}
+
+.topo-premium h1 {
+  font-size: 26px;
+  margin: 0;
+  font-weight: 800;
+}
+
+.topo-premium p {
+  font-size: 11px;
+  margin-top: 4px;
+  color: #cbd5e1;
+}
+
+.obra-premium-card,
+.sync-saude-card,
+.acoes-rapidas-card,
+.operacao-campo {
+  width: calc(100% - 32px);
+  margin: 14px auto;
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 14px;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.08);
+}
+
+.obra-premium-card {
+  margin-top: -24px;
+  position: relative;
+  z-index: 2;
+}
+
+.obra-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+#obraAtiva {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 12px;
+  font-weight: 700;
+  font-size: 13px;
+  background: #ffffff;
+}
+
+.obra-info {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.obra-info span {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.obra-info small {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.sync-saude-card h3,
+.acoes-rapidas-card h3,
+.operacao-campo h3 {
+  font-size: 13px;
+  margin: 0 0 12px;
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.sync-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.sync-grid div {
+  background: #f8fafc;
+  border-radius: 14px;
+  padding: 12px 8px;
+  text-align: center;
+}
+
+.sync-grid strong {
+  display: block;
+  font-size: 20px;
+  color: #020617;
+  font-weight: 800;
+}
+
+.sync-grid span {
+  font-size: 10px;
+  color: #64748b;
+}
+
+.sync-ultima {
+  margin: 12px 0 8px;
+  font-size: 11px;
+  color: #475569;
+}
+
+.sync-status {
+  background: #dcfce7;
+  color: #166534;
+  padding: 9px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.acoes-rapidas-card {
+  display: grid;
+  gap: 8px;
+}
+
+.acoes-rapidas-card button {
+  width: 100%;
+  border: none;
+  background: #0f172a;
+  color: #ffffff;
+  border-radius: 13px;
+  padding: 12px;
+  font-weight: 800;
+  font-size: 12px;
+  text-align: left;
+}
+
+.operacao-campo {
+  box-shadow: none;
+  background: transparent;
+  padding: 0;
+}
+
+.menu-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.menu-grid .menu-card {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 14px 10px;
+  min-height: 118px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.menu-grid .icone,
+.menu-grid .menu-icone {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.menu-grid .menu-card h3 {
+  font-size: 13px;
+  margin: 4px 0 0;
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.menu-grid .menu-card p {
+  font-size: 10px;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 430px;
+  width: 100%;
+  background: #ffffff;
+  border-top: 1px solid #e2e8f0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  padding: 8px 8px 10px;
+  box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.08);
+  z-index: 20;
+}
+
+.bottom-nav button {
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.bottom-nav button span {
+  display: block;
+  font-size: 10px;
+  margin-top: 2px;
+  color: #64748b;
+}
