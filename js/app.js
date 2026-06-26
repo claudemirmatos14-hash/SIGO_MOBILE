@@ -630,6 +630,11 @@ async function sincronizarSIGO() {
     await listarOcorrenciasOffline_();
     await listarItensDiarioOffline_();
 
+    localStorage.setItem(
+      "SIGO_ULTIMA_SYNC",
+      new Date().toLocaleString("pt-BR")
+    );
+
     alert("Sincronização enviada ao SIGO com sucesso.");
 
   } catch (erro) {
