@@ -2551,7 +2551,7 @@ async function listarObrasOfflineMobile_() {
             ${ativa ? "✅ Ativa" : "Definir ativa"}
           </button>
 
-          <button onclick="alert('Remover obra será implementado na próxima etapa.')">
+          <button onclick="removerObraOfflineMobile_('${obra.idObra}')">
             Remover
           </button>
         </div>
@@ -2732,5 +2732,53 @@ async function baixarObraOfflineMobile_(idObra) {
   } catch (erro) {
     console.error("Erro ao baixar obra offline:", erro);
     alert(erro.message || "Erro ao baixar obra offline.");
+  }
+}
+
+async function removerObraOfflineMobile_(idObra) {
+  try {
+    if (!idObra) {
+      throw new Error("ID da obra não informado.");
+    }
+
+    const confirmar = confirm(
+      "Deseja remover a obra " + idObra + " deste dispositivo?\n\n" +
+      "Os dados locais desta obra serão apagados."
+    );
+
+    if (!confirmar) return;
+
+    await removerRegistrosPorObraSIGO_("TB_ATIVIDADES_OBRA", idObra);
+    await removerRegistrosPorObraSIGO_("TB_DIARIOS", idObra);
+    await removerRegistrosPorObraSIGO_("TB_DIARIO_ITENS", idObra);
+    await removerRegistrosPorObraSIGO_("TB_MEDICOES", idObra);
+    await removerRegistrosPorObraSIGO_("TB_OCORRENCIAS", idObra);
+    await removerRegistrosPorObraSIGO_("TB_CLIMA", idObra);
+    await removerRegistrosPorObraSIGO_("TB_EVIDENCIAS", idObra);
+
+    await removerRegistroPorChaveSIGO_("TB_OBRAS", idObra);
+
+    const obraAtiva = localStorage.getItem("obraAtiva");
+
+    if (String(obraAtiva) === String(idObra)) {
+      const obrasRestantes = await listarRegistrosSIGO("TB_OBRAS");
+
+      if (obrasRestantes.length) {
+        localStorage.setItem("obraAtiva", obrasRestantes[0].idObra);
+      } else {
+        localStorage.removeItem("obraAtiva");
+      }
+    }
+
+    await carregarObrasMobile_();
+    await listarObrasOfflineMobile_();
+    await listarObrasDisponiveisMobile_();
+    await atualizarPainelSaudeSync_();
+
+    alert("Obra removida deste dispositivo.");
+
+  } catch (erro) {
+    console.error("Erro ao remover obra offline:", erro);
+    alert(erro.message || "Erro ao remover obra offline.");
   }
 }
