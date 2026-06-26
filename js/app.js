@@ -813,6 +813,11 @@ async function salvarMedicaoOffline(event) {
     statusMedicao: "MEDIDO",
     statusSync: "PENDENTE",
     origem: "APP_OFFLINE",
+
+    excessoDetectado: "NAO",
+    excessoAutorizado: "NAO",
+    justificativaExcesso: "",
+    
     criadoEm: new Date().toISOString()
   };
 
@@ -879,22 +884,42 @@ async function validarSaldoOfflineMedicao_(medicao) {
     throw new Error("Informe uma quantidade executada maior que zero.");
   }
 
-  if (qtdeExecutada > saldoDisponivelAtual) {
-    throw new Error(
-      "Saldo insuficiente para esta atividade.\n\n" +
-      "Atividade: " + atividadeBase.servico + "\n" +
-      "Saldo base: " + saldoBase + " " + atividadeBase.unidade + "\n" +
-      "Já medido offline: " + totalJaMedidoOffline + " " + atividadeBase.unidade + "\n" +
-      "Saldo disponível atual: " + saldoDisponivelAtual + " " + atividadeBase.unidade + "\n" +
-      "Quantidade informada: " + qtdeExecutada + " " + atividadeBase.unidade
-    );
-  }
+  medicao.qtdePlanejada = Number(atividadeBase.qtdePlanejada || 0);
+  medicao.un = atividadeBase.unidade || medicao.un;
+  medicao.servico = atividadeBase.servico || medicao.servico;
 
   medicao.saldoBaseOffline = saldoBase;
   medicao.totalJaMedidoOffline = totalJaMedidoOffline;
   medicao.saldoDisponivelAntes = saldoDisponivelAtual;
   medicao.saldoDisponivelDepois = saldoDisponivelAtual - qtdeExecutada;
   medicao.validacaoSaldoOffline = "OK";
+
+  medicao.excessoDetectado = "NAO";
+  medicao.excessoAutorizado = "NAO";
+  medicao.justificativaExcesso = "";
+
+  if (qtdeExecutada > saldoDisponivelAtual) {
+
+    const justificativa = prompt(
+      "⚠ EXCESSO DETECTADO NA MEDIÇÃO\n\n" +
+      "Atividade: " + atividadeBase.servico + "\n" +
+      "Saldo base: " + saldoBase + " " + atividadeBase.unidade + "\n" +
+      "Já medido offline: " + totalJaMedidoOffline + " " + atividadeBase.unidade + "\n" +
+      "Saldo disponível atual: " + saldoDisponivelAtual + " " + atividadeBase.unidade + "\n" +
+      "Quantidade informada: " + qtdeExecutada + " " + atividadeBase.unidade + "\n\n" +
+      "Informe a justificativa para continuar:"
+    );
+
+    if (!justificativa) {
+      throw new Error(
+        "Medição cancelada. Justificativa obrigatória para excesso."
+      );
+    }
+
+    medicao.excessoDetectado = "SIM";
+    medicao.excessoAutorizado = "SIM";
+    medicao.justificativaExcesso = justificativa;
+  }
 
   return true;
 }
