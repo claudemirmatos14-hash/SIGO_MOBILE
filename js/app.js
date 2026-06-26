@@ -669,15 +669,6 @@ function montarTelaMedicoes_() {
         <label>Atividade</label>
         <select id="medicaoAtividade" onchange="preencherDadosAtividadeMedicao()">
           <option value="">Selecione uma atividade</option>
-          <option value="3.1.1" data-servico="Escavação manual de vala" data-qtde="100" data-un="m³">
-            3.1.1 - Escavação manual de vala
-          </option>
-          <option value="2.1" data-servico="Locação e gabarito" data-qtde="50" data-un="m">
-            2.1 - Locação e gabarito
-          </option>
-          <option value="1.1" data-servico="Administração da obra" data-qtde="160" data-un="H">
-            1.1 - Administração da obra
-          </option>
         </select>
 
         <label>Serviço</label>
@@ -963,6 +954,26 @@ async function listarMedicoesOffline_() {
 
   }
 
+}
+
+async function carregarAtividadesMedicaoOffline_() {
+  const select = document.getElementById("medicaoAtividade");
+
+  if (!select) return;
+
+  const atividades = await listarRegistrosSIGO("TB_ATIVIDADES_OBRA");
+
+  select.innerHTML = '<option value="">Selecione uma atividade</option>';
+
+  atividades.forEach(item => {
+    const option = document.createElement("option");
+
+    option.value = item.idAtividade;
+    option.textContent =
+      item.eap + " - " + item.servico;
+
+    select.appendChild(option);
+  });
 }
 
 function montarTelaEvidencias_() {
