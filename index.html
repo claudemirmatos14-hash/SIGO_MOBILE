@@ -71,19 +71,32 @@
     </section>
     
     <section class="acoes-rapidas-card">
-      <h3>⚡ Ações Rápidas</h3>
+      <div class="secao-titulo">
+        <h3>⚡ Ações Rápidas</h3>
+        <span>Operação offline</span>
+      </div>
     
-      <button onclick="sincronizarDadosBaseObraMobile()">
-        🔄 Atualizar Dados-Base
-      </button>
+      <div class="acoes-grid">
+        <button onclick="sincronizarDadosBaseObraMobile()">
+          <strong>🔄</strong>
+          <span>Atualizar<br>Base</span>
+        </button>
     
-      <button onclick="sincronizarSIGO()">
-        ☁ Sincronizar Agora
-      </button>
+        <button onclick="sincronizarSIGO()">
+          <strong>☁</strong>
+          <span>Sincronizar<br>Agora</span>
+        </button>
     
-      <button onclick="alert('Gerenciador de obras será implementado na próxima etapa.')">
-        ⬇ Baixar Nova Obra
-      </button>
+        <button onclick="alert('Gerenciador de obras será implementado na próxima etapa.')">
+          <strong>⬇</strong>
+          <span>Baixar<br>Obra</span>
+        </button>
+    
+        <button onclick="alert('Configurações será implementado futuramente.')">
+          <strong>⚙</strong>
+          <span>Configurar<br>App</span>
+        </button>
+      </div>
     </section>
     
     <section class="operacao-campo">
