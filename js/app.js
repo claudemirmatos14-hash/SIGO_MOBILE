@@ -2438,3 +2438,171 @@ async function carregarObrasMobile_() {
     select.value = obraSalva;
   }
 }
+
+async function abrirGerenciadorObrasOffline_() {
+  const area = document.getElementById("telaApp");
+
+  if (!area) return;
+
+  area.innerHTML = `
+    <div class="tela-card gerenciador-obras">
+
+      <button class="btn-voltar" onclick="voltarHome()">← Voltar</button>
+
+      <h2>🏗 Obras Offline</h2>
+
+      <p>Gerencie as obras disponíveis neste dispositivo.</p>
+
+      <section class="obras-bloco">
+        <h3>Obras baixadas</h3>
+        <div id="listaObrasOffline">
+          Carregando obras offline...
+        </div>
+      </section>
+
+      <section class="obras-bloco">
+        <h3>Obras disponíveis</h3>
+        <div id="listaObrasDisponiveis">
+          Carregando obras disponíveis...
+        </div>
+      </section>
+
+    </div>
+  `;
+
+  await listarObrasOfflineMobile_();
+  await listarObrasDisponiveisMobile_();
+
+  window.scrollTo({
+    top: area.offsetTop,
+    behavior: "smooth"
+  });
+}
+
+async function listarObrasOfflineMobile_() {
+  const container = document.getElementById("listaObrasOffline");
+
+  if (!container) return;
+
+  const obras = await listarRegistrosSIGO("TB_OBRAS");
+  const obraAtiva = localStorage.getItem("obraAtiva") || "";
+
+  if (!obras.length) {
+    container.innerHTML = `
+      <div class="obra-offline-vazia">
+        Nenhuma obra baixada neste dispositivo.
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = obras.map(obra => {
+    const ativa = String(obra.idObra) === String(obraAtiva);
+
+    return `
+      <div class="obra-offline-item">
+        <strong>${obra.idObra}</strong>
+        <span>${obra.nomeObra || obra.idObra}</span>
+        <small>Última atualização: ${formatarDataObraOffline_(obra.dataSync)}</small>
+
+        <div class="obra-acoes">
+          <button onclick="definirObraAtivaMobile_('${obra.idObra}')">
+            ${ativa ? "✅ Ativa" : "Definir ativa"}
+          </button>
+
+          <button onclick="alert('Remover obra será implementado na próxima etapa.')">
+            Remover
+          </button>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+async function listarObrasDisponiveisMobile_() {
+  const container = document.getElementById("listaObrasDisponiveis");
+
+  if (!container) return;
+
+  try {
+    const resposta = await fetch(SIGO_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "text/plain;charset=utf-8"
+      },
+      body: JSON.stringify({
+        token: SIGO_TOKEN_OFFLINE,
+        acao: "LISTAR_OBRAS_DISPONIVEIS",
+        idDispositivo: "WEB-MOBILE-001",
+        idUsuario: "USUARIO_APP"
+      })
+    });
+
+    const resultado = await resposta.json();
+
+    const obras =
+      resultado.obras ||
+      resultado.detalhes?.obras ||
+      [];
+
+    if (!obras.length) {
+      container.innerHTML = `
+        <div class="obra-offline-vazia">
+          Nenhuma obra disponível.
+        </div>
+      `;
+      return;
+    }
+
+    const obrasOffline = await listarRegistrosSIGO("TB_OBRAS");
+    const idsOffline = obrasOffline.map(obra => String(obra.idObra));
+
+    container.innerHTML = obras.map(obra => {
+      const jaBaixada = idsOffline.includes(String(obra.idObra));
+
+      return `
+        <div class="obra-offline-item">
+          <strong>${obra.idObra}</strong>
+          <span>${obra.nomeObra}</span>
+          <small>${obra.status || ""} • ${obra.responsavel || ""}</small>
+
+          <div class="obra-acoes">
+            <button
+              ${jaBaixada ? "disabled" : ""}
+              onclick="alert('Baixar obra será implementado na próxima etapa.')">
+              ${jaBaixada ? "Já baixada" : "Baixar"}
+            </button>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+  } catch (erro) {
+    console.error("Erro ao listar obras disponíveis:", erro);
+
+    container.innerHTML = `
+      <div class="obra-offline-vazia">
+        Erro ao carregar obras disponíveis.
+      </div>
+    `;
+  }
+}
+
+function formatarDataObraOffline_(dataISO) {
+  if (!dataISO) return "--";
+
+  try {
+    return new Date(dataISO).toLocaleString("pt-BR");
+  } catch (erro) {
+    return "--";
+  }
+}
+
+async function definirObraAtivaMobile_(idObra) {
+  localStorage.setItem("obraAtiva", idObra);
+
+  await carregarObrasMobile_();
+  await listarObrasOfflineMobile_();
+
+  alert("Obra ativa alterada para " + idObra + ".");
+}
