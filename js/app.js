@@ -3,6 +3,7 @@ const SIGO_TOKEN_OFFLINE = "SIGO_TOKEN_OFFLINE";
 
 document.addEventListener("DOMContentLoaded", () => {
   iniciarSeletorObra();
+  atualizarPainelSaudeSync_();
 });
 
 function iniciarSeletorObra() {
@@ -425,6 +426,37 @@ async function obterSaudeSincronizacao_() {
   };
 }
 
+async function atualizarPainelSaudeSync_() {
+
+  const painel =
+    await obterSaudeSincronizacao_();
+
+  const pendentes =
+    document.getElementById("syncPendentes");
+
+  const sincronizados =
+    document.getElementById("syncSincronizados");
+
+  const conflitos =
+    document.getElementById("syncConflitos");
+
+  const excessos =
+    document.getElementById("syncExcessos");
+
+  const ultima =
+    document.getElementById("syncUltima");
+
+  const status =
+    document.getElementById("syncStatus");
+
+  if (pendentes) pendentes.textContent = painel.pendentes;
+  if (sincronizados) sincronizados.textContent = painel.sincronizados;
+  if (conflitos) conflitos.textContent = painel.conflitos;
+  if (excessos) excessos.textContent = painel.excessos;
+  if (ultima) ultima.textContent = painel.ultimaSync;
+  if (status) status.textContent = painel.status;
+}
+
 async function carregarListaDiariosOffline() {
 
   const areaLista =
@@ -634,6 +666,7 @@ async function sincronizarSIGO() {
       "SIGO_ULTIMA_SYNC",
       new Date().toLocaleString("pt-BR")
     );
+    await atualizarPainelSaudeSync_();
 
     alert("Sincronização enviada ao SIGO com sucesso.");
 
