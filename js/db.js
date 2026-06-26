@@ -1,5 +1,5 @@
 const SIGO_DB_NAME = "SIGO_OFFLINE_DB";
-const SIGO_DB_VERSION = 3;
+const SIGO_DB_VERSION = 4;
 
 let SIGO_DB = null;
 
@@ -79,7 +79,7 @@ function criarStoresSIGO_(db) {
     const store = db.createObjectStore(
       "TB_ATIVIDADES_OBRA",
       {
-        keyPath: "idAtividade"
+        keyPath: "idRegistro"
       }
     );
   
