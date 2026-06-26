@@ -712,3 +712,175 @@ body {
   margin-top: 2px;
   color: #64748b;
 }
+
+
+/* =====================================================
+   UX.07.UI.4 — REFINAMENTO PREMIUM
+===================================================== */
+
+.secao-titulo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.secao-titulo h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.secao-titulo span {
+  font-size: 10px;
+  font-weight: 700;
+  color: #64748b;
+}
+
+/* OBRA ATIVA MAIS PREMIUM */
+.obra-premium-card {
+  border: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.obra-label {
+  letter-spacing: 0.04em;
+}
+
+#obraAtiva {
+  height: 46px;
+  font-size: 13px;
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.15);
+}
+
+.obra-info span {
+  font-size: 14px;
+}
+
+.obra-info small {
+  margin-top: 2px;
+}
+
+/* AÇÕES RÁPIDAS EM GRID PREMIUM */
+.acoes-rapidas-card {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.acoes-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.acoes-grid button {
+  border: none;
+  border-radius: 18px;
+  padding: 13px 10px;
+  background: #020617;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 62px;
+  box-shadow: 0 10px 22px rgba(2, 6, 23, 0.18);
+}
+
+.acoes-grid button strong {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  flex-shrink: 0;
+}
+
+.acoes-grid button span {
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.15;
+  text-align: left;
+}
+
+/* MENU DE CAMPO MAIS COMPACTO E PREMIUM */
+.operacao-campo {
+  margin-top: 18px;
+}
+
+.operacao-campo > h3 {
+  padding-left: 2px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.menu-grid {
+  gap: 10px;
+}
+
+.menu-grid .menu-card {
+  min-height: 104px;
+  border-radius: 20px;
+  padding: 12px 8px;
+  border: 1px solid rgba(226, 232, 240, 0.75);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.menu-grid .menu-card:active {
+  transform: scale(0.97);
+}
+
+.menu-grid .icone,
+.menu-grid .menu-icone {
+  width: 42px;
+  height: 42px;
+  border-radius: 15px;
+  background: #eef2ff;
+  font-size: 21px;
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.12);
+}
+
+.menu-grid .menu-card h3 {
+  font-size: 12px;
+  margin-top: 6px;
+  margin-bottom: 0;
+}
+
+.menu-grid .menu-card p {
+  font-size: 9.5px;
+  max-width: 110px;
+}
+
+/* SAÚDE DA SINCRONIZAÇÃO MAIS REFINADA */
+.sync-saude-card {
+  border: 1px solid rgba(226, 232, 240, 0.85);
+}
+
+.sync-grid div {
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid rgba(226, 232, 240, 0.7);
+}
+
+.sync-grid strong {
+  font-size: 21px;
+}
+
+.sync-status {
+  letter-spacing: 0.02em;
+}
+
+/* BOTTOM NAV MAIS PREMIUM */
+.bottom-nav {
+  border-radius: 22px 22px 0 0;
+}
+
+.bottom-nav button {
+  opacity: 0.85;
+}
+
+.bottom-nav button:active {
+  transform: scale(0.94);
+}
