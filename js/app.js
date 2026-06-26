@@ -898,7 +898,10 @@ async function validarSaldoOfflineMedicao_(medicao) {
   medicao.excessoAutorizado = "NAO";
   medicao.justificativaExcesso = "";
 
-  if (qtdeExecutada > saldoDisponivelAtual) {
+ if (
+    saldoDisponivelAtual <= 0 ||
+    qtdeExecutada > saldoDisponivelAtual
+  ) {
 
     const justificativa = prompt(
       "⚠ EXCESSO DETECTADO NA MEDIÇÃO\n\n" +
@@ -2120,7 +2123,11 @@ async function validarExcessoItemDiarioOffline_(item) {
   item.saldoDisponivelAntes = saldoAtual;
   item.saldoDisponivelDepois = saldoAtual - qtdeExecutada;
 
-  if (qtdeExecutada <= saldoAtual) {
+  const excedeuSaldo =
+    saldoAtual <= 0 ||
+    qtdeExecutada > saldoAtual;
+  
+  if (!excedeuSaldo) {
     return true;
   }
 
