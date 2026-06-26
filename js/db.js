@@ -300,3 +300,51 @@ async function removerAtividadesPorObraSIGO_(idObra) {
     transaction.onerror = () => reject(transaction.error);
   });
 }
+
+async function removerRegistrosPorObraSIGO_(storeName, idObra) {
+  const registros = await listarRegistrosSIGO(storeName);
+  const db = SIGO_DB || await abrirBancoLocalSIGO();
+
+  const transaction = db.transaction(
+    [storeName],
+    "readwrite"
+  );
+
+  const store = transaction.objectStore(storeName);
+
+  registros
+    .filter(registro =>
+      String(registro.idObra) === String(idObra)
+    )
+    .forEach(registro => {
+      const keyPath = store.keyPath;
+      const chave = registro[keyPath];
+
+      if (chave !== undefined) {
+        store.delete(chave);
+      }
+    });
+
+  return new Promise((resolve, reject) => {
+    transaction.oncomplete = () => resolve(true);
+    transaction.onerror = () => reject(transaction.error);
+  });
+}
+
+async function removerRegistroPorChaveSIGO_(storeName, chave) {
+  const db = SIGO_DB || await abrirBancoLocalSIGO();
+
+  const transaction = db.transaction(
+    [storeName],
+    "readwrite"
+  );
+
+  const store = transaction.objectStore(storeName);
+
+  store.delete(chave);
+
+  return new Promise((resolve, reject) => {
+    transaction.oncomplete = () => resolve(true);
+    transaction.onerror = () => reject(transaction.error);
+  });
+}
