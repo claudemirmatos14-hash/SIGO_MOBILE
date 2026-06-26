@@ -2001,8 +2001,10 @@ async function preencherDadosAtividadeItemDiario() {
  {
   event.preventDefault();
 
-  async function salvarItemDiarioOffline(event) {
-   const item = {
+ async function salvarItemDiarioOffline(event) {
+  event.preventDefault();
+
+  const item = {
   idItemDiario: "DIT-" + Date.now(),
   idDiario: document.getElementById("itemDiarioIdDiario").value,
   data: document.getElementById("itemDiarioData").value,
@@ -2054,35 +2056,6 @@ async function preencherDadosAtividadeItemDiario() {
   }
 }
 
-async function validarAtividadeItemDiarioOffline_(item) {
-
-  const atividades = await listarRegistrosSIGO("TB_ATIVIDADES_OBRA");
-
-  const atividadeBase = atividades.find(atividade =>
-    String(atividade.idAtividade) === String(item.atividade) ||
-    String(atividade.eap) === String(item.eap)
-  );
-
-  if (!atividadeBase) {
-    throw new Error(
-      "Atividade não encontrada nos dados-base offline. Atualize os dados-base da obra."
-    );
-  }
-
-  if (Number(item.qtdeExecutada || 0) <= 0) {
-    throw new Error("Informe uma quantidade executada maior que zero.");
-  }
-
-  item.eap = atividadeBase.eap || item.eap;
-  item.servico = atividadeBase.servico || item.servico;
-  item.un = atividadeBase.unidade || item.un;
-  item.qtdePlanejada = Number(atividadeBase.qtdePlanejada || 0);
-  item.saldoDisponivelBase = Number(atividadeBase.saldoDisponivel || 0);
-  item.validacaoDadosBaseOffline = "OK";
-
-  return true;
-}
-
 async function validarExcessoItemDiarioOffline_(item) {
 
   const atividades =
@@ -2120,6 +2093,35 @@ async function validarExcessoItemDiarioOffline_(item) {
   item.excessoDetectado = "SIM";
   item.excessoAutorizado = "SIM";
   item.justificativaExcesso = justificativa;
+
+  return true;
+}
+   
+async function validarAtividadeItemDiarioOffline_(item) {
+
+  const atividades = await listarRegistrosSIGO("TB_ATIVIDADES_OBRA");
+
+  const atividadeBase = atividades.find(atividade =>
+    String(atividade.idAtividade) === String(item.atividade) ||
+    String(atividade.eap) === String(item.eap)
+  );
+
+  if (!atividadeBase) {
+    throw new Error(
+      "Atividade não encontrada nos dados-base offline. Atualize os dados-base da obra."
+    );
+  }
+
+  if (Number(item.qtdeExecutada || 0) <= 0) {
+    throw new Error("Informe uma quantidade executada maior que zero.");
+  }
+
+  item.eap = atividadeBase.eap || item.eap;
+  item.servico = atividadeBase.servico || item.servico;
+  item.un = atividadeBase.unidade || item.un;
+  item.qtdePlanejada = Number(atividadeBase.qtdePlanejada || 0);
+  item.saldoDisponivelBase = Number(atividadeBase.saldoDisponivel || 0);
+  item.validacaoDadosBaseOffline = "OK";
 
   return true;
 }
