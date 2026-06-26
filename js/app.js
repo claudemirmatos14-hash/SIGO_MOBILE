@@ -2001,7 +2001,8 @@ async function preencherDadosAtividadeItemDiario() {
  {
   event.preventDefault();
 
-  async function salvarItemDiarioOffline(event)
+  async function salvarItemDiarioOffline(event) {
+   const item = {
     idItemDiario: "DIT-" + Date.now(),
     idDiario: document.getElementById("itemDiarioIdDiario").value,
     data: document.getElementById("itemDiarioData").value,
