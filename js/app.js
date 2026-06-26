@@ -1,10 +1,10 @@
 const SIGO_API_URL = "https://script.google.com/macros/s/AKfycbzVE7tdTSwHvKgLkrdcaQtGAm_muqNPo6n0wQZBDpmRwtAJuySfWyh6gdef0R6g_drKRw/exec";
 const SIGO_TOKEN_OFFLINE = "SIGO_TOKEN_OFFLINE";
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+  await carregarObrasMobile_();
   iniciarSeletorObra();
-  carregarObrasMobile_();
-  atualizarPainelSaudeSync_();
+  await atualizarPainelSaudeSync_();
 });
 
 function iniciarSeletorObra() {
