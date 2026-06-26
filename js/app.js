@@ -1998,10 +1998,7 @@ async function preencherDadosAtividadeItemDiario() {
   }
 }
 
- {
-  event.preventDefault();
-
- async function salvarItemDiarioOffline(event) {
+async function salvarItemDiarioOffline(event) {
   event.preventDefault();
 
   const item = {
