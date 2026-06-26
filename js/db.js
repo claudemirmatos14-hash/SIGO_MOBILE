@@ -1,5 +1,5 @@
 const SIGO_DB_NAME = "SIGO_OFFLINE_DB";
-const SIGO_DB_VERSION = 4;
+const SIGO_DB_VERSION = 5;
 
 let SIGO_DB = null;
 
