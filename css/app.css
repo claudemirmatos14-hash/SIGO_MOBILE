@@ -940,3 +940,81 @@ body {
 .bottom-nav button span {
   font-weight: 800;
 }
+
+.gerenciador-obras {
+  padding-bottom: 90px;
+}
+
+.obras-bloco {
+  margin-top: 18px;
+}
+
+.obras-bloco h3 {
+  font-size: 13px;
+  font-weight: 900;
+  color: #0f172a;
+  margin-bottom: 10px;
+}
+
+.obra-offline-item {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 14px;
+  margin-bottom: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+}
+
+.obra-offline-item strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 900;
+  color: #020617;
+}
+
+.obra-offline-item span {
+  display: block;
+  margin-top: 3px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.obra-offline-item small {
+  display: block;
+  margin-top: 6px;
+  font-size: 10px;
+  color: #64748b;
+}
+
+.obra-acoes {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.obra-acoes button {
+  flex: 1;
+  border: none;
+  border-radius: 12px;
+  padding: 10px;
+  font-size: 11px;
+  font-weight: 800;
+  background: #0f172a;
+  color: #ffffff;
+}
+
+.obra-acoes button:disabled {
+  background: #cbd5e1;
+  color: #475569;
+}
+
+.obra-offline-vazia {
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 16px;
+  padding: 14px;
+  font-size: 12px;
+  color: #64748b;
+  text-align: center;
+}
