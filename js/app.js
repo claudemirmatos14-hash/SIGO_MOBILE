@@ -3,6 +3,7 @@ const SIGO_TOKEN_OFFLINE = "SIGO_TOKEN_OFFLINE";
 
 document.addEventListener("DOMContentLoaded", () => {
   iniciarSeletorObra();
+  carregarObrasMobile_();
   atualizarPainelSaudeSync_();
 });
 
