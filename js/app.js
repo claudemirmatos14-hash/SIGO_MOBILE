@@ -2059,25 +2059,53 @@ async function validarExcessoItemDiarioOffline_(item) {
     await listarRegistrosSIGO("TB_ATIVIDADES_OBRA");
 
   const atividadeBase = atividades.find(atividade =>
-    String(atividade.idAtividade) === String(item.atividade)
+    String(atividade.idAtividade) === String(item.atividade) ||
+    String(atividade.eap) === String(item.eap)
   );
 
   if (!atividadeBase) return true;
 
-  const saldoDisponivel =
+  const itensOffline =
+    await listarRegistrosSIGO("TB_DIARIO_ITENS");
+
+  const totalJaExecutadoOffline = itensOffline
+    .filter(registro =>
+      String(registro.idObra) === String(item.idObra) &&
+      (
+        String(registro.atividade) === String(item.atividade) ||
+        String(registro.eap) === String(item.eap)
+      ) &&
+      registro.idItemDiario !== item.idItemDiario
+    )
+    .reduce((total, registro) => {
+      return total + Number(registro.qtdeExecutada || 0);
+    }, 0);
+
+  const saldoBase =
     Number(atividadeBase.saldoDisponivel || 0);
+
+  const saldoAtual =
+    saldoBase - totalJaExecutadoOffline;
 
   const qtdeExecutada =
     Number(item.qtdeExecutada || 0);
 
-  if (qtdeExecutada <= saldoDisponivel) {
+  item.saldoDisponivelBase = saldoBase;
+  item.totalJaExecutadoOffline = totalJaExecutadoOffline;
+  item.saldoDisponivelAntes = saldoAtual;
+  item.saldoDisponivelDepois = saldoAtual - qtdeExecutada;
+
+  if (qtdeExecutada <= saldoAtual) {
     return true;
   }
 
   const justificativa = prompt(
     "⚠ EXCESSO DETECTADO\n\n" +
-    "Saldo disponível: " + saldoDisponivel + "\n" +
-    "Quantidade informada: " + qtdeExecutada + "\n\n" +
+    "Atividade: " + atividadeBase.servico + "\n" +
+    "Saldo base: " + saldoBase + " " + atividadeBase.unidade + "\n" +
+    "Já executado offline: " + totalJaExecutadoOffline + " " + atividadeBase.unidade + "\n" +
+    "Saldo disponível atual: " + saldoAtual + " " + atividadeBase.unidade + "\n" +
+    "Quantidade informada: " + qtdeExecutada + " " + atividadeBase.unidade + "\n\n" +
     "Informe a justificativa:"
   );
 
