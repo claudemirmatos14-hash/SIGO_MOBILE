@@ -2003,29 +2003,29 @@ async function preencherDadosAtividadeItemDiario() {
 
   async function salvarItemDiarioOffline(event) {
    const item = {
-    idItemDiario: "DIT-" + Date.now(),
-    idDiario: document.getElementById("itemDiarioIdDiario").value,
-    data: document.getElementById("itemDiarioData").value,
-    idObra: document.getElementById("itemDiarioObra").value,
-    atividade: document.getElementById("itemDiarioAtividade").value,
-    eap: document.getElementById("itemDiarioAtividade").value,
-    servico: document.getElementById("itemDiarioServico").value,
-    equipe: document.getElementById("itemDiarioEquipe").value,
-    equipamento: document.getElementById("itemDiarioEquipamento").value,
-    qtdeExecutada: Number(document.getElementById("itemDiarioQtdeExecutada").value || 0),
-    un: document.getElementById("itemDiarioUnidade").value,
-    horasTrabalhadas: Number(document.getElementById("itemDiarioHoras").value || 0),
-    observacao: document.getElementById("itemDiarioObservacao").value,
-    statusItem: "EXECUTADO",
-    statusSync: "PENDENTE",
-    origem: "APP_OFFLINE",
+  idItemDiario: "DIT-" + Date.now(),
+  idDiario: document.getElementById("itemDiarioIdDiario").value,
+  data: document.getElementById("itemDiarioData").value,
+  idObra: document.getElementById("itemDiarioObra").value,
+  atividade: document.getElementById("itemDiarioAtividade").value,
+  eap: document.getElementById("itemDiarioAtividade").value,
+  servico: document.getElementById("itemDiarioServico").value,
+  equipe: document.getElementById("itemDiarioEquipe").value,
+  equipamento: document.getElementById("itemDiarioEquipamento").value,
+  qtdeExecutada: Number(document.getElementById("itemDiarioQtdeExecutada").value || 0),
+  un: document.getElementById("itemDiarioUnidade").value,
+  horasTrabalhadas: Number(document.getElementById("itemDiarioHoras").value || 0),
+  observacao: document.getElementById("itemDiarioObservacao").value,
+  statusItem: "EXECUTADO",
+  statusSync: "PENDENTE",
+  origem: "APP_OFFLINE",
 
-    excessoDetectado: "NAO",
-    excessoAutorizado: "NAO",
-    justificativaExcesso: "",
-      
-    criadoEm: new Date().toISOString()
-  };
+  excessoDetectado: "NAO",
+  excessoAutorizado: "NAO",
+  justificativaExcesso: "",
+
+  criadoEm: new Date().toISOString()
+};
 
   try {
     await validarAtividadeItemDiarioOffline_(item);
