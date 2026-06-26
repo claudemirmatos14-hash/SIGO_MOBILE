@@ -8,24 +8,40 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 function iniciarSeletorObra() {
-  const seletor = document.getElementById("obraAtiva");
-  const nomeObra = document.getElementById("nomeObra");
+  const seletor =
+    document.getElementById("obraAtiva");
+
+  const nomeObra =
+    document.getElementById("nomeObra");
 
   if (!seletor) return;
 
-  const obraSalva = localStorage.getItem("obraAtiva");
+  seletor.addEventListener("change", async function () {
+    const idObra = seletor.value;
 
-  if (obraSalva) {
-    seletor.value = obraSalva;
-  }
+    if (!idObra) return;
 
-  atualizarNomeObra_(seletor, nomeObra);
+    const obras =
+      await listarRegistrosSIGO("TB_OBRAS");
 
-  seletor.addEventListener("change", () => {
-    localStorage.setItem("obraAtiva", seletor.value);
-    atualizarNomeObra_(seletor, nomeObra);
+    const obra =
+      obras.find(item =>
+        String(item.idObra) === String(idObra)
+      );
 
-    console.log("Obra ativa:", seletor.value);
+    localStorage.setItem("obraAtiva", idObra);
+
+    if (nomeObra && obra) {
+      nomeObra.textContent =
+        obra.nomeObra || obra.idObra;
+    }
+
+    await atualizarPainelSaudeSync_();
+
+    console.log(
+      "Obra ativa alterada pelo seletor:",
+      idObra
+    );
   });
 }
 
@@ -2417,6 +2433,14 @@ async function carregarObrasMobile_() {
 
   const obras = await listarRegistrosSIGO("TB_OBRAS");
 
+  const contador =
+    document.getElementById("contadorObrasOffline");
+
+  if (contador) {
+    contador.textContent =
+      obras.length + " de 3 obras offline";
+  }
+
   select.innerHTML = "";
 
   if (!obras.length) {
@@ -2434,10 +2458,24 @@ async function carregarObrasMobile_() {
     select.appendChild(option);
   });
 
-  const obraSalva = localStorage.getItem("obraAtiva");
+  const obraSalva =
+    localStorage.getItem("obraAtiva");
 
   if (obraSalva) {
     select.value = obraSalva;
+  }
+
+  const nomeObra =
+    document.getElementById("nomeObra");
+
+  const obraSelecionada =
+    obras.find(obra =>
+      String(obra.idObra) === String(select.value)
+    );
+
+  if (nomeObra && obraSelecionada) {
+    nomeObra.textContent =
+      obraSelecionada.nomeObra || obraSelecionada.idObra;
   }
 }
 
@@ -2602,12 +2640,50 @@ function formatarDataObraOffline_(dataISO) {
 }
 
 async function definirObraAtivaMobile_(idObra) {
-  localStorage.setItem("obraAtiva", idObra);
+  try {
+    if (!idObra) {
+      throw new Error("ID da obra não informado.");
+    }
 
-  await carregarObrasMobile_();
-  await listarObrasOfflineMobile_();
+    const obras =
+      await listarRegistrosSIGO("TB_OBRAS");
 
-  alert("Obra ativa alterada para " + idObra + ".");
+    const obra =
+      obras.find(item =>
+        String(item.idObra) === String(idObra)
+      );
+
+    if (!obra) {
+      throw new Error(
+        "Obra não encontrada no banco offline."
+      );
+    }
+
+    localStorage.setItem("obraAtiva", idObra);
+
+    await carregarObrasMobile_();
+    await atualizarPainelSaudeSync_();
+    await listarObrasOfflineMobile_();
+
+    const nomeObra =
+      document.getElementById("nomeObra");
+
+    if (nomeObra) {
+      nomeObra.textContent =
+        obra.nomeObra || obra.idObra;
+    }
+
+    alert(
+      "Obra ativa alterada para " +
+      obra.idObra +
+      " - " +
+      (obra.nomeObra || obra.idObra)
+    );
+
+  } catch (erro) {
+    console.error("Erro ao definir obra ativa:", erro);
+    alert(erro.message || "Erro ao definir obra ativa.");
+  }
 }
 
 async function baixarObraOfflineMobile_(idObra) {
