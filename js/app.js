@@ -49,14 +49,14 @@ function navegarPara(tela) {
   setTimeout(carregarListaDiariosOffline, 100);
 }
 
-  if (tela === "medicoes") {
+ if (tela === "medicoes") {
 
-  setTimeout(() => {
-    listarMedicoesOffline_();
+  setTimeout(async () => {
+    await carregarAtividadesMedicaoOffline_();
+    await listarMedicoesOffline_();
   }, 100);
 
 }
-
   if (tela === "evidencias") {
     setTimeout(() => {
       listarEvidenciasOffline_();
@@ -764,6 +764,26 @@ function calcularPercentualMedicao() {
     percentual.toFixed(2);
 }
 
+async function carregarAtividadesMedicaoOffline_() {
+  const select = document.getElementById("medicaoAtividade");
+
+  if (!select) return;
+
+  const atividades = await listarRegistrosSIGO("TB_ATIVIDADES_OBRA");
+
+  select.innerHTML = '<option value="">Selecione uma atividade</option>';
+
+  atividades.forEach(item => {
+    const option = document.createElement("option");
+
+    option.value = item.idAtividade;
+    option.textContent =
+      item.eap + " - " + item.servico;
+
+    select.appendChild(option);
+  });
+}
+
 
 async function salvarMedicaoOffline(event) {
   event.preventDefault();
@@ -954,26 +974,6 @@ async function listarMedicoesOffline_() {
 
   }
 
-}
-
-async function carregarAtividadesMedicaoOffline_() {
-  const select = document.getElementById("medicaoAtividade");
-
-  if (!select) return;
-
-  const atividades = await listarRegistrosSIGO("TB_ATIVIDADES_OBRA");
-
-  select.innerHTML = '<option value="">Selecione uma atividade</option>';
-
-  atividades.forEach(item => {
-    const option = document.createElement("option");
-
-    option.value = item.idAtividade;
-    option.textContent =
-      item.eap + " - " + item.servico;
-
-    select.appendChild(option);
-  });
 }
 
 function montarTelaEvidencias_() {
