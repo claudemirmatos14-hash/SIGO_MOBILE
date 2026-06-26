@@ -2572,7 +2572,7 @@ async function listarObrasDisponiveisMobile_() {
           <div class="obra-acoes">
             <button
               ${jaBaixada ? "disabled" : ""}
-              onclick="alert('Baixar obra será implementado na próxima etapa.')">
+              onclick="baixarObraOfflineMobile_('${obra.idObra}')">
               ${jaBaixada ? "Já baixada" : "Baixar"}
             </button>
           </div>
@@ -2608,4 +2608,53 @@ async function definirObraAtivaMobile_(idObra) {
   await listarObrasOfflineMobile_();
 
   alert("Obra ativa alterada para " + idObra + ".");
+}
+
+async function baixarObraOfflineMobile_(idObra) {
+  try {
+    if (!idObra) {
+      throw new Error("ID da obra não informado.");
+    }
+
+    const obrasLocais =
+      await listarRegistrosSIGO("TB_OBRAS");
+
+    const jaExiste =
+      obrasLocais.some(obra =>
+        String(obra.idObra) === String(idObra)
+      );
+
+    if (jaExiste) {
+      alert("Esta obra já está baixada neste dispositivo.");
+      return;
+    }
+
+    if (obrasLocais.length >= 3) {
+      alert("Limite de 3 obras offline atingido. Remova uma obra antes de baixar outra.");
+      return;
+    }
+
+    const obraAnterior =
+      localStorage.getItem("obraAtiva");
+
+    localStorage.setItem("obraAtiva", idObra);
+
+    await sincronizarDadosBaseObraMobile();
+
+    if (obraAnterior) {
+      localStorage.setItem("obraAtiva", obraAnterior);
+    } else {
+      localStorage.setItem("obraAtiva", idObra);
+    }
+
+    await carregarObrasMobile_();
+    await listarObrasOfflineMobile_();
+    await listarObrasDisponiveisMobile_();
+
+    alert("Obra baixada com sucesso.");
+
+  } catch (erro) {
+    console.error("Erro ao baixar obra offline:", erro);
+    alert(erro.message || "Erro ao baixar obra offline.");
+  }
 }
