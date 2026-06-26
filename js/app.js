@@ -1998,10 +1998,10 @@ async function preencherDadosAtividadeItemDiario() {
   }
 }
 
-async function salvarItemDiarioOffline(event) {
+ {
   event.preventDefault();
 
-  const item = {
+  async function salvarItemDiarioOffline(event)
     idItemDiario: "DIT-" + Date.now(),
     idDiario: document.getElementById("itemDiarioIdDiario").value,
     data: document.getElementById("itemDiarioData").value,
@@ -2018,11 +2018,18 @@ async function salvarItemDiarioOffline(event) {
     statusItem: "EXECUTADO",
     statusSync: "PENDENTE",
     origem: "APP_OFFLINE",
+
+    excessoDetectado: "NAO",
+    excessoAutorizado: "NAO",
+    justificativaExcesso: "",
+      
     criadoEm: new Date().toISOString()
   };
 
   try {
     await validarAtividadeItemDiarioOffline_(item);
+
+    await validarExcessoItemDiarioOffline_(item);
     
     await salvarRegistroSIGO("TB_DIARIO_ITENS", item);
 
@@ -2071,6 +2078,47 @@ async function validarAtividadeItemDiarioOffline_(item) {
   item.qtdePlanejada = Number(atividadeBase.qtdePlanejada || 0);
   item.saldoDisponivelBase = Number(atividadeBase.saldoDisponivel || 0);
   item.validacaoDadosBaseOffline = "OK";
+
+  return true;
+}
+
+async function validarExcessoItemDiarioOffline_(item) {
+
+  const atividades =
+    await listarRegistrosSIGO("TB_ATIVIDADES_OBRA");
+
+  const atividadeBase = atividades.find(atividade =>
+    String(atividade.idAtividade) === String(item.atividade)
+  );
+
+  if (!atividadeBase) return true;
+
+  const saldoDisponivel =
+    Number(atividadeBase.saldoDisponivel || 0);
+
+  const qtdeExecutada =
+    Number(item.qtdeExecutada || 0);
+
+  if (qtdeExecutada <= saldoDisponivel) {
+    return true;
+  }
+
+  const justificativa = prompt(
+    "⚠ EXCESSO DETECTADO\n\n" +
+    "Saldo disponível: " + saldoDisponivel + "\n" +
+    "Quantidade informada: " + qtdeExecutada + "\n\n" +
+    "Informe a justificativa:"
+  );
+
+  if (!justificativa) {
+    throw new Error(
+      "Lançamento cancelado. Justificativa obrigatória."
+    );
+  }
+
+  item.excessoDetectado = "SIM";
+  item.excessoAutorizado = "SIM";
+  item.justificativaExcesso = justificativa;
 
   return true;
 }
