@@ -416,3 +416,58 @@ body {
   text-align: center;
   font-size: 32px;
 }
+
+.sync-saude-card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 14px;
+  margin: 14px 0;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+}
+
+.sync-saude-card h3 {
+  font-size: 14px;
+  margin-bottom: 10px;
+  color: #0f172a;
+}
+
+.sync-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.sync-grid div {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 10px;
+  text-align: center;
+}
+
+.sync-grid strong {
+  display: block;
+  font-size: 18px;
+  color: #0f172a;
+}
+
+.sync-grid span {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.sync-ultima {
+  margin-top: 10px;
+  font-size: 12px;
+  color: #475569;
+}
+
+.sync-status {
+  margin-top: 8px;
+  padding: 8px;
+  border-radius: 10px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 12px;
+  background: #ecfdf5;
+  color: #166534;
+}
