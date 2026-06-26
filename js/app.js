@@ -760,6 +760,8 @@ async function sincronizarDadosBaseObraMobile() {
       );
     }
 
+    await carregarObrasMobile_();
+    
     alert(
       "Dados-base atualizados com sucesso. Atividades: " +
       atividades.length
