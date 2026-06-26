@@ -368,6 +368,63 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 });
 
+async function obterSaudeSincronizacao_() {
+
+  const fila =
+    await listarRegistrosSIGO("TB_SYNC_QUEUE");
+
+  const pendentes =
+    fila.filter(item =>
+      item.statusSync === "PENDENTE"
+    ).length;
+
+  const sincronizados =
+    fila.filter(item =>
+      item.statusSync === "SINCRONIZADO"
+    ).length;
+
+  const conflitos =
+    Number(
+      localStorage.getItem(
+        "SIGO_CONFLITOS"
+      ) || 0
+    );
+
+  const excessos =
+    Number(
+      localStorage.getItem(
+        "SIGO_EXCESSOS"
+      ) || 0
+    );
+
+  const ultimaSync =
+    localStorage.getItem(
+      "SIGO_ULTIMA_SYNC"
+    ) || "--";
+
+  let status =
+    "🟢 OPERACIONAL";
+
+  if (pendentes > 0) {
+    status =
+      "🟡 PENDÊNCIAS";
+  }
+
+  if (conflitos > 0) {
+    status =
+      "🔴 ATENÇÃO";
+  }
+
+  return {
+    pendentes,
+    sincronizados,
+    conflitos,
+    excessos,
+    ultimaSync,
+    status
+  };
+}
+
 async function carregarListaDiariosOffline() {
 
   const areaLista =
