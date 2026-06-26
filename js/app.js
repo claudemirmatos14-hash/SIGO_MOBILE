@@ -2378,3 +2378,34 @@ async function carregarAtividadesItemDiarioOffline_() {
     select.appendChild(option);
   });
 }
+
+async function carregarObrasMobile_() {
+  const select = document.getElementById("obraAtiva");
+
+  if (!select) return;
+
+  const obras = await listarRegistrosSIGO("TB_OBRAS");
+
+  select.innerHTML = "";
+
+  if (!obras.length) {
+    select.innerHTML = '<option value="">Nenhuma obra offline</option>';
+    return;
+  }
+
+  obras.forEach(obra => {
+    const option = document.createElement("option");
+
+    option.value = obra.idObra;
+    option.textContent =
+      obra.idObra + " - " + obra.nomeObra;
+
+    select.appendChild(option);
+  });
+
+  const obraSalva = localStorage.getItem("obraAtiva");
+
+  if (obraSalva) {
+    select.value = obraSalva;
+  }
+}
