@@ -2903,3 +2903,84 @@ async function auditarTabelasOfflineMobile_() {
 
   return resultado;
 }
+
+async function auditarFilaSyncOfflineMobile_() {
+
+  const fila =
+    await listarRegistrosSIGO("TB_SYNC_QUEUE");
+
+  const resultado = {
+    total: fila.length,
+
+    pendentes: fila.filter(item =>
+      item.statusSync === "PENDENTE"
+    ).length,
+
+    sincronizados: fila.filter(item =>
+      item.statusSync === "SINCRONIZADO"
+    ).length,
+
+    semTipo: fila.filter(item =>
+      !item.tipo
+    ).length,
+
+    semStoreOrigem: fila.filter(item =>
+      !item.storeOrigem
+    ).length,
+
+    semIdRegistro: fila.filter(item =>
+      !item.idRegistro
+    ).length,
+
+    semIdObra: fila.filter(item =>
+      !item.idObra
+    ).length,
+
+    semStatusSync: fila.filter(item =>
+      !item.statusSync
+    ).length,
+
+    semCriadoEm: fila.filter(item =>
+      !item.criadoEm
+    ).length
+  };
+
+  resultado.status =
+    resultado.semTipo === 0 &&
+    resultado.semStoreOrigem === 0 &&
+    resultado.semIdRegistro === 0 &&
+    resultado.semIdObra === 0 &&
+    resultado.semStatusSync === 0 &&
+    resultado.semCriadoEm === 0
+      ? "OK"
+      : "AJUSTAR";
+
+  console.table([resultado]);
+
+  const agrupadoPorTipo =
+    fila.reduce((acc, item) => {
+
+      const tipo =
+        item.tipo || "SEM_TIPO";
+
+      if (!acc[tipo]) {
+        acc[tipo] = 0;
+      }
+
+      acc[tipo]++;
+
+      return acc;
+
+    }, {});
+
+  console.log(
+    "Fila agrupada por tipo:",
+    agrupadoPorTipo
+  );
+
+  return {
+    resumo: resultado,
+    porTipo: agrupadoPorTipo,
+    registros: fila
+  };
+}
