@@ -2834,3 +2834,72 @@ async function atualizarIndicadorAtividadesOffline_() {
   contador.textContent =
     total + " atividades offline";
 }
+
+
+async function auditarTabelasOfflineMobile_() {
+
+  const stores = [
+    "TB_DIARIOS",
+    "TB_DIARIO_ITENS",
+    "TB_MEDICOES",
+    "TB_OCORRENCIAS",
+    "TB_CLIMA",
+    "TB_EVIDENCIAS"
+  ];
+
+  const resultado = [];
+
+  for (const storeName of stores) {
+
+    const registros =
+      await listarRegistrosSIGO(storeName);
+
+    const total =
+      registros.length;
+
+    const semIdObra =
+      registros.filter(item => !item.idObra).length;
+
+    const semStatusSync =
+      registros.filter(item => !item.statusSync).length;
+
+    const semOrigem =
+      registros.filter(item => !item.origem).length;
+
+    const semCriadoEm =
+      registros.filter(item => !item.criadoEm).length;
+
+    const pendentes =
+      registros.filter(item =>
+        item.statusSync === "PENDENTE"
+      ).length;
+
+    const sincronizados =
+      registros.filter(item =>
+        item.statusSync === "SINCRONIZADO"
+      ).length;
+
+    resultado.push({
+      store: storeName,
+      total,
+      pendentes,
+      sincronizados,
+      semIdObra,
+      semStatusSync,
+      semOrigem,
+      semCriadoEm,
+      status:
+        semIdObra === 0 &&
+        semStatusSync === 0 &&
+        semOrigem === 0 &&
+        semCriadoEm === 0
+          ? "OK"
+          : "AJUSTAR"
+    });
+
+  }
+
+  console.table(resultado);
+
+  return resultado;
+}
