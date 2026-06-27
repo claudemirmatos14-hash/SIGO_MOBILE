@@ -266,8 +266,8 @@ async function salvarDiarioOffline(event) {
     data:
       document.getElementById("diarioData").value,
 
-    idObra:
-      document.getElementById("diarioObra").value,
+   idObra:
+      obterObraAtivaMobile_(),
 
     responsavel:
       document.getElementById("diarioResponsavel").value,
@@ -954,7 +954,7 @@ async function salvarMedicaoOffline(event) {
   const medicao = {
     idMedicao: "MED-" + Date.now(),
     data: document.getElementById("medicaoData").value,
-    idObra: document.getElementById("medicaoObra").value,
+    idObra: obterObraAtivaMobile_(),
     atividade: document.getElementById("medicaoAtividade").value,
     eap: document.getElementById("medicaoAtividade").value,
     servico: document.getElementById("medicaoServico").value,
@@ -1310,10 +1310,8 @@ async function salvarEvidenciaOffline(event) {
           "evidenciaData"
         ).value,
 
-      idObra:
-        document.getElementById(
-          "evidenciaObra"
-        ).value,
+     idObra:
+        obterObraAtivaMobile_(),
 
       idAtividade:
         document.getElementById(
@@ -1635,7 +1633,7 @@ async function salvarClimaOffline(event) {
   const clima = {
     idClima: "CLI-" + Date.now(),
     data: document.getElementById("climaData").value,
-    idObra: document.getElementById("climaObra").value,
+   idObra: obterObraAtivaMobile_(),
     periodo: document.getElementById("climaPeriodo").value,
     condicaoClimatica: document.getElementById("climaCondicao").value,
     intensidade: document.getElementById("climaIntensidade").value,
@@ -1902,7 +1900,7 @@ async function salvarOcorrenciaOffline(event) {
       document.getElementById("ocorrenciaData").value,
 
     idObra:
-      document.getElementById("ocorrenciaObra").value,
+      obterObraAtivaMobile_(),
 
     tipo:
       document.getElementById("ocorrenciaTipo").value,
@@ -2187,7 +2185,7 @@ async function salvarItemDiarioOffline(event) {
   idItemDiario: "DIT-" + Date.now(),
   idDiario: document.getElementById("itemDiarioIdDiario").value,
   data: document.getElementById("itemDiarioData").value,
-  idObra: document.getElementById("itemDiarioObra").value,
+  idObra: obterObraAtivaMobile_(),
   atividade: document.getElementById("itemDiarioAtividade").value,
   eap: document.getElementById("itemDiarioAtividade").value,
   servico: document.getElementById("itemDiarioServico").value,
