@@ -921,8 +921,19 @@ async function carregarAtividadesMedicaoOffline_() {
 
   if (!select) return;
 
-  const atividades = await listarRegistrosSIGO("TB_ATIVIDADES_OBRA");
-
+  const obraAtiva =
+    obterObraAtivaMobile_();
+  
+  const atividadesTodas =
+    await listarRegistrosSIGO(
+      "TB_ATIVIDADES_OBRA"
+    );
+  
+  const atividades =
+    atividadesTodas.filter(item =>
+      String(item.idObra) ===
+      String(obraAtiva)
+    );
   select.innerHTML = '<option value="">Selecione uma atividade</option>';
 
   atividades.forEach(item => {
@@ -2413,8 +2424,15 @@ async function carregarAtividadesItemDiarioOffline_() {
 
   if (!select) return;
 
-  const atividades = await listarRegistrosSIGO("TB_ATIVIDADES_OBRA");
+  const obraAtiva = obterObraAtivaMobile_();
 
+  const atividadesTodas =
+    await listarRegistrosSIGO("TB_ATIVIDADES_OBRA");
+  
+  const atividades =
+    atividadesTodas.filter(item =>
+      String(item.idObra) === String(obraAtiva)
+    );
   select.innerHTML = '<option value="">Selecione uma atividade</option>';
 
   atividades.forEach(item => {
