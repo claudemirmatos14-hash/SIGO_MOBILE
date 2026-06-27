@@ -2782,3 +2782,9 @@ async function removerObraOfflineMobile_(idObra) {
     alert(erro.message || "Erro ao remover obra offline.");
   }
 }
+
+async function atualizarHomeMobile_() {
+  await carregarObrasMobile_();
+  await atualizarPainelSaudeSync_();
+  await atualizarIndicadorAtividadesOffline_();
+}
