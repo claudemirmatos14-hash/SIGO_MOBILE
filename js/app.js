@@ -2,9 +2,8 @@ const SIGO_API_URL = "https://script.google.com/macros/s/AKfycbzVE7tdTSwHvKgLkrd
 const SIGO_TOKEN_OFFLINE = "SIGO_TOKEN_OFFLINE";
 
 document.addEventListener("DOMContentLoaded", async () => {
-  await carregarObrasMobile_();
-  iniciarSeletorObra();
-  await atualizarPainelSaudeSync_();
+  await atualizarHomeMobile_();
+    iniciarSeletorObra();
 });
 
 function iniciarSeletorObra() {
@@ -30,6 +29,8 @@ function iniciarSeletorObra() {
       );
 
     localStorage.setItem("obraAtiva", idObra);
+
+    await atualizarHomeMobile_();
 
     if (nomeObra && obra) {
       nomeObra.textContent =
@@ -2661,8 +2662,7 @@ async function definirObraAtivaMobile_(idObra) {
 
     localStorage.setItem("obraAtiva", idObra);
 
-    await carregarObrasMobile_();
-    await atualizarPainelSaudeSync_();
+    await atualizarHomeMobile_();
     await listarObrasOfflineMobile_();
 
     const nomeObra =
@@ -2723,7 +2723,7 @@ async function baixarObraOfflineMobile_(idObra) {
       localStorage.setItem("obraAtiva", idObra);
     }
 
-    await carregarObrasMobile_();
+    await atualizarHomeMobile_();
     await listarObrasOfflineMobile_();
     await listarObrasDisponiveisMobile_();
 
@@ -2770,10 +2770,9 @@ async function removerObraOfflineMobile_(idObra) {
       }
     }
 
-    await carregarObrasMobile_();
-    await listarObrasOfflineMobile_();
-    await listarObrasDisponiveisMobile_();
-    await atualizarPainelSaudeSync_();
+   await atualizarHomeMobile_();
+   await listarObrasOfflineMobile_();
+   await listarObrasDisponiveisMobile_();
 
     alert("Obra removida deste dispositivo.");
 
@@ -2787,4 +2786,31 @@ async function atualizarHomeMobile_() {
   await carregarObrasMobile_();
   await atualizarPainelSaudeSync_();
   await atualizarIndicadorAtividadesOffline_();
+}
+
+async function atualizarIndicadorAtividadesOffline_() {
+  const contador =
+    document.getElementById("contadorAtividadesOffline");
+
+  if (!contador) return;
+
+  const obraAtiva =
+    localStorage.getItem("obraAtiva");
+
+  if (!obraAtiva) {
+    contador.textContent =
+      "0 atividades offline";
+    return;
+  }
+
+  const atividades =
+    await listarRegistrosSIGO("TB_ATIVIDADES_OBRA");
+
+  const total =
+    atividades.filter(item =>
+      String(item.idObra) === String(obraAtiva)
+    ).length;
+
+  contador.textContent =
+    total + " atividades offline";
 }
