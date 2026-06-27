@@ -2984,3 +2984,82 @@ async function auditarFilaSyncOfflineMobile_() {
     registros: fila
   };
 }
+
+async function auditarPacoteSyncMobile_() {
+
+  const obraAtiva =
+    obterObraAtivaMobile_();
+
+  const diarios =
+    await listarRegistrosSIGO("TB_DIARIOS");
+
+  const diarioItens =
+    await listarRegistrosSIGO("TB_DIARIO_ITENS");
+
+  const medicoes =
+    await listarRegistrosSIGO("TB_MEDICOES");
+
+  const ocorrencias =
+    await listarRegistrosSIGO("TB_OCORRENCIAS");
+
+  const clima =
+    await listarRegistrosSIGO("TB_CLIMA");
+
+  const evidencias =
+    await listarRegistrosSIGO("TB_EVIDENCIAS");
+
+  const pacote = {
+    diarios: diarios.filter(item =>
+      item.statusSync === "PENDENTE"
+    ),
+
+    diarioItens: diarioItens.filter(item =>
+      item.statusSync === "PENDENTE"
+    ),
+
+    medicoes: medicoes.filter(item =>
+      item.statusSync === "PENDENTE"
+    ),
+
+    ocorrencias: ocorrencias.filter(item =>
+      item.statusSync === "PENDENTE"
+    ),
+
+    clima: clima.filter(item =>
+      item.statusSync === "PENDENTE"
+    ),
+
+    evidencias: evidencias.filter(item =>
+      item.statusSync === "PENDENTE"
+    )
+  };
+
+  const resumo = {
+    idObra: obraAtiva,
+    diarios: pacote.diarios.length,
+    diarioItens: pacote.diarioItens.length,
+    medicoes: pacote.medicoes.length,
+    ocorrencias: pacote.ocorrencias.length,
+    clima: pacote.clima.length,
+    evidencias: pacote.evidencias.length,
+    total:
+      pacote.diarios.length +
+      pacote.diarioItens.length +
+      pacote.medicoes.length +
+      pacote.ocorrencias.length +
+      pacote.clima.length +
+      pacote.evidencias.length
+  };
+
+  console.table([resumo]);
+
+  console.log(
+    "Pacote de sincronização auditado:",
+    pacote
+  );
+
+  return {
+    resumo,
+    pacote
+  };
+}
