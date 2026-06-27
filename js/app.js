@@ -2836,7 +2836,7 @@ async function atualizarIndicadorAtividadesOffline_() {
 }
 
 
-async function auditarTabelasOfflineMobile_() {
+async function auditarTabelasOfflineMobile() {
 
   const stores = [
     "TB_DIARIOS",
