@@ -921,7 +921,7 @@ body {
   color: #64748b;
 }
 
-.obra-premium-card::after {
+/*.obra-premium-card::after {
   content: "85 atividades offline";
   display: inline-block;
   margin-top: 10px;
@@ -931,7 +931,7 @@ body {
   color: #1d4ed8;
   font-size: 10px;
   font-weight: 800;
-}
+}*/
 
 .bottom-nav {
   backdrop-filter: blur(14px);
