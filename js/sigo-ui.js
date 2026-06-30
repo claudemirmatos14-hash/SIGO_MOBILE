@@ -63,14 +63,16 @@ function render(container, html) {
 // =====================================================
 
 function createScreen(config = {}) {
-
   const header =
     config.header === true
       ? createHeader()
       : (config.header || "");
 
-  const hero =
-    config.hero || "";
+  const hero = config.hero || "";
+
+  const actions = Array.isArray(config.actions)
+    ? createActionBar(config.actions)
+    : (config.actions || "");
 
   const sections =
     (config.sections || []).join("");
@@ -81,21 +83,16 @@ function createScreen(config = {}) {
       : (config.bottom || "");
 
   return `
-
     ${header}
 
     <main class="home-premium">
-
       ${hero}
-
+      ${actions}
       ${sections}
-
     </main>
 
     ${bottom}
-
   `;
-
 }
 
 
