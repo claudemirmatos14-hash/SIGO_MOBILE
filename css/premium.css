@@ -562,3 +562,38 @@ select {
   border-color: #93c5fd;
   box-shadow: 0 16px 40px rgba(37, 99, 235, 0.16);
 }
+
+/* ==========================================================
+   COMPONENTE OFICIAL — SIGO CARD
+========================================================== */
+
+.sigo-card {
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 26px;
+  box-shadow: 0 14px 35px rgba(15, 23, 42, 0.10);
+  padding: 22px;
+  overflow: hidden;
+}
+
+.sigo-card--hero {
+  min-height: 205px;
+  padding: 24px;
+}
+
+.sigo-card--section {
+  padding: 22px;
+}
+
+.sigo-card--status {
+  padding: 22px;
+}
+
+.sigo-card--compact {
+  padding: 20px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.07);
+}
+
+.sigo-card:hover {
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.13);
+}
