@@ -28,6 +28,8 @@ const SIGOUI = {
 
   createStatus,
 
+  createTools,
+
   createBottomNav,
 
   createScreen,
@@ -366,6 +368,47 @@ function createStatus() {
 
   `;
 
+}
+
+function createTools() {
+  return `
+    <section class="sigo-card sigo-card--compact tools-card">
+      <div class="section-header">
+        <div>
+          <h2>⚙ Ferramentas</h2>
+          <span>Utilitários do sistema</span>
+        </div>
+      </div>
+
+      <div class="tools-grid">
+
+        <button type="button" class="tool-card" onclick="sincronizarDadosBaseObraMobile()">
+          <div>🔄</div>
+          <strong>Atualizar Base</strong>
+          <span>Buscar dados mais recentes</span>
+        </button>
+
+        <button type="button" class="tool-card" onclick="sincronizarSIGO()">
+          <div>☁</div>
+          <strong>Sincronizar Agora</strong>
+          <span>Enviar e receber informações</span>
+        </button>
+
+        <button type="button" class="tool-card" onclick="abrirGerenciadorObrasOffline_()">
+          <div>⬇</div>
+          <strong>Baixar Obra</strong>
+          <span>Disponibilizar obra offline</span>
+        </button>
+
+        <button type="button" class="tool-card" onclick="alert('Configurações será implementado futuramente.')">
+          <div>⚙</div>
+          <strong>Configurar App</strong>
+          <span>Ajustes e preferências</span>
+        </button>
+
+      </div>
+    </section>
+  `;
 }
 
 function createModule(config) {
