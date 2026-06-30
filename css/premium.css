@@ -418,7 +418,7 @@ select {
   gap: 3px;
 }
 
-.bottom-nav button:first-child {
+.bottom-nav button.is-active {
   color: var(--primary);
 }
 
