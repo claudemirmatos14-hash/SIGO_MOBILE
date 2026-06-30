@@ -23,7 +23,7 @@ function montarHomePremium() {
       }) +
       SIGOUI.createFieldSection() +
       SIGOUI.createStatus() +
-      criarSecaoFerramentasSIGO(),
+      SIGOUI.createTools(),
 
     bottom: criarBottomNavSIGO()
   });
