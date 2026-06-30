@@ -59,7 +59,7 @@ function criarSecaoTrabalhoCampoSIGO() {
       </div>
 
       <div class="sigo-grid">
-        ${criarCardModuloSIGO({
+        ${SIGOUI.createModule({
           acao: "navegarPara('diario')",
           cor: "is-blue",
           icone: "📘",
@@ -69,7 +69,7 @@ function criarSecaoTrabalhoCampoSIGO() {
           descricao: "Registrar produção diária"
         })}
 
-        ${criarCardModuloSIGO({
+        ${SIGOUI.createModule({
           acao: "navegarPara('diarioItens')",
           cor: "is-orange",
           icone: "📋",
@@ -79,7 +79,7 @@ function criarSecaoTrabalhoCampoSIGO() {
           descricao: "Atividades executadas"
         })}
 
-        ${criarCardModuloSIGO({
+        ${SIGOUI.createModule({
           acao: "navegarPara('medicoes')",
           cor: "is-purple",
           icone: "📏",
@@ -90,7 +90,7 @@ function criarSecaoTrabalhoCampoSIGO() {
           destaque: true
         })}
 
-        ${criarCardModuloSIGO({
+        ${SIGOUI.createModule({
           acao: "navegarPara('ocorrencias')",
           cor: "is-red",
           icone: "⚠️",
@@ -100,7 +100,7 @@ function criarSecaoTrabalhoCampoSIGO() {
           descricao: "2 críticas"
         })}
 
-        ${criarCardModuloSIGO({
+        ${SIGOUI.createModule({
           acao: "navegarPara('clima')",
           cor: "is-blue",
           icone: "🌦️",
@@ -110,7 +110,7 @@ function criarSecaoTrabalhoCampoSIGO() {
           descricao: "Ensolarado 28°C"
         })}
 
-        ${criarCardModuloSIGO({
+        ${SIGOUI.createModule({
           acao: "navegarPara('evidencias')",
           cor: "is-green",
           icone: "📷",
