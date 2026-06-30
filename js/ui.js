@@ -207,3 +207,10 @@ function criarSecaoFerramentasSIGO() {
     </section>
   `;
 }
+
+
+function testarSIGOUIBadge() {
+  console.log(
+    SIGOUI.createBadge("MED.05", "is-warning")
+  );
+}
