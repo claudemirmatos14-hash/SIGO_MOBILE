@@ -5,7 +5,7 @@
 
 function montarHomePremium() {
   const tela = SIGOUI.createScreen({
-    header: criarHeaderSIGO(),
+   header: SIGOUI.createHeader(),
 
     content:
       criarCardObraAtivaSIGO() +
