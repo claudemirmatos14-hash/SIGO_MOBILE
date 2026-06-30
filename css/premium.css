@@ -852,3 +852,105 @@ select {
   gap: 10px;
   z-index: 9999;
 }
+
+/* ==========================================================
+   COMPONENTE OFICIAL — MODAL PREMIUM
+========================================================== */
+
+.sigo-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, .48);
+  backdrop-filter: blur(6px);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  z-index: 10000;
+}
+
+.sigo-modal {
+  width: min(360px, 100%);
+  background: #ffffff;
+  border-radius: 26px;
+  padding: 26px 22px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, .28);
+  text-align: center;
+  animation: sigoModalIn .22s ease;
+}
+
+.sigo-modal__icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 14px;
+  border-radius: 22px;
+  display: grid;
+  place-items: center;
+  font-size: 30px;
+  background: #dbeafe;
+}
+
+.sigo-modal h3 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.sigo-modal p {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.sigo-modal__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.sigo-modal__btn {
+  border: none;
+  border-radius: 16px;
+  min-height: 48px;
+  padding: 12px;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.sigo-modal__btn.is-primary {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.sigo-modal__btn.is-secondary {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.sigo-modal.is-danger .sigo-modal__icon {
+  background: #fee2e2;
+}
+
+.sigo-modal.is-warning .sigo-modal__icon {
+  background: #fef3c7;
+}
+
+.sigo-modal.is-success .sigo-modal__icon {
+  background: #dcfce7;
+}
+
+@keyframes sigoModalIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
