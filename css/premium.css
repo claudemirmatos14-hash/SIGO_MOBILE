@@ -869,7 +869,7 @@ select {
 }
 
 .sigo-modal {
-  width: min(360px, 100%);
+  width: min(390px, calc(100% - 32px));
   background: #ffffff;
   border-radius: 26px;
   padding: 26px 22px;
@@ -881,7 +881,7 @@ select {
 .sigo-modal__icon {
   width: 64px;
   height: 64px;
-  margin: 0 auto 14px;
+  margin: 0 auto 20px;
   border-radius: 22px;
   display: grid;
   place-items: center;
@@ -898,10 +898,10 @@ select {
 
 .sigo-modal p {
   margin: 0;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: #64748b;
-  line-height: 1.45;
+  line-height: 1.6;
 }
 
 .sigo-modal__actions {
@@ -953,4 +953,13 @@ select {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
+}
+
+.sigo-modal-overlay.is-hide{
+    opacity:0;
+}
+
+.sigo-modal.is-hide{
+    transform:translateY(20px) scale(.96);
+    opacity:0;
 }
