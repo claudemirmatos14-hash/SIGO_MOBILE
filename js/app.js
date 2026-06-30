@@ -62,7 +62,11 @@ function navegarPara(tela) {
 
   if (!area) return;
 
- area.innerHTML = montarTela(tela);
+ if (tela === "diario") {
+    area.innerHTML = montarTelaDiarioObra();
+  } else {
+    area.innerHTML = montarTela(tela);
+  }
 
   if (tela === "diario") {
   setTimeout(carregarListaDiariosOffline, 100);
