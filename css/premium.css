@@ -770,3 +770,74 @@ select {
 .sigo-textarea {
   resize: vertical;
 }
+
+/* ==========================================================
+   COMPONENTE OFICIAL — TOAST FEEDBACK
+========================================================== */
+
+.sigo-toast-container {
+  position: fixed;
+  left: 50%;
+  bottom: 100px;
+  transform: translateX(-50%);
+  width: min(390px, calc(100% - 28px));
+  display: grid;
+  gap: 10px;
+  z-index: 9999;
+}
+
+.sigo-toast {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 14px 16px;
+  box-shadow: 0 14px 35px rgba(15, 23, 42, .18);
+  border-left: 5px solid #2563eb;
+  display: grid;
+  gap: 4px;
+  animation: sigoToastIn .25s ease;
+}
+
+.sigo-toast strong {
+  font-size: 14px;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.sigo-toast span {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.sigo-toast.is-success {
+  border-left-color: #16a34a;
+}
+
+.sigo-toast.is-warning {
+  border-left-color: #f59e0b;
+}
+
+.sigo-toast.is-danger {
+  border-left-color: #dc2626;
+}
+
+.sigo-toast.is-info {
+  border-left-color: #2563eb;
+}
+
+.sigo-toast.is-hide {
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+@keyframes sigoToastIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
