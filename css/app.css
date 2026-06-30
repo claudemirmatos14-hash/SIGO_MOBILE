@@ -1,3 +1,13 @@
+@import url("./variables.css");
+@import url("./typography.css");
+@import url("./layout.css");
+@import url("./cards.css");
+@import url("./badges.css");
+@import url("./buttons.css");
+@import url("./navigation.css");
+@import url("./animations.css");
+
+
 * {
   margin: 0;
   padding: 0;
