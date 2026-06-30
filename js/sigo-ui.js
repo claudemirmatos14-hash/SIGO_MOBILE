@@ -487,7 +487,7 @@ function createBottomNav() {
   return `
     <nav class="bottom-nav">
       <button onclick="voltarHome()">🏠<span>Home</span></button>
-      <button onclick="abrirGerenciadorObrasOffline_()">🏗<span>Obras</span></button>
+      <button onclick="navegarPara('obras')">🏗<span>Obras</span></button>
       <button onclick="sincronizarSIGO()">🔄<span>Sync</span></button>
       <button onclick="alert('Configurações será implementado futuramente.')">⚙<span>Config</span></button>
     </nav>
