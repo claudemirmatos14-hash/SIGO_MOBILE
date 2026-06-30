@@ -653,3 +653,11 @@ function montarTelaObrasOffline() {
     bottom: true
   });
 }
+
+function voltarHome() {
+  if (typeof montarHomePremium === "function") {
+    montarHomePremium();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    return;
+  }
+}
