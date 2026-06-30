@@ -445,3 +445,150 @@ async function salvarDiarioPremium() {
     alert("Erro ao salvar diário offline.");
   }
 }
+
+function montarTelaItensDiario() {
+  const formItemDiario = `
+    <div class="sigo-form">
+
+      ${SIGOUI.createDate({
+        id: "itemDiarioData",
+        label: "Data"
+      })}
+
+      ${SIGOUI.createSelect({
+        id: "itemDiarioAtividade",
+        label: "Atividade",
+        options: [
+          { value: "", label: "Carregando atividades..." }
+        ]
+      })}
+
+      ${SIGOUI.createInput({
+        id: "itemDiarioEap",
+        label: "EAP",
+        placeholder: "EAP da atividade",
+        readonly: true
+      })}
+
+      ${SIGOUI.createInput({
+        id: "itemDiarioServico",
+        label: "Serviço",
+        placeholder: "Serviço selecionado",
+        readonly: true
+      })}
+
+      ${SIGOUI.createInput({
+        id: "itemDiarioEquipe",
+        label: "Equipe",
+        placeholder: "Equipe executora"
+      })}
+
+      ${SIGOUI.createInput({
+        id: "itemDiarioEquipamento",
+        label: "Equipamento",
+        placeholder: "Equipamento utilizado"
+      })}
+
+      ${SIGOUI.createNumber({
+        id: "itemDiarioQtde",
+        label: "Quantidade Executada",
+        placeholder: "Ex.: 12.50"
+      })}
+
+      ${SIGOUI.createInput({
+        id: "itemDiarioUnidade",
+        label: "Unidade",
+        placeholder: "m², m³, h, un...",
+        readonly: true
+      })}
+
+      ${SIGOUI.createNumber({
+        id: "itemDiarioHoras",
+        label: "Horas Trabalhadas",
+        placeholder: "Ex.: 8"
+      })}
+
+      ${SIGOUI.createTextarea({
+        id: "itemDiarioObservacao",
+        label: "Observação",
+        rows: 3,
+        placeholder: "Observações do item executado"
+      })}
+
+    </div>
+  `;
+
+  const listaItens = `
+    <div id="listaItensDiarioOffline" class="sigo-list">
+      <div class="empty-state">
+        <div class="empty-icon">📭</div>
+        <h3>Nenhum item carregado</h3>
+        <p>Os itens do diário aparecerão aqui.</p>
+      </div>
+    </div>
+  `;
+
+  return SIGOUI.createCrudScreen({
+    titulo: "📋 ITENS DO DIÁRIO",
+    nome: "Produção diária observada",
+    subtitulo: "Registro operacional",
+    info: "Atividade, quantidade, equipe e horas",
+    status: "Modo offline",
+
+    actions: [
+      {
+        icone: "➕",
+        texto: "Novo Item",
+        tipo: "is-primary",
+        acao: "limparFormularioItemDiario()"
+      },
+      {
+        icone: "💾",
+        texto: "Salvar",
+        tipo: "is-success",
+        acao: "salvarItemDiarioPremium()"
+      }
+    ],
+
+    formTitle: "📋 Dados do Item",
+    formSubtitle: "Produção registrada em campo",
+    form: formItemDiario,
+
+    listTitle: "📚 Itens Registrados",
+    listSubtitle: "Histórico offline da obra ativa",
+    list: listaItens,
+
+    bottom: true
+  });
+}
+
+function limparFormularioItemDiario() {
+  [
+    "itemDiarioData",
+    "itemDiarioAtividade",
+    "itemDiarioEap",
+    "itemDiarioServico",
+    "itemDiarioEquipe",
+    "itemDiarioEquipamento",
+    "itemDiarioQtde",
+    "itemDiarioUnidade",
+    "itemDiarioHoras",
+    "itemDiarioObservacao"
+  ].forEach(id => {
+    const campo = document.getElementById(id);
+    if (campo) campo.value = "";
+  });
+
+  const data = document.getElementById("itemDiarioData");
+  if (data) data.value = new Date().toISOString().split("T")[0];
+}
+
+async function salvarItemDiarioPremium() {
+  try {
+    await SIGOCRUD.saveOffline(SIGOEntities.diarioItem);
+    alert("Item do diário salvo offline com sucesso.");
+  } catch (erro) {
+    console.error("Erro ao salvar item do diário:", erro);
+    alert("Erro ao salvar item do diário offline.");
+  }
+}
