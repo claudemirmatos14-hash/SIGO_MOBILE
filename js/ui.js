@@ -446,15 +446,7 @@ function limparFormularioDiario() {
   if (data) data.value = new Date().toISOString().split("T")[0];
 }
 
-async function salvarDiarioPremium() {
-  try {
-    await SIGOCRUD.saveOffline(SIGOEntities.diario);
-    alert("Diário salvo offline com sucesso.");
-  } catch (erro) {
-    console.error("Erro ao salvar diário premium:", erro);
-    alert("Erro ao salvar diário offline.");
-  }
-}
+
 
 function montarTelaItensDiario() {
   const formItemDiario = `
@@ -593,13 +585,45 @@ function limparFormularioItemDiario() {
   if (data) data.value = new Date().toISOString().split("T")[0];
 }
 
+async function salvarDiarioPremium() {
+  try {
+    await SIGOCRUD.saveOffline(SIGOEntities.diario);
+
+    SIGOUI.showToast({
+      tipo: "success",
+      titulo: "Diário salvo",
+      mensagem: "Registro salvo offline com sucesso."
+    });
+
+  } catch (erro) {
+    console.error("Erro ao salvar diário premium:", erro);
+
+    SIGOUI.showToast({
+      tipo: "danger",
+      titulo: "Erro ao salvar",
+      mensagem: "Não foi possível salvar o diário offline."
+    });
+  }
+}
+
 async function salvarItemDiarioPremium() {
   try {
     await SIGOCRUD.saveOffline(SIGOEntities.diarioItem);
-    alert("Item do diário salvo offline com sucesso.");
+
+    SIGOUI.showToast({
+      tipo: "success",
+      titulo: "Item salvo",
+      mensagem: "Item do diário salvo offline com sucesso."
+    });
+
   } catch (erro) {
     console.error("Erro ao salvar item do diário:", erro);
-    alert("Erro ao salvar item do diário offline.");
+
+    SIGOUI.showToast({
+      tipo: "danger",
+      titulo: "Erro ao salvar",
+      mensagem: "Não foi possível salvar o item do diário."
+    });
   }
 }
 
