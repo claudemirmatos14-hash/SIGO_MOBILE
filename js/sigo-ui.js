@@ -14,6 +14,8 @@ const SIGOUI = {
 
   createHeroCard,
 
+  createFieldSection,
+
   createModule,
 
   createBadge,
@@ -211,6 +213,84 @@ function createHeroCard(config = {}) {
 
     </section>
 
+  `;
+}
+
+function createFieldSection() {
+  const modulos = `
+    ${createModule({
+      acao: "navegarPara('diario')",
+      cor: "is-blue",
+      icone: "📘",
+      titulo: "Diário de Obra",
+      badge: "Hoje concluído",
+      badgeTipo: "is-success",
+      descricao: "Registrar produção diária"
+    })}
+
+    ${createModule({
+      acao: "navegarPara('diarioItens')",
+      cor: "is-orange",
+      icone: "📋",
+      titulo: "Itens do Diário",
+      badge: "14 itens",
+      badgeTipo: "is-warning",
+      descricao: "Atividades executadas"
+    })}
+
+    ${createModule({
+      acao: "navegarPara('medicoes')",
+      cor: "is-purple",
+      icone: "📏",
+      titulo: "Medições",
+      badge: "MED.05",
+      badgeTipo: "is-warning",
+      descricao: "6 serviços pendentes",
+      destaque: true
+    })}
+
+    ${createModule({
+      acao: "navegarPara('ocorrencias')",
+      cor: "is-red",
+      icone: "⚠️",
+      titulo: "Ocorrências",
+      badge: "3 abertas",
+      badgeTipo: "is-danger",
+      descricao: "2 críticas"
+    })}
+
+    ${createModule({
+      acao: "navegarPara('clima')",
+      cor: "is-blue",
+      icone: "🌦️",
+      titulo: "Clima",
+      badge: "Hoje",
+      badgeTipo: "is-info",
+      descricao: "Ensolarado 28°C"
+    })}
+
+    ${createModule({
+      acao: "navegarPara('evidencias')",
+      cor: "is-green",
+      icone: "📷",
+      titulo: "Evidências",
+      badge: "12 fotos",
+      badgeTipo: "is-success",
+      descricao: "Hoje"
+    })}
+  `;
+
+  return `
+    <section class="sigo-card sigo-card--section field-card">
+      <div class="section-header">
+        <div>
+          <h2>👷 Trabalho de Campo</h2>
+          <span>Acompanhe a execução da obra</span>
+        </div>
+      </div>
+
+      ${createGrid(modulos)}
+    </section>
   `;
 }
 
