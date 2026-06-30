@@ -51,6 +51,8 @@ const SIGOUI = {
   createSelect,
   
   showToast,
+  
+  showModal,
 
   render
 
@@ -674,4 +676,65 @@ function showToast(config = {}) {
       toast.remove();
     }, 300);
   }, tempo);
+}
+
+function showModal(config = {}) {
+  const titulo = config.titulo || "Confirmação";
+  const mensagem = config.mensagem || "";
+  const tipo = config.tipo || "info";
+  const textoConfirmar = config.textoConfirmar || "Confirmar";
+  const textoCancelar = config.textoCancelar || "Cancelar";
+
+  let overlay = document.getElementById("sigoModalOverlay");
+
+  if (overlay) {
+    overlay.remove();
+  }
+
+  overlay = document.createElement("div");
+  overlay.id = "sigoModalOverlay";
+  overlay.className = "sigo-modal-overlay";
+
+  overlay.innerHTML = `
+    <div class="sigo-modal is-${tipo}">
+      <div class="sigo-modal__icon">
+        ${config.icone || "ℹ️"}
+      </div>
+
+      <h3>${titulo}</h3>
+
+      <p>${mensagem}</p>
+
+      <div class="sigo-modal__actions">
+        <button type="button" class="sigo-modal__btn is-secondary" id="sigoModalCancel">
+          ${textoCancelar}
+        </button>
+
+        <button type="button" class="sigo-modal__btn is-primary" id="sigoModalConfirm">
+          ${textoConfirmar}
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  return new Promise(resolve => {
+    document.getElementById("sigoModalCancel").onclick = () => {
+      overlay.remove();
+      resolve(false);
+    };
+
+    document.getElementById("sigoModalConfirm").onclick = () => {
+      overlay.remove();
+      resolve(true);
+    };
+
+    overlay.onclick = (e) => {
+      if (e.target === overlay) {
+        overlay.remove();
+        resolve(false);
+      }
+    };
+  });
 }
