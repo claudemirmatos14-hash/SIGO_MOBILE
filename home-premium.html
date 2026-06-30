@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>SIGO Mobile — Home Premium</title>
+
+  <link rel="stylesheet" href="css/premium.css" />
+</head>
+
+<body>
+
+  <div class="app app-premium">
+
+    <header class="sigo-header">
+      <div class="sigo-header-content">
+        <div>
+          <h1>SIGO</h1>
+          <p>Sistema Integrado de Gestão de Obras</p>
+        </div>
+
+        <div class="sigo-header-actions">
+          <button type="button" class="icon-button">🔔</button>
+          <span class="status-online">● Online</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="home-premium">
+
+      <section class="sigo-card obra-card">
+        <div class="section-title">
+          <span>🏗</span>
+          <h2>OBRA ATIVA</h2>
+        </div>
+
+        <select id="obraAtiva">
+          <option value="">Carregando obras...</option>
+        </select>
+
+        <div class="obra-content">
+          <div>
+            <h3 id="nomeObra">Selecione uma obra offline</h3>
+
+            <div class="obra-meta">
+              <small id="contadorObrasOffline">0 de 3 obras offline</small>
+              <small id="contadorAtividadesOffline">0 atividades offline</small>
+              <small>12 em execução</small>
+            </div>
+          </div>
+
+          <div class="obra-image-placeholder"></div>
+        </div>
+      </section>
+
+      <section class="sigo-card field-card">
+        <div class="section-header">
+          <div>
+            <h2>👷 Trabalho de Campo</h2>
+            <span>Acompanhe a execução da obra</span>
+          </div>
+        </div>
+
+        <div class="sigo-grid">
+
+          <article class="module-card" onclick="navegarPara('diario')">
+            <div class="module-icon blue">📘</div>
+            <h3>Diário de Obra</h3>
+            <span class="badge success">Hoje concluído</span>
+            <p>Registrar produção diária</p>
+          </article>
+
+          <article class="module-card" onclick="navegarPara('diarioItens')">
+            <div class="module-icon orange">📋</div>
+            <h3>Itens do Diário</h3>
+            <span class="badge warning">14 itens</span>
+            <p>Atividades executadas</p>
+          </article>
+
+          <article class="module-card" onclick="navegarPara('medicoes')">
+            <div class="module-icon purple">📏</div>
+            <h3>Medições</h3>
+            <span class="badge warning">MED.05</span>
+            <p>6 serviços pendentes</p>
+          </article>
+
+          <article class="module-card" onclick="navegarPara('ocorrencias')">
+            <div class="module-icon red">⚠️</div>
+            <h3>Ocorrências</h3>
+            <span class="badge danger">3 abertas</span>
+            <p>2 críticas</p>
+          </article>
+
+          <article class="module-card" onclick="navegarPara('clima')">
+            <div class="module-icon blue">🌦️</div>
+            <h3>Clima</h3>
+            <span class="badge info">Hoje</span>
+            <p>Ensolarado 28°C</p>
+          </article>
+
+          <article class="module-card" onclick="navegarPara('evidencias')">
+            <div class="module-icon green">📷</div>
+            <h3>Evidências</h3>
+            <span class="badge success">12 fotos</span>
+            <p>Hoje</p>
+          </article>
+
+        </div>
+      </section>
+
+      <section class="sigo-card status-card">
+        <div class="section-header">
+          <div>
+            <h2>🌐 Situação da Obra</h2>
+          </div>
+
+          <span>
+            Última Sync:
+            <strong id="syncUltima">--</strong>
+          </span>
+        </div>
+
+        <div class="status-grid">
+          <div>
+            <strong id="syncSincronizados">0</strong>
+            <span>Sincronizados</span>
+          </div>
+
+          <div>
+            <strong id="syncPendentes">0</strong>
+            <span>Pendentes</span>
+          </div>
+
+          <div>
+            <strong id="syncConflitos">0</strong>
+            <span>Conflitos</span>
+          </div>
+
+          <div>
+            <strong id="syncExcessos">0</strong>
+            <span>Excessos</span>
+          </div>
+        </div>
+
+        <div id="syncStatus" class="operation-status success">
+          🟢 OPERAÇÃO NORMAL
+        </div>
+      </section>
+
+      <section class="sigo-card tools-card">
+        <div class="section-header">
+          <div>
+            <h2>⚙ Ferramentas</h2>
+            <span>Utilitários do sistema</span>
+          </div>
+        </div>
+
+        <div class="tools-grid">
+
+          <button type="button" class="tool-card" onclick="sincronizarDadosBaseObraMobile()">
+            <div>🔄</div>
+            <strong>Atualizar Base</strong>
+            <span>Buscar dados mais recentes</span>
+          </button>
+
+          <button type="button" class="tool-card" onclick="sincronizarSIGO()">
+            <div>☁</div>
+            <strong>Sincronizar Agora</strong>
+            <span>Enviar e receber informações</span>
+          </button>
+
+          <button type="button" class="tool-card" onclick="abrirGerenciadorObrasOffline_()">
+            <div>⬇</div>
+            <strong>Baixar Obra</strong>
+            <span>Disponibilizar obra offline</span>
+          </button>
+
+          <button type="button" class="tool-card" onclick="alert('Configurações será implementado futuramente.')">
+            <div>⚙</div>
+            <strong>Configurar App</strong>
+            <span>Ajustes e preferências</span>
+          </button>
+
+        </div>
+      </section>
+
+    </main>
+
+    <nav class="bottom-nav">
+      <button onclick="voltarHome()">🏠<span>Home</span></button>
+      <button onclick="abrirGerenciadorObrasOffline_()">🏗<span>Obras</span></button>
+      <button onclick="sincronizarSIGO()">🔄<span>Sync</span></button>
+      <button onclick="alert('Configurações será implementado futuramente.')">⚙<span>Config</span></button>
+    </nav>
+
+  </div>
+
+  <script src="js/db.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>
