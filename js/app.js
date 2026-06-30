@@ -271,7 +271,9 @@ function montarTelaDiarioObra_() {
 
 async function salvarDiarioOffline(event) {
 
-  event.preventDefault();
+  if (event) {
+    event.preventDefault();
+  }
 
   const diario = {
 
