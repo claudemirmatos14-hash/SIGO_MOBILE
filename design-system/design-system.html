@@ -1,1 +1,160 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SIGO Mobile — Design System</title>
 
+  <link rel="stylesheet" href="../css/app.css" />
+  <link rel="stylesheet" href="design-system.css" />
+</head>
+
+<body>
+
+  <main class="ds-page">
+
+    <header class="topo topo-premium">
+      <div>
+        <h1>SIGO</h1>
+        <p>Sistema Integrado de Gestão de Obras</p>
+      </div>
+    </header>
+
+    <section class="ds-section">
+      <h2>01 — Obra Ativa</h2>
+
+      <section class="obra-premium-card">
+        <div class="obra-label">🏗 OBRA ATIVA</div>
+
+        <select>
+          <option>OBR002 - Residencial Casa Grande</option>
+        </select>
+
+        <div class="obra-info">
+          <span>Residencial Casa Grande</span>
+          <small>2 de 3 obras offline</small>
+          <small>85 atividades planejadas</small>
+          <small>12 em execução</small>
+        </div>
+      </section>
+    </section>
+
+    <section class="ds-section">
+      <h2>02 — Card de Módulo</h2>
+
+      <div class="menu-grid">
+        <div class="menu-card">
+          <div class="icone">📘</div>
+          <h3>Diário de Obra</h3>
+          <span class="badge badge-verde">Hoje concluído</span>
+          <p>Registrar produção diária</p>
+        </div>
+
+        <div class="menu-card">
+          <div class="icone">📏</div>
+          <h3>Medições</h3>
+          <span class="badge badge-amarelo">MED.05</span>
+          <p>6 serviços pendentes</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="ds-section">
+      <h2>03 — Badges</h2>
+
+      <div class="ds-inline">
+        <span class="badge badge-verde">Hoje</span>
+        <span class="badge badge-amarelo">MED.05</span>
+        <span class="badge badge-laranja">14 itens</span>
+        <span class="badge badge-vermelho">3 abertas</span>
+        <span class="badge badge-azul">Online</span>
+      </div>
+    </section>
+
+    <section class="ds-section">
+      <h2>04 — Situação da Obra</h2>
+
+      <section class="sync-saude-card">
+        <div class="secao-titulo">
+          <h3>🌐 Situação da Obra</h3>
+          <span>Última Sync: <strong>28/06/2026, 14:43:01</strong></span>
+        </div>
+
+        <div class="sync-grid">
+          <div>
+            <strong>26</strong>
+            <span>Sincronizados</span>
+          </div>
+
+          <div>
+            <strong>0</strong>
+            <span>Pendentes</span>
+          </div>
+
+          <div>
+            <strong>0</strong>
+            <span>Conflitos</span>
+          </div>
+
+          <div>
+            <strong>0</strong>
+            <span>Excessos</span>
+          </div>
+        </div>
+
+        <div class="sync-status">
+          🟢 OPERAÇÃO NORMAL
+        </div>
+      </section>
+    </section>
+
+    <section class="ds-section">
+      <h2>05 — Ferramentas</h2>
+
+      <div class="acoes-grid">
+        <button>
+          <strong>🔄</strong>
+          <span>Atualizar<br>Base</span>
+        </button>
+
+        <button>
+          <strong>☁</strong>
+          <span>Sincronizar<br>Agora</span>
+        </button>
+
+        <button>
+          <strong>⬇</strong>
+          <span>Baixar<br>Obra</span>
+        </button>
+
+        <button>
+          <strong>⚙</strong>
+          <span>Configurar<br>App</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="ds-section">
+      <h2>06 — Botões</h2>
+
+      <div class="ds-inline">
+        <button class="btn-primary">Salvar</button>
+        <button class="btn-secondary">Cancelar</button>
+        <button class="btn-danger">Excluir</button>
+      </div>
+    </section>
+
+    <section class="ds-section">
+      <h2>07 — Estado Vazio</h2>
+
+      <div class="empty-state">
+        <div class="empty-icon">📭</div>
+        <h3>Nenhum registro encontrado</h3>
+        <p>Quando houver dados disponíveis, eles aparecerão aqui.</p>
+      </div>
+    </section>
+
+  </main>
+
+</body>
+</html>
