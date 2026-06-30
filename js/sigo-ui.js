@@ -49,6 +49,8 @@ const SIGOUI = {
   createTextarea,
   
   createSelect,
+  
+  showToast,
 
   render
 
@@ -631,4 +633,37 @@ function createCrudScreen(config = {}) {
 
     bottom: config.bottom !== false
   });
+}
+
+function showToast(config = {}) {
+  const tipo = config.tipo || "info";
+  const titulo = config.titulo || "";
+  const mensagem = config.mensagem || "";
+
+  let container = document.getElementById("sigoToastContainer");
+
+  if (!container) {
+    container = document.createElement("div");
+    container.id = "sigoToastContainer";
+    container.className = "sigo-toast-container";
+    document.body.appendChild(container);
+  }
+
+  const toast = document.createElement("div");
+  toast.className = `sigo-toast is-${tipo}`;
+
+  toast.innerHTML = `
+    <strong>${titulo}</strong>
+    <span>${mensagem}</span>
+  `;
+
+  container.appendChild(toast);
+
+  setTimeout(() => {
+    toast.classList.add("is-hide");
+
+    setTimeout(() => {
+      toast.remove();
+    }, 300);
+  }, config.tempo || 3000);
 }
