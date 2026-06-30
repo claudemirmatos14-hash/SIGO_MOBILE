@@ -90,7 +90,7 @@ function createScreen(config = {}) {
       ${actions}
       ${sections}
     </main>
-
+    <section id="telaApp" class="tela-app"></section>
     ${bottom}
   `;
 }
