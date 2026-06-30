@@ -294,6 +294,80 @@ function createFieldSection() {
   `;
 }
 
+function createStatus() {
+
+  return `
+
+    <section class="sigo-card sigo-card--status">
+
+      <div class="section-header">
+
+        <div>
+
+          <h2>🌐 Situação da Obra</h2>
+
+        </div>
+
+        <span>
+
+          Última Sync:
+
+          <strong id="syncUltima">--</strong>
+
+        </span>
+
+      </div>
+
+      <div class="status-grid">
+
+        <div>
+
+          <strong id="syncSincronizados">0</strong>
+
+          <span>Sincronizados</span>
+
+        </div>
+
+        <div>
+
+          <strong id="syncPendentes">0</strong>
+
+          <span>Pendentes</span>
+
+        </div>
+
+        <div>
+
+          <strong id="syncConflitos">0</strong>
+
+          <span>Conflitos</span>
+
+        </div>
+
+        <div>
+
+          <strong id="syncExcessos">0</strong>
+
+          <span>Excessos</span>
+
+        </div>
+
+      </div>
+
+      <div
+          id="syncStatus"
+          class="operation-status success">
+
+          🟢 OPERAÇÃO NORMAL
+
+      </div>
+
+    </section>
+
+  `;
+
+}
+
 function createModule(config) {
   config = config || {};
 
