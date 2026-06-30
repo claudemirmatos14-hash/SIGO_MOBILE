@@ -34,4 +34,40 @@ const SIGOEntities = {
       }
     }
   }
+
+    diarioItem: {
+    storeName: "TB_DIARIO_ITENS",
+    idKey: "idItemDiario",
+    prefix: "DIT",
+    syncTipo: "DIARIO_ITEM",
+  
+    fields: [
+      { id: "itemDiarioData", key: "data" },
+      { id: "itemDiarioAtividade", key: "idAtividade" },
+      { id: "itemDiarioEap", key: "eap" },
+      { id: "itemDiarioServico", key: "servico" },
+      { id: "itemDiarioEquipe", key: "equipe" },
+      { id: "itemDiarioEquipamento", key: "equipamento" },
+      { id: "itemDiarioQtde", key: "qtdeExecutada", type: "number" },
+      { id: "itemDiarioUnidade", key: "unidade" },
+      { id: "itemDiarioHoras", key: "horasTrabalhadas", type: "number" },
+      { id: "itemDiarioObservacao", key: "observacao" }
+    ],
+  
+    extra: {
+      statusItem: "ABERTO"
+    },
+  
+    afterSave: async function () {
+      if (typeof atualizarIndicadoresMobile_ === "function") {
+        atualizarIndicadoresMobile_();
+      }
+  
+      if (typeof listarItensDiarioOffline_ === "function") {
+        await listarItensDiarioOffline_();
+      }
+    }
+  }
 };
+
+
