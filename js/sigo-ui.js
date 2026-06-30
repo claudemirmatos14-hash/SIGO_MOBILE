@@ -10,6 +10,8 @@
 
 const SIGOUI = {
 
+  render,
+
   createHeader,
 
   createHeroCard,
@@ -54,7 +56,7 @@ const SIGOUI = {
   
   showModal,
 
-  render
+  feedback: createFeedbackAPI(),
 
 };
 
@@ -744,4 +746,51 @@ function showModal(config = {}) {
       }
     };
   });
+}
+
+function createFeedbackAPI() {
+  return {
+    success(titulo, mensagem) {
+      showToast({
+        tipo: "success",
+        titulo,
+        mensagem
+      });
+    },
+
+    error(titulo, mensagem) {
+      showToast({
+        tipo: "danger",
+        titulo,
+        mensagem
+      });
+    },
+
+    warning(titulo, mensagem) {
+      showToast({
+        tipo: "warning",
+        titulo,
+        mensagem
+      });
+    },
+
+    info(titulo, mensagem) {
+      showToast({
+        tipo: "info",
+        titulo,
+        mensagem
+      });
+    },
+
+    confirm(config = {}) {
+      return showModal({
+        tipo: config.tipo || "warning",
+        icone: config.icone || "⚠️",
+        titulo: config.titulo || "Confirmar ação",
+        mensagem: config.mensagem || "",
+        textoConfirmar: config.textoConfirmar || "Confirmar",
+        textoCancelar: config.textoCancelar || "Cancelar"
+      });
+    }
+  };
 }
