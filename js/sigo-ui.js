@@ -10,8 +10,6 @@
 
 const SIGOUI = {
 
-  render,
-
   createHeader,
 
   createHeroCard,
@@ -56,9 +54,13 @@ const SIGOUI = {
   
   showModal,
 
-  feedback: createFeedbackAPI()
+  render,
+
+  feedback: null
 
 };
+
+SIGOUI.feedback = createFeedbackAPI();
 
 
 // =====================================================
