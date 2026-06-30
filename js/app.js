@@ -58,15 +58,25 @@ function atualizarNomeObra_(seletor, nomeObra) {
 }
 
 function navegarPara(tela) {
+  const app = document.querySelector(".app-premium");
   const area = document.getElementById("telaApp");
+
+  if (tela === "diario" && app) {
+    SIGOUI.render(".app-premium", montarTelaDiarioObra());
+
+    setTimeout(carregarListaDiariosOffline, 100);
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+
+    return;
+  }
 
   if (!area) return;
 
- if (tela === "diario") {
-    area.innerHTML = montarTelaDiarioObra();
-  } else {
-    area.innerHTML = montarTela(tela);
-  }
+  area.innerHTML = montarTela(tela);
 
   if (tela === "diario") {
   setTimeout(carregarListaDiariosOffline, 100);
