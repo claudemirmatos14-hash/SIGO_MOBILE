@@ -145,8 +145,73 @@ function createHeader() {
   `;
 }
 
-function createHeroCard() {
+function createHeroCard(config = {}) {
 
+  return `
+
+    <section class="sigo-card sigo-card--hero">
+
+      <div class="section-title">
+
+        <span>🏗</span>
+
+        <h2>${config.titulo || "OBRA ATIVA"}</h2>
+
+      </div>
+
+      <select id="obraAtiva">
+
+        <option>
+
+          ${config.select || "Carregando obras..."}
+
+        </option>
+
+      </select>
+
+      <div class="obra-content">
+
+        <div>
+
+          <h3 id="nomeObra">
+
+            ${config.nome || "Selecione uma obra"}
+
+          </h3>
+
+          <div class="obra-meta">
+
+            <small id="contadorObrasOffline">
+
+              ${config.offline || "0 de 0 obras offline"}
+
+            </small>
+
+            <small id="contadorAtividadesOffline">
+
+              ${config.atividades || "0 atividades"}
+
+            </small>
+
+            <small>
+
+              ${config.execucao || "0 em execução"}
+
+            </small>
+
+          </div>
+
+        </div>
+
+        <div class="obra-image-placeholder">
+
+        </div>
+
+      </div>
+
+    </section>
+
+  `;
 }
 
 function createModule(config) {
