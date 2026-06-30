@@ -232,16 +232,76 @@ function criarSecaoFerramentasSIGO() {
 }
 
 function montarTelaDiarioObra() {
-  return SIGOUI.createScreen({
-    header: true,
+  const formDiario = `
+    <div class="sigo-form">
+      ${SIGOUI.createDate({
+        id: "diarioData",
+        label: "Data"
+      })}
 
-    hero: SIGOUI.createHeroCard({
-      titulo: "DIÁRIO DE OBRA",
-      nome: "Relatório diário da obra",
-      offline: "Registro operacional",
-      atividades: "Produção, equipe e observações",
-      execucao: "Modo offline"
-    }),
+      ${SIGOUI.createInput({
+        id: "diarioResponsavel",
+        label: "Responsável",
+        placeholder: "Nome do responsável"
+      })}
+
+      ${SIGOUI.createInput({
+        id: "diarioEquipe",
+        label: "Equipe",
+        placeholder: "Equipe em campo"
+      })}
+
+      ${SIGOUI.createNumber({
+        id: "diarioHoras",
+        label: "Horas do Dia",
+        placeholder: "Ex.: 8"
+      })}
+
+      ${SIGOUI.createSelect({
+        id: "diarioClima",
+        label: "Clima",
+        options: [
+          { value: "", label: "Selecione" },
+          { value: "☀️ ENSOLARADO", label: "☀️ Ensolarado" },
+          { value: "⛅ PARCIALMENTE NUBLADO", label: "⛅ Parcialmente Nublado" },
+          { value: "☁️ NUBLADO", label: "☁️ Nublado" },
+          { value: "🌧️ CHUVOSO", label: "🌧️ Chuvoso" },
+          { value: "⛈️ TEMPESTADE", label: "⛈️ Tempestade" }
+        ]
+      })}
+
+      ${SIGOUI.createTextarea({
+        id: "diarioOcorrencias",
+        label: "Ocorrências Gerais",
+        rows: 3,
+        placeholder: "Descreva ocorrências gerais"
+      })}
+
+      ${SIGOUI.createTextarea({
+        id: "diarioObservacoes",
+        label: "Observações Gerais",
+        rows: 3,
+        placeholder: "Observações do dia"
+      })}
+    </div>
+  `;
+
+  const listaDiarios = `
+    <div id="listaDiariosOffline" class="sigo-list">
+      <div class="empty-state">
+        <div class="empty-icon">📭</div>
+        <h3>Nenhum diário carregado</h3>
+        <p>Os registros aparecerão aqui após carregar a lista.</p>
+      </div>
+    </div>
+  `;
+
+  return SIGOUI.createCrudScreen({
+    titulo: "📘 DIÁRIO DE OBRA",
+    nome: "Relatório diário da obra",
+    subtitulo: "Registro operacional",
+    info: "Produção, equipe e observações",
+    status: "Modo offline",
 
     actions: [
       {
@@ -258,12 +318,13 @@ function montarTelaDiarioObra() {
       }
     ],
 
-    sections: [
-      criarSecaoDadosDiarioObra_(),
-      criarSecaoCondicoesDiarioObra_(),
-      criarSecaoObservacoesDiarioObra_(),
-      criarSecaoListaDiariosObra_()
-    ],
+    formTitle: "📋 Dados do Diário",
+    formSubtitle: "Informações principais do relatório",
+    form: formDiario,
+
+    listTitle: "📚 Diários Registrados",
+    listSubtitle: "Histórico offline da obra ativa",
+    list: listaDiarios,
 
     bottom: true
   });
