@@ -660,7 +660,8 @@ function montarTelaObrasOffline() {
       )
     ],
 
-    bottom: true
+    bottom: true,
+    activeNav: "obras"
   });
 }
 
