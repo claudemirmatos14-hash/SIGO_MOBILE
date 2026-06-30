@@ -128,7 +128,21 @@ function createGrid(content) {
 // =====================================================
 
 function createHeader() {
+  return `
+    <header class="sigo-header">
+      <div class="sigo-header-content">
+        <div>
+          <h1>SIGO</h1>
+          <p>Sistema Integrado de Gestão de Obras</p>
+        </div>
 
+        <div class="sigo-header-actions">
+          <button type="button" class="icon-button">🔔</button>
+          <span class="status-online">● Online</span>
+        </div>
+      </div>
+    </header>
+  `;
 }
 
 function createHeroCard() {
