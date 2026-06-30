@@ -248,13 +248,13 @@ function montarTelaDiarioObra() {
         icone: "➕",
         texto: "Novo Diário",
         tipo: "is-primary",
-        acao: "novoDiarioOffline_()"
+        acao: "limparFormularioDiario()"
       },
       {
         icone: "💾",
         texto: "Salvar",
         tipo: "is-success",
-        acao: "salvarDiarioOffline_()"
+        acao: "salvarDiarioOffline()"
       }
     ],
 
@@ -362,4 +362,15 @@ function criarSecaoListaDiariosObra_() {
       </div>
     `
   );
+}
+
+function limparFormularioDiario() {
+  ["diarioData", "diarioResponsavel", "diarioEquipe", "diarioHoras", "diarioClima", "diarioOcorrencias", "diarioObservacoes"]
+    .forEach(id => {
+      const campo = document.getElementById(id);
+      if (campo) campo.value = "";
+    });
+
+  const data = document.getElementById("diarioData");
+  if (data) data.value = new Date().toISOString().split("T")[0];
 }
