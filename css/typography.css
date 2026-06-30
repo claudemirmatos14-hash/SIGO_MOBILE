@@ -1,1 +1,84 @@
+body {
+  font-family: Inter, Arial, sans-serif;
+  color: var(--sigo-text);
+}
 
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+.topo h1,
+.sigo-header h1 {
+  font-size: 42px;
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: -1px;
+}
+
+.topo p,
+.sigo-header p {
+  margin-top: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.secao-titulo h3,
+.section-header h2 {
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--sigo-text);
+}
+
+.secao-titulo span,
+.section-header span {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sigo-primary);
+}
+
+.menu-card h3 {
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--sigo-text);
+}
+
+.menu-card p {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--sigo-text-muted);
+  line-height: 1.35;
+}
+
+.obra-label {
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--sigo-text);
+}
+
+.obra-info span {
+  font-size: 17px;
+  font-weight: 900;
+  color: var(--sigo-text);
+}
+
+.obra-info small {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sigo-text-muted);
+}
+
+.sync-grid strong {
+  font-size: 26px;
+  font-weight: 900;
+  color: var(--sigo-text);
+}
+
+.sync-grid span {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--sigo-text-muted);
+}
