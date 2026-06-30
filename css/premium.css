@@ -841,3 +841,14 @@ select {
     transform: translateY(0);
   }
 }
+
+.sigo-toast-container {
+  position: fixed;
+  left: 50%;
+  bottom: 100px;
+  transform: translateX(-50%);
+  width: min(390px, calc(100% - 28px));
+  display: grid;
+  gap: 10px;
+  z-index: 9999;
+}
