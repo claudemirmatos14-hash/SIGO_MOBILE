@@ -135,8 +135,27 @@ function createHeroCard() {
 
 }
 
-function createModule() {
+function createModule(config) {
+  config = config || {};
 
+  return `
+    <article class="sigo-module ${config.destaque ? "is-featured" : ""}"
+             onclick="${config.acao || ""}">
+      <div class="sigo-module__icon ${config.cor || ""}">
+        ${config.icone || ""}
+      </div>
+
+      <h3 class="sigo-module__title">
+        ${config.titulo || ""}
+      </h3>
+
+      ${createBadge(config.badge || "", config.badgeTipo || "")}
+
+      <p class="sigo-module__desc">
+        ${config.descricao || ""}
+      </p>
+    </article>
+  `;
 }
 
 function createBadge(texto, tipo) {
