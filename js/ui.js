@@ -314,7 +314,7 @@ function montarTelaDiarioObra() {
         icone: "💾",
         texto: "Salvar",
         tipo: "is-success",
-        acao: "salvarDiarioOffline()"
+        acao: "salvarDiarioPremium()"
       }
     ],
 
