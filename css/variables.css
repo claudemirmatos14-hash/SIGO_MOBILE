@@ -1,1 +1,40 @@
+:root {
+  --sigo-bg: #f4f7fb;
+  --sigo-surface: #ffffff;
+  --sigo-header: #070b1e;
 
+  --sigo-primary: #2563eb;
+  --sigo-primary-light: #dbeafe;
+
+  --sigo-success: #16a34a;
+  --sigo-success-light: #dcfce7;
+
+  --sigo-warning: #f59e0b;
+  --sigo-warning-light: #fef3c7;
+
+  --sigo-danger: #dc2626;
+  --sigo-danger-light: #fee2e2;
+
+  --sigo-info: #0284c7;
+  --sigo-info-light: #e0f2fe;
+
+  --sigo-text: #111827;
+  --sigo-text-muted: #6b7280;
+  --sigo-border: #e5e7eb;
+
+  --sigo-radius-sm: 12px;
+  --sigo-radius-md: 18px;
+  --sigo-radius-lg: 24px;
+  --sigo-radius-xl: 32px;
+
+  --sigo-shadow-card: 0 10px 30px rgba(15, 23, 42, 0.08);
+  --sigo-shadow-hover: 0 18px 40px rgba(15, 23, 42, 0.12);
+
+  --sigo-space-1: 4px;
+  --sigo-space-2: 8px;
+  --sigo-space-3: 12px;
+  --sigo-space-4: 16px;
+  --sigo-space-5: 24px;
+  --sigo-space-6: 32px;
+  --sigo-space-7: 40px;
+}
