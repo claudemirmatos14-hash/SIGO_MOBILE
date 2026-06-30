@@ -56,7 +56,7 @@ const SIGOUI = {
   
   showModal,
 
-  feedback: createFeedbackAPI(),
+  feedback: createFeedbackAPI()
 
 };
 
