@@ -33,7 +33,7 @@ function montarHomePremium() {
 
     ],
 
-    bottom: criarBottomNavSIGO()
+    bottom: true
 
   });
 
