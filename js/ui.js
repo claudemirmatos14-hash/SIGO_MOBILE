@@ -592,3 +592,64 @@ async function salvarItemDiarioPremium() {
     alert("Erro ao salvar item do diário offline.");
   }
 }
+
+function montarTelaObrasOffline() {
+  return SIGOUI.createScreen({
+    header: true,
+
+    hero: SIGOUI.createHeroCard({
+      titulo: "🏗 OBRAS OFFLINE",
+      nome: "Gerenciador de obras",
+      offline: "Baixar, selecionar e atualizar",
+      atividades: "Dados-base da obra",
+      execucao: "Modo offline"
+    }),
+
+    actions: [
+      {
+        icone: "⬇",
+        texto: "Baixar Obra",
+        tipo: "is-primary",
+        acao: "listarObrasDisponiveisMobile_()"
+      },
+      {
+        icone: "🔄",
+        texto: "Atualizar Base",
+        tipo: "is-secondary",
+        acao: "sincronizarDadosBaseObraMobile()"
+      }
+    ],
+
+    sections: [
+      SIGOUI.createSection(
+        "📦 Obras Baixadas",
+        "Obras disponíveis neste dispositivo",
+        `
+          <div id="listaObrasOffline" class="sigo-list">
+            <div class="empty-state">
+              <div class="empty-icon">🏗</div>
+              <h3>Carregando obras offline...</h3>
+              <p>As obras baixadas aparecerão aqui.</p>
+            </div>
+          </div>
+        `
+      ),
+
+      SIGOUI.createSection(
+        "☁ Obras Disponíveis",
+        "Obras disponíveis para download",
+        `
+          <div id="listaObrasDisponiveis" class="sigo-list">
+            <div class="empty-state">
+              <div class="empty-icon">☁</div>
+              <h3>Carregando obras disponíveis...</h3>
+              <p>As obras disponíveis aparecerão aqui.</p>
+            </div>
+          </div>
+        `
+      )
+    ],
+
+    bottom: true
+  });
+}
