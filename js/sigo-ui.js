@@ -91,7 +91,7 @@ function createScreen(config = {}) {
 
   const bottom =
     config.bottom === true
-      ? createBottomNav()
+      ? createBottomNav(config.activeNav || "home")
       : (config.bottom || "");
 
   return `
@@ -483,13 +483,13 @@ function createStatus() {
 
 }
 
-function createBottomNav() {
+function createBottomNav(ativo = "home") {
   return `
     <nav class="bottom-nav">
-      <button onclick="voltarHome()">🏠<span>Home</span></button>
-      <button onclick="navegarPara('obras')">🏗<span>Obras</span></button>
-      <button onclick="sincronizarSIGO()">🔄<span>Sync</span></button>
-      <button onclick="alert('Configurações será implementado futuramente.')">⚙<span>Config</span></button>
+      <button class="${ativo === "home" ? "is-active" : ""}" onclick="voltarHome()">🏠<span>Home</span></button>
+      <button class="${ativo === "obras" ? "is-active" : ""}" onclick="navegarPara('obras')">🏗<span>Obras</span></button>
+      <button class="${ativo === "sync" ? "is-active" : ""}" onclick="sincronizarSIGO()">🔄<span>Sync</span></button>
+      <button class="${ativo === "config" ? "is-active" : ""}" onclick="alert('Configurações será implementado futuramente.')">⚙<span>Config</span></button>
     </nav>
   `;
 }
