@@ -435,3 +435,13 @@ function limparFormularioDiario() {
   const data = document.getElementById("diarioData");
   if (data) data.value = new Date().toISOString().split("T")[0];
 }
+
+async function salvarDiarioPremium() {
+  try {
+    await SIGOCRUD.saveOffline(SIGOEntities.diario);
+    alert("Diário salvo offline com sucesso.");
+  } catch (erro) {
+    console.error("Erro ao salvar diário premium:", erro);
+    alert("Erro ao salvar diário offline.");
+  }
+}
