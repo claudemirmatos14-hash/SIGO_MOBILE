@@ -1,1 +1,75 @@
+* {
+  box-sizing: border-box;
+}
 
+html {
+  background: var(--sigo-bg);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--sigo-bg);
+  color: var(--sigo-text);
+  font-family: Inter, Arial, sans-serif;
+}
+
+.app,
+.ds-page {
+  width: 100%;
+  max-width: 430px;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 16px 14px 96px;
+  background: var(--sigo-bg);
+}
+
+#homeApp {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.sigo-section,
+.ds-section {
+  margin: 0 0 26px;
+}
+
+.secao-titulo,
+.section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.secao-titulo h3,
+.section-header h2 {
+  margin: 0;
+}
+
+.secao-titulo span,
+.section-header span {
+  text-align: right;
+}
+
+.menu-grid,
+.sigo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.acoes-grid,
+.sigo-tools-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.ds-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
