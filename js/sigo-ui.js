@@ -33,6 +33,10 @@ const SIGOUI = {
   createBottomNav,
 
   createScreen,
+  
+  createActionButton,
+  
+  createActionBar,
 
   render
 
@@ -478,5 +482,32 @@ function createBottomNav() {
       <button onclick="sincronizarSIGO()">🔄<span>Sync</span></button>
       <button onclick="alert('Configurações será implementado futuramente.')">⚙<span>Config</span></button>
     </nav>
+  `;
+}
+
+function createActionButton(config = {}) {
+  return `
+    <button
+      type="button"
+      class="sigo-action-btn ${config.tipo || "is-secondary"}"
+      onclick="${config.acao || ""}"
+    >
+      <span>${config.icone || ""}</span>
+      <strong>${config.texto || ""}</strong>
+    </button>
+  `;
+}
+
+function createActionBar(actions = []) {
+  if (!actions || actions.length === 0) return "";
+
+  const botoes = actions
+    .map(action => createActionButton(action))
+    .join("");
+
+  return `
+    <section class="sigo-action-bar">
+      ${botoes}
+    </section>
   `;
 }
