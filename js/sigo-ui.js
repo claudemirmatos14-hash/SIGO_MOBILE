@@ -635,7 +635,7 @@ function createCrudScreen(config = {}) {
   });
 }
 
-function showToast(config = {}) {
+/*function showToast(config = {}) {
   const tipo = config.tipo || "info";
   const titulo = config.titulo || "";
   const mensagem = config.mensagem || "";
@@ -666,4 +666,29 @@ function showToast(config = {}) {
       toast.remove();
     }, 300);
   }, config.tempo || 3000);
+}*/
+
+function showToast(config = {}) {
+
+  let container = document.getElementById("sigoToastContainer");
+
+  if (!container) {
+    container = document.createElement("div");
+    container.id = "sigoToastContainer";
+    container.className = "sigo-toast-container";
+    document.body.appendChild(container);
+  }
+
+  const toast = document.createElement("div");
+
+  toast.className = "sigo-toast is-success";
+
+  toast.innerHTML = `
+      <strong>TESTE</strong>
+      <span>Toast funcionando.</span>
+  `;
+
+  container.appendChild(toast);
+
+  console.log("Toast criado:", toast);
 }
