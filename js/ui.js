@@ -22,7 +22,7 @@ function montarHomePremium() {
       
       }) +
       SIGOUI.createFieldSection() +
-      criarCardSituacaoObraSIGO() +
+      SIGOUI.createStatus() +
       criarSecaoFerramentasSIGO(),
 
     bottom: criarBottomNavSIGO()
