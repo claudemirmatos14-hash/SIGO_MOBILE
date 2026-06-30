@@ -23,6 +23,21 @@ function montarHomePremium() {
 
     }),
 
+    actions: [
+  {
+    icone: "➕",
+    texto: "Novo Diário",
+    tipo: "is-primary",
+    acao: "navegarPara('diario')"
+  },
+  {
+    icone: "☁",
+    texto: "Sincronizar",
+    tipo: "is-secondary",
+    acao: "sincronizarSIGO()"
+  }
+],
+
     sections: [
 
       SIGOUI.createFieldSection(),
@@ -38,21 +53,6 @@ function montarHomePremium() {
   });
 
   SIGOUI.render(".app-premium", tela);
-
-  actions: [
-  {
-    icone: "➕",
-    texto: "Novo Diário",
-    tipo: "is-primary",
-    acao: "navegarPara('diario')"
-  },
-  {
-    icone: "☁",
-    texto: "Sincronizar",
-    tipo: "is-secondary",
-    acao: "sincronizarSIGO()"
-  }
-],
 
 }
 
