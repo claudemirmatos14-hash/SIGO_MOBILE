@@ -21,7 +21,7 @@ function montarHomePremium() {
           execucao:"12 em execução"
       
       }) +
-      criarSecaoTrabalhoCampoSIGO() +
+      SIGOUI.createFieldSection() +
       criarCardSituacaoObraSIGO() +
       criarSecaoFerramentasSIGO(),
 
