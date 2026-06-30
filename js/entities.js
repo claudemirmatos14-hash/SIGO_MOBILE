@@ -33,7 +33,7 @@ const SIGOEntities = {
         carregarListaDiariosOffline();
       }
     }
-  }
+  },
 
     diarioItem: {
     storeName: "TB_DIARIO_ITENS",
