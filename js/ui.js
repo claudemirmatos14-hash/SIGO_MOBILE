@@ -40,6 +40,16 @@ function montarHomePremium() {
 
   SIGOUI.render(".app-premium", tela);
 
+  setTimeout(async () => {
+    if (typeof carregarObrasMobile_ === "function") {
+      await carregarObrasMobile_();
+    }
+  
+    if (typeof atualizarIndicadoresMobile_ === "function") {
+      atualizarIndicadoresMobile_();
+    }
+  }, 100);
+
 }
 
 function criarCardObraAtivaSIGO() {
