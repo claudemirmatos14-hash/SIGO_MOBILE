@@ -728,3 +728,45 @@ select {
   color: #64748b;
   font-weight: 600;
 }
+
+/* ==========================================================
+   FORM COMPONENTS
+========================================================== */
+
+.sigo-field {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.sigo-field__label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.sigo-input,
+.sigo-select,
+.sigo-textarea {
+  width: 100%;
+  border: 1px solid #dbe4f0;
+  border-radius: 16px;
+  background: #ffffff;
+  padding: 14px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #0f172a;
+  transition: .2s;
+}
+
+.sigo-input:focus,
+.sigo-select:focus,
+.sigo-textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 4px rgba(37,99,235,.12);
+}
+
+.sigo-textarea {
+  resize: vertical;
+}
