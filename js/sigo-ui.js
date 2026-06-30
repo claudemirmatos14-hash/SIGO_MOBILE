@@ -34,6 +34,8 @@ const SIGOUI = {
 
   createScreen,
   
+  createCrudScreen,
+  
   createActionButton,
   
   createActionBar,
@@ -597,4 +599,36 @@ function createSelect(config = {}) {
 
     </label>
   `;
+}
+
+function createCrudScreen(config = {}) {
+  return createScreen({
+    header: config.header !== false,
+
+    hero: createHeroCard({
+      titulo: config.titulo || "",
+      nome: config.nome || "",
+      offline: config.subtitulo || "",
+      atividades: config.info || "",
+      execucao: config.status || ""
+    }),
+
+    actions: config.actions || [],
+
+    sections: [
+      createSection(
+        config.formTitle || "Formulário",
+        config.formSubtitle || "Preencha os dados",
+        config.form || ""
+      ),
+
+      createSection(
+        config.listTitle || "Registros",
+        config.listSubtitle || "Histórico offline",
+        config.list || ""
+      )
+    ],
+
+    bottom: config.bottom !== false
+  });
 }
