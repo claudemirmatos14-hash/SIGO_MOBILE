@@ -61,6 +61,27 @@ function navegarPara(tela) {
   const app = document.querySelector(".app-premium");
   const area = document.getElementById("telaApp");
 
+  if (tela === "diarioItens" && app) {
+  SIGOUI.render(".app-premium", montarTelaItensDiario());
+
+  setTimeout(async () => {
+    if (typeof carregarAtividadesItemDiarioOffline_ === "function") {
+      await carregarAtividadesItemDiarioOffline_();
+    }
+
+    if (typeof listarItensDiarioOffline_ === "function") {
+      await listarItensDiarioOffline_();
+    }
+  }, 100);
+
+  window.scrollTo({
+    top: 0,
+    behavior: "smooth"
+  });
+
+  return;
+}
+
   if (tela === "diario" && app) {
     SIGOUI.render(".app-premium", montarTelaDiarioObra());
 
