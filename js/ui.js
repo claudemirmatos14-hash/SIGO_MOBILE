@@ -4,30 +4,19 @@
 // =====================================================
 
 function montarHomePremium() {
-  const app = document.querySelector(".app-premium");
+  const tela = SIGOUI.createScreen({
+    header: criarHeaderSIGO(),
 
-  if (!app) {
-    console.warn("Container .app-premium não encontrado.");
-    return;
-  }
+    content:
+      criarCardObraAtivaSIGO() +
+      criarSecaoTrabalhoCampoSIGO() +
+      criarCardSituacaoObraSIGO() +
+      criarSecaoFerramentasSIGO(),
 
-  app.innerHTML = `
-    ${criarHeaderSIGO()}
+    bottom: criarBottomNavSIGO()
+  });
 
-    <main class="home-premium">
-
-      ${criarCardObraAtivaSIGO()}
-
-      ${criarSecaoTrabalhoCampoSIGO()}
-
-      ${criarCardSituacaoObraSIGO()}
-
-      ${criarSecaoFerramentasSIGO()}
-
-    </main>
-
-    ${criarBottomNavSIGO()}
-  `;
+  SIGOUI.render(".app-premium", tela);
 }
 
 function criarCardObraAtivaSIGO() {
