@@ -275,25 +275,28 @@ function criarSecaoDadosDiarioObra_() {
     "Informações principais do relatório",
     `
       <div class="sigo-form">
-        <label>
-          Data
-          <input id="diarioData" type="date">
-        </label>
+        ${SIGOUI.createDate({
+          id: "diarioData",
+          label: "Data"
+        })}
 
-        <label>
-          Responsável
-          <input id="diarioResponsavel" type="text" placeholder="Nome do responsável">
-        </label>
+        ${SIGOUI.createInput({
+          id: "diarioResponsavel",
+          label: "Responsável",
+          placeholder: "Nome do responsável"
+        })}
 
-        <label>
-          Equipe
-          <input id="diarioEquipe" type="text" placeholder="Equipe em campo">
-        </label>
+        ${SIGOUI.createInput({
+          id: "diarioEquipe",
+          label: "Equipe",
+          placeholder: "Equipe em campo"
+        })}
 
-        <label>
-          Horas do Dia
-          <input id="diarioHoras" type="number" step="0.5" placeholder="Ex.: 8">
-        </label>
+        ${SIGOUI.createNumber({
+          id: "diarioHoras",
+          label: "Horas do Dia",
+          placeholder: "Ex.: 8"
+        })}
       </div>
     `
   );
@@ -305,21 +308,24 @@ function criarSecaoCondicoesDiarioObra_() {
     "Clima e situação operacional",
     `
       <div class="sigo-form">
-        <label>
-          Clima
-          <select id="diarioClima">
-            <option value="">Selecione</option>
-            <option value="ENSOLARADO">Ensolarado</option>
-            <option value="NUBLADO">Nublado</option>
-            <option value="CHUVA">Chuva</option>
-            <option value="VENTO">Vento</option>
-          </select>
-        </label>
+        ${SIGOUI.createSelect({
+          id: "diarioClima",
+          label: "Clima",
+          options: [
+            { value: "", label: "Selecione" },
+            { value: "ENSOLARADO", label: "Ensolarado" },
+            { value: "NUBLADO", label: "Nublado" },
+            { value: "CHUVA", label: "Chuva" },
+            { value: "VENTO", label: "Vento" }
+          ]
+        })}
 
-        <label>
-          Ocorrências Gerais
-          <textarea id="diarioOcorrencias" rows="3" placeholder="Descreva ocorrências gerais"></textarea>
-        </label>
+        ${SIGOUI.createTextarea({
+          id: "diarioOcorrencias",
+          label: "Ocorrências Gerais",
+          rows: 3,
+          placeholder: "Descreva ocorrências gerais"
+        })}
       </div>
     `
   );
@@ -331,10 +337,12 @@ function criarSecaoObservacoesDiarioObra_() {
     "Anotações adicionais do dia",
     `
       <div class="sigo-form">
-        <label>
-          Observações
-          <textarea id="diarioObservacoes" rows="4" placeholder="Observações do diário"></textarea>
-        </label>
+        ${SIGOUI.createTextarea({
+          id: "diarioObservacoes",
+          label: "Observações",
+          rows: 4,
+          placeholder: "Observações do diário"
+        })}
       </div>
     `
   );
