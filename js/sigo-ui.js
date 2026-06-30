@@ -58,19 +58,37 @@ function render(container, html) {
 // SCREEN
 // =====================================================
 
-function createScreen(config) {
+function createScreen(config = {}) {
+
+  const header =
+    config.header === true
+      ? createHeader()
+      : (config.header || "");
+
+  const hero =
+    config.hero || "";
+
+  const sections =
+    (config.sections || []).join("");
+
+  const bottom =
+    config.bottom === true
+      ? createBottomNav()
+      : (config.bottom || "");
 
   return `
 
-    ${config.header || ""}
+    ${header}
 
     <main class="home-premium">
 
-      ${config.content || ""}
+      ${hero}
+
+      ${sections}
 
     </main>
 
-    ${config.bottom || ""}
+    ${bottom}
 
   `;
 
