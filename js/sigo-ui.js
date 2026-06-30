@@ -139,8 +139,14 @@ function createModule() {
 
 }
 
-function createBadge() {
+function createBadge(texto, tipo) {
+  if (!texto) return "";
 
+  return `
+    <span class="sigo-badge ${tipo || ""}">
+      ${texto}
+    </span>
+  `;
 }
 
 function createButton() {
