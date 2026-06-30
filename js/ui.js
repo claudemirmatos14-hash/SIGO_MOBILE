@@ -23,21 +23,7 @@ function montarHomePremium() {
 
     }),
 
-    actions: [
-  {
-    icone: "➕",
-    texto: "Novo Diário",
-    tipo: "is-primary",
-    acao: "navegarPara('diario')"
-  },
-  {
-    icone: "☁",
-    texto: "Sincronizar",
-    tipo: "is-secondary",
-    acao: "sincronizarSIGO()"
-  }
-],
-
+    
     sections: [
 
       SIGOUI.createFieldSection(),
@@ -245,9 +231,127 @@ function criarSecaoFerramentasSIGO() {
   `;
 }
 
+function montarTelaDiarioObra() {
+  return SIGOUI.createScreen({
+    header: true,
 
-function testarSIGOUIBadge() {
-  console.log(
-    SIGOUI.createBadge("MED.05", "is-warning")
+    hero: SIGOUI.createHeroCard({
+      titulo: "DIÁRIO DE OBRA",
+      nome: "Relatório diário da obra",
+      offline: "Registro operacional",
+      atividades: "Produção, equipe e observações",
+      execucao: "Modo offline"
+    }),
+
+    actions: [
+      {
+        icone: "➕",
+        texto: "Novo Diário",
+        tipo: "is-primary",
+        acao: "novoDiarioOffline_()"
+      },
+      {
+        icone: "💾",
+        texto: "Salvar",
+        tipo: "is-success",
+        acao: "salvarDiarioOffline_()"
+      }
+    ],
+
+    sections: [
+      criarSecaoDadosDiarioObra_(),
+      criarSecaoCondicoesDiarioObra_(),
+      criarSecaoObservacoesDiarioObra_(),
+      criarSecaoListaDiariosObra_()
+    ],
+
+    bottom: true
+  });
+}
+
+function criarSecaoDadosDiarioObra_() {
+  return SIGOUI.createSection(
+    "📋 Dados do Diário",
+    "Informações principais do relatório",
+    `
+      <div class="sigo-form">
+        <label>
+          Data
+          <input id="diarioData" type="date">
+        </label>
+
+        <label>
+          Responsável
+          <input id="diarioResponsavel" type="text" placeholder="Nome do responsável">
+        </label>
+
+        <label>
+          Equipe
+          <input id="diarioEquipe" type="text" placeholder="Equipe em campo">
+        </label>
+
+        <label>
+          Horas do Dia
+          <input id="diarioHoras" type="number" step="0.5" placeholder="Ex.: 8">
+        </label>
+      </div>
+    `
+  );
+}
+
+function criarSecaoCondicoesDiarioObra_() {
+  return SIGOUI.createSection(
+    "🌦 Condições do Dia",
+    "Clima e situação operacional",
+    `
+      <div class="sigo-form">
+        <label>
+          Clima
+          <select id="diarioClima">
+            <option value="">Selecione</option>
+            <option value="ENSOLARADO">Ensolarado</option>
+            <option value="NUBLADO">Nublado</option>
+            <option value="CHUVA">Chuva</option>
+            <option value="VENTO">Vento</option>
+          </select>
+        </label>
+
+        <label>
+          Ocorrências Gerais
+          <textarea id="diarioOcorrencias" rows="3" placeholder="Descreva ocorrências gerais"></textarea>
+        </label>
+      </div>
+    `
+  );
+}
+
+function criarSecaoObservacoesDiarioObra_() {
+  return SIGOUI.createSection(
+    "📝 Observações",
+    "Anotações adicionais do dia",
+    `
+      <div class="sigo-form">
+        <label>
+          Observações
+          <textarea id="diarioObservacoes" rows="4" placeholder="Observações do diário"></textarea>
+        </label>
+      </div>
+    `
+  );
+}
+
+function criarSecaoListaDiariosObra_() {
+  return SIGOUI.createSection(
+    "📚 Diários Registrados",
+    "Histórico offline da obra ativa",
+    `
+      <div id="listaDiariosOffline" class="sigo-list">
+        <div class="empty-state">
+          <div class="empty-icon">📭</div>
+          <h3>Nenhum diário carregado</h3>
+          <p>Os registros aparecerão aqui após carregar a lista.</p>
+        </div>
+      </div>
+    `
   );
 }
