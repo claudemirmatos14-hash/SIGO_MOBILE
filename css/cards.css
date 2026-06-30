@@ -1,1 +1,128 @@
+.obra-premium-card,
+.sync-saude-card,
+.acoes-rapidas-card,
+.operacao-campo {
+  background: var(--sigo-surface);
+  border-radius: var(--sigo-radius-lg);
+  padding: 24px;
+  margin: 0 0 22px;
+  box-shadow: var(--sigo-shadow-card);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
 
+.menu-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.menu-card {
+  min-height: 150px;
+  border-radius: 22px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  padding: 22px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+  transition: 0.25s ease;
+}
+
+.menu-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--sigo-shadow-hover);
+}
+
+.icone,
+.menu-icone {
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  background: var(--sigo-primary-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  margin-bottom: 4px;
+}
+
+.secao-titulo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.sync-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  background: #ffffff;
+  border-radius: 20px;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+  margin-top: 18px;
+}
+
+.sync-grid div {
+  padding: 20px 8px;
+  text-align: center;
+  border-right: 1px solid #e5e7eb;
+}
+
+.sync-grid div:last-child {
+  border-right: none;
+}
+
+.sync-status {
+  margin-top: 18px;
+  border-radius: 18px;
+  padding: 14px;
+  text-align: center;
+  font-weight: 900;
+  color: #166534;
+  background: var(--sigo-success-light);
+}
+
+.acoes-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.acoes-grid button {
+  border: none;
+  border-radius: 18px;
+  background: var(--sigo-header);
+  color: #ffffff;
+  padding: 18px 14px;
+  min-height: 82px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.16);
+}
+
+.acoes-grid button strong {
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.acoes-grid button span {
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.15;
+}
