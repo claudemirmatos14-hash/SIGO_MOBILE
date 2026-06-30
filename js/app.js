@@ -58,98 +58,76 @@ function atualizarNomeObra_(seletor, nomeObra) {
 }
 
 function navegarPara(tela) {
-
   const app = document.querySelector(".app-premium");
   const area = document.getElementById("telaApp");
 
-  // =====================================================
-  // TELAS PREMIUM
-  // =====================================================
-
-  if (tela === "diario" && app) {
-
-    SIGOUI.render(".app-premium", montarTelaDiarioObra());
-
-    setTimeout(() => {
-      if (typeof carregarListaDiariosOffline === "function") {
-        carregarListaDiariosOffline();
+  const telasPremium = {
+    diario: {
+      montar: montarTelaDiarioObra,
+      depois: async function () {
+        if (typeof carregarListaDiariosOffline === "function") {
+          await carregarListaDiariosOffline();
+        }
       }
-    }, 100);
+    },
 
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    return;
-  }
+    diarioItens: {
+      montar: montarTelaItensDiario,
+      depois: async function () {
+        if (typeof carregarAtividadesItemDiarioOffline_ === "function") {
+          await carregarAtividadesItemDiarioOffline_();
+        }
 
-  if (tela === "diarioItens" && app) {
+        if (typeof listarItensDiarioOffline_ === "function") {
+          await listarItensDiarioOffline_();
+        }
+      }
+    }
+  };
 
-    SIGOUI.render(".app-premium", montarTelaItensDiario());
+  if (app && telasPremium[tela]) {
+    SIGOUI.render(".app-premium", telasPremium[tela].montar());
 
     setTimeout(async () => {
-
-      if (typeof carregarAtividadesItemDiarioOffline_ === "function") {
-        await carregarAtividadesItemDiarioOffline_();
-      }
-
-      if (typeof listarItensDiarioOffline_ === "function") {
-        await listarItensDiarioOffline_();
-      }
-
+      await telasPremium[tela].depois();
     }, 100);
 
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+
     return;
   }
-
-  // =====================================================
-  // TELAS LEGADAS
-  // =====================================================
 
   if (!area) return;
 
   area.innerHTML = montarTela(tela);
 
-  if (tela === "diario") {
-  setTimeout(carregarListaDiariosOffline, 100);
-}
+  if (tela === "medicoes") {
+    setTimeout(async () => {
+      await carregarAtividadesMedicaoOffline_();
+      await listarMedicoesOffline_();
+    }, 100);
+  }
 
- if (tela === "medicoes") {
-
-  setTimeout(async () => {
-    await carregarAtividadesMedicaoOffline_();
-    await listarMedicoesOffline_();
-  }, 100);
-
-}
   if (tela === "evidencias") {
     setTimeout(() => {
       listarEvidenciasOffline_();
     }, 100);
   }
 
-   if (tela === "clima") {
-  setTimeout(() => {
-    listarClimasOffline_();
-  }, 100);
-}
+  if (tela === "clima") {
+    setTimeout(() => {
+      listarClimasOffline_();
+    }, 100);
+  }
 
   if (tela === "ocorrencias") {
-
-  setTimeout(() => {
-
-    listarOcorrenciasOffline_();
-
-  }, 100);
-
-}
-
-  if (tela === "diarioItens") {
-
-  setTimeout(async () => {
-    await carregarAtividadesItemDiarioOffline_();
-    await listarItensDiarioOffline_();
-  }, 100);
-
-}
+    setTimeout(() => {
+      listarOcorrenciasOffline_();
+    }, 100);
+  }
 
   window.scrollTo({
     top: area.offsetTop,
