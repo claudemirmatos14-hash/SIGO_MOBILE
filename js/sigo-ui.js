@@ -720,20 +720,27 @@ function showModal(config = {}) {
   document.body.appendChild(overlay);
 
   return new Promise(resolve => {
+    function fecharModal(resultado) {
+      overlay.classList.add("is-hide");
+      overlay.querySelector(".sigo-modal").classList.add("is-hide");
+
+      setTimeout(() => {
+        overlay.remove();
+        resolve(resultado);
+      }, 200);
+    }
+
     document.getElementById("sigoModalCancel").onclick = () => {
-      overlay.remove();
-      resolve(false);
+      fecharModal(false);
     };
 
     document.getElementById("sigoModalConfirm").onclick = () => {
-      overlay.remove();
-      resolve(true);
+      fecharModal(true);
     };
 
     overlay.onclick = (e) => {
       if (e.target === overlay) {
-        overlay.remove();
-        resolve(false);
+        fecharModal(false);
       }
     };
   });
