@@ -38,6 +38,16 @@ const SIGOUI = {
   
   createActionBar,
 
+  createInput,
+  
+  createDate,
+  
+  createNumber,
+  
+  createTextarea,
+  
+  createSelect,
+
   render
 
 };
@@ -506,5 +516,85 @@ function createActionBar(actions = []) {
     <section class="sigo-action-bar">
       ${botoes}
     </section>
+  `;
+}
+
+function createInput(config = {}) {
+  return `
+    <label class="sigo-field">
+      <span class="sigo-field__label">
+        ${config.label || ""}
+      </span>
+
+      <input
+        id="${config.id || ""}"
+        type="${config.type || "text"}"
+        class="sigo-input"
+        placeholder="${config.placeholder || ""}"
+        value="${config.value || ""}"
+        ${config.required ? "required" : ""}
+        ${config.readonly ? "readonly" : ""}
+      >
+    </label>
+  `;
+}
+
+function createDate(config = {}) {
+  return createInput({
+    ...config,
+    type: "date"
+  });
+}
+
+function createNumber(config = {}) {
+  return createInput({
+    ...config,
+    type: "number"
+  });
+}
+
+function createTextarea(config = {}) {
+  return `
+    <label class="sigo-field">
+      <span class="sigo-field__label">
+        ${config.label || ""}
+      </span>
+
+      <textarea
+        id="${config.id || ""}"
+        class="sigo-textarea"
+        rows="${config.rows || 4}"
+        placeholder="${config.placeholder || ""}"
+      >${config.value || ""}</textarea>
+    </label>
+  `;
+}
+
+function createSelect(config = {}) {
+
+  const options = (config.options || [])
+    .map(op => `
+      <option value="${op.value}">
+        ${op.label}
+      </option>
+    `)
+    .join("");
+
+  return `
+    <label class="sigo-field">
+
+      <span class="sigo-field__label">
+        ${config.label || ""}
+      </span>
+
+      <select
+        id="${config.id || ""}"
+        class="sigo-select">
+
+        ${options}
+
+      </select>
+
+    </label>
   `;
 }
