@@ -4,31 +4,41 @@
 // =====================================================
 
 function montarHomePremium() {
+
   const tela = SIGOUI.createScreen({
-   header: SIGOUI.createHeader(),
 
-    content:
-      SIGOUI.createHeroCard({
+    header: true,
 
-          titulo:"OBRA ATIVA",
-      
-          nome:"Selecione uma obra offline",
-      
-          offline:"0 de 3 obras offline",
-      
-          atividades:"0 atividades offline",
-      
-          execucao:"12 em execução"
-      
-      }) +
-      SIGOUI.createFieldSection() +
-      SIGOUI.createStatus() +
-      SIGOUI.createTools(),
+    hero: SIGOUI.createHeroCard({
+
+      titulo: "OBRA ATIVA",
+
+      nome: "Selecione uma obra offline",
+
+      offline: "0 de 3 obras offline",
+
+      atividades: "0 atividades offline",
+
+      execucao: "12 em execução"
+
+    }),
+
+    sections: [
+
+      SIGOUI.createFieldSection(),
+
+      SIGOUI.createStatus(),
+
+      SIGOUI.createTools()
+
+    ],
 
     bottom: criarBottomNavSIGO()
+
   });
 
   SIGOUI.render(".app-premium", tela);
+
 }
 
 function criarCardObraAtivaSIGO() {
