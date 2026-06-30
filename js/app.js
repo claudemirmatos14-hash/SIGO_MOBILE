@@ -201,7 +201,7 @@ return `
 `;
 }
 
-function voltarHome() {
+/*function voltarHome() {
   const area = document.getElementById("telaApp");
   document.getElementById("homeApp").style.display = "block";
   document.getElementById("telaApp").innerHTML = "";
@@ -214,7 +214,7 @@ function voltarHome() {
     top: 0,
     behavior: "smooth"
   });
-}
+}*/
 
 function montarTelaDiarioObra_() {
   const obraAtiva = localStorage.getItem("obraAtiva") || "OBR002";
