@@ -597,3 +597,68 @@ select {
 .sigo-card:hover {
   box-shadow: 0 18px 44px rgba(15, 23, 42, 0.13);
 }
+
+/* ==========================================================
+   COMPONENTE OFICIAL — ACTION BAR
+========================================================== */
+
+.sigo-action-bar {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.sigo-action-btn {
+  border: none;
+  border-radius: 18px;
+  min-height: 54px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+
+.sigo-action-btn span {
+  font-size: 18px;
+}
+
+.sigo-action-btn strong {
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.sigo-action-btn:active {
+  transform: scale(.97);
+}
+
+.sigo-action-btn.is-primary {
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 12px 28px rgba(37, 99, 235, .25);
+}
+
+.sigo-action-btn.is-secondary {
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, .06);
+}
+
+.sigo-action-btn.is-success {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.sigo-action-btn.is-warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.sigo-action-btn.is-danger {
+  background: #fee2e2;
+  color: #991b1b;
+}
