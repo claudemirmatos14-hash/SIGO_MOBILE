@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+  <title>SIGO Mobile</title>
+    <link rel="stylesheet" href="css/app.css">
+  </head>
+  
+  <body>
+  
+    <div class="app">
+  
+      <section id="homeApp">
+  
+        <header class="topo topo-premium">
+          <div>
+            <h1>SIGO</h1>
+            <p>Sistema Integrado de Gestão de Obras</p>
+          </div>
+        </header>
+  
+        <section class="obra-premium-card">
+          <div class="obra-label">🏗 OBRA ATIVA</div>
+  
+          <select id="obraAtiva">
+            <option value="">Carregando obras...</option>
+          </select>
+  
+          <div class="obra-info">
+            <span id="nomeObra">Selecione uma obra offline</span>
+            <small id="contadorObrasOffline">0 de 3 obras offline</small>
+            <small id="contadorAtividadesOffline">0 atividades offline</small>
+          </div>
+        </section>
+  
+        <section class="sync-saude-card">
+          <h3>🔄 Saúde da Sincronização</h3>
+  
+          <div class="sync-grid">
+            <div>
+              <strong id="syncSincronizados">0</strong>
+              <span>Sincronizados</span>
+            </div>
+  
+            <div>
+              <strong id="syncPendentes">0</strong>
+              <span>Pendentes</span>
+            </div>
+  
+            <div>
+              <strong id="syncConflitos">0</strong>
+              <span>Conflitos</span>
+            </div>
+  
+            <div>
+              <strong id="syncExcessos">0</strong>
+              <span>Excessos</span>
+            </div>
+          </div>
+  
+          <p class="sync-ultima">
+            Última Sync:
+            <strong id="syncUltima">--</strong>
+          </p>
+  
+          <div id="syncStatus" class="sync-status">
+            🟢 OPERACIONAL
+          </div>
+        </section>
+  
+        <section class="acoes-rapidas-card">
+          <div class="secao-titulo">
+            <h3>⚡ Ações Rápidas</h3>
+            <span>Operação offline</span>
+          </div>
+  
+          <div class="acoes-grid">
+            <button onclick="sincronizarDadosBaseObraMobile()">
+              <strong>🔄</strong>
+              <span>Atualizar<br>Base</span>
+            </button>
+  
+            <button onclick="sincronizarSIGO()">
+              <strong>☁</strong>
+              <span>Sincronizar<br>Agora</span>
+            </button>
+  
+            <button onclick="abrirGerenciadorObrasOffline_()">
+              <strong>⬇</strong>
+              <span>Baixar<br>Obra</span>
+            </button>
+  
+            <button onclick="alert('Configurações será implementado futuramente.')">
+              <strong>⚙</strong>
+              <span>Configurar<br>App</span>
+            </button>
+          </div>
+        </section>
+  
+        <section class="operacao-campo">
+          <h3>Operação de Campo</h3>
+  
+          <div class="menu-grid">
+            <div class="menu-card" onclick="navegarPara('diario')">
+              <div class="icone">📘</div>
+              <h3>Diário de Obra</h3>
+              <p>Registrar produção diária</p>
+            </div>
+  
+            <div class="menu-card" onclick="navegarPara('diarioItens')">
+              <div class="menu-icone">📋</div>
+              <h3>Itens do Diário</h3>
+              <p>Registrar atividades executadas</p>
+            </div>
+  
+            <div class="menu-card" onclick="navegarPara('medicoes')">
+              <div class="icone">📏</div>
+              <h3>Medições</h3>
+              <p>Atualizar avanço físico</p>
+            </div>
+  
+            <div class="menu-card" onclick="navegarPara('ocorrencias')">
+              <div class="icone">⚠️</div>
+              <h3>Ocorrências</h3>
+              <p>Registrar problemas</p>
+            </div>
+  
+            <div class="menu-card" onclick="navegarPara('clima')">
+              <div class="icone">🌦️</div>
+              <h3>Clima</h3>
+              <p>Condição climática</p>
+            </div>
+  
+            <div class="menu-card" onclick="navegarPara('evidencias')">
+              <div class="icone">📎</div>
+              <h3>Evidências</h3>
+              <p>Fotos e documentos</p>
+            </div>
+          </div>
+        </section>
+  
+      </section>
+  
+      <section id="telaApp" class="tela-app"></section>
+  
+      <nav class="bottom-nav">
+        <button onclick="voltarHome()">🏠<span>Home</span></button>
+        <button onclick="abrirGerenciadorObrasOffline_()">🏗<span>Obras</span></button>
+        <button onclick="sincronizarSIGO()">🔄<span>Sync</span></button>
+        <button onclick="alert('Configurações será implementado futuramente.')">⚙<span>Config</span></button>
+      </nav>
+  
+    </div>
+  
+    <script src="js/db.js"></script>
+    <script src="js/app.js"></script>
+  
+  </body>
+
+</html>
