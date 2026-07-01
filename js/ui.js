@@ -986,13 +986,26 @@ async function listarMedicoesOffline_() {
 function criarCardMedicaoOffline_(medicao) {
   const status =
     medicao.statusSync || "PENDENTE";
-
-  const classeStatus =
-    status === "SINCRONIZADO"
-      ? "ok"
-      : status === "ERRO"
-        ? "erro"
-        : "pendente";
+  
+  let badge = "";
+  let classeStatus = "";
+  
+  switch (status) {
+  
+    case "SINCRONIZADO":
+      badge = "🟢 SINCRONIZADO";
+      classeStatus = "success";
+      break;
+  
+    case "ERRO":
+      badge = "🔴 ERRO";
+      classeStatus = "danger";
+      break;
+  
+    default:
+      badge = "🟡 PENDENTE";
+      classeStatus = "warning";
+  }
 
   const bloqueado =
     status !== "PENDENTE";
@@ -1014,8 +1027,8 @@ function criarCardMedicaoOffline_(medicao) {
           </span>
         </div>
 
-        <span class="badge-sync ${classeStatus}">
-          ${status}
+        <span class="badge-sync badge-${classeStatus}">
+            ${badge}
         </span>
       </div>
 
