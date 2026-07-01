@@ -54,6 +54,8 @@ const SIGOUI = {
   
   showModal,
 
+  showInputModal,
+
   render,
 
   navigation: null,
@@ -754,6 +756,99 @@ function showModal(config = {}) {
   });
 }
 
+function showInputModal(config = {}) {
+  const titulo = config.titulo || "Informe os dados";
+  const mensagem = config.mensagem || "";
+  const tipo = config.tipo || "info";
+  const icone = config.icone || "✏️";
+  const placeholder = config.placeholder || "";
+  const textoConfirmar = config.textoConfirmar || "Confirmar";
+  const textoCancelar = config.textoCancelar || "Cancelar";
+  const obrigatorio = config.obrigatorio || false;
+
+  let overlay = document.getElementById("sigoInputModalOverlay");
+
+  if (overlay) {
+    overlay.remove();
+  }
+
+  overlay = document.createElement("div");
+  overlay.id = "sigoInputModalOverlay";
+  overlay.className = "sigo-modal-overlay";
+
+  overlay.innerHTML = `
+    <div class="sigo-modal is-${tipo}">
+      <div class="sigo-modal__icon">
+        ${icone}
+      </div>
+
+      <h3>${titulo}</h3>
+
+      <p>${mensagem}</p>
+
+      <textarea
+        id="sigoInputModalField"
+        class="sigo-modal__textarea"
+        rows="4"
+        placeholder="${placeholder}"
+      ></textarea>
+
+      <div class="sigo-modal__actions">
+        <button type="button" class="sigo-modal__btn is-secondary" id="sigoInputModalCancel">
+          ${textoCancelar}
+        </button>
+
+        <button type="button" class="sigo-modal__btn is-primary" id="sigoInputModalConfirm">
+          ${textoConfirmar}
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  return new Promise(resolve => {
+    const campo = document.getElementById("sigoInputModalField");
+
+    function fecharModal(resultado) {
+      overlay.classList.add("is-hide");
+      overlay.querySelector(".sigo-modal").classList.add("is-hide");
+
+      setTimeout(() => {
+        overlay.remove();
+        resolve(resultado);
+      }, 200);
+    }
+
+    document.getElementById("sigoInputModalCancel").onclick = () => {
+      fecharModal(null);
+    };
+
+    document.getElementById("sigoInputModalConfirm").onclick = () => {
+      const valor = campo.value.trim();
+
+      if (obrigatorio && !valor) {
+        SIGOUI.feedback.warning(
+          "Campo obrigatório",
+          "Informe uma justificativa para continuar."
+        );
+        campo.focus();
+        return;
+      }
+
+      fecharModal(valor);
+    };
+
+    overlay.onclick = (e) => {
+      if (e.target === overlay) {
+        fecharModal(null);
+      }
+    };
+
+    setTimeout(() => campo.focus(), 100);
+  });
+}
+
 function createFeedbackAPI() {
   return {
     success(titulo, mensagem) {
@@ -797,6 +892,10 @@ function createFeedbackAPI() {
         textoConfirmar: config.textoConfirmar || "Confirmar",
         textoCancelar: config.textoCancelar || "Cancelar"
       });
+    },
+
+    input(config = {}) {
+      return showInputModal(config);
     }
   };
 }
@@ -824,3 +923,5 @@ function createNavigationAPI() {
   };
 
 }
+
+
