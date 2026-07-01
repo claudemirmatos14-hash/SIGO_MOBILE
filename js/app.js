@@ -132,8 +132,7 @@ function navegarPara(tela) {
   
     }, 100);
   
-    atualizarBottomNav("medicoes");
-  
+    
     return;
   
   }
