@@ -992,3 +992,107 @@ select {
     border-color:#2563eb;
     box-shadow:0 0 0 4px rgba(37,99,235,.15);
 }
+
+/* ==========================================================
+   MEDIÇÕES — LISTA INTELIGENTE
+========================================================== */
+
+.medicao-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 22px;
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, .06);
+}
+
+.medicao-card + .medicao-card {
+  margin-top: 14px;
+}
+
+.medicao-card__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.medicao-card__header strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.medicao-card__header span {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.medicao-card__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.medicao-card__grid div {
+  background: #f8fafc;
+  border-radius: 16px;
+  padding: 12px;
+}
+
+.medicao-card__grid small {
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  color: #64748b;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.medicao-card__grid strong {
+  font-size: 13px;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.medicao-card__excesso {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 16px;
+  padding: 12px;
+  font-size: 12px;
+  font-weight: 900;
+  color: #9a3412;
+}
+
+.medicao-card__excesso small {
+  display: block;
+  margin-top: 4px;
+  font-weight: 700;
+  color: #7c2d12;
+}
+
+.medicao-card__actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.medicao-card__actions button {
+  border: none;
+  border-radius: 14px;
+  padding: 10px 8px;
+  font-size: 11px;
+  font-weight: 900;
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.medicao-card__actions button:disabled {
+  opacity: .45;
+}
