@@ -608,20 +608,18 @@ async function salvarItemDiarioPremium() {
   try {
     await SIGOCRUD.saveOffline(SIGOEntities.diarioItem);
 
-    SIGOUI.showToast({
-      tipo: "success",
-      titulo: "Item salvo",
-      mensagem: "Item do diário salvo offline com sucesso."
-    });
+    SIGOUI.feedback.success(
+      "Item salvo",
+      "Item do diário salvo offline com sucesso."
+    );
 
   } catch (erro) {
     console.error("Erro ao salvar item do diário:", erro);
 
-    SIGOUI.showToast({
-      tipo: "danger",
-      titulo: "Erro ao salvar",
-      mensagem: "Não foi possível salvar o item do diário."
-    });
+    SIGOUI.feedback.error(
+      "Erro ao salvar",
+      "Não foi possível salvar o item do diário."
+    );
   }
 }
 
