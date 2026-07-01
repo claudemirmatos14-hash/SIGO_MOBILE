@@ -687,28 +687,71 @@ function montarTelaObrasOffline() {
 
 function montarTelaMedicoes() {
   return SIGOUI.createCrudScreen({
-    titulo: "📏 Medições",
+    titulo: "📏 MEDIÇÕES",
     nome: "Registrar avanço físico",
     subtitulo: "Controle de medições offline",
-    info: "Sincronização automática",
-    status: "Offline",
+    info: "Medição, saldo e avanço físico",
+    status: "Modo offline",
 
+    actions: [
+      {
+        icone: "➕",
+        texto: "Nova",
+        tipo: "is-primary",
+        acao: "novaMedicaoPremium()"
+      },
+      {
+        icone: "💾",
+        texto: "Salvar",
+        tipo: "is-success",
+        acao: "salvarMedicaoPremium()"
+      }
+    ],
+
+    formTitle: "📋 Dados da Medição",
+    formSubtitle: "Preencha os dados da medição",
     form: montarFormularioMedicao(),
 
+    listTitle: "📚 Registros",
+    listSubtitle: "Histórico offline",
     list: `
-      <div id="listaMedicoesOffline">
-        Carregando medições...
+      <div id="listaMedicoesOffline" class="sigo-list">
+        Nenhuma medição salva.
       </div>
     `,
 
-    activeNav: "medicoes"
+    bottom: true
+  });
+}
+
+function novaMedicaoPremium() {
+  [
+    "medicaoData",
+    "medicaoAtividade",
+    "medicaoServico",
+    "medicaoQtdePlanejada",
+    "medicaoUnidade",
+    "medicaoQtdeExecutada",
+    "medicaoPercentual",
+    "medicaoResponsavel",
+    "medicaoObservacao"
+  ].forEach(id => {
+    const campo = document.getElementById(id);
+    if (campo) campo.value = "";
+  });
+
+  const data = document.getElementById("medicaoData");
+  if (data) data.value = new Date().toISOString().split("T")[0];
+}
+
+async function salvarMedicaoPremium() {
+  await salvarMedicaoOffline({
+    preventDefault: function () {}
   });
 }
 
 function montarFormularioMedicao() {
-
   return `
-
     ${SIGOUI.createDate({
       id: "medicaoData",
       label: "Data"
@@ -751,31 +794,19 @@ function montarFormularioMedicao() {
       readonly: true
     })}
 
-    ${SIGOUI.createTextarea({
-      id: "medicaoObservacoes",
-      label: "Observações"
+    ${SIGOUI.createInput({
+      id: "medicaoResponsavel",
+      label: "Responsável",
+      placeholder: "Nome do responsável"
     })}
 
-    ${SIGOUI.createActionBar([
-
-      SIGOUI.createActionButton({
-        texto: "Nova",
-        icone: "➕",
-        tipo: "secondary",
-        acao: "novaMedicaoPremium()"
-      }),
-
-      SIGOUI.createActionButton({
-        texto: "Salvar",
-        icone: "💾",
-        tipo: "primary",
-        acao: "salvarMedicaoPremium()"
-      })
-
-    ])}
-
+    ${SIGOUI.createTextarea({
+      id: "medicaoObservacao",
+      label: "Observação",
+      rows: 3,
+      placeholder: "Observações da medição"
+    })}
   `;
-
 }
 
 
