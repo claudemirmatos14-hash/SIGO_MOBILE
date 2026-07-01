@@ -3557,6 +3557,55 @@ function ativarModoEdicaoMedicaoTeste_(idMedicao) {
   );
 }
 
+async function editarMedicaoOffline_(idMedicao) {
+  try {
+    const medicoes =
+      await listarRegistrosSIGO("TB_MEDICOES");
+
+    const medicao =
+      medicoes.find(item =>
+        String(item.idMedicao) === String(idMedicao)
+      );
+
+    if (!medicao) {
+      SIGOUI.feedback.warning(
+        "Medição não encontrada",
+        "O registro não foi localizado no banco offline."
+      );
+      return;
+    }
+
+    idMedicaoEdicao = medicao.idMedicao;
+
+    preencherFormularioMedicao_(medicao);
+
+    atualizarModoEdicaoMedicao_();
+
+    SIGOUI.feedback.info(
+      "Modo edição",
+      "A medição foi carregada para edição."
+    );
+
+    const campoData =
+      document.getElementById("medicaoData");
+
+    if (campoData) {
+      campoData.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    }
+
+  } catch (erro) {
+    console.error("Erro ao editar medição:", erro);
+
+    SIGOUI.feedback.error(
+      "Erro ao editar",
+      "Não foi possível carregar a medição para edição."
+    );
+  }
+}
+
 // ============================================
 // FORMATADORES
 // ============================================
