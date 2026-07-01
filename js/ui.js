@@ -724,7 +724,7 @@ function montarFormularioMedicao() {
       id: "medicaoAtividade",
       label: "Atividade",
       options: [],
-      onchange: "preencherDadosMedicao_()"
+      onchange: "preencherDadosAtividadeMedicao()"
     })}
 
     ${SIGOUI.createInput({
