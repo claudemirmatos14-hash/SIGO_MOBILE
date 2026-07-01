@@ -1045,36 +1045,50 @@ function criarCardMedicaoOffline_(medicao) {
         </span>
       </div>
 
-      <div class="medicao-card__grid">
+      <<div class="medicao-card__grid">
 
         <div>
-          <small>Data</small>
+          <small>📅 Data</small>
           <strong>${formatarDataMedicao_(medicao.data)}</strong>
         </div>
-
+      
         <div>
-          <small>Nesta Medição</small>
+          <small>📦 Planejado</small>
+          <strong>
+            ${formatarNumeroMedicao_(medicao.qtdePlanejada)}
+            ${medicao.un || ""}
+          </strong>
+        </div>
+      
+        <div>
+          <small>✅ Nesta Medição</small>
           <strong>
             ${formatarNumeroMedicao_(medicao.qtdeExecutada)}
             ${medicao.un || ""}
           </strong>
         </div>
-
+      
         <div>
-          <small>% Executado</small>
+          <small>📈 Acumulado</small>
           <strong>
-            ${formatarNumeroMedicao_(medicao.percentualExecutado)}%
+            ${formatarNumeroMedicao_(executadoAcumulado)}
+            ${medicao.un || ""}
           </strong>
         </div>
-
+      
         <div>
-          <small>Saldo Restante</small>
+          <small>📉 Saldo</small>
           <strong>
             ${formatarNumeroMedicao_(medicao.saldoDisponivelDepois)}
             ${medicao.un || ""}
           </strong>
         </div>
-
+      
+        <div>
+          <small>🟡 Status</small>
+          <strong>${status}</strong>
+        </div>
+      
       </div>
 
       <div class="medicao-card__progress">
