@@ -1010,7 +1010,21 @@ function criarCardMedicaoOffline_(medicao) {
     status !== "PENDENTE";
 
   const excesso =
-    medicao.excessoDetectado === "SIM";
+      medicao.excessoDetectado === "SIM";
+  
+      const percentualAcumulado =
+    Number(
+      medicao.percentualExecutadoAcumulado ??
+      medicao.percentualExecutado ??
+      0
+    );
+  
+  const executadoAcumulado =
+    Number(
+      medicao.qtdeExecutadaAcumulada ??
+      medicao.qtdeExecutada ??
+      0
+    );
 
   return `
     <article class="medicao-card">
@@ -1039,7 +1053,7 @@ function criarCardMedicaoOffline_(medicao) {
         </div>
 
         <div>
-          <small>Quantidade</small>
+          <small>Nesta Medição</small>
           <strong>
             ${formatarNumeroMedicao_(medicao.qtdeExecutada)}
             ${medicao.un || ""}
@@ -1065,19 +1079,16 @@ function criarCardMedicaoOffline_(medicao) {
 
       <div class="medicao-card__progress">
         <div class="medicao-card__progress-label">
-          <span>Avanço físico</span>
+          <span>Progresso da atividade</span>
           <strong>
-            ${formatarNumeroMedicao_(medicao.percentualExecutado)}%
+            ${formatarNumeroMedicao_(percentualAcumulado)}%
           </strong>
         </div>
 
         <div class="progress">
           <div
             class="progress-fill"
-            style="width:${Math.min(
-              Number(medicao.percentualExecutado || 0),
-              100
-            )}%">
+             style="width:${Math.min(percentualAcumulado, 100)}%">
           </div>
         </div>
       </div>
