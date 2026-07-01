@@ -117,11 +117,25 @@ function navegarPara(tela) {
 
   area.innerHTML = montarTela(tela);
 
-  if (tela === "medicoes") {
+   if (tela === "medicoes") {
+  
+    SIGOUI.render(
+      ".app-premium",
+      montarTelaMedicoes()
+    );
+  
     setTimeout(async () => {
+  
       await carregarAtividadesMedicaoOffline_();
+  
       await listarMedicoesOffline_();
+  
     }, 100);
+  
+    atualizarBottomNav("medicoes");
+  
+    return;
+  
   }
 
   if (tela === "evidencias") {
