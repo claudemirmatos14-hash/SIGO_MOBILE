@@ -605,7 +605,8 @@ function createSelect(config = {}) {
 
       <select
         id="${config.id || ""}"
-        class="sigo-select">
+        class="sigo-select"
+        ${config.onchange ? `onchange="${config.onchange}"` : ""}>
 
         ${options}
 
