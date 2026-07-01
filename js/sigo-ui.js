@@ -548,8 +548,13 @@ function createInput(config = {}) {
         class="sigo-input"
         placeholder="${config.placeholder || ""}"
         value="${config.value || ""}"
+
         ${config.required ? "required" : ""}
         ${config.readonly ? "readonly" : ""}
+
+        ${config.oninput ? `oninput="${config.oninput}"` : ""}
+        ${config.onchange ? `onchange="${config.onchange}"` : ""}
+        ${config.onblur ? `onblur="${config.onblur}"` : ""}
       >
     </label>
   `;
