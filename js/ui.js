@@ -690,7 +690,7 @@ function montarTelaMedicoes() {
     titulo: "📏 MEDIÇÕES",
     nome: "Registrar avanço físico",
     subtitulo: "Controle de medições offline",
-    info: "Medição, saldo e avanço físico",
+    info: "Saldo, avanço físico e sincronização",
     status: "Modo offline",
 
     actions: [
@@ -709,11 +709,11 @@ function montarTelaMedicoes() {
     ],
 
     formTitle: "📋 Dados da Medição",
-    formSubtitle: "Preencha os dados da medição",
+    formSubtitle: "Medição vinculada ao planejamento offline",
     form: montarFormularioMedicao(),
 
-    listTitle: "📚 Registros",
-    listSubtitle: "Histórico offline",
+    listTitle: "📚 Histórico Offline",
+    listSubtitle: "Medições registradas neste dispositivo",
     list: `
       <div id="listaMedicoesOffline" class="sigo-list">
         Nenhuma medição salva.
@@ -733,7 +733,6 @@ function novaMedicaoPremium() {
     "medicaoUnidade",
     "medicaoQtdeExecutada",
     "medicaoPercentual",
-    "medicaoResponsavel",
     "medicaoObservacao"
   ].forEach(id => {
     const campo = document.getElementById(id);
@@ -744,35 +743,39 @@ function novaMedicaoPremium() {
   if (data) data.value = new Date().toISOString().split("T")[0];
 }
 
-async function salvarMedicaoPremium() {
-  await salvarMedicaoOffline({
-    preventDefault: function () {}
-  });
-}
-
 function montarFormularioMedicao() {
+  const obraAtiva = obterObraAtivaMobile_();
+
   return `
     ${SIGOUI.createDate({
       id: "medicaoData",
-      label: "Data"
+      label: "Data",
+      value: new Date().toISOString().split("T")[0]
+    })}
+
+    ${SIGOUI.createInput({
+      id: "medicaoObra",
+      label: "Obra Ativa",
+      value: obraAtiva,
+      readonly: true
     })}
 
     ${SIGOUI.createSelect({
       id: "medicaoAtividade",
       label: "Atividade",
       options: [],
-      onchange: "preencherDadosAtividadeMedicao()"
+      onchange: "preencherDadosAtividadeMedicaoOficial()"
+    })}
+
+    ${SIGOUI.createInput({
+      id: "medicaoEAP",
+      label: "EAP",
+      readonly: true
     })}
 
     ${SIGOUI.createInput({
       id: "medicaoServico",
       label: "Serviço",
-      readonly: true
-    })}
-
-    ${SIGOUI.createNumber({
-      id: "medicaoQtdePlanejada",
-      label: "Quantidade Planejada",
       readonly: true
     })}
 
@@ -783,21 +786,33 @@ function montarFormularioMedicao() {
     })}
 
     ${SIGOUI.createNumber({
+      id: "medicaoQtdePlanejada",
+      label: "Quantidade Planejada",
+      readonly: true
+    })}
+
+    ${SIGOUI.createNumber({
+      id: "medicaoJaMedido",
+      label: "Já Medido Offline",
+      readonly: true
+    })}
+
+    ${SIGOUI.createNumber({
+      id: "medicaoSaldoDisponivel",
+      label: "Saldo Disponível",
+      readonly: true
+    })}
+
+    ${SIGOUI.createNumber({
       id: "medicaoQtdeExecutada",
       label: "Quantidade Executada",
-      oninput: "calcularPercentualMedicao()"
+      oninput: "calcularPercentualMedicaoOficial()"
     })}
 
     ${SIGOUI.createNumber({
       id: "medicaoPercentual",
       label: "% Executado",
       readonly: true
-    })}
-
-    ${SIGOUI.createInput({
-      id: "medicaoResponsavel",
-      label: "Responsável",
-      placeholder: "Nome do responsável"
     })}
 
     ${SIGOUI.createTextarea({
@@ -818,3 +833,101 @@ function voltarHome() {
   }
 }
 
+async function preencherDadosAtividadeMedicaoOficial() {
+  const idAtividade = document.getElementById("medicaoAtividade")?.value;
+
+  if (!idAtividade) return;
+
+  const atividades = await listarRegistrosSIGO("TB_ATIVIDADES_OBRA");
+
+  const atividadeBase = atividades.find(item =>
+    String(item.idAtividade) === String(idAtividade) ||
+    String(item.eap) === String(idAtividade)
+  );
+
+  if (!atividadeBase) {
+    SIGOUI.feedback.warning(
+      "Atualização necessária",
+      "Atualize os dados-base da obra para continuar."
+    );
+    return;
+  }
+
+  const idObra = obterObraAtivaMobile_();
+
+  const medicoes = await listarRegistrosSIGO("TB_MEDICOES");
+
+  const totalJaMedido = medicoes
+    .filter(item =>
+      String(item.idObra) === String(idObra) &&
+      (
+        String(item.atividade) === String(idAtividade) ||
+        String(item.eap) === String(atividadeBase.eap)
+      )
+    )
+    .reduce((total, item) => total + Number(item.qtdeExecutada || 0), 0);
+
+  const qtdePlanejada = Number(atividadeBase.qtdePlanejada || 0);
+  const saldoDisponivel = qtdePlanejada - totalJaMedido;
+
+  document.getElementById("medicaoEAP").value = atividadeBase.eap || "";
+  document.getElementById("medicaoServico").value = atividadeBase.servico || "";
+  document.getElementById("medicaoUnidade").value = atividadeBase.unidade || "";
+  document.getElementById("medicaoQtdePlanejada").value = qtdePlanejada;
+  document.getElementById("medicaoJaMedido").value = totalJaMedido;
+  document.getElementById("medicaoSaldoDisponivel").value = saldoDisponivel;
+
+  calcularPercentualMedicaoOficial();
+}
+
+function calcularPercentualMedicaoOficial() {
+  const qtdePlanejada =
+    Number(document.getElementById("medicaoQtdePlanejada")?.value || 0);
+
+  const qtdeExecutada =
+    Number(document.getElementById("medicaoQtdeExecutada")?.value || 0);
+
+  const campoPercentual =
+    document.getElementById("medicaoPercentual");
+
+  if (!campoPercentual) return;
+
+  if (!qtdePlanejada || qtdePlanejada <= 0) {
+    campoPercentual.value = 0;
+    return;
+  }
+
+  const percentual = (qtdeExecutada / qtdePlanejada) * 100;
+
+  campoPercentual.value = percentual.toFixed(2);
+}
+
+function novaMedicaoPremium() {
+  [
+    "medicaoAtividade",
+    "medicaoEAP",
+    "medicaoServico",
+    "medicaoUnidade",
+    "medicaoQtdePlanejada",
+    "medicaoJaMedido",
+    "medicaoSaldoDisponivel",
+    "medicaoQtdeExecutada",
+    "medicaoPercentual",
+    "medicaoObservacao"
+  ].forEach(id => {
+    const campo = document.getElementById(id);
+    if (campo) campo.value = "";
+  });
+
+  const data = document.getElementById("medicaoData");
+  if (data) data.value = new Date().toISOString().split("T")[0];
+
+  const obra = document.getElementById("medicaoObra");
+  if (obra) obra.value = obterObraAtivaMobile_();
+}
+
+async function salvarMedicaoPremium() {
+  await salvarMedicaoOffline({
+    preventDefault: function () {}
+  });
+}
