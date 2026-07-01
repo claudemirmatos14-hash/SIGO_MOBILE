@@ -1317,3 +1317,100 @@ BARRA DE PROGRESSO
   font-size: 14px;
   font-weight: 900;
 }
+
+/* ==========================================================
+   DRAWER — DETALHES DA MEDIÇÃO
+========================================================== */
+
+.drawer-status {
+  margin: 14px 0 18px;
+}
+
+.drawer-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.drawer-kpi {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 14px;
+}
+
+.drawer-kpi small {
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  color: #64748b;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.drawer-kpi strong {
+  display: block;
+  font-size: 18px;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.drawer-progress {
+  margin: 20px 0;
+}
+
+.drawer-progress-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #334155;
+}
+
+.drawer-progress-title strong {
+  font-size: 18px;
+  color: #2563eb;
+}
+
+.drawer-section {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid #eef2f7;
+}
+
+.drawer-section h4 {
+  margin: 0 0 14px;
+  font-size: 15px;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.drawer-section p {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  line-height: 1.5;
+}
+
+.drawer-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.drawer-item span {
+  color: #64748b;
+  font-weight: 700;
+}
+
+.drawer-item strong {
+  color: #0f172a;
+  font-weight: 900;
+  text-align: right;
+}
