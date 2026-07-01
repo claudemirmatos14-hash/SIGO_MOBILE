@@ -3606,6 +3606,32 @@ async function editarMedicaoOffline_(idMedicao) {
   }
 }
 
+function preencherFormularioMedicao_(medicao) {
+  const campos = {
+    medicaoData: medicao.data || "",
+    medicaoObra: medicao.idObra || "",
+    medicaoAtividade: medicao.atividade || "",
+    medicaoEAP: medicao.eap || "",
+    medicaoServico: medicao.servico || "",
+    medicaoUnidade: medicao.un || "",
+    medicaoQtdePlanejada: medicao.qtdePlanejada || 0,
+    medicaoJaMedido: medicao.totalJaMedidoOffline || 0,
+    medicaoSaldoDisponivel: medicao.saldoDisponivelAntes || 0,
+    medicaoQtdeExecutada: medicao.qtdeExecutada || 0,
+    medicaoPercentual: medicao.percentualExecutado || 0,
+    medicaoObservacao: medicao.observacao || ""
+  };
+
+  Object.keys(campos).forEach(id => {
+    const campo =
+      document.getElementById(id);
+
+    if (campo) {
+      campo.value = campos[id];
+    }
+  });
+}
+
 // ============================================
 // FORMATADORES
 // ============================================
