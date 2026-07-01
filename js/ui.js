@@ -685,23 +685,25 @@ function montarTelaObrasOffline() {
   });
 }
 
-return SIGOUI.createCrudScreen({
-  titulo: "📏 Medições",
-  nome: "Registrar avanço físico",
-  subtitulo: "Controle de medições offline",
-  info: "Sincronização automática",
-  status: "Offline",
+function montarTelaMedicoes() {
+  return SIGOUI.createCrudScreen({
+    titulo: "📏 Medições",
+    nome: "Registrar avanço físico",
+    subtitulo: "Controle de medições offline",
+    info: "Sincronização automática",
+    status: "Offline",
 
-  form: montarFormularioMedicao(),
+    form: montarFormularioMedicao(),
 
-  list: `
-    <div id="listaMedicoesOffline">
-      Carregando medições...
-    </div>
-  `,
+    list: `
+      <div id="listaMedicoesOffline">
+        Carregando medições...
+      </div>
+    `,
 
-  activeNav: "medicoes"
-});
+    activeNav: "medicoes"
+  });
+}
 
 function montarFormularioMedicao() {
 
