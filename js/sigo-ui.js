@@ -264,7 +264,7 @@ function createHeroCard(config = {}) {
 function createFieldSection() {
   const modulos = `
     ${createModule({
-      acao: "navegarPara('diario')",
+      acao: "SIGOUI.navigation.open('diario')",
       cor: "is-blue",
       icone: "📘",
       titulo: "Diário de Obra",
@@ -274,7 +274,7 @@ function createFieldSection() {
     })}
 
     ${createModule({
-      acao: "navegarPara('diarioItens')",
+      acao: "SIGOUI.navigation.open('diarioItens')",
       cor: "is-orange",
       icone: "📋",
       titulo: "Itens do Diário",
@@ -284,7 +284,7 @@ function createFieldSection() {
     })}
 
     ${createModule({
-      acao: "navegarPara('medicoes')",
+      acao: "SIGOUI.navigation.open('medicoes')",
       cor: "is-purple",
       icone: "📏",
       titulo: "Medições",
@@ -295,7 +295,7 @@ function createFieldSection() {
     })}
 
     ${createModule({
-      acao: "navegarPara('ocorrencias')",
+      acao: "SIGOUI.navigation.open('ocorrencias')",
       cor: "is-red",
       icone: "⚠️",
       titulo: "Ocorrências",
@@ -305,7 +305,7 @@ function createFieldSection() {
     })}
 
     ${createModule({
-      acao: "navegarPara('clima')",
+      acao: "SIGOUI.navigation.open('clima')",
       cor: "is-blue",
       icone: "🌦️",
       titulo: "Clima",
@@ -315,7 +315,7 @@ function createFieldSection() {
     })}
 
     ${createModule({
-      acao: "navegarPara('evidencias')",
+      acao: "SIGOUI.navigation.open('evidencias')",
       cor: "is-green",
       icone: "📷",
       titulo: "Evidências",
@@ -498,8 +498,8 @@ function createStatus() {
 function createBottomNav(ativo = "home") {
   return `
     <nav class="bottom-nav">
-      <button class="${ativo === "home" ? "is-active" : ""}" onclick="voltarHome()">🏠<span>Home</span></button>
-      <button class="${ativo === "obras" ? "is-active" : ""}" onclick="navegarPara('obras')">🏗<span>Obras</span></button>
+      <button class="${ativo === "home" ? "is-active" : ""}" onclick="SIGOUI.navigation.home()">🏠<span>Home</span></button>
+      <button class="${ativo === "obras" ? "is-active" : ""}" onclick="SIGOUI.navigation.open('obras')">🏗<span>Obras</span></button>
       <button class="${ativo === "sync" ? "is-active" : ""}" onclick="sincronizarSIGO()">🔄<span>Sync</span></button>
       <button class="${ativo === "config" ? "is-active" : ""}" onclick="alert('Configurações será implementado futuramente.')">⚙<span>Config</span></button>
     </nav>
