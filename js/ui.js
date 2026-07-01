@@ -776,6 +776,37 @@ function montarFormularioMedicao() {
 
 }
 
+async function preencherDadosMedicao_() {
+
+  const idAtividade =
+    document.getElementById("medicaoAtividade").value;
+
+  if (!idAtividade) return;
+
+  const atividades =
+    await listarRegistrosSIGO("TB_ATIVIDADES_OBRA");
+
+  const atividade =
+    atividades.find(item =>
+      item.idAtividade === idAtividade
+    );
+
+  if (!atividade) return;
+
+  document.getElementById("medicaoEAP").value =
+    atividade.eap || "";
+
+  document.getElementById("medicaoServico").value =
+    atividade.servico || "";
+
+  document.getElementById("medicaoUnidade").value =
+    atividade.unidade || "";
+
+  document.getElementById("medicaoSaldo").value =
+    atividade.saldoDisponivel || 0;
+
+}
+
 function voltarHome() {
   if (typeof montarHomePremium === "function") {
     montarHomePremium();
