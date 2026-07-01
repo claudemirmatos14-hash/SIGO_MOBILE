@@ -461,7 +461,7 @@ function createModule(config) {
 
   return `
     <article class="sigo-module ${config.destaque ? "is-featured" : ""}"
-             onclick="${config.acao || ""}">
+             ${config.acao ? `onclick="${config.acao}"` : ""}>
       <div class="sigo-module__icon ${config.cor || ""}">
         ${config.icone || ""}
       </div>
@@ -513,7 +513,7 @@ function createActionButton(config = {}) {
     <button
       type="button"
       class="sigo-action-btn ${config.tipo || "is-secondary"}"
-      onclick="${config.acao || ""}"
+      ${config.acao ? `onclick="${config.acao}"` : ""}
     >
       <span>${config.icone || ""}</span>
       <strong>${config.texto || ""}</strong>
