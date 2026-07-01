@@ -1134,7 +1134,7 @@ BARRA DE PROGRESSO
 
     width:100%;
 
-    height:8px;
+    height:12px;
 
     background:#edf2f7;
 
@@ -1180,4 +1180,5 @@ BARRA DE PROGRESSO
   min-width: 4px;
   background: linear-gradient(90deg, #2563eb, #22c55e);
   border-radius: 999px;
+  box-shadow:0 0 10px rgba(34,197,94,.35);
 }
