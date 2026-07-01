@@ -56,9 +56,13 @@ const SIGOUI = {
 
   render,
 
+  navigation: null,
+
   feedback: null
 
 };
+
+SIGOUI.navigation = createNavigationAPI();
 
 SIGOUI.feedback = createFeedbackAPI();
 
@@ -795,4 +799,28 @@ function createFeedbackAPI() {
       });
     }
   };
+}
+
+function createNavigationAPI() {
+
+  return {
+
+    home() {
+      voltarHome();
+    },
+
+    open(tela) {
+      navegarPara(tela);
+    },
+
+    render(selector, html) {
+      SIGOUI.render(selector, html);
+    },
+
+    reload() {
+      location.reload();
+    }
+
+  };
+
 }
