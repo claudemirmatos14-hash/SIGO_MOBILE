@@ -3291,44 +3291,60 @@ async function listarMedicoesOffline_() {
 }
 
 function montarDetalhesMedicao_(medicao) {
-  const status =
-    medicao.statusSync || "PENDENTE";
+  const status = medicao.statusSync || "PENDENTE";
 
   let badge = "";
   let classeStatus = "";
+  let descricaoStatus = "";
 
   switch (status) {
     case "SINCRONIZADO":
       badge = "🟢 SINCRONIZADO";
       classeStatus = "success";
+      descricaoStatus = "Registro enviado ao SIGO.";
       break;
 
     case "ERRO":
       badge = "🔴 ERRO";
       classeStatus = "danger";
+      descricaoStatus = "Falha na sincronização.";
       break;
 
     default:
       badge = "🟡 PENDENTE";
       classeStatus = "warning";
+      descricaoStatus = "Aguardando sincronização.";
   }
 
-  const percentual =
-    Number(
-      medicao.percentualExecutadoAcumulado ??
-      medicao.percentualExecutado ??
-      0
-    );
+  const percentual = Number(
+    medicao.percentualExecutadoAcumulado ??
+    medicao.percentualExecutado ??
+    0
+  );
 
-  const acumulado =
-    Number(
-      medicao.qtdeExecutadaAcumulada ??
-      medicao.qtdeExecutada ??
-      0
-    );
+  const acumulado = Number(
+    medicao.qtdeExecutadaAcumulada ??
+    medicao.qtdeExecutada ??
+    0
+  );
+
+  let progressoClasse = "";
+
+  if (percentual < 30) {
+    progressoClasse = "danger";
+  } else if (percentual < 70) {
+    progressoClasse = "warning";
+  } else {
+    progressoClasse = "success";
+  }
 
   const observacao =
-    medicao.observacao || "Nenhuma observação informada.";
+    medicao.observacao ||
+    "Nenhuma observação registrada nesta medição.";
+
+  const origem =
+    medicao.origem ||
+    "APP OFFLINE";
 
   const excesso =
     medicao.excessoDetectado === "SIM";
@@ -3338,6 +3354,10 @@ function montarDetalhesMedicao_(medicao) {
       <span class="badge-sync badge-${classeStatus}">
         ${badge}
       </span>
+
+      <p class="drawer-status-text">
+        ${descricaoStatus}
+      </p>
     </div>
 
     <div class="drawer-grid">
@@ -3379,14 +3399,12 @@ function montarDetalhesMedicao_(medicao) {
     <div class="drawer-progress">
       <div class="drawer-progress-title">
         <span>Progresso da atividade</span>
-        <strong>
-          ${formatarNumeroMedicao_(percentual)}%
-        </strong>
+        <strong>${formatarNumeroMedicao_(percentual)}%</strong>
       </div>
 
       <div class="progress">
         <div
-          class="progress-fill"
+          class="progress-fill progress-${progressoClasse}"
           style="width:${Math.min(percentual, 100)}%">
         </div>
       </div>
@@ -3412,7 +3430,7 @@ function montarDetalhesMedicao_(medicao) {
 
       <div class="drawer-item">
         <span>Origem</span>
-        <strong>${medicao.origem || "-"}</strong>
+        <strong>${origem}</strong>
       </div>
 
       <div class="drawer-item">
@@ -3459,6 +3477,11 @@ function montarDetalhesMedicao_(medicao) {
       <div class="drawer-item">
         <span>Status Sync</span>
         <strong>${status}</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Versão</span>
+        <strong>1.0</strong>
       </div>
     </div>
   `;
