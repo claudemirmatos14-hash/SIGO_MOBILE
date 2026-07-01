@@ -1033,31 +1033,57 @@ select {
   color: #64748b;
 }
 
-.medicao-card__grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+.medicao-card__grid{
+
+    display:grid;
+
+    grid-template-columns:repeat(2,1fr);
+
+    gap:12px;
+
+    margin-top:14px;
+
+}
+ 
+
+.medicao-card__grid div{
+
+    background:#f8fafc;
+
+    border-radius:18px;
+
+    padding:14px;
+
+    border:1px solid #eef2f7;
+
+    transition:.25s;
+
 }
 
-.medicao-card__grid div {
-  background: #f8fafc;
-  border-radius: 16px;
-  padding: 12px;
+.medicao-card__grid small{
+
+    display:block;
+
+    font-size:10px;
+
+    font-weight:700;
+
+    color:#64748b;
+
+    text-transform:uppercase;
+
+    margin-bottom:6px;
+
 }
 
-.medicao-card__grid small {
-  display: block;
-  font-size: 10px;
-  font-weight: 800;
-  color: #64748b;
-  text-transform: uppercase;
-  margin-bottom: 4px;
-}
+.medicao-card__grid strong{
 
-.medicao-card__grid strong {
-  font-size: 13px;
-  font-weight: 900;
-  color: #0f172a;
+    font-size:18px;
+
+    font-weight:800;
+
+    color:#0f172a;
+
 }
 
 .medicao-card__excesso {
