@@ -3292,11 +3292,131 @@ async function listarMedicoesOffline_() {
 
 function montarDetalhesMedicao_(medicao) {
 
-  return "";
+  return `
+
+    <div class="drawer-status">
+
+      <span class="badge-sync badge-warning">
+
+        🟡 PENDENTE
+
+      </span>
+
+    </div>
+
+    <div class="drawer-grid">
+
+      <div class="drawer-kpi">
+        <small>PLANEJADO</small>
+        <strong>160 H</strong>
+      </div>
+
+      <div class="drawer-kpi">
+        <small>ACUMULADO</small>
+        <strong>33 H</strong>
+      </div>
+
+      <div class="drawer-kpi">
+        <small>NESTA MEDIÇÃO</small>
+        <strong>10 H</strong>
+      </div>
+
+      <div class="drawer-kpi">
+        <small>SALDO</small>
+        <strong>127 H</strong>
+      </div>
+
+    </div>
+
+    <div class="drawer-progress">
+
+      <div class="drawer-progress-title">
+
+        <span>Progresso da atividade</span>
+
+        <strong>20,63%</strong>
+
+      </div>
+
+      <div class="progress">
+
+        <div
+          class="progress-fill"
+          style="width:20.63%">
+        </div>
+
+      </div>
+
+    </div>
+
+    <div class="drawer-section">
+
+      <h4>Dados da Medição</h4>
+
+      <div class="drawer-item">
+        <span>Data</span>
+        <strong>01/07/2026</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Obra</span>
+        <strong>OBR002</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>EAP</span>
+        <strong>1.1</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Origem</span>
+        <strong>APP OFFLINE</strong>
+      </div>
+
+    </div>
+
+    <div class="drawer-section">
+
+      <h4>Observações</h4>
+
+      <p>
+
+        Execução da fundação.
+
+      </p>
+
+    </div>
+
+    <div class="drawer-section">
+
+      <h4>Auditoria</h4>
+
+      <div class="drawer-item">
+
+        <span>Criado em</span>
+
+        <strong>01/07/2026 14:20</strong>
+
+      </div>
+
+    </div>
+
+  `;
 
 }
 
 async function detalharMedicaoOffline_(idMedicao) {
 
-}
+  SIGOUI.showDrawer({
 
+    titulo: "📏 Medição",
+
+    subtitulo: "1.1 Administração da obra",
+
+    conteudo: montarDetalhesMedicao_(),
+
+    textoFechar: "Fechar"
+
+  });
+
+}
