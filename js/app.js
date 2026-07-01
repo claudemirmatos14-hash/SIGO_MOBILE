@@ -3139,3 +3139,14 @@ async function auditarPacoteSyncMobile_() {
     pacote
   };
 }
+
+
+function montarDetalhesMedicao_(medicao) {
+
+  return "";
+
+}
+
+async function detalharMedicaoOffline_(idMedicao) {
+
+}
