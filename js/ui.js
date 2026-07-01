@@ -1082,13 +1082,7 @@ function criarCardMedicaoOffline_(medicao) {
             ${formatarNumeroMedicao_(medicao.saldoDisponivelDepois)}
             ${medicao.un || ""}
           </strong>
-        </div>
-      
-        <div>
-          <small>🟡 Status</small>
-          <strong>${status}</strong>
-        </div>
-      
+        </div>      
       </div>
 
       <div class="medicao-card__progress">
