@@ -2378,24 +2378,31 @@ async function validarExcessoItemDiarioOffline_(item) {
     return true;
   }
   
-  // TODO UX.07.14.9
-  // Substituir por SIGOUI.feedback.input()
-  //===============================================
-  const justificativa = prompt(
-    "⚠ EXCESSO DETECTADO\n\n" +
-    "Atividade: " + atividadeBase.servico + "\n" +
-    "Saldo base: " + saldoBase + " " + atividadeBase.unidade + "\n" +
-    "Já executado offline: " + totalJaExecutadoOffline + " " + atividadeBase.unidade + "\n" +
-    "Saldo disponível atual: " + saldoAtual + " " + atividadeBase.unidade + "\n" +
-    "Quantidade informada: " + qtdeExecutada + " " + atividadeBase.unidade + "\n\n" +
-    "Informe a justificativa:"
-  );
-
-  if (!justificativa) {
-    throw new Error(
-      "Lançamento cancelado. Justificativa obrigatória."
-    );
-  }
+ const justificativa = await SIGOUI.feedback.input({
+      tipo: "warning",
+      icone: "⚠️",
+      titulo: "Excesso detectado",
+      mensagem:
+        `Atividade: ${atividadeBase.servico}
+    
+    Saldo base: ${saldoBase} ${atividadeBase.unidade}
+    Já executado offline: ${totalJaExecutadoOffline} ${atividadeBase.unidade}
+    Saldo disponível atual: ${saldoAtual} ${atividadeBase.unidade}
+    Quantidade informada: ${qtdeExecutada} ${atividadeBase.unidade}
+    
+    Informe a justificativa:`,
+    
+      placeholder: "Descreva o motivo...",
+      textoConfirmar: "Confirmar",
+      textoCancelar: "Cancelar",
+      obrigatorio: true
+    });
+    
+    if (!justificativa) {
+      throw new Error(
+        "Lançamento cancelado. Justificativa obrigatória."
+      );
+    }
 
   item.excessoDetectado = "SIM";
   item.excessoAutorizado = "SIM";
