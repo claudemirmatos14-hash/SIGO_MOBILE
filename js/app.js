@@ -6,6 +6,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     iniciarSeletorObra();
 });
 
+// ========================================
+// VARIÁVEIS GLOBAIS
+// ========================================
+
+let idMedicaoEdicao = null;
+
 function iniciarSeletorObra() {
   const seletor =
     document.getElementById("obraAtiva");
