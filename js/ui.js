@@ -589,20 +589,18 @@ async function salvarDiarioPremium() {
   try {
     await SIGOCRUD.saveOffline(SIGOEntities.diario);
 
-    SIGOUI.showToast({
-      tipo: "success",
-      titulo: "Diário salvo",
-      mensagem: "Registro salvo offline com sucesso."
-    });
+    SIGOUI.feedback.success(
+      "Diário salvo",
+      "Registro salvo offline."
+    );
 
   } catch (erro) {
     console.error("Erro ao salvar diário premium:", erro);
 
-    SIGOUI.showToast({
-      tipo: "danger",
-      titulo: "Erro ao salvar",
-      mensagem: "Não foi possível salvar o diário offline."
-    });
+    SIGOUI.feedback.error(
+      "Erro",
+      erro.message
+    );
   }
 }
 
