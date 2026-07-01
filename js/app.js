@@ -3210,6 +3210,9 @@ function calcularPercentualMedicaoOficial() {
 }
 
 function novaMedicaoPremium() {
+    idMedicaoEdicao = null;
+    atualizarModoEdicaoMedicao_();
+  
   [
     "medicaoAtividade",
     "medicaoEAP",
@@ -3538,6 +3541,16 @@ function atualizarModoEdicaoMedicao_() {
   } else {
     texto.textContent = "Salvar";
   }
+}
+
+function ativarModoEdicaoMedicaoTeste_(idMedicao) {
+  idMedicaoEdicao = idMedicao;
+  atualizarModoEdicaoMedicao_();
+
+  SIGOUI.feedback.info(
+    "Modo edição",
+    "A medição está pronta para edição."
+  );
 }
 
 // ============================================
