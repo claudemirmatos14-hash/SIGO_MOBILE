@@ -3140,6 +3140,155 @@ async function auditarPacoteSyncMobile_() {
   };
 }
 
+async function preencherDadosAtividadeMedicaoOficial() {
+  const idAtividade = document.getElementById("medicaoAtividade")?.value;
+
+  if (!idAtividade) return;
+
+  const atividades = await listarRegistrosSIGO("TB_ATIVIDADES_OBRA");
+
+  const atividadeBase = atividades.find(item =>
+    String(item.idAtividade) === String(idAtividade) ||
+    String(item.eap) === String(idAtividade)
+  );
+
+  if (!atividadeBase) {
+    SIGOUI.feedback.warning(
+      "Atualização necessária",
+      "Atualize os dados-base da obra para continuar."
+    );
+    return;
+  }
+
+  const idObra = obterObraAtivaMobile_();
+
+  const medicoes = await listarRegistrosSIGO("TB_MEDICOES");
+
+  const totalJaMedido = medicoes
+    .filter(item =>
+      String(item.idObra) === String(idObra) &&
+      (
+        String(item.atividade) === String(idAtividade) ||
+        String(item.eap) === String(atividadeBase.eap)
+      )
+    )
+    .reduce((total, item) => total + Number(item.qtdeExecutada || 0), 0);
+
+  const qtdePlanejada = Number(atividadeBase.qtdePlanejada || 0);
+  const saldoDisponivel = qtdePlanejada - totalJaMedido;
+
+  document.getElementById("medicaoEAP").value = atividadeBase.eap || "";
+  document.getElementById("medicaoServico").value = atividadeBase.servico || "";
+  document.getElementById("medicaoUnidade").value = atividadeBase.unidade || "";
+  document.getElementById("medicaoQtdePlanejada").value = qtdePlanejada;
+  document.getElementById("medicaoJaMedido").value = totalJaMedido;
+  document.getElementById("medicaoSaldoDisponivel").value = saldoDisponivel;
+
+  calcularPercentualMedicaoOficial();
+}
+
+function calcularPercentualMedicaoOficial() {
+  const qtdePlanejada =
+    Number(document.getElementById("medicaoQtdePlanejada")?.value || 0);
+
+  const qtdeExecutada =
+    Number(document.getElementById("medicaoQtdeExecutada")?.value || 0);
+
+  const campoPercentual =
+    document.getElementById("medicaoPercentual");
+
+  if (!campoPercentual) return;
+
+  if (!qtdePlanejada || qtdePlanejada <= 0) {
+    campoPercentual.value = 0;
+    return;
+  }
+
+  const percentual = (qtdeExecutada / qtdePlanejada) * 100;
+
+  campoPercentual.value = percentual.toFixed(2);
+}
+
+function novaMedicaoPremium() {
+  [
+    "medicaoAtividade",
+    "medicaoEAP",
+    "medicaoServico",
+    "medicaoUnidade",
+    "medicaoQtdePlanejada",
+    "medicaoJaMedido",
+    "medicaoSaldoDisponivel",
+    "medicaoQtdeExecutada",
+    "medicaoPercentual",
+    "medicaoObservacao"
+  ].forEach(id => {
+    const campo = document.getElementById(id);
+    if (campo) campo.value = "";
+  });
+
+  const data = document.getElementById("medicaoData");
+  if (data) data.value = new Date().toISOString().split("T")[0];
+
+  const obra = document.getElementById("medicaoObra");
+  if (obra) obra.value = obterObraAtivaMobile_();
+}
+
+async function salvarMedicaoPremium() {
+  await salvarMedicaoOffline({
+    preventDefault: function () {}
+  });
+}
+
+
+async function listarMedicoesOffline_() {
+  const container =
+    document.getElementById("listaMedicoesOffline");
+
+  if (!container) return;
+
+  try {
+    const obraAtiva =
+      obterObraAtivaMobile_();
+
+    const medicoes =
+      await listarRegistrosSIGO("TB_MEDICOES");
+
+    const medicoesObra =
+      medicoes
+        .filter(item =>
+          String(item.idObra) === String(obraAtiva)
+        )
+        .sort((a, b) =>
+          new Date(b.criadoEm) - new Date(a.criadoEm)
+        );
+
+    if (!medicoesObra.length) {
+      container.innerHTML = `
+        <div class="card-vazio">
+          Nenhuma medição salva.
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML =
+      medicoesObra
+        .map(medicao => criarCardMedicaoOffline_(medicao))
+        .join("");
+
+  } catch (erro) {
+    console.error(
+      "Erro ao listar medições:",
+      erro
+    );
+
+    container.innerHTML = `
+      <div class="card-vazio">
+        Erro ao carregar medições.
+      </div>
+    `;
+  }
+}
 
 function montarDetalhesMedicao_(medicao) {
 
@@ -3150,3 +3299,4 @@ function montarDetalhesMedicao_(medicao) {
 async function detalharMedicaoOffline_(idMedicao) {
 
 }
+
