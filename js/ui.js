@@ -1045,7 +1045,7 @@ function criarCardMedicaoOffline_(medicao) {
         </span>
       </div>
 
-      <<div class="medicao-card__grid">
+      <div class="medicao-card__grid">
 
         <div>
           <small>📅 Data</small>
