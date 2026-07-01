@@ -3466,13 +3466,11 @@ function montarDetalhesMedicao_(medicao) {
 
 async function detalharMedicaoOffline_(idMedicao) {
   try {
-    const medicoes =
-      await listarRegistrosSIGO("TB_MEDICOES");
+    const medicoes = await listarRegistrosSIGO("TB_MEDICOES");
 
-    const medicao =
-      medicoes.find(item =>
-        String(item.idMedicao) === String(idMedicao)
-      );
+    const medicao = medicoes.find(item =>
+      String(item.idMedicao) === String(idMedicao)
+    );
 
     if (!medicao) {
       SIGOUI.feedback.warning(
@@ -3484,8 +3482,7 @@ async function detalharMedicaoOffline_(idMedicao) {
 
     SIGOUI.showDrawer({
       titulo: "📏 Medição",
-      subtitulo:
-        `${medicao.eap || medicao.atividade || "-"} ${medicao.servico || ""}`,
+      subtitulo: `${medicao.eap || medicao.atividade || "-"} • ${medicao.servico || ""}`,
       conteudo: montarDetalhesMedicao_(medicao),
       textoFechar: "Fechar"
     });
