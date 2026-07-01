@@ -685,6 +685,96 @@ function montarTelaObrasOffline() {
   });
 }
 
+function montarTelaMedicoes() {
+
+  return SIGOUI.createCrudScreen({
+
+    titulo: "📏 Medições",
+
+    nome: "Registrar avanço físico",
+
+    subtitulo: "Controle de medições offline",
+
+    info: "Sincronização automática",
+
+    status: "Offline",
+
+    form: montarFormularioMedicao(),
+
+    list: `
+      <div id="listaMedicoesOffline">
+        Carregando medições...
+      </div>
+    `
+
+  });
+
+}
+
+function montarFormularioMedicao() {
+
+  return `
+
+    ${SIGOUI.createDate({
+      id: "medicaoData",
+      label: "Data"
+    })}
+
+    ${SIGOUI.createSelect({
+      id: "medicaoAtividade",
+      label: "Atividade",
+      options: []
+    })}
+
+    ${SIGOUI.createInput({
+      id: "medicaoEAP",
+      label: "EAP",
+      readonly: true
+    })}
+
+    ${SIGOUI.createInput({
+      id: "medicaoServico",
+      label: "Serviço",
+      readonly: true
+    })}
+
+    ${SIGOUI.createInput({
+      id: "medicaoUnidade",
+      label: "Unidade",
+      readonly: true
+    })}
+
+    ${SIGOUI.createNumber({
+      id: "medicaoQtde",
+      label: "Quantidade Executada"
+    })}
+
+    ${SIGOUI.createInput({
+      id: "medicaoSaldo",
+      label: "Saldo Disponível",
+      readonly: true
+    })}
+
+    ${SIGOUI.createTextarea({
+      id: "medicaoObs",
+      label: "Observações"
+    })}
+
+    ${SIGOUI.createActionBar([
+
+      SIGOUI.createActionButton({
+        texto: "Salvar",
+        icone: "💾",
+        tipo: "primary",
+        onclick: "salvarMedicaoPremium()"
+      })
+
+    ])}
+
+  `;
+
+}
+
 function voltarHome() {
   if (typeof montarHomePremium === "function") {
     montarHomePremium();
@@ -692,3 +782,4 @@ function voltarHome() {
     return;
   }
 }
+
