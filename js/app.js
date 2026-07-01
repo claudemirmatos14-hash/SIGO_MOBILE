@@ -2820,22 +2820,20 @@ async function baixarObraOfflineMobile_(idObra) {
       );
 
     if (jaExiste) {
-     if (jaExiste) {
+      SIGOUI.feedback.warning(
+        "Obra já baixada",
+        "Esta obra já está disponível neste dispositivo."
+      );
 
-    SIGOUI.feedback.warning(
-      "Obra já baixada",
-      "Esta obra já está disponível neste dispositivo."
-    );
+      return;
+    }
 
-    return;
-  }
-  
-  if (obrasLocais.length >= 3) {
-  
-    SIGOUI.feedback.warning(
-      "Limite atingido",
-      "Remova uma obra antes de baixar outra. O limite é de 3 obras offline."
-    );
+    if (obrasLocais.length >= 3) {
+      SIGOUI.feedback.warning(
+        "Limite atingido",
+        "Remova uma obra antes de baixar outra. O limite é de 3 obras offline."
+      );
+
       return;
     }
 
@@ -2863,10 +2861,11 @@ async function baixarObraOfflineMobile_(idObra) {
 
   } catch (erro) {
     console.error("Erro ao baixar obra offline:", erro);
+
     SIGOUI.feedback.error(
-        "Erro ao baixar obra",
-        erro.message || "Não foi possível baixar a obra para uso offline."
-      );
+      "Erro ao baixar obra",
+      erro.message || "Não foi possível baixar a obra para uso offline."
+    );
   }
 }
 
