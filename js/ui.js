@@ -746,7 +746,7 @@ function montarFormularioMedicao() {
     })}
 
     ${SIGOUI.createNumber({
-      id: "medicaoQtde",
+      id: "medicaoQtdePlanejada",
       label: "Quantidade Executada"
     })}
 
