@@ -1107,7 +1107,7 @@ async function validarSaldoOfflineMedicao_(medicao) {
       return total + Number(item.qtdeExecutada || 0);
     }, 0);
 
-  const saldoBase = Number(atividadeBase.saldoDisponivel || 0);
+  const saldoBase = Number(atividadeBase.qtdePlanejada || 0);
   const saldoDisponivelAtual = saldoBase - totalJaMedidoOffline;
   const qtdeExecutada = Number(medicao.qtdeExecutada || 0);
 
