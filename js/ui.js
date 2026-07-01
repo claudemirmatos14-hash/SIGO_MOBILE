@@ -986,22 +986,21 @@ async function listarMedicoesOffline_() {
 function criarCardMedicaoOffline_(medicao) {
   const status =
     medicao.statusSync || "PENDENTE";
-  
+
   let badge = "";
   let classeStatus = "";
-  
+
   switch (status) {
-  
     case "SINCRONIZADO":
       badge = "🟢 SINCRONIZADO";
       classeStatus = "success";
       break;
-  
+
     case "ERRO":
       badge = "🔴 ERRO";
       classeStatus = "danger";
       break;
-  
+
     default:
       badge = "🟡 PENDENTE";
       classeStatus = "warning";
@@ -1028,7 +1027,7 @@ function criarCardMedicaoOffline_(medicao) {
         </div>
 
         <span class="badge-sync badge-${classeStatus}">
-            ${badge}
+          ${badge}
         </span>
       </div>
 
@@ -1048,33 +1047,11 @@ function criarCardMedicaoOffline_(medicao) {
         </div>
 
         <div>
-
-          <small>% EXECUTADO</small>
-      
+          <small>% Executado</small>
           <strong>
-      
-              ${formatarNumeroMedicao_(medicao.percentualExecutado)}%
-      
+            ${formatarNumeroMedicao_(medicao.percentualExecutado)}%
           </strong>
-      
-      </div>
-
-      <div class="medicao-card__progress">
-        <div class="medicao-card__progress-label">
-          <span>Avanço físico</span>
-          <strong>${formatarNumeroMedicao_(medicao.percentualExecutado)}%</strong>
         </div>
-      
-        <div class="progress">
-          <div
-            class="progress-fill"
-            style="width:${Math.min(
-              Number(medicao.percentualExecutado || 0),
-              100
-            )}%">
-          </div>
-        </div>
-      </div>
 
         <div>
           <small>Saldo Restante</small>
@@ -1084,6 +1061,25 @@ function criarCardMedicaoOffline_(medicao) {
           </strong>
         </div>
 
+      </div>
+
+      <div class="medicao-card__progress">
+        <div class="medicao-card__progress-label">
+          <span>Avanço físico</span>
+          <strong>
+            ${formatarNumeroMedicao_(medicao.percentualExecutado)}%
+          </strong>
+        </div>
+
+        <div class="progress">
+          <div
+            class="progress-fill"
+            style="width:${Math.min(
+              Number(medicao.percentualExecutado || 0),
+              100
+            )}%">
+          </div>
+        </div>
       </div>
 
       ${
