@@ -56,6 +56,10 @@ const SIGOUI = {
 
   showInputModal,
 
+  showDrawer,
+  
+ closeDrawer,
+
   render,
 
   navigation: null,
@@ -855,6 +859,82 @@ function showInputModal(config = {}) {
   });
 }
 
+function showDrawer(config = {}) {
+  const titulo = config.titulo || "Detalhes";
+  const subtitulo = config.subtitulo || "";
+  const conteudo = config.conteudo || "";
+  const textoFechar = config.textoFechar || "Fechar";
+
+  let overlay = document.getElementById("sigoDrawerOverlay");
+
+  if (overlay) {
+    overlay.remove();
+  }
+
+  overlay = document.createElement("div");
+  overlay.id = "sigoDrawerOverlay";
+  overlay.className = "sigo-drawer-overlay";
+
+  overlay.innerHTML = `
+    <div class="sigo-drawer">
+
+      <div class="sigo-drawer__handle"></div>
+
+      <header class="sigo-drawer__header">
+        <div>
+          <h3>${titulo}</h3>
+          <p>${subtitulo}</p>
+        </div>
+
+        <button
+          type="button"
+          class="sigo-drawer__close"
+          onclick="SIGOUI.closeDrawer()">
+          ✕
+        </button>
+      </header>
+
+      <div class="sigo-drawer__body">
+        ${conteudo}
+      </div>
+
+      <footer class="sigo-drawer__footer">
+        <button
+          type="button"
+          class="sigo-drawer__button"
+          onclick="SIGOUI.closeDrawer()">
+          ${textoFechar}
+        </button>
+      </footer>
+
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  setTimeout(() => {
+    overlay.classList.add("is-open");
+  }, 10);
+
+  overlay.onclick = (evento) => {
+    if (evento.target === overlay) {
+      closeDrawer();
+    }
+  };
+}
+
+function closeDrawer() {
+  const overlay = document.getElementById("sigoDrawerOverlay");
+
+  if (!overlay) return;
+
+  overlay.classList.remove("is-open");
+
+  setTimeout(() => {
+    overlay.remove();
+  }, 250);
+}
+
 function createFeedbackAPI() {
   return {
     success(titulo, mensagem) {
@@ -929,5 +1009,7 @@ function createNavigationAPI() {
   };
 
 }
+
+
 
 
