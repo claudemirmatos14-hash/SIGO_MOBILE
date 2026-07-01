@@ -342,8 +342,9 @@ async function salvarDiarioOffline(event) {
       idObra: diario.idObra
     });
 
-    alert(
-      "Diário salvo offline no banco local."
+    SIGOUI.feedback.success(
+      "Diário salvo",
+      "Registro salvo offline."
     );
 
     console.log(
@@ -361,9 +362,10 @@ async function salvarDiarioOffline(event) {
       erro
     );
 
-    alert(
-      "Erro ao salvar diário offline."
-    );
+   SIGOUI.feedback.error(
+    "Erro ao salvar",
+    "Não foi possível salvar diário."
+);
 
   }
 }
@@ -564,8 +566,14 @@ async function sincronizarSIGO() {
     );
 
     if (pendentes.length === 0) {
-      alert("Não existem registros pendentes.");
-      return;
+
+        SIGOUI.feedback.info(
+            "Tudo sincronizado",
+            "Não há registros pendentes para envio."
+        );
+    
+        return;
+    
     }
 
     const diarios = await listarRegistrosSIGO("TB_DIARIOS");
@@ -725,14 +733,19 @@ async function sincronizarSIGO() {
     );
     await atualizarPainelSaudeSync_();
 
-    alert("Sincronização enviada ao SIGO com sucesso.");
+    SIGOUI.feedback.success(
+        "Sincronização concluída",
+        "Dados enviados ao SIGO com sucesso."
+    );
 
   } catch (erro) {
 
     console.error("Erro ao sincronizar com API SIGO:", erro);
 
-    alert("Erro ao sincronizar com o SIGO.");
-
+    SIGOUI.feedback.error(
+    "Erro de sincronização",
+    "Não foi possível sincronizar com o SIGO."
+);
   }
 }
 
@@ -820,16 +833,19 @@ async function sincronizarDadosBaseObraMobile() {
 
     await carregarObrasMobile_();
     
-    alert(
-      "Dados-base atualizados com sucesso. Atividades: " +
-      atividades.length
+    SIGOUI.feedback.success(
+        "Base atualizada",
+        `${atividades.length} atividades sincronizadas para o dispositivo.`
     );
 
   } catch (erro) {
 
     console.error("Erro ao sincronizar dados-base:", erro);
 
-    alert("Erro ao sincronizar dados-base da obra.");
+    SIGOUI.feedback.error(
+        "Erro na atualização",
+        "Não foi possível atualizar os dados-base da obra."
+    );
 
   }
 }
@@ -914,8 +930,13 @@ async function preencherDadosAtividadeMedicao() {
     String(item.eap) === String(idAtividade)
   );
 
-  if (!atividadeBase) {
-    alert("Atividade não encontrada nos dados-base offline. Atualize os dados-base da obra.");
+ if (!atividadeBase) {
+
+    SIGOUI.feedback.warning(
+      "Atualização necessária",
+      "Atualize os dados-base da obra para continuar."
+    );
+  
     return;
   }
 
@@ -1027,13 +1048,19 @@ async function salvarMedicaoOffline(event) {
     await atualizarIndicadoresMobile_();
     await listarMedicoesOffline_();
 
-    alert("Medição salva offline no banco local.");
+   SIGOUI.feedback.success(
+      "Medição salva",
+     "Medição salva offline no banco local."
+   );
 
     console.log("Medição salva no IndexedDB:", medicao);
 
   } catch (erro) {
     console.error("Erro ao salvar medição:", erro);
-    alert(erro.message || "Erro ao salvar medição offline.");
+    SIGOUI.feedback.error(
+  "Erro ao salvar medição",
+  erro.message || "Não foi possível salvar a medição offline."
+);
   }
 }
 
@@ -1094,15 +1121,24 @@ async function validarSaldoOfflineMedicao_(medicao) {
     qtdeExecutada > saldoDisponivelAtual
   ) {
 
-    const justificativa = prompt(
-      "⚠ EXCESSO DETECTADO NA MEDIÇÃO\n\n" +
-      "Atividade: " + atividadeBase.servico + "\n" +
-      "Saldo base: " + saldoBase + " " + atividadeBase.unidade + "\n" +
-      "Já medido offline: " + totalJaMedidoOffline + " " + atividadeBase.unidade + "\n" +
-      "Saldo disponível atual: " + saldoDisponivelAtual + " " + atividadeBase.unidade + "\n" +
-      "Quantidade informada: " + qtdeExecutada + " " + atividadeBase.unidade + "\n\n" +
-      "Informe a justificativa para continuar:"
-    );
+   const justificativa = await SIGOUI.feedback.input({
+      tipo: "warning",
+      icone: "⚠️",
+      titulo: "Excesso detectado",
+      mensagem:
+        `Atividade: ${atividadeBase.servico}
+    
+    Saldo disponível: ${saldoDisponivelAtual} ${atividadeBase.unidade}
+    
+    Quantidade informada: ${qtdeExecutada} ${atividadeBase.unidade}
+    
+    Informe a justificativa para continuar:`,
+    
+      placeholder: "Digite a justificativa...",
+      textoConfirmar: "Continuar",
+      textoCancelar: "Cancelar",
+      obrigatorio: true
+    });
 
     if (!justificativa) {
       throw new Error(
@@ -1325,10 +1361,11 @@ async function salvarEvidenciaOffline(event) {
 
     if (!arquivo) {
 
-      alert(
-        "Selecione um arquivo."
+      SIGOUI.feedback.warning(
+        "Arquivo não selecionado",
+        "Selecione um arquivo para continuar."
       );
-
+    
       return;
     }
 
@@ -1402,8 +1439,9 @@ async function salvarEvidenciaOffline(event) {
 
     await listarEvidenciasOffline_();
 
-    alert(
-      "Evidência salva offline."
+    SIGOUI.feedback.success(
+        "Evidência salva",
+        "Evidência armazenada offline com sucesso"
     );
 
     console.log(
@@ -1415,8 +1453,10 @@ async function salvarEvidenciaOffline(event) {
 
     console.error(erro);
 
-    alert(
-      "Erro ao salvar evidência."
+    SIGOUI.feedback.error(
+      "Erro ao salvar evidência.",
+       "Não foi possível salvar evidência offline"
+      
     );
 
   }
@@ -1696,14 +1736,21 @@ async function salvarClimaOffline(event) {
     await atualizarIndicadoresMobile_();
     await listarClimasOffline_();
 
-    alert("Clima salvo offline no banco local.");
-
+   SIGOUI.feedback.success(
+      "Clima salvo",
+      "Registro climático salvo offline."
+    );
+    
     console.log("Clima salvo no IndexedDB:", clima);
-
-  } catch (erro) {
-    console.error("Erro ao salvar clima:", erro);
-    alert("Erro ao salvar clima offline.");
-  }
+    
+    } catch (erro) {
+      console.error("Erro ao salvar clima:", erro);
+    
+      SIGOUI.feedback.error(
+        "Erro ao salvar clima",
+        "Não foi possível salvar o registro climático offline."
+      );
+    }
 }
 
 async function listarClimasOffline_() {
@@ -1993,9 +2040,10 @@ async function salvarOcorrenciaOffline(event) {
     await atualizarIndicadoresMobile_();
     await listarOcorrenciasOffline_();
 
-    alert(
-      "Ocorrência salva offline."
-    );
+   SIGOUI.feedback.success(
+  "Ocorrência salvo",
+  "Registro Ocorrência salvo offline."
+);
 
     console.log(
       "Ocorrência offline:",
@@ -2009,9 +2057,10 @@ async function salvarOcorrenciaOffline(event) {
       erro
     );
 
-    alert(
-      "Erro ao salvar ocorrência."
-    );
+    SIGOUI.feedback.error(
+    "Erro ao salvar Ocorrência",
+    "Não foi possível salvar Ocorrência offline."
+  );
 
   }
 
@@ -2196,7 +2245,10 @@ async function preencherDadosAtividadeItemDiario() {
   );
 
   if (!atividadeBase) {
-    alert("Atividade não encontrada nos dados-base offline. Atualize os dados-base da obra.");
+   SIGOUI.feedback.warning(
+      "Atualização necessária",
+      "Atualize os dados-base da obra para continuar."
+    );
     return;
   }
 
@@ -2260,13 +2312,19 @@ async function salvarItemDiarioOffline(event) {
     await atualizarIndicadoresMobile_();
     await listarItensDiarioOffline_();
 
-    alert("Item do diário salvo offline no banco local.");
+    SIGOUI.feedback.success(
+        "Item do diário salvo",
+        "Item do diário salvo offline."
+    );
 
     console.log("Item diário salvo no IndexedDB:", item);
 
   } catch (erro) {
     console.error("Erro ao salvar item do diário:", erro);
-    alert(erro.message || "Erro ao salvar item do diário offline.");
+    SIGOUI.feedback.error(
+       "Erro ao salvar item do diário",
+        erro.message || "Não foi possível salvar o item do diário offline."
+    );
   }
 }
 
@@ -2319,7 +2377,10 @@ async function validarExcessoItemDiarioOffline_(item) {
   if (!excedeuSaldo) {
     return true;
   }
-
+  
+  // TODO UX.07.14.9
+  // Substituir por SIGOUI.feedback.input()
+  //===============================================
   const justificativa = prompt(
     "⚠ EXCESSO DETECTADO\n\n" +
     "Atividade: " + atividadeBase.servico + "\n" +
@@ -2730,16 +2791,17 @@ async function definirObraAtivaMobile_(idObra) {
         obra.nomeObra || obra.idObra;
     }
 
-    alert(
-      "Obra ativa alterada para " +
-      obra.idObra +
-      " - " +
-      (obra.nomeObra || obra.idObra)
+   SIGOUI.feedback.success(
+      "Obra ativa alterada",
+      `Agora você está trabalhando na obra "${obra.nomeObra || obra.idObra}".`
     );
 
   } catch (erro) {
     console.error("Erro ao definir obra ativa:", erro);
-    alert(erro.message || "Erro ao definir obra ativa.");
+    SIGOUI.feedback.error(
+      "Erro ao definir obra ativa",
+      erro.message || "Não foi possível alterar a obra ativa."
+    );
   }
 }
 
@@ -2758,12 +2820,22 @@ async function baixarObraOfflineMobile_(idObra) {
       );
 
     if (jaExiste) {
-      alert("Esta obra já está baixada neste dispositivo.");
-      return;
-    }
+     if (jaExiste) {
 
-    if (obrasLocais.length >= 3) {
-      alert("Limite de 3 obras offline atingido. Remova uma obra antes de baixar outra.");
+    SIGOUI.feedback.warning(
+      "Obra já baixada",
+      "Esta obra já está disponível neste dispositivo."
+    );
+
+    return;
+  }
+  
+  if (obrasLocais.length >= 3) {
+  
+    SIGOUI.feedback.warning(
+      "Limite atingido",
+      "Remova uma obra antes de baixar outra. O limite é de 3 obras offline."
+    );
       return;
     }
 
@@ -2784,11 +2856,17 @@ async function baixarObraOfflineMobile_(idObra) {
     await listarObrasOfflineMobile_();
     await listarObrasDisponiveisMobile_();
 
-    alert("Obra baixada com sucesso.");
+    SIGOUI.feedback.success(
+      "Obra baixada",
+      "A obra foi disponibilizada para uso offline."
+    );
 
   } catch (erro) {
     console.error("Erro ao baixar obra offline:", erro);
-    alert(erro.message || "Erro ao baixar obra offline.");
+    SIGOUI.feedback.error(
+        "Erro ao baixar obra",
+        erro.message || "Não foi possível baixar a obra para uso offline."
+      );
   }
 }
 
@@ -2798,12 +2876,18 @@ async function removerObraOfflineMobile_(idObra) {
       throw new Error("ID da obra não informado.");
     }
 
-    const confirmar = confirm(
-      "Deseja remover a obra " + idObra + " deste dispositivo?\n\n" +
-      "Os dados locais desta obra serão apagados."
-    );
-
-    if (!confirmar) return;
+    const confirmar = await SIGOUI.feedback.confirm({
+        tipo: "warning",
+        icone: "🗑️",
+        titulo: "Remover obra",
+        mensagem:
+          `Deseja remover a obra ${idObra} deste dispositivo?\n\n` +
+          "Todos os dados offline desta obra serão apagados.",
+        textoConfirmar: "Remover",
+        textoCancelar: "Cancelar"
+      });
+      
+      if (!confirmar) return;
 
     await removerRegistrosPorObraSIGO_("TB_ATIVIDADES_OBRA", idObra);
     await removerRegistrosPorObraSIGO_("TB_DIARIOS", idObra);
@@ -2831,12 +2915,24 @@ async function removerObraOfflineMobile_(idObra) {
    await listarObrasOfflineMobile_();
    await listarObrasDisponiveisMobile_();
 
-    alert("Obra removida deste dispositivo.");
-
-  } catch (erro) {
-    console.error("Erro ao remover obra offline:", erro);
-    alert(erro.message || "Erro ao remover obra offline.");
-  }
+    SIGOUI.feedback.success(
+      "Obra removida",
+      "A obra foi removida deste dispositivo."
+    );
+    
+    } catch (erro) {
+    
+      console.error(
+        "Erro ao remover obra offline:",
+        erro
+      );
+    
+      SIGOUI.feedback.error(
+        "Erro ao remover obra",
+        erro.message || "Não foi possível remover a obra deste dispositivo."
+      );
+    
+    }
 }
 
 async function atualizarHomeMobile_() {
