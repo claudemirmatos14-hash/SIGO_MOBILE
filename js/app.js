@@ -2040,9 +2040,9 @@ async function salvarOcorrenciaOffline(event) {
     await atualizarIndicadoresMobile_();
     await listarOcorrenciasOffline_();
 
-   SIGOUI.feedback.success(
-  "Ocorrência salvo",
-  "Registro Ocorrência salvo offline."
+  SIGOUI.feedback.success(
+  "Ocorrência salva",
+  "Registro salvo offline."
 );
 
     console.log(
@@ -2057,9 +2057,9 @@ async function salvarOcorrenciaOffline(event) {
       erro
     );
 
-    SIGOUI.feedback.error(
-    "Erro ao salvar Ocorrência",
-    "Não foi possível salvar Ocorrência offline."
+   SIGOUI.feedback.error(
+    "Erro ao salvar evidência",
+    "Não foi possível salvar evidência offline."
   );
 
   }
@@ -2877,17 +2877,17 @@ async function removerObraOfflineMobile_(idObra) {
     }
 
     const confirmar = await SIGOUI.feedback.confirm({
-        tipo: "warning",
-        icone: "🗑️",
-        titulo: "Remover obra",
-        mensagem:
-          `Deseja remover a obra ${idObra} deste dispositivo?\n\n` +
-          "Todos os dados offline desta obra serão apagados.",
-        textoConfirmar: "Remover",
-        textoCancelar: "Cancelar"
-      });
-      
-      if (!confirmar) return;
+      tipo: "warning",
+      icone: "🗑️",
+      titulo: "Remover obra",
+      mensagem:
+        `Deseja remover a obra ${idObra} deste dispositivo?\n\n` +
+        "Todos os dados offline desta obra serão apagados.",
+      textoConfirmar: "Remover",
+      textoCancelar: "Cancelar"
+    });
+    
+    if (!confirmar) return;
 
     await removerRegistrosPorObraSIGO_("TB_ATIVIDADES_OBRA", idObra);
     await removerRegistrosPorObraSIGO_("TB_DIARIOS", idObra);
