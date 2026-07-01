@@ -1048,12 +1048,12 @@ function criarCardMedicaoOffline_(medicao) {
       <div class="medicao-card__grid">
 
         <div>
-          <small>📅 Data</small>
+          <small>Data</small>
           <strong>${formatarDataMedicao_(medicao.data)}</strong>
         </div>
       
         <div>
-          <small>📦 Planejado</small>
+          <small>Planejado</small>
           <strong>
             ${formatarNumeroMedicao_(medicao.qtdePlanejada)}
             ${medicao.un || ""}
@@ -1061,7 +1061,7 @@ function criarCardMedicaoOffline_(medicao) {
         </div>
       
         <div>
-          <small>✅ Nesta Medição</small>
+          <small>Nesta Medição</small>
           <strong>
             ${formatarNumeroMedicao_(medicao.qtdeExecutada)}
             ${medicao.un || ""}
@@ -1069,7 +1069,7 @@ function criarCardMedicaoOffline_(medicao) {
         </div>
       
         <div>
-          <small>📈 Acumulado</small>
+          <small>Acumulado</small>
           <strong>
             ${formatarNumeroMedicao_(executadoAcumulado)}
             ${medicao.un || ""}
@@ -1077,7 +1077,7 @@ function criarCardMedicaoOffline_(medicao) {
         </div>
       
         <div>
-          <small>📉 Saldo</small>
+          <small>Saldo</small>
           <strong>
             ${formatarNumeroMedicao_(medicao.saldoDisponivelDepois)}
             ${medicao.un || ""}
