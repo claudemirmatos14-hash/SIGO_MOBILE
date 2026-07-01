@@ -515,9 +515,10 @@ function createBottomNav(ativo = "home") {
 function createActionButton(config = {}) {
   return `
     <button
+      ${config.id ? `id="${config.id}"` : ""}
       type="button"
       class="sigo-action-btn ${config.tipo || "is-secondary"}"
-      ${config.acao ? `onclick="${config.acao}"` : ""}
+      onclick="${config.acao || ""}"
     >
       <span>${config.icone || ""}</span>
       <strong>${config.texto || ""}</strong>
