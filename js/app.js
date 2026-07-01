@@ -3291,132 +3291,211 @@ async function listarMedicoesOffline_() {
 }
 
 function montarDetalhesMedicao_(medicao) {
+  const status =
+    medicao.statusSync || "PENDENTE";
+
+  let badge = "";
+  let classeStatus = "";
+
+  switch (status) {
+    case "SINCRONIZADO":
+      badge = "🟢 SINCRONIZADO";
+      classeStatus = "success";
+      break;
+
+    case "ERRO":
+      badge = "🔴 ERRO";
+      classeStatus = "danger";
+      break;
+
+    default:
+      badge = "🟡 PENDENTE";
+      classeStatus = "warning";
+  }
+
+  const percentual =
+    Number(
+      medicao.percentualExecutadoAcumulado ??
+      medicao.percentualExecutado ??
+      0
+    );
+
+  const acumulado =
+    Number(
+      medicao.qtdeExecutadaAcumulada ??
+      medicao.qtdeExecutada ??
+      0
+    );
+
+  const observacao =
+    medicao.observacao || "Nenhuma observação informada.";
+
+  const excesso =
+    medicao.excessoDetectado === "SIM";
 
   return `
-
     <div class="drawer-status">
-
-      <span class="badge-sync badge-warning">
-
-        🟡 PENDENTE
-
+      <span class="badge-sync badge-${classeStatus}">
+        ${badge}
       </span>
-
     </div>
 
     <div class="drawer-grid">
 
       <div class="drawer-kpi">
-        <small>PLANEJADO</small>
-        <strong>160 H</strong>
+        <small>Planejado</small>
+        <strong>
+          ${formatarNumeroMedicao_(medicao.qtdePlanejada)}
+          ${medicao.un || ""}
+        </strong>
       </div>
 
       <div class="drawer-kpi">
-        <small>ACUMULADO</small>
-        <strong>33 H</strong>
+        <small>Acumulado</small>
+        <strong>
+          ${formatarNumeroMedicao_(acumulado)}
+          ${medicao.un || ""}
+        </strong>
       </div>
 
       <div class="drawer-kpi">
-        <small>NESTA MEDIÇÃO</small>
-        <strong>10 H</strong>
+        <small>Nesta medição</small>
+        <strong>
+          ${formatarNumeroMedicao_(medicao.qtdeExecutada)}
+          ${medicao.un || ""}
+        </strong>
       </div>
 
       <div class="drawer-kpi">
-        <small>SALDO</small>
-        <strong>127 H</strong>
+        <small>Saldo</small>
+        <strong>
+          ${formatarNumeroMedicao_(medicao.saldoDisponivelDepois)}
+          ${medicao.un || ""}
+        </strong>
       </div>
 
     </div>
 
     <div class="drawer-progress">
-
       <div class="drawer-progress-title">
-
         <span>Progresso da atividade</span>
-
-        <strong>20,63%</strong>
-
+        <strong>
+          ${formatarNumeroMedicao_(percentual)}%
+        </strong>
       </div>
 
       <div class="progress">
-
         <div
           class="progress-fill"
-          style="width:20.63%">
+          style="width:${Math.min(percentual, 100)}%">
         </div>
-
       </div>
-
     </div>
 
     <div class="drawer-section">
-
       <h4>Dados da Medição</h4>
 
       <div class="drawer-item">
         <span>Data</span>
-        <strong>01/07/2026</strong>
+        <strong>${formatarDataMedicao_(medicao.data)}</strong>
       </div>
 
       <div class="drawer-item">
         <span>Obra</span>
-        <strong>OBR002</strong>
+        <strong>${medicao.idObra || "-"}</strong>
       </div>
 
       <div class="drawer-item">
         <span>EAP</span>
-        <strong>1.1</strong>
+        <strong>${medicao.eap || "-"}</strong>
       </div>
 
       <div class="drawer-item">
         <span>Origem</span>
-        <strong>APP OFFLINE</strong>
+        <strong>${medicao.origem || "-"}</strong>
       </div>
 
+      <div class="drawer-item">
+        <span>Status Medição</span>
+        <strong>${medicao.statusMedicao || "-"}</strong>
+      </div>
     </div>
 
     <div class="drawer-section">
-
       <h4>Observações</h4>
-
-      <p>
-
-        Execução da fundação.
-
-      </p>
-
+      <p>${observacao}</p>
     </div>
 
     <div class="drawer-section">
+      <h4>Excesso</h4>
 
+      ${
+        excesso
+          ? `
+            <div class="medicao-card__excesso">
+              ⚠️ Excesso autorizado
+              <small>
+                ${medicao.justificativaExcesso || "Sem justificativa informada."}
+              </small>
+            </div>
+          `
+          : `<p>Nenhum excesso registrado.</p>`
+      }
+    </div>
+
+    <div class="drawer-section">
       <h4>Auditoria</h4>
 
       <div class="drawer-item">
-
-        <span>Criado em</span>
-
-        <strong>01/07/2026 14:20</strong>
-
+        <span>ID Medição</span>
+        <strong>${medicao.idMedicao || "-"}</strong>
       </div>
 
+      <div class="drawer-item">
+        <span>Criado em</span>
+        <strong>${formatarDataHoraMedicao_(medicao.criadoEm)}</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Status Sync</span>
+        <strong>${status}</strong>
+      </div>
     </div>
-
   `;
-
 }
 
 async function detalharMedicaoOffline_(idMedicao) {
+  try {
+    const medicoes =
+      await listarRegistrosSIGO("TB_MEDICOES");
 
-  SIGOUI.showDrawer({
+    const medicao =
+      medicoes.find(item =>
+        String(item.idMedicao) === String(idMedicao)
+      );
 
-    titulo: "📏 Medição",
+    if (!medicao) {
+      SIGOUI.feedback.warning(
+        "Medição não encontrada",
+        "O registro não foi localizado no banco offline."
+      );
+      return;
+    }
 
-    subtitulo: "1.1 Administração da obra",
+    SIGOUI.showDrawer({
+      titulo: "📏 Medição",
+      subtitulo:
+        `${medicao.eap || medicao.atividade || "-"} ${medicao.servico || ""}`,
+      conteudo: montarDetalhesMedicao_(medicao),
+      textoFechar: "Fechar"
+    });
 
-    conteudo: montarDetalhesMedicao_(),
+  } catch (erro) {
+    console.error("Erro ao detalhar medição:", erro);
 
-    textoFechar: "Fechar"
-
-  });
-
+    SIGOUI.feedback.error(
+      "Erro ao abrir detalhes",
+      "Não foi possível carregar os detalhes da medição."
+    );
+  }
 }
