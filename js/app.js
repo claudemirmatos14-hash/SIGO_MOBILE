@@ -1119,8 +1119,18 @@ async function validarSaldoOfflineMedicao_(medicao) {
   medicao.un = atividadeBase.unidade || medicao.un;
   medicao.servico = atividadeBase.servico || medicao.servico;
 
+  const totalExecutadoAcumulado =
+  totalJaMedidoOffline + qtdeExecutada;
+
+  const percentualExecutadoAcumulado =
+    saldoBase > 0
+      ? (totalExecutadoAcumulado / saldoBase) * 100
+      : 0;
+  
   medicao.saldoBaseOffline = saldoBase;
   medicao.totalJaMedidoOffline = totalJaMedidoOffline;
+  medicao.qtdeExecutadaAcumulada = totalExecutadoAcumulado;
+  medicao.percentualExecutadoAcumulado = percentualExecutadoAcumulado;
   medicao.saldoDisponivelAntes = saldoDisponivelAtual;
   medicao.saldoDisponivelDepois = saldoDisponivelAtual - qtdeExecutada;
   medicao.validacaoSaldoOffline = "OK";
