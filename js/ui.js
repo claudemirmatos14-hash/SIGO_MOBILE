@@ -701,6 +701,7 @@ function montarTelaMedicoes() {
         acao: "novaMedicaoPremium()"
       },
       {
+        id: "btnSalvarMedicao",
         icone: "💾",
         texto: "Salvar",
         tipo: "is-success",
