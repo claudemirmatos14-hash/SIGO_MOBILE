@@ -762,14 +762,14 @@ function montarFormularioMedicao() {
         texto: "Nova",
         icone: "➕",
         tipo: "secondary",
-        onclick: "novaMedicaoPremium()"
+        acao: "novaMedicaoPremium()"
       }),
 
       SIGOUI.createActionButton({
         texto: "Salvar",
         icone: "💾",
         tipo: "primary",
-        onclick: "salvarMedicaoPremium()"
+        acao: "salvarMedicaoPremium()"
       })
 
     ])}
