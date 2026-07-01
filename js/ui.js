@@ -728,14 +728,14 @@ function montarFormularioMedicao() {
     })}
 
     ${SIGOUI.createInput({
-      id: "medicaoEAP",
-      label: "EAP",
+      id: "medicaoServico",
+      label: "Serviço",
       readonly: true
     })}
 
-    ${SIGOUI.createInput({
-      id: "medicaoServico",
-      label: "Serviço",
+    ${SIGOUI.createNumber({
+      id: "medicaoQtdePlanejada",
+      label: "Quantidade Planejada",
       readonly: true
     })}
 
@@ -746,22 +746,30 @@ function montarFormularioMedicao() {
     })}
 
     ${SIGOUI.createNumber({
-      id: "medicaoQtdePlanejada",
-      label: "Quantidade Executada"
+      id: "medicaoQtdeExecutada",
+      label: "Quantidade Executada",
+      oninput: "calcularPercentualMedicao()"
     })}
 
-    ${SIGOUI.createInput({
-      id: "medicaoSaldo",
-      label: "Saldo Disponível",
+    ${SIGOUI.createNumber({
+      id: "medicaoPercentual",
+      label: "% Executado",
       readonly: true
     })}
 
     ${SIGOUI.createTextarea({
-      id: "medicaoObs",
+      id: "medicaoObservacoes",
       label: "Observações"
     })}
 
     ${SIGOUI.createActionBar([
+
+      SIGOUI.createActionButton({
+        texto: "Nova",
+        icone: "➕",
+        tipo: "secondary",
+        onclick: "novaMedicaoPremium()"
+      }),
 
       SIGOUI.createActionButton({
         texto: "Salvar",
