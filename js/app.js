@@ -984,7 +984,7 @@ function calcularPercentualMedicao() {
     (qtdeExecutada / qtdePlanejada) * 100;
 
   campoPercentual.value =
-    percentual.toFixed(2) + " %";
+    percentual.toFixed(2);
 }
 
 async function carregarAtividadesMedicaoOffline_() {
