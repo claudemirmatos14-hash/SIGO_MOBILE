@@ -1048,11 +1048,28 @@ function criarCardMedicaoOffline_(medicao) {
         </div>
 
         <div>
-          <small>% Executado</small>
+
+          <small>% EXECUTADO</small>
+      
           <strong>
-            ${formatarNumeroMedicao_(medicao.percentualExecutado)}%
+      
+              ${formatarNumeroMedicao_(medicao.percentualExecutado)}%
+      
           </strong>
-        </div>
+      
+          <div class="progress">
+      
+              <div
+                  class="progress-fill"
+                  style="width:${Math.min(
+                      Number(medicao.percentualExecutado || 0),
+                      100
+                  )}%">
+              </div>
+      
+          </div>
+      
+      </div>
 
         <div>
           <small>Saldo Restante</small>
