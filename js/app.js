@@ -3500,6 +3500,11 @@ async function detalharMedicaoOffline_(idMedicao) {
   }
 }
 
+
+// ============================================
+// FORMATADORES
+// ============================================
+
 function formatarDataHoraMedicao_(valor) {
   if (!valor) return "--";
 
