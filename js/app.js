@@ -3358,9 +3358,7 @@ function montarDetalhesMedicao_(medicao) {
   const excesso =
     medicao.excessoDetectado === "SIM";
 
-  let idMedicaoEdicao = null;
-
-  return `
+   return `
     <div class="drawer-status">
       <span class="badge-sync badge-${classeStatus}">
         ${badge}
