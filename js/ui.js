@@ -931,3 +931,181 @@ async function salvarMedicaoPremium() {
     preventDefault: function () {}
   });
 }
+
+
+async function listarMedicoesOffline_() {
+  const container =
+    document.getElementById("listaMedicoesOffline");
+
+  if (!container) return;
+
+  try {
+    const obraAtiva =
+      obterObraAtivaMobile_();
+
+    const medicoes =
+      await listarRegistrosSIGO("TB_MEDICOES");
+
+    const medicoesObra =
+      medicoes
+        .filter(item =>
+          String(item.idObra) === String(obraAtiva)
+        )
+        .sort((a, b) =>
+          new Date(b.criadoEm) - new Date(a.criadoEm)
+        );
+
+    if (!medicoesObra.length) {
+      container.innerHTML = `
+        <div class="card-vazio">
+          Nenhuma medição salva.
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML =
+      medicoesObra
+        .map(medicao => criarCardMedicaoOffline_(medicao))
+        .join("");
+
+  } catch (erro) {
+    console.error(
+      "Erro ao listar medições:",
+      erro
+    );
+
+    container.innerHTML = `
+      <div class="card-vazio">
+        Erro ao carregar medições.
+      </div>
+    `;
+  }
+}
+
+function criarCardMedicaoOffline_(medicao) {
+  const status =
+    medicao.statusSync || "PENDENTE";
+
+  const classeStatus =
+    status === "SINCRONIZADO"
+      ? "ok"
+      : status === "ERRO"
+        ? "erro"
+        : "pendente";
+
+  const bloqueado =
+    status !== "PENDENTE";
+
+  const excesso =
+    medicao.excessoDetectado === "SIM";
+
+  return `
+    <article class="medicao-card">
+
+      <div class="medicao-card__header">
+        <div>
+          <strong>
+            📏 ${medicao.eap || medicao.atividade || "-"}
+          </strong>
+
+          <span>
+            ${medicao.servico || "Serviço não informado"}
+          </span>
+        </div>
+
+        <span class="badge-sync ${classeStatus}">
+          ${status}
+        </span>
+      </div>
+
+      <div class="medicao-card__grid">
+
+        <div>
+          <small>Data</small>
+          <strong>${formatarDataMedicao_(medicao.data)}</strong>
+        </div>
+
+        <div>
+          <small>Quantidade</small>
+          <strong>
+            ${formatarNumeroMedicao_(medicao.qtdeExecutada)}
+            ${medicao.un || ""}
+          </strong>
+        </div>
+
+        <div>
+          <small>% Executado</small>
+          <strong>
+            ${formatarNumeroMedicao_(medicao.percentualExecutado)}%
+          </strong>
+        </div>
+
+        <div>
+          <small>Saldo Restante</small>
+          <strong>
+            ${formatarNumeroMedicao_(medicao.saldoDisponivelDepois)}
+            ${medicao.un || ""}
+          </strong>
+        </div>
+
+      </div>
+
+      ${
+        excesso
+          ? `
+            <div class="medicao-card__excesso">
+              ⚠️ Excesso autorizado
+              <small>
+                ${medicao.justificativaExcesso || "Sem justificativa informada."}
+              </small>
+            </div>
+          `
+          : ""
+      }
+
+      <div class="medicao-card__actions">
+
+        <button
+          type="button"
+          ${bloqueado ? "disabled" : ""}
+          onclick="editarMedicaoOffline_('${medicao.idMedicao}')">
+          ✏ Editar
+        </button>
+
+        <button
+          type="button"
+          ${bloqueado ? "disabled" : ""}
+          onclick="excluirMedicaoOffline_('${medicao.idMedicao}')">
+          🗑 Excluir
+        </button>
+
+        <button
+          type="button"
+          onclick="detalharMedicaoOffline_('${medicao.idMedicao}')">
+          👁 Detalhes
+        </button>
+
+      </div>
+
+    </article>
+  `;
+}
+
+function formatarNumeroMedicao_(valor) {
+  return Number(valor || 0).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
+function formatarDataMedicao_(data) {
+  if (!data) return "--";
+
+  try {
+    return new Date(data + "T00:00:00")
+      .toLocaleDateString("pt-BR");
+  } catch (erro) {
+    return data;
+  }
+}
