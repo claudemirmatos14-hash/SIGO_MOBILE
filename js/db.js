@@ -331,6 +331,30 @@ async function removerRegistrosPorObraSIGO_(storeName, idObra) {
   });
 }
 
+async function removerRegistroSIGO_(storeName, idRegistro) {
+
+  const db =
+    SIGO_DB || await abrirBancoLocalSIGO();
+
+  return new Promise((resolve, reject) => {
+
+    const transaction =
+      db.transaction([storeName], "readwrite");
+
+    const store =
+      transaction.objectStore(storeName);
+
+    const request =
+      store.delete(idRegistro);
+
+    request.onsuccess = () => resolve(true);
+
+    request.onerror = () => reject(request.error);
+
+  });
+
+}
+
 async function removerRegistroPorChaveSIGO_(storeName, chave) {
   const db = SIGO_DB || await abrirBancoLocalSIGO();
 
