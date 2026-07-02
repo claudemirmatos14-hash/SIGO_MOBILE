@@ -737,19 +737,12 @@ async function sincronizarSIGO() {
       const idItem =
         itemDiario.idItem || itemDiario.idItemDiario;
     
-      if (
+     if (
         idItemDiarioEdicao &&
         String(idItemDiarioEdicao) === String(idItem)
       ) {
-        idItemDiarioEdicao = null;
-    
-        atualizarModoEdicaoItemDiario_();
-    
-        if (typeof limparFormularioItemDiario === "function") {
-          limparFormularioItemDiario();
-        }
+        encerrarModoEdicaoItemDiario_();
       }
-    }
 
     await atualizarIndicadoresMobile_();
     await carregarListaDiariosOffline();
@@ -2453,6 +2446,8 @@ async function listarItensDiarioOffline_() {
 
 function criarCardItemDiarioOffline_(item) {
   const status = item.statusSync || "PENDENTE";
+  const bloqueado =
+  status !== "PENDENTE";
 
   const badge =
     status === "SINCRONIZADO"
@@ -2559,12 +2554,14 @@ function criarCardItemDiarioOffline_(item) {
 
         <button
           type="button"
+          ${bloqueado ? "disabled" : ""}
           onclick="editarItemDiarioOffline_('${item.idItem || item.idItemDiario || ""}')">
           ✏ Editar
         </button>
 
         <button
           type="button"
+          ${bloqueado ? "disabled" : ""}
           onclick="excluirItemDiarioOffline_('${item.idItem || item.idItemDiario || ""}')">
           🗑 Excluir
         </button>
@@ -2962,13 +2959,7 @@ async function atualizarItemDiarioOffline_() {
     // TODO UX.07.14
     // Registrar UPDATE na TB_SYNC_QUEUE
 
-    idItemDiarioEdicao = null;
-
-    atualizarModoEdicaoItemDiario_();
-
-    if (typeof limparFormularioItemDiario === "function") {
-      limparFormularioItemDiario();
-    }
+    encerrarModoEdicaoItemDiario_();
 
     await listarItensDiarioOffline_();
 
@@ -3056,6 +3047,16 @@ async function excluirItemDiarioOffline_(idItem) {
       "Erro ao excluir",
       erro.message || "Não foi possível excluir o item."
     );
+  }
+}
+
+function encerrarModoEdicaoItemDiario_() {
+  idItemDiarioEdicao = null;
+
+  atualizarModoEdicaoItemDiario_();
+
+  if (typeof limparFormularioItemDiario === "function") {
+    limparFormularioItemDiario();
   }
 }
 
