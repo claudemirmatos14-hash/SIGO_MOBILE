@@ -171,7 +171,7 @@ function navegarPara(tela) {
   });
 }
 
-function montarTela(tela) {
+/*function montarTela(tela) {
   const titulos = {
     diario: "📘 Diário de Obra",
     medicoes: "📏 Medições",
@@ -224,7 +224,7 @@ return `
 `;
 }
 
-/*function voltarHome() {
+function voltarHome() {
   const area = document.getElementById("telaApp");
   document.getElementById("homeApp").style.display = "block";
   document.getElementById("telaApp").innerHTML = "";
@@ -237,9 +237,9 @@ return `
     top: 0,
     behavior: "smooth"
   });
-}*/
+}
 
-/*function montarTelaDiarioObra_() {
+function montarTelaDiarioObra_() {
   const obraAtiva = obterObraAtivaMobile_();
 
   const hoje = new Date().toISOString().split("T")[0];
