@@ -3297,12 +3297,12 @@ async function atualizarMedicaoOffline_() {
       medicaoAtualizada
     );
 
-    await enfileirarSyncSIGO({
+   /* await enfileirarSyncSIGO({
       tipoOperacao: "UPDATE",
       storeOrigem: "TB_MEDICOES",
       idRegistro: medicaoAtualizada.idMedicao,
       idObra: medicaoAtualizada.idObra
-    });
+    });*/
 
     idMedicaoEdicao = null;
 
