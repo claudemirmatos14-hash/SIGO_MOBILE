@@ -2570,7 +2570,135 @@ function montarTelaOcorrencias() {
   });
 }
 
-async function salvarOcorrenciaOffline(event) {
+async function salvarOcorrenciaPremium() {
+  try {
+    const ocorrencia = {
+      idOcorrencia:
+        "OCO-" + Date.now(),
+
+      idObra:
+        document.getElementById("ocorrenciaObra").value ||
+        obterObraAtivaMobile_(),
+
+      data:
+        document.getElementById("ocorrenciaData").value,
+
+      tipo:
+        document.getElementById("ocorrenciaTipo").value,
+
+      prioridade:
+        document.getElementById("ocorrenciaPrioridade").value,
+
+      responsavel:
+        document.getElementById("ocorrenciaResponsavel").value,
+
+      local:
+        document.getElementById("ocorrenciaLocal").value,
+
+      status:
+        document.getElementById("ocorrenciaStatus").value || "ABERTA",
+
+      descricao:
+        document.getElementById("ocorrenciaDescricao").value,
+
+      observacoes:
+        document.getElementById("ocorrenciaObservacoes").value,
+
+      statusSync:
+        "PENDENTE",
+
+      origem:
+        "APP_OFFLINE",
+
+      criadoEm:
+        new Date().toISOString(),
+
+      atualizadoEm:
+        "",
+
+      dataSync:
+        ""
+    };
+
+    validarOcorrenciaOffline_(ocorrencia);
+
+    await salvarRegistroSIGO(
+      "TB_OCORRENCIAS",
+      ocorrencia
+    );
+
+    // TODO UX.07.14.SYNC
+    // Registrar INSERT na TB_SYNC_QUEUE
+
+    await listarOcorrenciasOffline_();
+
+    limparFormularioOcorrencia();
+
+    SIGOUI.feedback.success(
+      "Ocorrência salva",
+      "Registro salvo offline com sucesso."
+    );
+
+  } catch (erro) {
+    console.error("Erro ao salvar ocorrência:", erro);
+
+    SIGOUI.feedback.error(
+      "Erro ao salvar",
+      erro.message || "Não foi possível salvar a ocorrência."
+    );
+  }
+}
+
+function validarOcorrenciaOffline_(ocorrencia) {
+  if (!ocorrencia.idObra) {
+    throw new Error("Obra ativa não encontrada.");
+  }
+
+  if (!ocorrencia.data) {
+    throw new Error("Informe a data da ocorrência.");
+  }
+
+  if (!ocorrencia.tipo) {
+    throw new Error("Informe o tipo da ocorrência.");
+  }
+
+  if (!ocorrencia.prioridade) {
+    throw new Error("Informe a prioridade da ocorrência.");
+  }
+
+  if (!ocorrencia.descricao) {
+    throw new Error("Descreva a ocorrência.");
+  }
+
+  return true;
+}
+
+function limparFormularioOcorrencia() {
+  const hoje =
+    new Date().toISOString().split("T")[0];
+
+  const campos = {
+    ocorrenciaData: hoje,
+    ocorrenciaObra: obterObraAtivaMobile_(),
+    ocorrenciaTipo: "",
+    ocorrenciaPrioridade: "",
+    ocorrenciaResponsavel: "",
+    ocorrenciaLocal: "",
+    ocorrenciaStatus: "ABERTA",
+    ocorrenciaDescricao: "",
+    ocorrenciaObservacoes: ""
+  };
+
+  Object.keys(campos).forEach(id => {
+    const campo = document.getElementById(id);
+
+    if (campo) {
+      campo.value = campos[id];
+    }
+  });
+}
+
+/*async function salvarOcorrenciaOffline(event) {
 
   event.preventDefault();
 
@@ -2757,7 +2885,7 @@ async function listarOcorrenciasOffline_() {
 
 }
 
-/*function montarTelaDiarioItens_() {
+function montarTelaDiarioItens_() {
   const obraAtiva = localStorage.getItem("obraAtiva") || "OBR002";
   const hoje = new Date().toISOString().split("T")[0];
 
