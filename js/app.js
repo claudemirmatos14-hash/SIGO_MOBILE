@@ -9,7 +9,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 // ========================================
 // VARIÁVEIS GLOBAIS
 // ========================================
-
+let idDiarioEdicao = null;
 let idItemDiarioEdicao = null;
 let idMedicaoEdicao = null;
 
@@ -856,6 +856,104 @@ function montarDetalhesDiario_(diario) {
       </div>
     </div>
   `;
+}
+
+async function editarDiarioOffline_(idDiario) {
+
+  try {
+
+    const diarios =
+      await listarRegistrosSIGO("TB_DIARIOS");
+
+    const diario =
+      diarios.find(item =>
+        String(item.idDiario) === String(idDiario)
+      );
+
+    if (!diario) {
+
+      SIGOUI.feedback.warning(
+        "Diário não encontrado",
+        "O registro não foi localizado."
+      );
+
+      return;
+    }
+
+    idDiarioEdicao = idDiario;
+
+    document.getElementById("diarioData").value =
+      diario.data || "";
+
+    document.getElementById("diarioResponsavel").value =
+      diario.responsavel || "";
+
+    document.getElementById("diarioEquipe").value =
+      diario.equipe || "";
+
+    document.getElementById("diarioHoras").value =
+      diario.horasDia || diario.horas || "";
+
+    document.getElementById("diarioClima").value =
+      diario.clima || "";
+
+    document.getElementById("diarioOcorrencias").value =
+      diario.ocorrencias || "";
+
+    document.getElementById("diarioObservacoes").value =
+      diario.observacoes || "";
+
+    atualizarModoEdicaoDiario_();
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+
+  } catch (erro) {
+
+    console.error(erro);
+
+    SIGOUI.feedback.error(
+      "Erro",
+      "Não foi possível carregar o diário."
+    );
+
+  }
+
+}
+
+function atualizarModoEdicaoDiario_() {
+
+  const botao =
+    document.querySelector(
+      ".is-success"
+    );
+
+  if (!botao) return;
+
+  if (idDiarioEdicao) {
+
+    botao.innerHTML =
+      "💾 Atualizar";
+
+    botao.setAttribute(
+      "onclick",
+      "atualizarDiarioOffline_()"
+    );
+
+  } else {
+
+    botao.innerHTML =
+      "💾 Salvar";
+
+    botao.setAttribute(
+      "onclick",
+      "salvarDiarioPremium()"
+    );
+
+  }
+
 }
 
 async function sincronizarSIGO() {
