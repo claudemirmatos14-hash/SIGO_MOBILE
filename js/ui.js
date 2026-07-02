@@ -463,6 +463,7 @@ function montarTelaItensDiario() {
         options: [
           { value: "", label: "Carregando atividades..." }
         ]
+        onchange: "preencherDadosAtividadeItemDiario()"
       })}
 
       ${SIGOUI.createInput({
