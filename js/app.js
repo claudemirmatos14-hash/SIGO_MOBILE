@@ -2288,7 +2288,7 @@ async function listarClimasOffline_() {
   }
 }
 
-function montarTelaOcorrencias_() {
+/*function montarTelaOcorrencias_() {
 
   const obraAtiva =
     localStorage.getItem("obraAtiva") || "OBR002";
@@ -2432,6 +2432,133 @@ function montarTelaOcorrencias_() {
     </div>
 
   `;
+}*/
+
+function montarTelaOcorrencias() {
+  const formOcorrencia = `
+    <div class="sigo-form">
+
+      ${SIGOUI.createDate({
+        id: "ocorrenciaData",
+        label: "Data",
+        value: new Date().toISOString().split("T")[0]
+      })}
+
+      ${SIGOUI.createInput({
+        id: "ocorrenciaObra",
+        label: "Obra",
+        value: obterObraAtivaMobile_(),
+        readonly: true
+      })}
+
+      ${SIGOUI.createSelect({
+        id: "ocorrenciaTipo",
+        label: "Tipo",
+        options: [
+          { value: "", label: "Selecione" },
+          { value: "SEGURANÇA", label: "Segurança" },
+          { value: "QUALIDADE", label: "Qualidade" },
+          { value: "PRODUÇÃO", label: "Produção" },
+          { value: "EQUIPAMENTO", label: "Equipamento" },
+          { value: "AMBIENTAL", label: "Ambiental" },
+          { value: "ADMINISTRATIVO", label: "Administrativo" },
+          { value: "OUTRO", label: "Outro" }
+        ]
+      })}
+
+      ${SIGOUI.createSelect({
+        id: "ocorrenciaPrioridade",
+        label: "Prioridade",
+        options: [
+          { value: "", label: "Selecione" },
+          { value: "BAIXA", label: "Baixa" },
+          { value: "MÉDIA", label: "Média" },
+          { value: "ALTA", label: "Alta" },
+          { value: "CRÍTICA", label: "Crítica" }
+        ]
+      })}
+
+      ${SIGOUI.createInput({
+        id: "ocorrenciaResponsavel",
+        label: "Responsável",
+        placeholder: "Responsável pelo registro"
+      })}
+
+      ${SIGOUI.createInput({
+        id: "ocorrenciaLocal",
+        label: "Local",
+        placeholder: "Ex.: Bloco A, pavimento térreo"
+      })}
+
+      ${SIGOUI.createSelect({
+        id: "ocorrenciaStatus",
+        label: "Status",
+        options: [
+          { value: "ABERTA", label: "Aberta" },
+          { value: "EM TRATAMENTO", label: "Em tratamento" },
+          { value: "RESOLVIDA", label: "Resolvida" }
+        ]
+      })}
+
+      ${SIGOUI.createTextarea({
+        id: "ocorrenciaDescricao",
+        label: "Descrição",
+        rows: 4,
+        placeholder: "Descreva a ocorrência"
+      })}
+
+      ${SIGOUI.createTextarea({
+        id: "ocorrenciaObservacoes",
+        label: "Observações",
+        rows: 3,
+        placeholder: "Observações complementares"
+      })}
+
+    </div>
+  `;
+
+  const listaOcorrencias = `
+    <div id="listaOcorrenciasOffline" class="sigo-list">
+      <div class="empty-state">
+        <div class="empty-icon">⚠️</div>
+        <h3>Nenhuma ocorrência carregada</h3>
+        <p>As ocorrências registradas aparecerão aqui.</p>
+      </div>
+    </div>
+  `;
+
+  return SIGOUI.createCrudScreen({
+    titulo: "⚠️ OCORRÊNCIAS",
+    nome: "Registro de ocorrências",
+    subtitulo: "Controle operacional",
+    info: "Segurança, qualidade e produção",
+    status: "Modo offline",
+
+    actions: [
+      {
+        icone: "➕",
+        texto: "Nova Ocorrência",
+        tipo: "is-primary",
+        acao: "limparFormularioOcorrencia()"
+      },
+      {
+        icone: "💾",
+        texto: "Salvar",
+        tipo: "is-success",
+        acao: "salvarOcorrenciaPremium()"
+      }
+    ],
+
+    formTitle: "📋 Dados da Ocorrência",
+    formSubtitle: "Registre uma ocorrência da obra",
+    form: formOcorrencia,
+
+    listTitle: "📚 Ocorrências Registradas",
+    listSubtitle: "Histórico offline da obra ativa",
+    list: listaOcorrencias,
+
+    bottom: true
+  });
 }
 
 async function salvarOcorrenciaOffline(event) {
