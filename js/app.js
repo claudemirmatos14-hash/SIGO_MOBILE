@@ -726,14 +726,30 @@ async function sincronizarSIGO() {
       }
 
     for (const itemDiario of diarioItensPendentes) {
-        itemDiario.statusSync = "SINCRONIZADO";
-        itemDiario.dataSync = new Date().toISOString();
-      
-        await atualizarRegistroSIGO(
-          "TB_DIARIO_ITENS",
-          itemDiario
-        );
+      itemDiario.statusSync = "SINCRONIZADO";
+      itemDiario.dataSync = new Date().toISOString();
+    
+      await atualizarRegistroSIGO(
+        "TB_DIARIO_ITENS",
+        itemDiario
+      );
+    
+      const idItem =
+        itemDiario.idItem || itemDiario.idItemDiario;
+    
+      if (
+        idItemDiarioEdicao &&
+        String(idItemDiarioEdicao) === String(idItem)
+      ) {
+        idItemDiarioEdicao = null;
+    
+        atualizarModoEdicaoItemDiario_();
+    
+        if (typeof limparFormularioItemDiario === "function") {
+          limparFormularioItemDiario();
+        }
       }
+    }
 
     await atualizarIndicadoresMobile_();
     await carregarListaDiariosOffline();
