@@ -743,7 +743,7 @@ async function sincronizarSIGO() {
       ) {
         encerrarModoEdicaoItemDiario_();
       }
-
+    }
     await atualizarIndicadoresMobile_();
     await carregarListaDiariosOffline();
     await listarMedicoesOffline_();
