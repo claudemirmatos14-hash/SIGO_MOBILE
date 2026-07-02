@@ -3843,7 +3843,7 @@ async function excluirMedicaoOffline_(idMedicao) {
 
     if (!confirmou) return;
 
-    await excluirRegistroSIGO(
+   await removerRegistroSIGO_(
       "TB_MEDICOES",
       idMedicao
     );
