@@ -10,6 +10,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 // VARIÁVEIS GLOBAIS
 // ========================================
 
+let idItemDiarioEdicao = null;
 let idMedicaoEdicao = null;
 
 function iniciarSeletorObra() {
@@ -2765,6 +2766,107 @@ function montarDetalhesItemDiario_(item) {
       </div>
     </div>
   `;
+}
+
+async function editarItemDiarioOffline_(idItem) {
+  try {
+
+    const itens =
+      await listarRegistrosSIGO("TB_DIARIO_ITENS");
+
+    const item =
+      itens.find(reg =>
+        String(reg.idItem || reg.idItemDiario) === String(idItem)
+      );
+
+    if (!item) {
+      SIGOUI.feedback.warning(
+        "Item não encontrado",
+        "O registro não foi localizado."
+      );
+      return;
+    }
+
+    idItemDiarioEdicao =
+      item.idItem || item.idItemDiario;
+
+    document.getElementById("itemDiarioData").value =
+      item.data || "";
+
+    document.getElementById("itemDiarioAtividade").value =
+      item.atividade || item.eap || "";
+
+    // Atualiza os campos automáticos
+    await preencherDadosAtividadeItemDiario();
+
+    document.getElementById("itemDiarioEap").value =
+      item.eap || "";
+
+    document.getElementById("itemDiarioServico").value =
+      item.servico || "";
+
+    document.getElementById("itemDiarioEquipe").value =
+      item.equipe || "";
+
+    document.getElementById("itemDiarioEquipamento").value =
+      item.equipamento || "";
+
+    document.getElementById("itemDiarioQtde").value =
+      item.qtdeExecutada || "";
+
+    document.getElementById("itemDiarioUnidade").value =
+      item.un || "";
+
+    document.getElementById("itemDiarioHoras").value =
+      item.horasTrabalhadas || "";
+
+    document.getElementById("itemDiarioObservacao").value =
+      item.observacao || "";
+
+    atualizarModoEdicaoItemDiario_();
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+
+  } catch (erro) {
+    console.error(erro);
+
+    SIGOUI.feedback.error(
+      "Erro",
+      "Não foi possível carregar o item."
+    );
+  }
+}
+
+function atualizarModoEdicaoItemDiario_() {
+
+  const botao =
+    document.querySelector(".is-success");
+
+  if (!botao) return;
+
+  if (idItemDiarioEdicao) {
+
+    botao.innerHTML = "💾 Atualizar";
+
+    botao.setAttribute(
+      "onclick",
+      "atualizarItemDiarioOffline_()"
+    );
+
+  } else {
+
+    botao.innerHTML = "💾 Salvar";
+
+    botao.setAttribute(
+      "onclick",
+      "salvarItemDiarioPremium()"
+    );
+
+  }
+
 }
 
 async function carregarObrasMobile_() {
