@@ -236,7 +236,7 @@ return `
 }*/
 
 function montarTelaDiarioObra_() {
-  const obraAtiva = localStorage.getItem("obraAtiva") || "OBR002";
+  const obraAtiva = obterObraAtivaMobile_();
 
   const hoje = new Date().toISOString().split("T")[0];
 
@@ -255,7 +255,7 @@ function montarTelaDiarioObra_() {
         <input type="date" id="diarioData" value="${hoje}">
 
         <label>Obra</label>
-        <input type="text" id="diarioObra" value="${obraAtiva}" readonly>
+          <input type="text" id="diarioObra" value="${obraAtiva}" readonly>
 
         <label>Responsável</label>
         <input type="text" id="diarioResponsavel" placeholder="Nome do responsável">
