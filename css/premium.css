@@ -1414,3 +1414,115 @@ BARRA DE PROGRESSO
   font-weight: 900;
   text-align: right;
 }
+
+/* ==========================================================
+   ITENS DO DIÁRIO — CARD PREMIUM
+========================================================== */
+
+.item-diario-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 22px;
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, .06);
+}
+
+.item-diario-card + .item-diario-card {
+  margin-top: 14px;
+}
+
+.item-diario-card__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.item-diario-card__header strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.item-diario-card__header span {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.item-diario-card__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.item-diario-card__grid div {
+  background: #f8fafc;
+  border-radius: 16px;
+  padding: 12px;
+  border: 1px solid #eef2f7;
+}
+
+.item-diario-card__grid small {
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  color: #64748b;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.item-diario-card__grid strong {
+  font-size: 13px;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.item-diario-card__obs {
+  background: #f8fafc;
+  border-radius: 16px;
+  padding: 12px;
+  border: 1px solid #eef2f7;
+}
+
+.item-diario-card__obs small {
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  color: #64748b;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.item-diario-card__obs p {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+  line-height: 1.4;
+}
+
+.item-diario-card__actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.item-diario-card__actions button {
+  border: none;
+  border-radius: 14px;
+  padding: 10px 8px;
+  font-size: 11px;
+  font-weight: 900;
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.item-diario-card__actions button:disabled {
+  opacity: .45;
+}
