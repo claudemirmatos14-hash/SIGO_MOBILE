@@ -1019,6 +1019,75 @@ async function atualizarDiarioOffline_() {
   }
 }
 
+async function excluirDiarioOffline_(idDiario) {
+  try {
+    if (!idDiario) {
+      throw new Error("ID do diário não informado.");
+    }
+
+    const diarios =
+      await listarRegistrosSIGO("TB_DIARIOS");
+
+    const diario =
+      diarios.find(item =>
+        String(item.idDiario) === String(idDiario)
+      );
+
+    if (!diario) {
+      SIGOUI.feedback.warning(
+        "Diário não encontrado",
+        "O registro não foi localizado no banco offline."
+      );
+      return;
+    }
+
+    const confirmou = await SIGOUI.feedback.confirm({
+      tipo: "danger",
+      icone: "🗑️",
+      titulo: "Excluir diário",
+      mensagem:
+        "Este diário será removido deste dispositivo.\n\n" +
+        "Deseja realmente continuar?",
+      textoConfirmar: "Excluir",
+      textoCancelar: "Cancelar"
+    });
+
+    if (!confirmou) return;
+
+    await removerRegistroSIGO_(
+      "TB_DIARIOS",
+      idDiario
+    );
+
+    // TODO UX.07.14
+    // Registrar DELETE na TB_SYNC_QUEUE
+
+    if (String(idDiarioEdicao) === String(idDiario)) {
+      idDiarioEdicao = null;
+      atualizarModoEdicaoDiario_();
+
+      if (typeof limparFormularioDiario === "function") {
+        limparFormularioDiario();
+      }
+    }
+
+    await carregarListaDiariosOffline();
+
+    SIGOUI.feedback.success(
+      "Diário excluído",
+      "Registro removido com sucesso."
+    );
+
+  } catch (erro) {
+    console.error("Erro ao excluir diário:", erro);
+
+    SIGOUI.feedback.error(
+      "Erro ao excluir",
+      erro.message || "Não foi possível excluir o diário."
+    );
+  }
+}
+
 async function sincronizarSIGO() {
 
   try {
