@@ -2698,268 +2698,155 @@ function limparFormularioOcorrencia() {
   });
 }
 
-/*async function salvarOcorrenciaOffline(event) {
-
-  event.preventDefault();
-
-  const ocorrencia = {
-
-    idOcorrencia:
-      "OCR-" + Date.now(),
-
-    idDiario:
-      "DIA-REF-" + document.getElementById("ocorrenciaData").value,
-
-    data:
-      document.getElementById("ocorrenciaData").value,
-
-    idObra:
-      obterObraAtivaMobile_(),
-
-    tipo:
-      document.getElementById("ocorrenciaTipo").value,
-
-    severidade:
-      document.getElementById("ocorrenciaSeveridade").value,
-
-    atividadeAfetada:
-      document.getElementById("ocorrenciaAtividade").value,
-
-    responsavel:
-      document.getElementById("ocorrenciaResponsavel").value,
-
-    descricao:
-      document.getElementById("ocorrenciaDescricao").value,
-
-    statusOcorrencia:
-      "ABERTA",
-
-    statusSync:
-      "PENDENTE",
-
-    origem:
-      "APP_OFFLINE",
-
-    criadoEm:
-      new Date().toISOString()
-
-  };
-
-  try {
-
-    await salvarRegistroSIGO(
-      "TB_OCORRENCIAS",
-      ocorrencia
-    );
-
-    await adicionarNaFilaSyncSIGO({
-
-      tipo: "OCORRENCIA",
-
-      storeOrigem:
-        "TB_OCORRENCIAS",
-
-      idRegistro:
-        ocorrencia.idOcorrencia,
-
-      idObra:
-        ocorrencia.idObra
-
-    });
-
-    await atualizarIndicadoresMobile_();
-    await listarOcorrenciasOffline_();
-
-  SIGOUI.feedback.success(
-  "Ocorrência salva",
-  "Registro salvo offline."
-);
-
-    console.log(
-      "Ocorrência offline:",
-      ocorrencia
-    );
-
-  } catch (erro) {
-
-    console.error(
-      "Erro ao salvar ocorrência:",
-      erro
-    );
-
-   SIGOUI.feedback.error(
-    "Erro ao salvar evidência",
-    "Não foi possível salvar evidência offline."
-  );
-
-  }
-
-}*/
-
 async function listarOcorrenciasOffline_() {
-
   const container =
-    document.getElementById(
-      "listaOcorrenciasOffline"
-    );
+    document.getElementById("listaOcorrenciasOffline");
 
   if (!container) return;
 
   try {
+    const obraAtiva =
+      obterObraAtivaMobile_();
 
     const ocorrencias =
-      await listarRegistrosSIGO(
-        "TB_OCORRENCIAS"
-      );
+      await listarRegistrosSIGO("TB_OCORRENCIAS");
 
-    if (!ocorrencias.length) {
+    const ocorrenciasObra =
+      ocorrencias
+        .filter(item =>
+          String(item.idObra) === String(obraAtiva)
+        )
+        .sort((a, b) =>
+          new Date(b.criadoEm) - new Date(a.criadoEm)
+        );
 
+    if (!ocorrenciasObra.length) {
       container.innerHTML = `
         <div class="card-vazio">
           Nenhuma ocorrência registrada.
         </div>
       `;
-
       return;
     }
 
     container.innerHTML =
-      ocorrencias
-        .sort((a, b) =>
-          new Date(b.criadoEm) -
-          new Date(a.criadoEm)
-        )
-        .map(ocorrencia => `
-
-          <div class="item-offline">
-
-            <strong>
-              ${ocorrencia.tipo}
-            </strong>
-
-            <small>
-              ${ocorrencia.data}
-            </small>
-
-            <small>
-              sincronizarSIGO:
-              ${ocorrencia.severidade}
-            </small>
-
-            <small>
-              Atividade:
-              ${ocorrencia.atividadeAfetada || "-"}
-            </small>
-
-            <small>
-              ${ocorrencia.descricao || ""}
-            </small>
-
-            <span class="
-              badge-sync
-              ${
-                ocorrencia.statusSync === "SINCRONIZADO"
-                  ? "ok"
-                  : "pendente"
-              }
-            ">
-              ${ocorrencia.statusSync}
-            </span>
-
-          </div>
-
-        `)
+      ocorrenciasObra
+        .map(ocorrencia => criarCardOcorrenciaOffline_(ocorrencia))
         .join("");
 
   } catch (erro) {
+    console.error("Erro ao listar ocorrências:", erro);
 
-    console.error(
-      "Erro ao listar ocorrências:",
-      erro
-    );
-
-    container.innerHTML =
-      "Erro ao carregar ocorrências.";
-
+    container.innerHTML = `
+      <div class="card-vazio">
+        Erro ao carregar ocorrências.
+      </div>
+    `;
   }
-
 }
 
-/*function montarTelaDiarioItens_() {
-  const obraAtiva = localStorage.getItem("obraAtiva") || "OBR002";
-  const hoje = new Date().toISOString().split("T")[0];
+function criarCardOcorrenciaOffline_(ocorrencia) {
+  const statusSync =
+    ocorrencia.statusSync || "PENDENTE";
 
-  setTimeout(
-    listarItensDiarioOffline_,
-    100
-  );
+  const badge =
+    statusSync === "SINCRONIZADO"
+      ? "🟢 SINCRONIZADO"
+      : statusSync === "ERRO"
+        ? "🔴 ERRO"
+        : "🟡 PENDENTE";
+
+  const classeStatus =
+    statusSync === "SINCRONIZADO"
+      ? "success"
+      : statusSync === "ERRO"
+        ? "danger"
+        : "warning";
+
+  const bloqueado =
+    statusSync !== "PENDENTE";
 
   return `
-    <div class="tela-card">
+    <article class="ocorrencia-card">
 
-      <button class="btn-voltar" onclick="voltarHome()">
-         ← Voltar</button>
-      <h2>📋 Itens do Diário</h2>
+      <div class="ocorrencia-card__header">
+        <div>
+          <strong>
+            ⚠️ ${ocorrencia.tipo || "Ocorrência"}
+          </strong>
 
-      <p>Registrar atividades executadas no dia.</p>
-
-      <form class="formulario" onsubmit="salvarItemDiarioOffline(event)">
-
-        <label>Data</label>
-        <input type="date" id="itemDiarioData" value="${hoje}">
-
-        <label>Obra</label>
-        <input type="text" id="itemDiarioObra" value="${obraAtiva}" readonly>
-
-        <label>ID Diário</label>
-        <input type="text" id="itemDiarioIdDiario" placeholder="Ex.: DIA-LOCAL-...">
-
-        <label>Atividade</label>
-        <select id="itemDiarioAtividade" onchange="preencherDadosAtividadeItemDiario()">
-          <option value="">Selecione uma atividade</option>
-        </select>
-
-        <label>Serviço</label>
-        <input type="text" id="itemDiarioServico" readonly>
-
-        <label>Quantidade executada</label>
-        <input type="number" id="itemDiarioQtdeExecutada" step="0.01">
-
-        <label>Unidade</label>
-        <input type="text" id="itemDiarioUnidade" readonly>
-
-        <label>Equipe</label>
-        <input type="text" id="itemDiarioEquipe" placeholder="Ex.: Equipe A">
-
-        <label>Equipamento</label>
-        <input type="text" id="itemDiarioEquipamento" placeholder="Ex.: Escavadeira CAT 320">
-
-        <label>Horas trabalhadas</label>
-        <input type="number" id="itemDiarioHoras" step="0.5">
-
-        <label>Observação</label>
-        <textarea id="itemDiarioObservacao" rows="3" placeholder="Observações do item"></textarea>
-
-        <button type="submit" class="btn-salvar">
-          Salvar Item Offline
-        </button>
-
-        <div class="secao-offline">
-
-          <h3>
-            📋 Itens salvos offline
-          </h3>
-        
-          <div id="listaItensDiarioOffline">
-          </div>
-        
+          <span>
+            ${ocorrencia.descricao || "Sem descrição"}
+          </span>
         </div>
 
-      </form>
+        <span class="badge-sync badge-${classeStatus}">
+          ${badge}
+        </span>
+      </div>
 
-    </div>
+      <div class="ocorrencia-card__grid">
+
+        <div>
+          <small>Data</small>
+          <strong>${formatarDataMedicao_(ocorrencia.data)}</strong>
+        </div>
+
+        <div>
+          <small>Prioridade</small>
+          <strong>${ocorrencia.prioridade || "-"}</strong>
+        </div>
+
+        <div>
+          <small>Status</small>
+          <strong>${ocorrencia.status || "ABERTA"}</strong>
+        </div>
+
+        <div>
+          <small>Responsável</small>
+          <strong>${ocorrencia.responsavel || "Não informado"}</strong>
+        </div>
+
+      </div>
+
+      ${
+        ocorrencia.local
+          ? `
+            <div class="ocorrencia-card__obs">
+              <small>Local</small>
+              <p>${ocorrencia.local}</p>
+            </div>
+          `
+          : ""
+      }
+
+      <div class="ocorrencia-card__actions">
+
+        <button
+          type="button"
+          ${bloqueado ? "disabled" : ""}
+          onclick="editarOcorrenciaOffline_('${ocorrencia.idOcorrencia}')">
+          ✏ Editar
+        </button>
+
+        <button
+          type="button"
+          ${bloqueado ? "disabled" : ""}
+          onclick="excluirOcorrenciaOffline_('${ocorrencia.idOcorrencia}')">
+          🗑 Excluir
+        </button>
+
+        <button
+          type="button"
+          onclick="detalharOcorrenciaOffline_('${ocorrencia.idOcorrencia}')">
+          👁 Detalhes
+        </button>
+
+      </div>
+
+    </article>
   `;
-}*/
+}
 
 async function preencherDadosAtividadeItemDiario() {
   const select = document.getElementById("itemDiarioAtividade");
