@@ -3243,6 +3243,11 @@ function novaMedicaoPremium() {
 }
 
 async function salvarMedicaoPremium() {
+  if (idMedicaoEdicao) {
+    await atualizarMedicaoOffline_();
+    return;
+  }
+
   await salvarMedicaoOffline({
     preventDefault: function () {}
   });
