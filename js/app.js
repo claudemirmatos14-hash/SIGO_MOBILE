@@ -2869,6 +2869,111 @@ function atualizarModoEdicaoItemDiario_() {
 
 }
 
+async function atualizarItemDiarioOffline_() {
+
+  try {
+
+    if (!idItemDiarioEdicao) {
+      throw new Error("Nenhum item em edição.");
+    }
+
+    const itens =
+      await listarRegistrosSIGO("TB_DIARIO_ITENS");
+
+    const itemAtual =
+      itens.find(item =>
+        String(item.idItem || item.idItemDiario) ===
+        String(idItemDiarioEdicao)
+      );
+
+    if (!itemAtual) {
+      throw new Error("Registro não encontrado.");
+    }
+
+    const itemAtualizado = {
+
+      ...itemAtual,
+
+      data:
+        document.getElementById("itemDiarioData").value,
+
+      atividade:
+        document.getElementById("itemDiarioAtividade").value,
+
+      eap:
+        document.getElementById("itemDiarioEap").value,
+
+      servico:
+        document.getElementById("itemDiarioServico").value,
+
+      equipe:
+        document.getElementById("itemDiarioEquipe").value,
+
+      equipamento:
+        document.getElementById("itemDiarioEquipamento").value,
+
+      qtdeExecutada:
+        Number(
+          document.getElementById("itemDiarioQtde").value || 0
+        ),
+
+      un:
+        document.getElementById("itemDiarioUnidade").value,
+
+      horasTrabalhadas:
+        Number(
+          document.getElementById("itemDiarioHoras").value || 0
+        ),
+
+      observacao:
+        document.getElementById("itemDiarioObservacao").value,
+
+      atualizadoEm:
+        new Date().toISOString(),
+
+      statusSync:
+        "PENDENTE"
+
+    };
+
+    await validarAtividadeItemDiarioOffline_(itemAtualizado);
+
+    await salvarRegistroSIGO(
+      "TB_DIARIO_ITENS",
+      itemAtualizado
+    );
+
+    // TODO UX.07.14
+    // Registrar UPDATE na TB_SYNC_QUEUE
+
+    idItemDiarioEdicao = null;
+
+    atualizarModoEdicaoItemDiario_();
+
+    if (typeof limparFormularioItemDiario === "function") {
+      limparFormularioItemDiario();
+    }
+
+    await listarItensDiarioOffline_();
+
+    SIGOUI.feedback.success(
+      "Item atualizado",
+      "Registro atualizado com sucesso."
+    );
+
+  } catch (erro) {
+
+    console.error(erro);
+
+    SIGOUI.feedback.error(
+      "Erro",
+      erro.message
+    );
+
+  }
+
+}
+
 async function carregarObrasMobile_() {
   const select = document.getElementById("obraAtiva");
 
