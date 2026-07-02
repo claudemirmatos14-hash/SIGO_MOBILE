@@ -171,7 +171,7 @@ function navegarPara(tela) {
   });
 }
 
-/*function montarTela(tela) {
+function montarTela(tela) {
   const titulos = {
     diario: "📘 Diário de Obra",
     medicoes: "📏 Medições",
@@ -239,7 +239,7 @@ function voltarHome() {
   });
 }
 
-function montarTelaDiarioObra_() {
+/*function montarTelaDiarioObra_() {
   const obraAtiva = obterObraAtivaMobile_();
 
   const hoje = new Date().toISOString().split("T")[0];
