@@ -2848,6 +2848,189 @@ function criarCardOcorrenciaOffline_(ocorrencia) {
   `;
 }
 
+async function detalharOcorrenciaOffline_(idOcorrencia) {
+
+  try {
+
+    const ocorrencias =
+      await listarRegistrosSIGO("TB_OCORRENCIAS");
+
+    const ocorrencia =
+      ocorrencias.find(item =>
+        String(item.idOcorrencia) === String(idOcorrencia)
+      );
+
+    if (!ocorrencia) {
+
+      SIGOUI.feedback.warning(
+        "Ocorrência não encontrada",
+        "O registro não foi localizado."
+      );
+
+      return;
+    }
+
+    SIGOUI.showDrawer({
+      titulo: "⚠️ Ocorrência",
+      subtitulo:
+        `${formatarDataMedicao_(ocorrencia.data)} • ${ocorrencia.idObra}`,
+      conteudo:
+        montarDetalhesOcorrencia_(ocorrencia),
+      textoFechar: "Fechar"
+    });
+
+  } catch (erro) {
+
+    console.error(erro);
+
+    SIGOUI.feedback.error(
+      "Erro",
+      "Não foi possível abrir a ocorrência."
+    );
+
+  }
+
+}
+
+function montarDetalhesOcorrencia_(ocorrencia) {
+
+  const status =
+    ocorrencia.statusSync || "PENDENTE";
+
+  let badge = "";
+  let classe = "";
+  let descricao = "";
+
+  switch (status) {
+
+    case "SINCRONIZADO":
+      badge = "🟢 SINCRONIZADO";
+      classe = "success";
+      descricao = "Registro enviado ao SIGO.";
+      break;
+
+    case "ERRO":
+      badge = "🔴 ERRO";
+      classe = "danger";
+      descricao = "Falha na sincronização.";
+      break;
+
+    default:
+      badge = "🟡 PENDENTE";
+      classe = "warning";
+      descricao = "Aguardando sincronização.";
+
+  }
+
+  return `
+
+    <div class="drawer-status">
+
+      <span class="badge-sync badge-${classe}">
+        ${badge}
+      </span>
+
+      <p class="drawer-status-text">
+        ${descricao}
+      </p>
+
+    </div>
+
+    <div class="drawer-grid">
+
+      <div class="drawer-kpi">
+        <small>Prioridade</small>
+        <strong>${ocorrencia.prioridade || "-"}</strong>
+      </div>
+
+      <div class="drawer-kpi">
+        <small>Status</small>
+        <strong>${ocorrencia.status || "-"}</strong>
+      </div>
+
+      <div class="drawer-kpi">
+        <small>Tipo</small>
+        <strong>${ocorrencia.tipo || "-"}</strong>
+      </div>
+
+      <div class="drawer-kpi">
+        <small>Responsável</small>
+        <strong>${ocorrencia.responsavel || "Não informado"}</strong>
+      </div>
+
+    </div>
+
+    <div class="drawer-section">
+
+      <h4>Dados da Ocorrência</h4>
+
+      <div class="drawer-item">
+        <span>Data</span>
+        <strong>${formatarDataMedicao_(ocorrencia.data)}</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Obra</span>
+        <strong>${ocorrencia.idObra}</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Local</span>
+        <strong>${ocorrencia.local || "-"}</strong>
+      </div>
+
+    </div>
+
+    <div class="drawer-section">
+
+      <h4>Descrição</h4>
+
+      <p>
+        ${ocorrencia.descricao || "Nenhuma descrição."}
+      </p>
+
+    </div>
+
+    <div class="drawer-section">
+
+      <h4>Observações</h4>
+
+      <p>
+        ${ocorrencia.observacoes || "Nenhuma observação."}
+      </p>
+
+    </div>
+
+    <div class="drawer-section">
+
+      <h4>Auditoria</h4>
+
+      <div class="drawer-item">
+        <span>ID</span>
+        <strong>${ocorrencia.idOcorrencia}</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Criado em</span>
+        <strong>${formatarDataHoraMedicao_(ocorrencia.criadoEm)}</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Status Sync</span>
+        <strong>${status}</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Versão</span>
+        <strong>1.0</strong>
+      </div>
+
+    </div>
+
+  `;
+
+}
+
 async function preencherDadosAtividadeItemDiario() {
   const select = document.getElementById("itemDiarioAtividade");
   const idAtividade = select.value;
