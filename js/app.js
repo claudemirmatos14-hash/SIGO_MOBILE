@@ -235,7 +235,7 @@ return `
   });
 }*/
 
-function montarTelaDiarioObra_() {
+/*function montarTelaDiarioObra_() {
   const obraAtiva = obterObraAtivaMobile_();
 
   const hoje = new Date().toISOString().split("T")[0];
@@ -307,7 +307,7 @@ function montarTelaDiarioObra_() {
 
     </div>
   `;
-}
+}*/
 
 async function salvarDiarioOffline(event) {
 
