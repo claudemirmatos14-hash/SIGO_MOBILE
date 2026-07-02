@@ -3808,6 +3808,79 @@ async function recalcularMedicoesAtividadeOffline_(idObra, atividade, eap) {
   }
 }
 
+async function excluirMedicaoOffline_(idMedicao) {
+  try {
+    if (!idMedicao) {
+      throw new Error("ID da medição não informado.");
+    }
+
+    const medicoes =
+      await listarRegistrosSIGO("TB_MEDICOES");
+
+    const medicao =
+      medicoes.find(item =>
+        String(item.idMedicao) === String(idMedicao)
+      );
+
+    if (!medicao) {
+      SIGOUI.feedback.warning(
+        "Medição não encontrada",
+        "O registro não foi localizado no banco offline."
+      );
+      return;
+    }
+
+    const confirmou = await SIGOUI.feedback.confirm({
+      tipo: "danger",
+      icone: "🗑️",
+      titulo: "Excluir medição",
+      mensagem:
+        "Esta medição será removida deste dispositivo.\n\n" +
+        "Os saldos e acumulados da atividade serão recalculados.",
+      textoConfirmar: "Excluir",
+      textoCancelar: "Cancelar"
+    });
+
+    if (!confirmou) return;
+
+    await excluirRegistroSIGO(
+      "TB_MEDICOES",
+      idMedicao
+    );
+
+    await recalcularMedicoesAtividadeOffline_(
+      medicao.idObra,
+      medicao.atividade,
+      medicao.eap
+    );
+
+    // TODO UX.07.14
+    // Registrar DELETE na TB_SYNC_QUEUE
+
+    if (String(idMedicaoEdicao) === String(idMedicao)) {
+      idMedicaoEdicao = null;
+      atualizarModoEdicaoMedicao_();
+      novaMedicaoPremium();
+    }
+
+    await listarMedicoesOffline_();
+    await atualizarIndicadoresMobile_();
+
+    SIGOUI.feedback.success(
+      "Medição excluída",
+      "Registro removido e saldos recalculados."
+    );
+
+  } catch (erro) {
+    console.error("Erro ao excluir medição:", erro);
+
+    SIGOUI.feedback.error(
+      "Erro ao excluir",
+      erro.message || "Não foi possível excluir a medição."
+    );
+  }
+}
+
 // ============================================
 // FORMATADORES
 // ============================================
