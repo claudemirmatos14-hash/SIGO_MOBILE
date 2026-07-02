@@ -102,6 +102,15 @@ function navegarPara(tela) {
           await listarItensDiarioOffline_();
         }
       }
+    },
+
+    ocorrencias: {
+      montar: montarTelaOcorrencias,
+      depois: async function () {
+        if (typeof listarOcorrenciasOffline_ === "function") {
+          await listarOcorrenciasOffline_();
+        }
+      }
     }
   };
 
