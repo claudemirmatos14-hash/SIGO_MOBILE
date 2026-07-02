@@ -2794,7 +2794,7 @@ function limparFormularioOcorrencia() {
 
   }
 
-}
+}*/
 
 async function listarOcorrenciasOffline_() {
 
@@ -2885,7 +2885,7 @@ async function listarOcorrenciasOffline_() {
 
 }
 
-function montarTelaDiarioItens_() {
+/*function montarTelaDiarioItens_() {
   const obraAtiva = localStorage.getItem("obraAtiva") || "OBR002";
   const hoje = new Date().toISOString().split("T")[0];
 
