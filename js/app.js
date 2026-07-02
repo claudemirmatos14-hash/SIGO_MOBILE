@@ -3297,6 +3297,12 @@ async function atualizarMedicaoOffline_() {
       medicaoAtualizada
     );
 
+    await recalcularMedicoesAtividadeOffline_(
+      medicaoAtualizada.idObra,
+      medicaoAtualizada.atividade,
+      medicaoAtualizada.eap
+    );
+
    /* await enfileirarSyncSIGO({
       tipoOperacao: "UPDATE",
       storeOrigem: "TB_MEDICOES",
@@ -3709,6 +3715,97 @@ function preencherFormularioMedicao_(medicao) {
       campo.value = campos[id];
     }
   });
+}
+
+async function recalcularMedicoesAtividadeOffline_(idObra, atividade, eap) {
+  const atividades =
+    await listarRegistrosSIGO("TB_ATIVIDADES_OBRA");
+
+  const atividadeBase =
+    atividades.find(item =>
+      String(item.idObra) === String(idObra) &&
+      (
+        String(item.idAtividade) === String(atividade) ||
+        String(item.eap) === String(eap)
+      )
+    );
+
+  if (!atividadeBase) {
+    throw new Error(
+      "Atividade base não encontrada para recálculo."
+    );
+  }
+
+  const qtdePlanejada =
+    Number(atividadeBase.qtdePlanejada || 0);
+
+  const medicoes =
+    await listarRegistrosSIGO("TB_MEDICOES");
+
+  const medicoesAtividade =
+    medicoes
+      .filter(item =>
+        String(item.idObra) === String(idObra) &&
+        (
+          String(item.atividade) === String(atividade) ||
+          String(item.eap) === String(eap)
+        )
+      )
+      .sort((a, b) =>
+        new Date(a.criadoEm) - new Date(b.criadoEm)
+      );
+
+  let acumulado = 0;
+
+  for (const medicao of medicoesAtividade) {
+    const qtdeExecutada =
+      Number(medicao.qtdeExecutada || 0);
+
+    const saldoAntes =
+      qtdePlanejada - acumulado;
+
+    acumulado += qtdeExecutada;
+
+    const saldoDepois =
+      qtdePlanejada - acumulado;
+
+    const percentualAcumulado =
+      qtdePlanejada > 0
+        ? (acumulado / qtdePlanejada) * 100
+        : 0;
+
+    medicao.qtdePlanejada =
+      qtdePlanejada;
+
+    medicao.totalJaMedidoOffline =
+      acumulado - qtdeExecutada;
+
+    medicao.qtdeExecutadaAcumulada =
+      acumulado;
+
+    medicao.percentualExecutadoAcumulado =
+      percentualAcumulado;
+
+    medicao.saldoBaseOffline =
+      qtdePlanejada;
+
+    medicao.saldoDisponivelAntes =
+      saldoAntes;
+
+    medicao.saldoDisponivelDepois =
+      saldoDepois;
+
+    medicao.validacaoSaldoOffline =
+      saldoDepois < 0 ? "EXCESSO" : "OK";
+
+    medicao.atualizadoEm =
+      new Date().toISOString();
+
+    await salvarRegistroSIGO(
+      "TB_MEDICOES",
+      medicao
+    );
+  }
 }
 
 // ============================================
