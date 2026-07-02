@@ -2428,74 +2428,148 @@ async function listarItensDiarioOffline_() {
 
     container.innerHTML =
       itensObra
-        .map(item => {
-          const eap =
-            item.eap || item.atividade || "-";
-
-          const servico =
-            item.servico || "Serviço não informado";
-
-          const qtde =
-            item.qtdeExecutada ??
-            item.qtde ??
-            0;
-
-          const unidade =
-            item.un ||
-            item.unidade ||
-            "";
-
-          const equipe =
-            item.equipe ||
-            "Equipe não informada";
-
-          const horas =
-            item.horasTrabalhadas ??
-            item.horas ??
-            0;
-
-          const status =
-            item.statusSync || "PENDENTE";
-
-          return `
-            <div class="item-offline">
-
-              <strong>
-                ${eap}
-              </strong>
-
-              <small>
-                ${servico}
-              </small>
-
-              <small>
-                ${formatarNumeroMedicao_(qtde)}
-                ${unidade}
-              </small>
-
-              <small>
-                ${equipe}
-              </small>
-
-              <small>
-                ${formatarNumeroMedicao_(horas)} h
-              </small>
-
-              <span class="badge-sync badge-warning">
-                ${status}
-              </span>
-
-            </div>
-          `;
-        })
+        .map(item => criarCardItemDiarioOffline_(item))
         .join("");
 
   } catch (erro) {
-    console.error(
-      "Erro ao listar itens:",
-      erro
-    );
+    console.error("Erro ao listar itens:", erro);
+
+    container.innerHTML = `
+      <div class="card-vazio">
+        Erro ao carregar itens do diário.
+      </div>
+    `;
   }
+}
+
+function criarCardItemDiarioOffline_(item) {
+  const status = item.statusSync || "PENDENTE";
+
+  const badge =
+    status === "SINCRONIZADO"
+      ? "🟢 SINCRONIZADO"
+      : status === "ERRO"
+        ? "🔴 ERRO"
+        : "🟡 PENDENTE";
+
+  const classeStatus =
+    status === "SINCRONIZADO"
+      ? "success"
+      : status === "ERRO"
+        ? "danger"
+        : "warning";
+
+  const eap =
+    item.eap || item.atividade || "-";
+
+  const servico =
+    item.servico || "Serviço não informado";
+
+  const data =
+    item.data || item.criadoEm || "";
+
+  const qtde =
+    item.qtdeExecutada ??
+    item.qtde ??
+    0;
+
+  const unidade =
+    item.un ||
+    item.unidade ||
+    "";
+
+  const equipe =
+    item.equipe ||
+    "Equipe não informada";
+
+  const horas =
+    item.horasTrabalhadas ??
+    item.horas ??
+    0;
+
+  return `
+    <article class="item-diario-card">
+
+      <div class="item-diario-card__header">
+        <div>
+          <strong>
+            📋 ${eap}
+          </strong>
+
+          <span>
+            ${servico}
+          </span>
+        </div>
+
+        <span class="badge-sync badge-${classeStatus}">
+          ${badge}
+        </span>
+      </div>
+
+      <div class="item-diario-card__grid">
+
+        <div>
+          <small>Data</small>
+          <strong>${formatarDataMedicao_(data)}</strong>
+        </div>
+
+        <div>
+          <small>Quantidade</small>
+          <strong>
+            ${formatarNumeroMedicao_(qtde)}
+            ${unidade}
+          </strong>
+        </div>
+
+        <div>
+          <small>Equipe</small>
+          <strong>${equipe}</strong>
+        </div>
+
+        <div>
+          <small>Horas</small>
+          <strong>
+            ${formatarNumeroMedicao_(horas)} h
+          </strong>
+        </div>
+
+      </div>
+
+      ${
+        item.observacao
+          ? `
+            <div class="item-diario-card__obs">
+              <small>Observação</small>
+              <p>${item.observacao}</p>
+            </div>
+          `
+          : ""
+      }
+
+      <div class="item-diario-card__actions">
+
+        <button
+          type="button"
+          onclick="editarItemDiarioOffline_('${item.idItem || item.idItemDiario || ""}')">
+          ✏ Editar
+        </button>
+
+        <button
+          type="button"
+          onclick="excluirItemDiarioOffline_('${item.idItem || item.idItemDiario || ""}')">
+          🗑 Excluir
+        </button>
+
+        <button
+          type="button"
+          onclick="detalharItemDiarioOffline_('${item.idItem || item.idItemDiario || ""}')">
+          👁 Detalhes
+        </button>
+
+      </div>
+
+    </article>
+  `;
 }
 
 async function carregarAtividadesItemDiarioOffline_() {
