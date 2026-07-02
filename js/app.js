@@ -74,13 +74,13 @@ function navegarPara(tela) {
         if (typeof listarObrasOfflineMobile_ === "function") {
           await listarObrasOfflineMobile_();
         }
-    
+
         if (typeof listarObrasDisponiveisMobile_ === "function") {
           await listarObrasDisponiveisMobile_();
         }
       }
     },
-    
+
     diario: {
       montar: montarTelaDiarioObra,
       depois: async function () {
@@ -107,44 +107,43 @@ function navegarPara(tela) {
   if (app && telasPremium[tela]) {
     SIGOUI.render(".app-premium", telasPremium[tela].montar());
 
-     if (tela === "medicoes") {
-  
-      SIGOUI.render(
-        ".app-premium",
-        montarTelaMedicoes()
-      );
-  
     setTimeout(async () => {
       if (typeof carregarObrasMobile_ === "function") {
         await carregarObrasMobile_();
       }
-  
+
       await telasPremium[tela].depois();
     }, 100);
-  
+
     window.scrollTo({
       top: 0,
       behavior: "smooth"
     });
-  
+
     return;
   }
 
+  if (tela === "medicoes") {
+    SIGOUI.render(".app-premium", montarTelaMedicoes());
 
-  
-  
     setTimeout(async () => {
-  
+      if (typeof carregarObrasMobile_ === "function") {
+        await carregarObrasMobile_();
+      }
+
       await carregarAtividadesMedicaoOffline_();
-  
       await listarMedicoesOffline_();
-  
     }, 100);
-  
-    
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+
     return;
-  
   }
+
+  if (!area) return;
 
   if (tela === "evidencias") {
     setTimeout(() => {
@@ -163,13 +162,7 @@ function navegarPara(tela) {
       listarOcorrenciasOffline_();
     }, 100);
   }
-
-  window.scrollTo({
-    top: area.offsetTop,
-    behavior: "smooth"
-  });
 }
-
 function montarTela(tela) {
   const titulos = {
     diario: "📘 Diário de Obra",
