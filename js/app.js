@@ -2628,6 +2628,13 @@ async function salvarOcorrenciaPremium() {
       ocorrencia
     );
 
+    await registrarSyncQueueSIGO_({
+      tabela: "TB_OCORRENCIAS",
+      idRegistro: ocorrencia.idOcorrencia,
+      idObra: ocorrencia.idObra,
+      tipoOperacao: "INSERT"
+    });
+
     // TODO UX.07.14.SYNC
     // Registrar INSERT na TB_SYNC_QUEUE
 
@@ -3188,6 +3195,13 @@ async function atualizarOcorrenciaOffline_() {
       ocorrenciaAtualizada
     );
 
+    await registrarSyncQueueSIGO_({
+      tabela: "TB_OCORRENCIAS",
+      idRegistro: ocorrenciaAtualizada.idOcorrencia,
+      idObra: ocorrenciaAtualizada.idObra,
+      tipoOperacao: "UPDATE"
+    });
+
     // TODO UX.07.14.SYNC
     // Registrar UPDATE na TB_SYNC_QUEUE
 
@@ -3315,7 +3329,22 @@ async function excluirOcorrenciaOffline_(idOcorrencia) {
 
 }
 
+async function registrarSyncQueueSIGO_(config = {}) {
+  const registro = {
+    idSync: "SYNC-" + Date.now() + "-" + Math.floor(Math.random() * 1000),
+    idObra: config.idObra || obterObraAtivaMobile_(),
+    tabela: config.tabela,
+    idRegistro: config.idRegistro,
+    tipoOperacao: config.tipoOperacao || "INSERT",
+    statusSync: "PENDENTE",
+    tentativas: 0,
+    erro: "",
+    criadoEm: new Date().toISOString(),
+    dataSync: ""
+  };
 
+  await salvarRegistroSIGO("TB_SYNC_QUEUE", registro);
+}
 
 async function preencherDadosAtividadeItemDiario() {
   const select = document.getElementById("itemDiarioAtividade");
