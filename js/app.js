@@ -2199,6 +2199,14 @@ async function preencherDadosAtividadeItemDiario() {
     return;
   }
 
+  const campoEap =
+    document.getElementById("itemDiarioEap");
+  
+  if (campoEap) {
+    campoEap.value =
+      atividadeBase.eap || "";
+  }
+  
   document.getElementById("itemDiarioServico").value =
     atividadeBase.servico || "";
 
