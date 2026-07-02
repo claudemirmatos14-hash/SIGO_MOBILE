@@ -2102,7 +2102,7 @@ async function listarOcorrenciasOffline_() {
 
 }
 
-function montarTelaDiarioItens_() {
+/*function montarTelaDiarioItens_() {
   const obraAtiva = localStorage.getItem("obraAtiva") || "OBR002";
   const hoje = new Date().toISOString().split("T")[0];
 
@@ -2176,7 +2176,7 @@ function montarTelaDiarioItens_() {
 
     </div>
   `;
-}
+}*/
 
 async function preencherDadosAtividadeItemDiario() {
   const select = document.getElementById("itemDiarioAtividade");
@@ -2396,84 +2396,105 @@ async function validarAtividadeItemDiarioOffline_(item) {
 }
 
 async function listarItensDiarioOffline_() {
-
   const container =
-    document.getElementById(
-      "listaItensDiarioOffline"
-    );
+    document.getElementById("listaItensDiarioOffline");
 
   if (!container) return;
 
   try {
+    const obraAtiva =
+      obterObraAtivaMobile_();
 
     const itens =
-      await listarRegistrosSIGO(
-        "TB_DIARIO_ITENS"
-      );
+      await listarRegistrosSIGO("TB_DIARIO_ITENS");
 
-    if (!itens.length) {
+    const itensObra =
+      itens
+        .filter(item =>
+          String(item.idObra) === String(obraAtiva)
+        )
+        .sort((a, b) =>
+          new Date(b.criadoEm) - new Date(a.criadoEm)
+        );
 
+    if (!itensObra.length) {
       container.innerHTML = `
         <div class="card-vazio">
           Nenhum item registrado.
         </div>
       `;
-
       return;
     }
 
     container.innerHTML =
-      itens
-        .sort((a,b)=>
-          new Date(b.criadoEm) -
-          new Date(a.criadoEm)
-        )
-        .map(item => `
-          <div class="item-offline">
+      itensObra
+        .map(item => {
+          const eap =
+            item.eap || item.atividade || "-";
 
-            <strong>
-              ${item.atividade}
-            </strong>
+          const servico =
+            item.servico || "Serviço não informado";
 
-            <small>
-              ${item.servico}
-            </small>
+          const qtde =
+            item.qtdeExecutada ??
+            item.qtde ??
+            0;
 
-            <small>
-              ${item.qtdeExecutada}
-              ${item.un}
-            </small>
+          const unidade =
+            item.un ||
+            item.unidade ||
+            "";
 
-            <small>
-              ${item.equipe}
-            </small>
+          const equipe =
+            item.equipe ||
+            "Equipe não informada";
 
-            <small>
-              ${item.horasTrabalhadas} h
-            </small>
+          const horas =
+            item.horasTrabalhadas ??
+            item.horas ??
+            0;
 
-            <span class="
-              badge-sync
-              ${
-                item.statusSync === "SINCRONIZADO"
-                ? "ok"
-                : "pendente"
-              }
-            ">
-              ${item.statusSync}
-            </span>
+          const status =
+            item.statusSync || "PENDENTE";
 
-          </div>
-        `)
+          return `
+            <div class="item-offline">
+
+              <strong>
+                ${eap}
+              </strong>
+
+              <small>
+                ${servico}
+              </small>
+
+              <small>
+                ${formatarNumeroMedicao_(qtde)}
+                ${unidade}
+              </small>
+
+              <small>
+                ${equipe}
+              </small>
+
+              <small>
+                ${formatarNumeroMedicao_(horas)} h
+              </small>
+
+              <span class="badge-sync badge-warning">
+                ${status}
+              </span>
+
+            </div>
+          `;
+        })
         .join("");
 
   } catch (erro) {
-
     console.error(
       "Erro ao listar itens:",
       erro
     );
-
   }
 }
 
