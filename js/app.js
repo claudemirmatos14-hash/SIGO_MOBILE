@@ -675,6 +675,189 @@ function criarCardDiarioOffline_(diario) {
   `;
 }
 
+async function detalharDiarioOffline_(idDiario) {
+  try {
+    const diarios =
+      await listarRegistrosSIGO("TB_DIARIOS");
+
+    const diario =
+      diarios.find(item =>
+        String(item.idDiario) === String(idDiario)
+      );
+
+    if (!diario) {
+      SIGOUI.feedback.warning(
+        "Diário não encontrado",
+        "O registro não foi localizado no banco offline."
+      );
+      return;
+    }
+
+    SIGOUI.showDrawer({
+      titulo: "📘 Diário de Obra",
+      subtitulo: `${formatarDataMedicao_(diario.data)} • ${diario.idObra || "-"}`,
+      conteudo: montarDetalhesDiario_(diario),
+      textoFechar: "Fechar"
+    });
+
+  } catch (erro) {
+    console.error("Erro ao detalhar diário:", erro);
+
+    SIGOUI.feedback.error(
+      "Erro ao abrir detalhes",
+      "Não foi possível carregar os detalhes do diário."
+    );
+  }
+}
+
+function montarDetalhesDiario_(diario) {
+  const status = diario.statusSync || "PENDENTE";
+
+  let badge = "";
+  let classeStatus = "";
+  let descricaoStatus = "";
+
+  switch (status) {
+    case "SINCRONIZADO":
+      badge = "🟢 SINCRONIZADO";
+      classeStatus = "success";
+      descricaoStatus = "Registro enviado ao SIGO.";
+      break;
+
+    case "ERRO":
+      badge = "🔴 ERRO";
+      classeStatus = "danger";
+      descricaoStatus = "Falha na sincronização.";
+      break;
+
+    default:
+      badge = "🟡 PENDENTE";
+      classeStatus = "warning";
+      descricaoStatus = "Aguardando sincronização.";
+  }
+
+  const responsavel =
+    diario.responsavel || "Sem responsável";
+
+  const equipe =
+    diario.equipe || "Equipe não informada";
+
+  const clima =
+    diario.clima || "Não informado";
+
+  const horas =
+    diario.horasDia ??
+    diario.horas ??
+    0;
+
+  const ocorrencias =
+    diario.ocorrencias ||
+    "Nenhuma ocorrência geral registrada.";
+
+  const observacoes =
+    diario.observacoes ||
+    "Nenhuma observação registrada.";
+
+  return `
+    <div class="drawer-status">
+      <span class="badge-sync badge-${classeStatus}">
+        ${badge}
+      </span>
+
+      <p class="drawer-status-text">
+        ${descricaoStatus}
+      </p>
+    </div>
+
+    <div class="drawer-grid">
+
+      <div class="drawer-kpi">
+        <small>Clima</small>
+        <strong>${clima}</strong>
+      </div>
+
+      <div class="drawer-kpi">
+        <small>Horas</small>
+        <strong>${formatarNumeroMedicao_(horas)} h</strong>
+      </div>
+
+      <div class="drawer-kpi">
+        <small>Equipe</small>
+        <strong>${equipe}</strong>
+      </div>
+
+      <div class="drawer-kpi">
+        <small>Status</small>
+        <strong>${status}</strong>
+      </div>
+
+    </div>
+
+    <div class="drawer-section">
+      <h4>Dados do Diário</h4>
+
+      <div class="drawer-item">
+        <span>Data</span>
+        <strong>${formatarDataMedicao_(diario.data)}</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Obra</span>
+        <strong>${diario.idObra || "-"}</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Responsável</span>
+        <strong>${responsavel}</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Equipe</span>
+        <strong>${equipe}</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Clima</span>
+        <strong>${clima}</strong>
+      </div>
+    </div>
+
+    <div class="drawer-section">
+      <h4>Ocorrências Gerais</h4>
+      <p>${ocorrencias}</p>
+    </div>
+
+    <div class="drawer-section">
+      <h4>Observações</h4>
+      <p>${observacoes}</p>
+    </div>
+
+    <div class="drawer-section">
+      <h4>Auditoria</h4>
+
+      <div class="drawer-item">
+        <span>ID Diário</span>
+        <strong>${diario.idDiario || "-"}</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Criado em</span>
+        <strong>${formatarDataHoraMedicao_(diario.criadoEm)}</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Status Sync</span>
+        <strong>${status}</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Versão</span>
+        <strong>1.0</strong>
+      </div>
+    </div>
+  `;
+}
+
 async function sincronizarSIGO() {
 
   try {
