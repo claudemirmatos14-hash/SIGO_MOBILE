@@ -2625,6 +2625,148 @@ async function detalharItemDiarioOffline_(idItem) {
   }
 }
 
+function montarDetalhesItemDiario_(item) {
+  const status = item.statusSync || "PENDENTE";
+
+  let badge = "";
+  let classeStatus = "";
+  let descricaoStatus = "";
+
+  switch (status) {
+    case "SINCRONIZADO":
+      badge = "🟢 SINCRONIZADO";
+      classeStatus = "success";
+      descricaoStatus = "Registro enviado ao SIGO.";
+      break;
+
+    case "ERRO":
+      badge = "🔴 ERRO";
+      classeStatus = "danger";
+      descricaoStatus = "Falha na sincronização.";
+      break;
+
+    default:
+      badge = "🟡 PENDENTE";
+      classeStatus = "warning";
+      descricaoStatus = "Aguardando sincronização.";
+  }
+
+  const eap = item.eap || item.atividade || "-";
+  const servico = item.servico || "Serviço não informado";
+  const qtde = item.qtdeExecutada ?? item.qtde ?? 0;
+  const unidade = item.un || item.unidade || "";
+  const equipe = item.equipe || "Equipe não informada";
+  const horas = item.horasTrabalhadas ?? item.horas ?? 0;
+  const equipamento = item.equipamento || "Não informado";
+  const observacao =
+    item.observacao ||
+    "Nenhuma observação registrada neste item.";
+
+  return `
+    <div class="drawer-status">
+      <span class="badge-sync badge-${classeStatus}">
+        ${badge}
+      </span>
+
+      <p class="drawer-status-text">
+        ${descricaoStatus}
+      </p>
+    </div>
+
+    <div class="drawer-grid">
+
+      <div class="drawer-kpi">
+        <small>Quantidade</small>
+        <strong>
+          ${formatarNumeroMedicao_(qtde)}
+          ${unidade}
+        </strong>
+      </div>
+
+      <div class="drawer-kpi">
+        <small>Horas</small>
+        <strong>
+          ${formatarNumeroMedicao_(horas)} h
+        </strong>
+      </div>
+
+      <div class="drawer-kpi">
+        <small>Equipe</small>
+        <strong>${equipe}</strong>
+      </div>
+
+      <div class="drawer-kpi">
+        <small>Status</small>
+        <strong>${status}</strong>
+      </div>
+
+    </div>
+
+    <div class="drawer-section">
+      <h4>Dados do Item</h4>
+
+      <div class="drawer-item">
+        <span>Data</span>
+        <strong>${formatarDataMedicao_(item.data)}</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Obra</span>
+        <strong>${item.idObra || "-"}</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>EAP</span>
+        <strong>${eap}</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Serviço</span>
+        <strong>${servico}</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Unidade</span>
+        <strong>${unidade || "-"}</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Equipamento</span>
+        <strong>${equipamento}</strong>
+      </div>
+    </div>
+
+    <div class="drawer-section">
+      <h4>Observações</h4>
+      <p>${observacao}</p>
+    </div>
+
+    <div class="drawer-section">
+      <h4>Auditoria</h4>
+
+      <div class="drawer-item">
+        <span>ID Item</span>
+        <strong>${item.idItem || item.idItemDiario || "-"}</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Criado em</span>
+        <strong>${formatarDataHoraMedicao_(item.criadoEm)}</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Status Sync</span>
+        <strong>${status}</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Versão</span>
+        <strong>1.0</strong>
+      </div>
+    </div>
+  `;
+}
+
 async function carregarObrasMobile_() {
   const select = document.getElementById("obraAtiva");
 
