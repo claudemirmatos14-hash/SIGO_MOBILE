@@ -2590,6 +2590,41 @@ async function carregarAtividadesItemDiarioOffline_() {
   });
 }
 
+async function detalharItemDiarioOffline_(idItem) {
+  try {
+    const itens =
+      await listarRegistrosSIGO("TB_DIARIO_ITENS");
+
+    const item =
+      itens.find(reg =>
+        String(reg.idItem || reg.idItemDiario || "") === String(idItem)
+      );
+
+    if (!item) {
+      SIGOUI.feedback.warning(
+        "Item não encontrado",
+        "O registro não foi localizado no banco offline."
+      );
+      return;
+    }
+
+    SIGOUI.showDrawer({
+      titulo: "📋 Item do Diário",
+      subtitulo: `${item.eap || item.atividade || "-"} • ${item.servico || "Serviço não informado"}`,
+      conteudo: montarDetalhesItemDiario_(item),
+      textoFechar: "Fechar"
+    });
+
+  } catch (erro) {
+    console.error("Erro ao detalhar item do diário:", erro);
+
+    SIGOUI.feedback.error(
+      "Erro ao abrir detalhes",
+      "Não foi possível carregar os detalhes do item."
+    );
+  }
+}
+
 async function carregarObrasMobile_() {
   const select = document.getElementById("obraAtiva");
 
