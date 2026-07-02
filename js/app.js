@@ -956,6 +956,69 @@ function atualizarModoEdicaoDiario_() {
 
 }
 
+async function atualizarDiarioOffline_() {
+  try {
+    if (!idDiarioEdicao) {
+      throw new Error("Nenhum diário em edição.");
+    }
+
+    const diarios = await listarRegistrosSIGO("TB_DIARIOS");
+
+    const diarioAtual = diarios.find(item =>
+      String(item.idDiario) === String(idDiarioEdicao)
+    );
+
+    if (!diarioAtual) {
+      throw new Error("Diário não encontrado.");
+    }
+
+    const diarioAtualizado = {
+      ...diarioAtual,
+
+      data: document.getElementById("diarioData").value,
+      responsavel: document.getElementById("diarioResponsavel").value,
+      equipe: document.getElementById("diarioEquipe").value,
+      horasDia: Number(document.getElementById("diarioHoras").value || 0),
+      clima: document.getElementById("diarioClima").value,
+      ocorrencias: document.getElementById("diarioOcorrencias").value,
+      observacoes: document.getElementById("diarioObservacoes").value,
+
+      atualizadoEm: new Date().toISOString(),
+      statusSync: "PENDENTE"
+    };
+
+    await salvarRegistroSIGO(
+      "TB_DIARIOS",
+      diarioAtualizado
+    );
+
+    // TODO UX.07.14
+    // Registrar UPDATE na TB_SYNC_QUEUE
+
+    idDiarioEdicao = null;
+    atualizarModoEdicaoDiario_();
+
+    if (typeof limparFormularioDiario === "function") {
+      limparFormularioDiario();
+    }
+
+    await carregarListaDiariosOffline();
+
+    SIGOUI.feedback.success(
+      "Diário atualizado",
+      "Registro atualizado com sucesso."
+    );
+
+  } catch (erro) {
+    console.error("Erro ao atualizar diário:", erro);
+
+    SIGOUI.feedback.error(
+      "Erro ao atualizar",
+      erro.message || "Não foi possível atualizar o diário."
+    );
+  }
+}
+
 async function sincronizarSIGO() {
 
   try {
