@@ -199,67 +199,48 @@ function createHeader() {
 }
 
 function createHeroCard(config = {}) {
+  const obraAtiva =
+    config.obraAtiva ||
+    localStorage.getItem("obraAtiva") ||
+    "";
 
   return `
 
     <section class="sigo-card sigo-card--hero">
 
       <div class="section-title">
-
         <span>🏗</span>
-
         <h2>${config.titulo || "OBRA ATIVA"}</h2>
-
       </div>
 
       <select id="obraAtiva">
-
-        <option>
-
-          ${config.select || "Carregando obras..."}
-
+        <option value="${obraAtiva}">
+          ${obraAtiva || config.select || "Carregando obras..."}
         </option>
-
       </select>
 
       <div class="obra-content">
-
         <div>
-
           <h3 id="nomeObra">
-
-            ${config.nome || "Selecione uma obra"}
-
+            ${config.nome || obraAtiva || "Selecione uma obra"}
           </h3>
 
           <div class="obra-meta">
-
             <small id="contadorObrasOffline">
-
               ${config.offline || "0 de 0 obras offline"}
-
             </small>
 
             <small id="contadorAtividadesOffline">
-
               ${config.atividades || "0 atividades"}
-
             </small>
 
             <small>
-
               ${config.execucao || "0 em execução"}
-
             </small>
-
           </div>
-
         </div>
 
-        <div class="obra-image-placeholder">
-
-        </div>
-
+        <div class="obra-image-placeholder"></div>
       </div>
 
     </section>
@@ -627,6 +608,11 @@ function createSelect(config = {}) {
 }
 
 function createCrudScreen(config = {}) {
+  const obraAtiva =
+    typeof obterObraAtivaMobile_ === "function"
+      ? obterObraAtivaMobile_()
+      : localStorage.getItem("obraAtiva") || "";
+
   return createScreen({
     header: config.header !== false,
 
@@ -635,7 +621,8 @@ function createCrudScreen(config = {}) {
       nome: config.nome || "",
       offline: config.subtitulo || "",
       atividades: config.info || "",
-      execucao: config.status || ""
+      execucao: config.status || "",
+      obraAtiva: config.obraAtiva || obraAtiva
     }),
 
     actions: config.actions || [],
