@@ -3253,6 +3253,80 @@ async function salvarMedicaoPremium() {
   });
 }
 
+async function atualizarMedicaoOffline_() {
+  try {
+    if (!idMedicaoEdicao) {
+      throw new Error("Nenhuma medição selecionada para edição.");
+    }
+
+    const medicoes =
+      await listarRegistrosSIGO("TB_MEDICOES");
+
+    const medicaoOriginal =
+      medicoes.find(item =>
+        String(item.idMedicao) === String(idMedicaoEdicao)
+      );
+
+    if (!medicaoOriginal) {
+      throw new Error("Medição original não encontrada.");
+    }
+
+    const medicaoAtualizada = {
+      ...medicaoOriginal,
+
+      data: document.getElementById("medicaoData").value,
+      idObra: document.getElementById("medicaoObra").value,
+      atividade: document.getElementById("medicaoAtividade").value,
+      eap: document.getElementById("medicaoEAP").value,
+      servico: document.getElementById("medicaoServico").value,
+      qtdePlanejada: Number(document.getElementById("medicaoQtdePlanejada").value || 0),
+      qtdeExecutada: Number(document.getElementById("medicaoQtdeExecutada").value || 0),
+      un: document.getElementById("medicaoUnidade").value,
+      percentualExecutado: Number(document.getElementById("medicaoPercentual").value || 0),
+      observacao: document.getElementById("medicaoObservacao").value,
+
+      atualizadoEm: new Date().toISOString(),
+
+      statusSync: "PENDENTE"
+    };
+
+    await validarSaldoOfflineMedicao_(medicaoAtualizada);
+
+    await salvarRegistroSIGO(
+      "TB_MEDICOES",
+      medicaoAtualizada
+    );
+
+    await enfileirarSyncSIGO({
+      tipoOperacao: "UPDATE",
+      storeOrigem: "TB_MEDICOES",
+      idRegistro: medicaoAtualizada.idMedicao,
+      idObra: medicaoAtualizada.idObra
+    });
+
+    idMedicaoEdicao = null;
+
+    atualizarModoEdicaoMedicao_();
+
+    await listarMedicoesOffline_();
+    await atualizarIndicadoresMobile_();
+
+    novaMedicaoPremium();
+
+    SIGOUI.feedback.success(
+      "Medição atualizada",
+      "Registro atualizado offline com sucesso."
+    );
+
+  } catch (erro) {
+    console.error("Erro ao atualizar medição:", erro);
+
+    SIGOUI.feedback.error(
+      "Erro ao atualizar",
+      erro.message || "Não foi possível atualizar a medição offline."
+    );
+  }
+}
 
 async function listarMedicoesOffline_() {
   const container =
