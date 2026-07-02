@@ -2974,6 +2974,75 @@ async function atualizarItemDiarioOffline_() {
 
 }
 
+async function excluirItemDiarioOffline_(idItem) {
+  try {
+    if (!idItem) {
+      throw new Error("ID do item não informado.");
+    }
+
+    const itens =
+      await listarRegistrosSIGO("TB_DIARIO_ITENS");
+
+    const item =
+      itens.find(reg =>
+        String(reg.idItem || reg.idItemDiario) === String(idItem)
+      );
+
+    if (!item) {
+      SIGOUI.feedback.warning(
+        "Item não encontrado",
+        "O registro não foi localizado no banco offline."
+      );
+      return;
+    }
+
+    const confirmou = await SIGOUI.feedback.confirm({
+      tipo: "danger",
+      icone: "🗑️",
+      titulo: "Excluir item",
+      mensagem:
+        "Este item do diário será removido deste dispositivo.\n\n" +
+        "Deseja realmente continuar?",
+      textoConfirmar: "Excluir",
+      textoCancelar: "Cancelar"
+    });
+
+    if (!confirmou) return;
+
+    await removerRegistroSIGO_(
+      "TB_DIARIO_ITENS",
+      idItem
+    );
+
+    // TODO UX.07.14
+    // Registrar DELETE na TB_SYNC_QUEUE
+
+    if (String(idItemDiarioEdicao) === String(idItem)) {
+      idItemDiarioEdicao = null;
+      atualizarModoEdicaoItemDiario_();
+
+      if (typeof limparFormularioItemDiario === "function") {
+        limparFormularioItemDiario();
+      }
+    }
+
+    await listarItensDiarioOffline_();
+
+    SIGOUI.feedback.success(
+      "Item excluído",
+      "Registro removido com sucesso."
+    );
+
+  } catch (erro) {
+    console.error("Erro ao excluir item:", erro);
+
+    SIGOUI.feedback.error(
+      "Erro ao excluir",
+      erro.message || "Não foi possível excluir o item."
+    );
+  }
+}
+
 async function carregarObrasMobile_() {
   const select = document.getElementById("obraAtiva");
 
