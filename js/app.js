@@ -533,42 +533,146 @@ async function atualizarPainelSaudeSync_() {
 }
 
 async function carregarListaDiariosOffline() {
-
   const areaLista =
     document.getElementById("listaDiariosOffline");
 
   if (!areaLista) return;
 
   try {
+    const obraAtiva = obterObraAtivaMobile_();
 
     const diarios =
       await listarRegistrosSIGO("TB_DIARIOS");
 
-    if (!diarios || diarios.length === 0) {
-      areaLista.innerHTML =
-        "<p class='lista-vazia'>Nenhum diário salvo offline.</p>";
+    const diariosObra =
+      diarios
+        .filter(diario =>
+          String(diario.idObra) === String(obraAtiva)
+        )
+        .sort((a, b) =>
+          new Date(b.criadoEm) - new Date(a.criadoEm)
+        );
+
+    if (!diariosObra.length) {
+      areaLista.innerHTML = `
+        <div class="card-vazio">
+          Nenhum diário salvo offline.
+        </div>
+      `;
       return;
     }
 
-    areaLista.innerHTML = diarios
-      .sort((a, b) => String(b.criadoEm).localeCompare(String(a.criadoEm)))
-      .map(diario => `
-        <div class="diario-item">
-          <strong>${diario.idObra}</strong>
-          <span>${diario.data}</span>
-          <p>${diario.responsavel || "Sem responsável"}</p>
-          <small>${diario.statusSync}</small>
-        </div>
-      `)
-      .join("");
+    areaLista.innerHTML =
+      diariosObra
+        .map(diario => criarCardDiarioOffline_(diario))
+        .join("");
 
   } catch (erro) {
-
     console.error("Erro ao carregar diários offline:", erro);
 
-    areaLista.innerHTML =
-      "<p class='lista-vazia'>Erro ao carregar diários.</p>";
+    areaLista.innerHTML = `
+      <div class="card-vazio">
+        Erro ao carregar diários.
+      </div>
+    `;
   }
+}
+
+function criarCardDiarioOffline_(diario) {
+  const status = diario.statusSync || "PENDENTE";
+
+  const badge =
+    status === "SINCRONIZADO"
+      ? "🟢 SINCRONIZADO"
+      : status === "ERRO"
+        ? "🔴 ERRO"
+        : "🟡 PENDENTE";
+
+  const classeStatus =
+    status === "SINCRONIZADO"
+      ? "success"
+      : status === "ERRO"
+        ? "danger"
+        : "warning";
+
+  const bloqueado =
+    status !== "PENDENTE";
+
+  return `
+    <article class="diario-card">
+
+      <div class="diario-card__header">
+        <div>
+          <strong>📘 ${formatarDataMedicao_(diario.data)}</strong>
+          <span>${diario.idObra || "-"}</span>
+        </div>
+
+        <span class="badge-sync badge-${classeStatus}">
+          ${badge}
+        </span>
+      </div>
+
+      <div class="diario-card__grid">
+
+        <div>
+          <small>Responsável</small>
+          <strong>${diario.responsavel || "Sem responsável"}</strong>
+        </div>
+
+        <div>
+          <small>Equipe</small>
+          <strong>${diario.equipe || "Não informada"}</strong>
+        </div>
+
+        <div>
+          <small>Clima</small>
+          <strong>${diario.clima || "-"}</strong>
+        </div>
+
+        <div>
+          <small>Horas</small>
+          <strong>${formatarNumeroMedicao_(diario.horasDia || diario.horas || 0)} h</strong>
+        </div>
+
+      </div>
+
+      ${
+        diario.observacoes
+          ? `
+            <div class="diario-card__obs">
+              <small>Observações</small>
+              <p>${diario.observacoes}</p>
+            </div>
+          `
+          : ""
+      }
+
+      <div class="diario-card__actions">
+
+        <button
+          type="button"
+          ${bloqueado ? "disabled" : ""}
+          onclick="editarDiarioOffline_('${diario.idDiario}')">
+          ✏ Editar
+        </button>
+
+        <button
+          type="button"
+          ${bloqueado ? "disabled" : ""}
+          onclick="excluirDiarioOffline_('${diario.idDiario}')">
+          🗑 Excluir
+        </button>
+
+        <button
+          type="button"
+          onclick="detalharDiarioOffline_('${diario.idDiario}')">
+          👁 Detalhes
+        </button>
+
+      </div>
+
+    </article>
+  `;
 }
 
 async function sincronizarSIGO() {
