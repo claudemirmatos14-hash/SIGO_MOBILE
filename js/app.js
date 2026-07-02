@@ -2628,11 +2628,11 @@ async function salvarOcorrenciaPremium() {
       ocorrencia
     );
 
-    await registrarSyncQueueSIGO_({
-      tabela: "TB_OCORRENCIAS",
+   await adicionarNaFilaSyncSIGO({
+      tipo: "INSERT",
+      storeOrigem: "TB_OCORRENCIAS",
       idRegistro: ocorrencia.idOcorrencia,
-      idObra: ocorrencia.idObra,
-      tipoOperacao: "INSERT"
+      idObra: ocorrencia.idObra
     });
 
     // TODO UX.07.14.SYNC
@@ -3195,11 +3195,11 @@ async function atualizarOcorrenciaOffline_() {
       ocorrenciaAtualizada
     );
 
-    await registrarSyncQueueSIGO_({
-      tabela: "TB_OCORRENCIAS",
+   await adicionarNaFilaSyncSIGO({
+      tipo: "UPDATE",
+      storeOrigem: "TB_OCORRENCIAS",
       idRegistro: ocorrenciaAtualizada.idOcorrencia,
-      idObra: ocorrenciaAtualizada.idObra,
-      tipoOperacao: "UPDATE"
+      idObra: ocorrenciaAtualizada.idObra
     });
 
     // TODO UX.07.14.SYNC
@@ -3280,6 +3280,13 @@ async function excluirOcorrenciaOffline_(idOcorrencia) {
       idOcorrencia
     );
 
+    await adicionarNaFilaSyncSIGO({
+      tipo: "DELETE",
+      storeOrigem: "TB_OCORRENCIAS",
+      idRegistro: idOcorrencia,
+      idObra: ocorrencia.idObra
+    });
+
     // TODO UX.07.14.SYNC
     // Registrar DELETE na TB_SYNC_QUEUE
 
@@ -3329,7 +3336,7 @@ async function excluirOcorrenciaOffline_(idOcorrencia) {
 
 }
 
-async function registrarSyncQueueSIGO_(config = {}) {
+/*async function registrarSyncQueueSIGO_(config = {}) {
   const registro = {
     idSync: "SYNC-" + Date.now() + "-" + Math.floor(Math.random() * 1000),
     idObra: config.idObra || obterObraAtivaMobile_(),
@@ -3344,7 +3351,7 @@ async function registrarSyncQueueSIGO_(config = {}) {
   };
 
   await salvarRegistroSIGO("TB_SYNC_QUEUE", registro);
-}
+}*/
 
 async function preencherDadosAtividadeItemDiario() {
   const select = document.getElementById("itemDiarioAtividade");
