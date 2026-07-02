@@ -106,6 +106,13 @@ function navegarPara(tela) {
 
   if (app && telasPremium[tela]) {
     SIGOUI.render(".app-premium", telasPremium[tela].montar());
+
+     if (tela === "medicoes") {
+  
+      SIGOUI.render(
+        ".app-premium",
+        montarTelaMedicoes()
+      );
   
     setTimeout(async () => {
       if (typeof carregarObrasMobile_ === "function") {
@@ -123,16 +130,8 @@ function navegarPara(tela) {
     return;
   }
 
-  if (!area) return;
 
-  area.innerHTML = montarTela(tela);
-
-   if (tela === "medicoes") {
   
-    SIGOUI.render(
-      ".app-premium",
-      montarTelaMedicoes()
-    );
   
     setTimeout(async () => {
   
