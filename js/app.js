@@ -12,6 +12,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 let idDiarioEdicao = null;
 let idItemDiarioEdicao = null;
 let idMedicaoEdicao = null;
+let idOcorrenciaEdicao = null;
 
 function iniciarSeletorObra() {
   const seletor =
@@ -3029,6 +3030,188 @@ function montarDetalhesOcorrencia_(ocorrencia) {
 
   `;
 
+}
+
+async function editarOcorrenciaOffline_(idOcorrencia) {
+  try {
+    const ocorrencias =
+      await listarRegistrosSIGO("TB_OCORRENCIAS");
+
+    const ocorrencia =
+      ocorrencias.find(item =>
+        String(item.idOcorrencia) === String(idOcorrencia)
+      );
+
+    if (!ocorrencia) {
+      SIGOUI.feedback.warning(
+        "Ocorrência não encontrada",
+        "O registro não foi localizado."
+      );
+      return;
+    }
+
+    idOcorrenciaEdicao = idOcorrencia;
+
+    document.getElementById("ocorrenciaData").value =
+      ocorrencia.data || "";
+
+    document.getElementById("ocorrenciaObra").value =
+      ocorrencia.idObra || obterObraAtivaMobile_();
+
+    document.getElementById("ocorrenciaTipo").value =
+      ocorrencia.tipo || "";
+
+    document.getElementById("ocorrenciaPrioridade").value =
+      ocorrencia.prioridade || "";
+
+    document.getElementById("ocorrenciaResponsavel").value =
+      ocorrencia.responsavel || "";
+
+    document.getElementById("ocorrenciaLocal").value =
+      ocorrencia.local || "";
+
+    document.getElementById("ocorrenciaStatus").value =
+      ocorrencia.status || "ABERTA";
+
+    document.getElementById("ocorrenciaDescricao").value =
+      ocorrencia.descricao || "";
+
+    document.getElementById("ocorrenciaObservacoes").value =
+      ocorrencia.observacoes || "";
+
+    atualizarModoEdicaoOcorrencia_();
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+
+    SIGOUI.feedback.info(
+      "Modo edição",
+      "A ocorrência foi carregada para edição."
+    );
+
+  } catch (erro) {
+    console.error("Erro ao editar ocorrência:", erro);
+
+    SIGOUI.feedback.error(
+      "Erro",
+      "Não foi possível carregar a ocorrência."
+    );
+  }
+}
+
+function atualizarModoEdicaoOcorrencia_() {
+  const botao =
+    document.querySelector(".is-success");
+
+  if (!botao) return;
+
+  if (idOcorrenciaEdicao) {
+    botao.innerHTML = "💾 Atualizar";
+
+    botao.setAttribute(
+      "onclick",
+      "atualizarOcorrenciaOffline_()"
+    );
+
+  } else {
+    botao.innerHTML = "💾 Salvar";
+
+    botao.setAttribute(
+      "onclick",
+      "salvarOcorrenciaPremium()"
+    );
+  }
+}
+
+async function atualizarOcorrenciaOffline_() {
+  try {
+    if (!idOcorrenciaEdicao) {
+      throw new Error("Nenhuma ocorrência em edição.");
+    }
+
+    const ocorrencias =
+      await listarRegistrosSIGO("TB_OCORRENCIAS");
+
+    const ocorrenciaAtual =
+      ocorrencias.find(item =>
+        String(item.idOcorrencia) === String(idOcorrenciaEdicao)
+      );
+
+    if (!ocorrenciaAtual) {
+      throw new Error("Ocorrência não encontrada.");
+    }
+
+    const ocorrenciaAtualizada = {
+      ...ocorrenciaAtual,
+
+      data:
+        document.getElementById("ocorrenciaData").value,
+
+      idObra:
+        document.getElementById("ocorrenciaObra").value ||
+        obterObraAtivaMobile_(),
+
+      tipo:
+        document.getElementById("ocorrenciaTipo").value,
+
+      prioridade:
+        document.getElementById("ocorrenciaPrioridade").value,
+
+      responsavel:
+        document.getElementById("ocorrenciaResponsavel").value,
+
+      local:
+        document.getElementById("ocorrenciaLocal").value,
+
+      status:
+        document.getElementById("ocorrenciaStatus").value || "ABERTA",
+
+      descricao:
+        document.getElementById("ocorrenciaDescricao").value,
+
+      observacoes:
+        document.getElementById("ocorrenciaObservacoes").value,
+
+      atualizadoEm:
+        new Date().toISOString(),
+
+      statusSync:
+        "PENDENTE"
+    };
+
+    validarOcorrenciaOffline_(ocorrenciaAtualizada);
+
+    await salvarRegistroSIGO(
+      "TB_OCORRENCIAS",
+      ocorrenciaAtualizada
+    );
+
+    // TODO UX.07.14.SYNC
+    // Registrar UPDATE na TB_SYNC_QUEUE
+
+    idOcorrenciaEdicao = null;
+
+    atualizarModoEdicaoOcorrencia_();
+
+    limparFormularioOcorrencia();
+
+    await listarOcorrenciasOffline_();
+
+    SIGOUI.feedback.success(
+      "Ocorrência atualizada",
+      "Registro atualizado com sucesso."
+    );
+
+  } catch (erro) {
+    console.error("Erro ao atualizar ocorrência:", erro);
+
+    SIGOUI.feedback.error(
+      "Erro ao atualizar",
+      erro.message || "Não foi possível atualizar a ocorrência."
+    );
+  }
 }
 
 async function preencherDadosAtividadeItemDiario() {
