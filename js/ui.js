@@ -462,7 +462,7 @@ function montarTelaItensDiario() {
         label: "Atividade",
         options: [
           { value: "", label: "Carregando atividades..." }
-        ]
+        ],
         onchange: "preencherDadosAtividadeItemDiario()"
       })}
 
