@@ -3214,6 +3214,109 @@ async function atualizarOcorrenciaOffline_() {
   }
 }
 
+async function excluirOcorrenciaOffline_(idOcorrencia) {
+
+  try {
+
+    if (!idOcorrencia) {
+      throw new Error("ID da ocorrência não informado.");
+    }
+
+    const ocorrencias =
+      await listarRegistrosSIGO("TB_OCORRENCIAS");
+
+    const ocorrencia =
+      ocorrencias.find(item =>
+        String(item.idOcorrencia) === String(idOcorrencia)
+      );
+
+    if (!ocorrencia) {
+
+      SIGOUI.feedback.warning(
+        "Ocorrência não encontrada",
+        "O registro não foi localizado."
+      );
+
+      return;
+    }
+
+    const confirmou =
+      await SIGOUI.feedback.confirm({
+
+        tipo: "danger",
+
+        icone: "🗑️",
+
+        titulo: "Excluir ocorrência",
+
+        mensagem:
+          "Esta ocorrência será removida deste dispositivo.\n\n" +
+          "Deseja realmente continuar?",
+
+        textoConfirmar: "Excluir",
+
+        textoCancelar: "Cancelar"
+
+      });
+
+    if (!confirmou) return;
+
+    await removerRegistroSIGO_(
+      "TB_OCORRENCIAS",
+      idOcorrencia
+    );
+
+    // TODO UX.07.14.SYNC
+    // Registrar DELETE na TB_SYNC_QUEUE
+
+    if (
+      String(idOcorrenciaEdicao) ===
+      String(idOcorrencia)
+    ) {
+
+      idOcorrenciaEdicao = null;
+
+      atualizarModoEdicaoOcorrencia_();
+
+      if (
+        typeof limparFormularioOcorrencia ===
+        "function"
+      ) {
+
+        limparFormularioOcorrencia();
+
+      }
+
+    }
+
+    await listarOcorrenciasOffline_();
+
+    SIGOUI.feedback.success(
+      "Ocorrência excluída",
+      "Registro removido com sucesso."
+    );
+
+  }
+
+  catch (erro) {
+
+    console.error(
+      "Erro ao excluir ocorrência:",
+      erro
+    );
+
+    SIGOUI.feedback.error(
+      "Erro ao excluir",
+      erro.message ||
+      "Não foi possível excluir a ocorrência."
+    );
+
+  }
+
+}
+
+
+
 async function preencherDadosAtividadeItemDiario() {
   const select = document.getElementById("itemDiarioAtividade");
   const idAtividade = select.value;
