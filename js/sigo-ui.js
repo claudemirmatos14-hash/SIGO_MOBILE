@@ -613,6 +613,9 @@ function createCrudScreen(config = {}) {
       ? obterObraAtivaMobile_()
       : localStorage.getItem("obraAtiva") || "";
 
+  const secoesExtras =
+    config.extraSections || [];
+
   return createScreen({
     header: config.header !== false,
 
@@ -628,6 +631,8 @@ function createCrudScreen(config = {}) {
     actions: config.actions || [],
 
     sections: [
+      ...secoesExtras,
+
       createSection(
         config.formTitle || "Formulário",
         config.formSubtitle || "Preencha os dados",
