@@ -6678,37 +6678,47 @@ async function listarMedicoesOffline_() {
     const obraAtiva =
       obterObraAtivaMobile_();
 
+    const loteAberto =
+      await obterLoteMedicaoAberto_();
+
+    if (!loteAberto) {
+      container.innerHTML = `
+        <div class="card-vazio">
+          Nenhuma medição aberta.
+        </div>
+      `;
+      return;
+    }
+
     const medicoes =
       await listarRegistrosSIGO("TB_MEDICOES");
 
-    const medicoesObra =
+    const medicoesDoLote =
       medicoes
         .filter(item =>
-          String(item.idObra) === String(obraAtiva)
+          String(item.idObra) === String(obraAtiva) &&
+          String(item.idLoteMedicao) === String(loteAberto.idLoteMedicao)
         )
         .sort((a, b) =>
           new Date(b.criadoEm) - new Date(a.criadoEm)
         );
 
-    if (!medicoesObra.length) {
+    if (!medicoesDoLote.length) {
       container.innerHTML = `
         <div class="card-vazio">
-          Nenhuma medição salva.
+          Nenhum item registrado na ${loteAberto.numeroMedicao}.
         </div>
       `;
       return;
     }
 
     container.innerHTML =
-      medicoesObra
+      medicoesDoLote
         .map(medicao => criarCardMedicaoOffline_(medicao))
         .join("");
 
   } catch (erro) {
-    console.error(
-      "Erro ao listar medições:",
-      erro
-    );
+    console.error("Erro ao listar medições:", erro);
 
     container.innerHTML = `
       <div class="card-vazio">
