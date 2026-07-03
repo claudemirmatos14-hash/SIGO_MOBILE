@@ -6511,6 +6511,13 @@ async function preencherDadosAtividadeMedicaoOficial() {
   document.getElementById("medicaoEAP").value = atividadeBase.eap || "";
   document.getElementById("medicaoServico").value = atividadeBase.servico || "";
   document.getElementById("medicaoUnidade").value = atividadeBase.unidade || "";
+  const campoEAP =
+    document.getElementById("medicaoEAP");
+  
+  if (campoEAP) {
+    campoEAP.value =
+      atividadeBase.eap || "";
+  }
   document.getElementById("medicaoQtdePlanejada").value = qtdePlanejada;
   document.getElementById("medicaoJaMedido").value = totalJaMedido;
   document.getElementById("medicaoSaldoDisponivel").value = saldoDisponivel;
