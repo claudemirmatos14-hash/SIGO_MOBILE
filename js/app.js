@@ -2031,6 +2031,167 @@ function limparFormularioEvidencia() {
   }
 }
 
+async function listarEvidenciasOffline_() {
+
+  const container =
+    document.getElementById("listaEvidenciasOffline");
+
+  if (!container) return;
+
+  try {
+
+    const obraAtiva =
+      obterObraAtivaMobile_();
+
+    const evidencias =
+      await listarRegistrosSIGO("TB_EVIDENCIAS");
+
+    const evidenciasObra =
+      evidencias
+        .filter(item =>
+          String(item.idObra) === String(obraAtiva)
+        )
+        .sort((a, b) =>
+          new Date(b.criadoEm) -
+          new Date(a.criadoEm)
+        );
+
+    if (!evidenciasObra.length) {
+
+      container.innerHTML = `
+        <div class="card-vazio">
+          Nenhuma evidência registrada.
+        </div>
+      `;
+
+      return;
+
+    }
+
+    container.innerHTML =
+      evidenciasObra
+        .map(evidencia =>
+          criarCardEvidenciaOffline_(evidencia)
+        )
+        .join("");
+
+  } catch (erro) {
+
+    console.error(
+      "Erro ao listar evidências:",
+      erro
+    );
+
+    container.innerHTML = `
+      <div class="card-vazio">
+        Erro ao carregar evidências.
+      </div>
+    `;
+
+  }
+
+}
+
+function criarCardEvidenciaOffline_(evidencia) {
+
+  const status =
+    evidencia.statusSync || "PENDENTE";
+
+  const badge =
+    status === "SINCRONIZADO"
+      ? "🟢 SINCRONIZADO"
+      : status === "ERRO"
+        ? "🔴 ERRO"
+        : "🟡 PENDENTE";
+
+  const classeStatus =
+    status === "SINCRONIZADO"
+      ? "success"
+      : status === "ERRO"
+        ? "danger"
+        : "warning";
+
+  const bloqueado =
+    status !== "PENDENTE";
+
+  return `
+
+    <article class="evidencia-card">
+
+      <div class="evidencia-card__header">
+
+        <div class="evidencia-thumb">
+
+          ${
+            evidencia.arquivoBase64
+              ? `<img src="${evidencia.arquivoBase64}" alt="Evidência">`
+              : `<span>📷</span>`
+          }
+
+        </div>
+
+        <div class="evidencia-info">
+
+          <strong>
+            ${evidencia.titulo || "Sem título"}
+          </strong>
+
+          <span>
+            ${evidencia.categoria || "-"}
+          </span>
+
+          <small>
+            ${formatarDataMedicao_(evidencia.data)}
+          </small>
+
+        </div>
+
+        <span class="badge-sync badge-${classeStatus}">
+          ${badge}
+        </span>
+
+      </div>
+
+      ${
+        evidencia.descricao
+          ? `
+          <div class="evidencia-card__descricao">
+            ${evidencia.descricao}
+          </div>
+          `
+          : ""
+      }
+
+      <div class="evidencia-card__actions">
+
+        <button
+          type="button"
+          ${bloqueado ? "disabled" : ""}
+          onclick="editarEvidenciaOffline_('${evidencia.idEvidencia}')">
+          ✏ Editar
+        </button>
+
+        <button
+          type="button"
+          ${bloqueado ? "disabled" : ""}
+          onclick="excluirEvidenciaOffline_('${evidencia.idEvidencia}')">
+          🗑 Excluir
+        </button>
+
+        <button
+          type="button"
+          onclick="detalharEvidenciaOffline_('${evidencia.idEvidencia}')">
+          👁 Detalhes
+        </button>
+
+      </div>
+
+    </article>
+
+  `;
+
+}
+
 
 
 /*async function salvarEvidenciaOffline(event) {
