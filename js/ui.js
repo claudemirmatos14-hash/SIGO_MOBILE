@@ -791,6 +791,9 @@ function montarTelaObrasOffline() {
 }
 
 function montarTelaMedicoes() {
+
+  const heroLote =
+    await criarHeroLoteMedicaoAtivo_();
   return SIGOUI.createCrudScreen({
     titulo: "📏 MEDIÇÕES",
     nome: "Registrar avanço físico",
@@ -816,8 +819,8 @@ function montarTelaMedicoes() {
 
     formTitle: "📋 Dados da Medição",
     formSubtitle: "Medição vinculada ao planejamento offline",
-    form: montarFormularioMedicao(),
-
+    form: heroLote + formMedicao,
+    
     listTitle: "📚 Histórico Offline",
     listSubtitle: "Medições registradas neste dispositivo",
     list: `
