@@ -2887,280 +2887,80 @@ async function atualizarClimaOffline_() {
     );
   }
 }
-/*function montarTelaClima_() {
-  const obraAtiva = localStorage.getItem("obraAtiva") || "OBR002";
-  const hoje = new Date().toISOString().split("T")[0];
 
-  return `
-    <div class="tela-card">
-
-      <button class="btn-voltar" onclick="voltarHome()">← Voltar</button>
-
-      <h2>🌦️ Clima</h2>
-
-      <p>Registrar condições climáticas da obra.</p>
-
-      <form class="formulario" onsubmit="salvarClimaOffline(event)">
-
-        <label>Data</label>
-        <input type="date" id="climaData" value="${hoje}">
-
-        <label>Obra</label>
-        <input type="text" id="climaObra" value="${obraAtiva}" readonly>
-
-        <label>Período</label>
-        <select id="climaPeriodo">
-          <option value="MANHÃ">Manhã</option>
-          <option value="TARDE">Tarde</option>
-          <option value="NOITE">Noite</option>
-          <option value="DIA INTEIRO">Dia inteiro</option>
-        </select>
-
-        <label>Condição climática</label>
-        <select id="climaCondicao">
-          <option value="☀️ ENSOLARADO">☀️ Ensolarado</option>
-          <option value="⛅ PARCIALMENTE NUBLADO">⛅ Parcialmente Nublado</option>
-          <option value="☁️ NUBLADO">☁️ Nublado</option>
-          <option value="🌧️ CHUVOSO">🌧️ Chuvoso</option>
-          <option value="⛈️ TEMPESTADE">⛈️ Tempestade</option>
-        </select>
-
-        <label>Intensidade</label>
-        <select id="climaIntensidade">
-          <option value="BAIXA">Baixa</option>
-          <option value="MÉDIA">Média</option>
-          <option value="ALTA">Alta</option>
-          <option value="CRÍTICA">Crítica</option>
-        </select>
-
-        <label>Impacto na execução</label>
-        <select id="climaImpacto">
-          <option value="SEM IMPACTO">Sem impacto</option>
-          <option value="REDUZIU PRODUTIVIDADE">Reduziu Produtividade</option>
-          <option value="PARALISOU ATIVIDADE">Paralisou Atividade</option>
-          <option value="PARALISOU OBRA">Paralisou Obra</option>
-        </select>
-
-        <label>Atividade afetada</label>
-        <input type="text" id="climaAtividadeAfetada" placeholder="Ex.: 3.7.1">
-
-        <label>Observação</label>
-        <textarea id="climaObservacao" rows="3" placeholder="Observações sobre o clima"></textarea>
-
-        <button type="submit" class="btn-salvar">
-          Salvar Clima Offline
-        </button>
-
-        <div class="lista-offline">
-          <h3>Climas salvos offline</h3>
-        
-          <div id="listaClimasOffline">
-            Carregando...
-          </div>
-        </div>
-
-      </form>
-
-    </div>
-  `;
-}
-
-async function salvarClimaOffline(event) {
-  event.preventDefault();
-
-  const clima = {
-    idClima: "CLI-" + Date.now(),
-    data: document.getElementById("climaData").value,
-   idObra: obterObraAtivaMobile_(),
-    periodo: document.getElementById("climaPeriodo").value,
-    condicaoClimatica: document.getElementById("climaCondicao").value,
-    intensidade: document.getElementById("climaIntensidade").value,
-    impactoExecucao: document.getElementById("climaImpacto").value,
-    atividadeAfetada: document.getElementById("climaAtividadeAfetada").value,
-    observacao: document.getElementById("climaObservacao").value,
-    statusClima: "REGISTRADO",
-    statusSync: "PENDENTE",
-    origem: "APP_OFFLINE",
-    criadoEm: new Date().toISOString()
-  };
-
+async function excluirClimaOffline_(idClima) {
   try {
-    await salvarRegistroSIGO("TB_CLIMA", clima);
+    if (!idClima) {
+      throw new Error("ID do clima não informado.");
+    }
+
+    const climas =
+      await listarRegistrosSIGO("TB_CLIMA");
+
+    const clima =
+      climas.find(item =>
+        String(item.idClima) === String(idClima)
+      );
+
+    if (!clima) {
+      SIGOUI.feedback.warning(
+        "Clima não encontrado",
+        "O registro não foi localizado."
+      );
+      return;
+    }
+
+    const confirmou = await SIGOUI.feedback.confirm({
+      tipo: "danger",
+      icone: "🗑️",
+      titulo: "Excluir clima",
+      mensagem:
+        "Este registro climático será removido deste dispositivo.\n\n" +
+        "Deseja realmente continuar?",
+      textoConfirmar: "Excluir",
+      textoCancelar: "Cancelar"
+    });
+
+    if (!confirmou) return;
+
+    await removerRegistroSIGO_(
+      "TB_CLIMA",
+      idClima
+    );
 
     await adicionarNaFilaSyncSIGO({
-      tipo: "CLIMA_OBRA",
+      tipo: "DELETE",
       storeOrigem: "TB_CLIMA",
-      idRegistro: clima.idClima,
+      idRegistro: idClima,
       idObra: clima.idObra
     });
 
-    await atualizarIndicadoresMobile_();
+    if (String(idClimaEdicao) === String(idClima)) {
+      idClimaEdicao = null;
+
+      atualizarModoEdicaoClima_();
+
+      if (typeof limparFormularioClima === "function") {
+        limparFormularioClima();
+      }
+    }
+
     await listarClimasOffline_();
 
-   SIGOUI.feedback.success(
-      "Clima salvo",
-      "Registro climático salvo offline."
+    SIGOUI.feedback.success(
+      "Clima excluído",
+      "Registro removido com sucesso."
     );
-    
-    console.log("Clima salvo no IndexedDB:", clima);
-    
-    } catch (erro) {
-      console.error("Erro ao salvar clima:", erro);
-    
-      SIGOUI.feedback.error(
-        "Erro ao salvar clima",
-        "Não foi possível salvar o registro climático offline."
-      );
-    }
+
+  } catch (erro) {
+    console.error("Erro ao excluir clima:", erro);
+
+    SIGOUI.feedback.error(
+      "Erro ao excluir",
+      erro.message || "Não foi possível excluir o clima."
+    );
+  }
 }
-
-
-
-function montarTelaOcorrencias_() {
-
-  const obraAtiva =
-    localStorage.getItem("obraAtiva") || "OBR002";
-
-  const hoje =
-    new Date().toISOString().split("T")[0];
-
-  return `
-
-    <div class="tela-card">
-
-      <button
-        class="btn-voltar"
-        onclick="voltarHome()">
-
-        ← Voltar
-
-      </button>
-
-      <h2>⚠️ Ocorrências</h2>
-
-      <p>
-        Registrar ocorrências operacionais.
-      </p>
-
-      <form
-        class="formulario"
-        onsubmit="salvarOcorrenciaOffline(event)">
-
-        <label>Data</label>
-
-        <input
-          type="date"
-          id="ocorrenciaData"
-          value="${hoje}">
-
-        <label>Obra</label>
-
-        <input
-          type="text"
-          id="ocorrenciaObra"
-          value="${obraAtiva}"
-          readonly>
-
-        <label>Tipo</label>
-
-          <select id="ocorrenciaTipo">
-          
-            <option value="🌧️ Clima">🌧️ Clima</option>
-            <option value="📦 Material">📦 Material</option>
-            <option value="👷 Mão de Obra">👷 Mão de Obra</option>
-            <option value="🔧 Equipamento">🔧 Equipamento</option>
-            <option value="📐 Projeto">📐 Projeto</option>
-            <option value="🚨 Segurança">🚨 Segurança</option>
-            <option value="📋 Qualidade">📋 Qualidade</option>
-            <option value="🔄 Retrabalho">🔄 Retrabalho</option>
-            <option value="🤝 Cliente">🤝 Cliente</option>
-            <option value="🏗️ Terceiros">🏗️ Terceiros</option>
-            <option value="⚠️ Outros">⚠️ Outros</option>
-          
-          </select>
-
-        <label>Severidade</label>
-
-        <select id="ocorrenciaSeveridade">
-
-          <option value="BAIXA">
-            🟢 Baixa
-          </option>
-
-          <option value="MÉDIA">
-            🟡 Média
-          </option>
-
-          <option value="ALTA">
-            🟠 Alta
-          </option>
-
-          <option value="CRITICA">
-            🔴 Crítica
-          </option>
-
-        </select>
-
-        <label>Atividade afetada</label>
-
-        <select id="ocorrenciaAtividade">
-          <option value="">Selecione uma atividade</option>
-        
-          <option value="3.7.1">
-            3.7.1 - REATERRO MANUAL DE VALA
-          </option>
-        
-          <option value="2.1">
-            2.1 - LOCAÇÃO E GABARITO
-          </option>
-        
-          <option value="3.1.2">
-            3.1.2 - ESCAVAÇÃO MANUAL
-          </option>
-        </select>
-        <label>Responsável</label>
-
-        <input
-          type="text"
-          id="ocorrenciaResponsavel"
-          placeholder="Responsável">
-
-        <label>Descrição</label>
-
-        <textarea
-          id="ocorrenciaDescricao"
-          rows="4"
-          placeholder="Descreva a ocorrência">
-        </textarea>
-
-        <button
-          type="submit"
-          class="btn-salvar">
-
-          Salvar Ocorrência Offline
-
-        </button>
-
-        <div class="lista-offline">
-
-          <h3>
-            Ocorrências salvas offline
-          </h3>
-        
-          <div id="listaOcorrenciasOffline">
-        
-            Carregando...
-        
-          </div>
-        
-        </div>
-
-      </form>
-
-    </div>
-
-  `;
-}*/
 
 function montarTelaOcorrencias() {
   const formOcorrencia = `
