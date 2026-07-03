@@ -14,6 +14,7 @@ let idItemDiarioEdicao = null;
 let idMedicaoEdicao = null;
 let idOcorrenciaEdicao = null;
 let idClimaEdicao = null;
+let idEvidenciaEdicao = null;
 
 function iniciarSeletorObra() {
   const seletor =
