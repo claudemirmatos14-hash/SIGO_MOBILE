@@ -1435,73 +1435,85 @@ async function sincronizarDadosBaseObraMobile() {
   }
 }
 
-/*function montarTelaMedicoes() {
+function montarFormularioMedicao_() {
+  const obraAtiva =
+    obterObraAtivaMobile_();
 
-  const obraAtiva = localStorage.getItem("obraAtiva") || "OBR002";
-  const hoje = new Date().toISOString().split("T")[0];
+  const hoje =
+    new Date().toISOString().split("T")[0];
 
   return `
-    <div class="tela-card">
+    <div class="sigo-form">
 
-      <button class="btn-voltar" onclick="voltarHome()">← Voltar</button>
+      ${SIGOUI.createDate({
+        id: "medicaoData",
+        label: "Data",
+        value: hoje
+      })}
 
-      <h2>📏 Medições</h2>
+      ${SIGOUI.createInput({
+        id: "medicaoObra",
+        label: "Obra",
+        value: obraAtiva,
+        readonly: true
+      })}
 
-      <p>Registrar avanço físico executado em campo.</p>
+      ${SIGOUI.createSelect({
+        id: "medicaoAtividade",
+        label: "Atividade",
+        options: [
+          { value: "", label: "Selecione uma atividade" }
+        ],
+        onchange: "preencherDadosAtividadeMedicao()"
+      })}
 
-      <form class="formulario" onsubmit="salvarMedicaoOffline(event)">
+      ${SIGOUI.createInput({
+        id: "medicaoServico",
+        label: "Serviço",
+        readonly: true
+      })}
 
-        <label>Data</label>
-        <input type="date" id="medicaoData" value="${hoje}">
+      ${SIGOUI.createNumber({
+        id: "medicaoQtdePlanejada",
+        label: "Quantidade planejada",
+        readonly: true
+      })}
 
-        <label>Obra</label>
-        <input type="text" id="medicaoObra" value="${obraAtiva}" readonly>
+      ${SIGOUI.createNumber({
+        id: "medicaoQtdeExecutada",
+        label: "Quantidade executada",
+        step: "0.01",
+        oninput: "calcularPercentualMedicao()"
+      })}
 
-        <label>Atividade</label>
-        <select id="medicaoAtividade" onchange="preencherDadosAtividadeMedicao()">
-          <option value="">Selecione uma atividade</option>
-        </select>
+      ${SIGOUI.createInput({
+        id: "medicaoUnidade",
+        label: "Unidade",
+        readonly: true
+      })}
 
-        <label>Serviço</label>
-        <input type="text" id="medicaoServico" readonly>
+      ${SIGOUI.createNumber({
+        id: "medicaoPercentual",
+        label: "% Executado",
+        readonly: true
+      })}
 
-        <label>Quantidade planejada</label>
-        <input type="number" id="medicaoQtdePlanejada" readonly>
+      ${SIGOUI.createInput({
+        id: "medicaoResponsavel",
+        label: "Responsável",
+        placeholder: "Nome do responsável"
+      })}
 
-        <label>Quantidade executada</label>
-        <input type="number" id="medicaoQtdeExecutada" step="0.01" oninput="calcularPercentualMedicao()">
-
-        <label>Unidade</label>
-        <input type="text" id="medicaoUnidade" readonly>
-
-        <label>% Executado</label>
-        <input type="number" id="medicaoPercentual" readonly>
-
-        <label>Responsável</label>
-        <input type="text" id="medicaoResponsavel" placeholder="Nome do responsável">
-
-        <label>Observação</label>
-        <textarea id="medicaoObservacao" rows="3" placeholder="Observações da medição"></textarea>
-
-        <button type="submit" class="btn-salvar">
-          Salvar Medição Offline
-        </button>
-
-        <div class="lista-offline">
-
-          <h3>Medições salvas offline</h3>
-        
-          <div id="listaMedicoesOffline">
-            Carregando...
-          </div>
-        
-        </div>
-
-      </form>
+      ${SIGOUI.createTextarea({
+        id: "medicaoObservacao",
+        label: "Observação",
+        rows: 3,
+        placeholder: "Observações da medição"
+      })}
 
     </div>
   `;
-}*/
+}
 
 async function preencherDadosAtividadeMedicao() {
   const select = document.getElementById("medicaoAtividade");
