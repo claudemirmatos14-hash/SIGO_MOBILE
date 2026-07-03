@@ -116,6 +116,19 @@ function navegarPara(tela) {
       }
     },
 
+    medicoes: {
+      montar: montarTelaMedicoes,
+      depois: async function () {
+        if (typeof carregarAtividadesMedicaoOffline_ === "function") {
+          await carregarAtividadesMedicaoOffline_();
+        }
+    
+        if (typeof listarMedicoesOffline_ === "function") {
+          await listarMedicoesOffline_();
+        }
+      }
+    },
+
     ocorrencias: {
       montar: montarTelaOcorrencias,
       depois: async function () {
@@ -162,27 +175,7 @@ function navegarPara(tela) {
 
     return;
   }
-
-  if (tela === "medicoes") {
-    SIGOUI.render(".app-premium", montarTelaMedicoes());
-
-    setTimeout(async () => {
-      if (typeof carregarObrasMobile_ === "function") {
-        await carregarObrasMobile_();
-      }
-
-      await carregarAtividadesMedicaoOffline_();
-      await listarMedicoesOffline_();
-    }, 100);
-
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth"
-    });
-
-    return;
-  }
-
+  
   if (!area) return;
 
   if (tela === "evidencias") {
