@@ -447,28 +447,20 @@ async function atualizarIndicadoresMobile_() {
   }
 }
 
-document.addEventListener(
-  "DOMContentLoaded",
-  atualizarIndicadoresMobile_
-);
-
 document.addEventListener("DOMContentLoaded", async () => {
-
   try {
-
     await abrirBancoLocalSIGO();
 
     console.log("SIGO Mobile inicializado.");
 
-  } catch (erro) {
+    navegarPara("home");
 
+  } catch (erro) {
     console.error(
       "Falha ao inicializar banco local.",
       erro
     );
-
   }
-
 });
 
 function contarPendentesDashboard_(lista = []) {
