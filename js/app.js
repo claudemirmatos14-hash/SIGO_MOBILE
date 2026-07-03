@@ -157,8 +157,12 @@ function navegarPara(tela) {
     }
   };
 
-  if (app && telasPremium[tela]) {
-    SIGOUI.render(".app-premium", telasPremium[tela].montar());
+ if (app && telasPremium[tela]) {
+    (async function () {
+      const htmlTela =
+        await telasPremium[tela].montar();
+  
+      SIGOUI.render(".app-premium", htmlTela);
 
     setTimeout(async () => {
       if (typeof carregarObrasMobile_ === "function") {
