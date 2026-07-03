@@ -6574,6 +6574,19 @@ async function salvarMedicaoPremium() {
 
 async function atualizarMedicaoOffline_() {
   try {
+
+     const loteAberto =
+    await obterLoteMedicaoAberto_();
+
+  if (!loteAberto) {
+
+    SIGOUI.feedback.warning(
+      "Nenhuma medição aberta",
+      "Crie uma nova medição antes de registrar itens."
+    );
+
+    return;
+  }
         
     if (!idMedicaoEdicao) {
       throw new Error("Nenhuma medição selecionada para edição.");
