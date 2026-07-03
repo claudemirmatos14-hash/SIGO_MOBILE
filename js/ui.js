@@ -795,6 +795,21 @@ async function montarTelaMedicoes() {
   const heroLote =
     await criarHeroLoteMedicaoAtivo_();
   
+ const formMedicao = `
+    <div class="sigo-form">
+
+      ${SIGOUI.createDate({
+        id: "medicaoData",
+        label: "Data"
+      })}
+
+      ${SIGOUI.createInput({
+        id: "medicaoObra",
+        label: "Obra Ativa",
+        value: obterObraAtivaMobile_(),
+        readonly: true
+      })}
+  
   return SIGOUI.createCrudScreen({
     titulo: "📏 MEDIÇÕES",
     nome: "Registrar avanço físico",
