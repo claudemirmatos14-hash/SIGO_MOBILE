@@ -2192,6 +2192,198 @@ function criarCardEvidenciaOffline_(evidencia) {
 
 }
 
+async function detalharEvidenciaOffline_(idEvidencia) {
+  try {
+    const evidencias =
+      await listarRegistrosSIGO("TB_EVIDENCIAS");
+
+    const evidencia =
+      evidencias.find(item =>
+        String(item.idEvidencia) === String(idEvidencia)
+      );
+
+    if (!evidencia) {
+      SIGOUI.feedback.warning(
+        "Evidência não encontrada",
+        "O registro não foi localizado."
+      );
+      return;
+    }
+
+    SIGOUI.showDrawer({
+      titulo: "📷 Evidência",
+      subtitulo:
+        `${evidencia.categoria || "-"} • ${formatarDataMedicao_(evidencia.data)}`,
+      conteudo:
+        montarDetalhesEvidencia_(evidencia),
+      textoFechar: "Fechar"
+    });
+
+  } catch (erro) {
+    console.error("Erro ao detalhar evidência:", erro);
+
+    SIGOUI.feedback.error(
+      "Erro",
+      "Não foi possível abrir a evidência."
+    );
+  }
+}
+
+function montarDetalhesEvidencia_(evidencia) {
+  const status =
+    evidencia.statusSync || "PENDENTE";
+
+  let badge = "";
+  let classe = "";
+  let descricaoStatus = "";
+
+  switch (status) {
+    case "SINCRONIZADO":
+      badge = "🟢 SINCRONIZADO";
+      classe = "success";
+      descricaoStatus = "Registro enviado ao SIGO.";
+      break;
+
+    case "ERRO":
+      badge = "🔴 ERRO";
+      classe = "danger";
+      descricaoStatus = "Falha na sincronização.";
+      break;
+
+    default:
+      badge = "🟡 PENDENTE";
+      classe = "warning";
+      descricaoStatus = "Aguardando sincronização.";
+  }
+
+  return `
+    <div class="drawer-status">
+      <span class="badge-sync badge-${classe}">
+        ${badge}
+      </span>
+
+      <p class="drawer-status-text">
+        ${descricaoStatus}
+      </p>
+    </div>
+
+    ${
+      evidencia.arquivoBase64
+        ? `
+          <div class="drawer-section" style="border-top:none;padding-top:0;margin-top:0;">
+            <img
+              src="${evidencia.arquivoBase64}"
+              alt="Evidência"
+              style="width:100%;border-radius:18px;object-fit:cover;max-height:260px;"
+            >
+          </div>
+        `
+        : ""
+    }
+
+    <div class="drawer-grid">
+
+      <div class="drawer-kpi">
+        <small>Categoria</small>
+        <strong>${evidencia.categoria || "-"}</strong>
+      </div>
+
+      <div class="drawer-kpi">
+        <small>Arquivo</small>
+        <strong>${evidencia.arquivoTipo || "-"}</strong>
+      </div>
+
+      <div class="drawer-kpi">
+        <small>Tamanho</small>
+        <strong>${formatarTamanhoArquivo_(evidencia.arquivoTamanho)}</strong>
+      </div>
+
+      <div class="drawer-kpi">
+        <small>Origem</small>
+        <strong>${evidencia.origem || "APP_OFFLINE"}</strong>
+      </div>
+
+    </div>
+
+    <div class="drawer-section">
+      <h4>Dados da Evidência</h4>
+
+      <div class="drawer-item">
+        <span>Data</span>
+        <strong>${formatarDataMedicao_(evidencia.data)}</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Obra</span>
+        <strong>${evidencia.idObra || "-"}</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Título</span>
+        <strong>${evidencia.titulo || "-"}</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Atividade</span>
+        <strong>${evidencia.idAtividade || "-"}</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Arquivo</span>
+        <strong>${evidencia.arquivoNome || "-"}</strong>
+      </div>
+    </div>
+
+    <div class="drawer-section">
+      <h4>Descrição</h4>
+
+      <p>
+        ${evidencia.descricao || "Nenhuma descrição registrada."}
+      </p>
+    </div>
+
+    <div class="drawer-section">
+      <h4>Auditoria</h4>
+
+      <div class="drawer-item">
+        <span>ID</span>
+        <strong>${evidencia.idEvidencia || "-"}</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Criado em</span>
+        <strong>${formatarDataHoraMedicao_(evidencia.criadoEm)}</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Status Sync</span>
+        <strong>${status}</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Versão</span>
+        <strong>1.0</strong>
+      </div>
+    </div>
+  `;
+}
+
+function formatarTamanhoArquivo_(bytes) {
+  const tamanho = Number(bytes || 0);
+
+  if (!tamanho) return "-";
+
+  if (tamanho < 1024) {
+    return tamanho + " B";
+  }
+
+  if (tamanho < 1024 * 1024) {
+    return (tamanho / 1024).toFixed(2) + " KB";
+  }
+
+  return (tamanho / (1024 * 1024)).toFixed(2) + " MB";
+}
+
 
 
 /*async function salvarEvidenciaOffline(event) {
