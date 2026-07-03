@@ -250,6 +250,10 @@ return `
 function voltarHome() {
 
   navegarPara("home");
+  SIGOUI.render(
+    ".app-premium",
+    montarTelaHome()
+);
 
 }
 
