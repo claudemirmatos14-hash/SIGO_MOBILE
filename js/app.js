@@ -203,6 +203,7 @@ function navegarPara(tela) {
     }, 100);
   }
 }
+
 function montarTela(tela) {
   const titulos = {
     diario: "📘 Diário de Obra",
