@@ -1435,7 +1435,10 @@ async function sincronizarDadosBaseObraMobile() {
   }
 }
 
-function montarTelaMedicoes_() {
+async function montarTelaMedicoes() {
+
+  const heroLote =
+    await criarHeroLoteMedicaoAtivo_();
   const obraAtiva = localStorage.getItem("obraAtiva") || "OBR002";
   const hoje = new Date().toISOString().split("T")[0];
 
@@ -7350,6 +7353,56 @@ async function contarItensDoLoteMedicao_(idLoteMedicao) {
   return medicoes.filter(item =>
     String(item.idLoteMedicao) === String(idLoteMedicao)
   ).length;
+}
+
+async function criarHeroLoteMedicaoAtivo_() {
+  const lote =
+    await obterLoteMedicaoAberto_();
+
+  if (!lote) {
+    return `
+      <section class="sigo-card medicao-lote-card medicao-lote-card--empty">
+        <div class="section-title">
+          <span>📦</span>
+          <h2>NENHUMA MEDIÇÃO ABERTA</h2>
+        </div>
+
+        <p>
+          Crie uma nova medição para registrar os itens medidos.
+        </p>
+      </section>
+    `;
+  }
+
+  const totalItens =
+    await contarItensDoLoteMedicao_(lote.idLoteMedicao);
+
+  return `
+    <section class="sigo-card medicao-lote-card">
+      <div class="section-title">
+        <span>📦</span>
+        <h2>MEDIÇÃO ATIVA</h2>
+      </div>
+
+      <div class="medicao-lote-numero">
+        ${lote.numeroMedicao}
+      </div>
+
+      <div class="medicao-lote-status">
+        🟢 ${lote.status}
+      </div>
+
+      <div class="medicao-lote-periodo">
+        ${formatarDataMedicao_(lote.dataInicio)}
+        →
+        ${formatarDataMedicao_(lote.dataFim)}
+      </div>
+
+      <div class="medicao-lote-itens">
+        ${totalItens} item(ns) medido(s)
+      </div>
+    </section>
+  `;
 }
 
 // ============================================
