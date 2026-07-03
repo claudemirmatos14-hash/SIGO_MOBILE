@@ -5,6 +5,8 @@
 
 function montarHomePremium() {
 
+  const dados = await obterDadosDashboardHome_();
+
   const tela = SIGOUI.createScreen({
 
     header: true,
