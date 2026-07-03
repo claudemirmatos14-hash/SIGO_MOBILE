@@ -1437,8 +1437,6 @@ async function sincronizarDadosBaseObraMobile() {
 
 /*function montarTelaMedicoes() {
 
-  const heroLote =
-    await criarHeroLoteMedicaoAtivo_();
   const obraAtiva = localStorage.getItem("obraAtiva") || "OBR002";
   const hoje = new Date().toISOString().split("T")[0];
 
