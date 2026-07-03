@@ -81,7 +81,44 @@ function criarCardObraAtivaSIGO() {
   `;
 }
 
-function criarSecaoTrabalhoCampoSIGO() {
+function criarSecaoTrabalhoCampoSIGO(dados = {}) {
+    dados = {
+    diario: dados.diario || {
+      badge: "Carregando...",
+      badgeTipo: "is-info",
+      descricao: "Atualizando dados..."
+    },
+
+    diarioItens: dados.diarioItens || {
+      badge: "Carregando...",
+      badgeTipo: "is-info",
+      descricao: "Atualizando dados..."
+    },
+
+    medicoes: dados.medicoes || {
+      badge: "Carregando...",
+      badgeTipo: "is-info",
+      descricao: "Atualizando dados..."
+    },
+
+    ocorrencias: dados.ocorrencias || {
+      badge: "Carregando...",
+      badgeTipo: "is-info",
+      descricao: "Atualizando dados..."
+    },
+
+    clima: dados.clima || {
+      badge: "Carregando...",
+      badgeTipo: "is-info",
+      descricao: "Atualizando dados..."
+    },
+
+    evidencias: dados.evidencias || {
+      badge: "Carregando...",
+      badgeTipo: "is-info",
+      descricao: "Atualizando dados..."
+    }
+  };
   return `
     <section class="sigo-card sigo-card--section field-card">
       <div class="section-header">
@@ -92,24 +129,24 @@ function criarSecaoTrabalhoCampoSIGO() {
       </div>
 
       <div class="sigo-grid">
-        ${SIGOUI.createModule({
+       ${SIGOUI.createModule({
           acao: "navegarPara('diario')",
           cor: "is-blue",
           icone: "📘",
           titulo: "Diário de Obra",
-          badge: "Hoje concluído",
-          badgeTipo: "is-success",
-          descricao: "Registrar produção diária"
+          badge: dados.diario.badge,
+          badgeTipo: dados.diario.badgeTipo,
+          descricao: dados.diario.descricao
         })}
-
+        
         ${SIGOUI.createModule({
           acao: "navegarPara('diarioItens')",
           cor: "is-orange",
           icone: "📋",
           titulo: "Itens do Diário",
-          badge: "14 itens",
-          badgeTipo: "is-warning",
-          descricao: "Atividades executadas"
+          badge: dados.diarioItens.badge,
+          badgeTipo: dados.diarioItens.badgeTipo,
+          descricao: dados.diarioItens.descricao
         })}
 
         ${SIGOUI.createModule({
@@ -117,9 +154,9 @@ function criarSecaoTrabalhoCampoSIGO() {
           cor: "is-purple",
           icone: "📏",
           titulo: "Medições",
-          badge: "MED.05",
-          badgeTipo: "is-warning",
-          descricao: "6 serviços pendentes",
+          badge: dados.medicoes.badge,
+          badgeTipo: dados.medicoes.badgeTipo,
+          descricao: dados.medicoes.descricao,
           destaque: true
         })}
 
@@ -128,9 +165,9 @@ function criarSecaoTrabalhoCampoSIGO() {
           cor: "is-red",
           icone: "⚠️",
           titulo: "Ocorrências",
-          badge: "3 abertas",
-          badgeTipo: "is-danger",
-          descricao: "2 críticas"
+          badge: dados.ocorrencias.badge,
+          badgeTipo: dados.ocorrencias.badgeTipo,
+          descricao: dados.ocorrencias.descricao
         })}
 
         ${SIGOUI.createModule({
@@ -138,9 +175,9 @@ function criarSecaoTrabalhoCampoSIGO() {
           cor: "is-blue",
           icone: "🌦️",
           titulo: "Clima",
-          badge: "Hoje",
-          badgeTipo: "is-info",
-          descricao: "Ensolarado 28°C"
+          badge: dados.clima.badge,
+          badgeTipo: dados.clima.badgeTipo,
+          descricao: dados.clima.descricao
         })}
 
         ${SIGOUI.createModule({
@@ -148,9 +185,9 @@ function criarSecaoTrabalhoCampoSIGO() {
           cor: "is-green",
           icone: "📷",
           titulo: "Evidências",
-          badge: "12 fotos",
-          badgeTipo: "is-success",
-          descricao: "Hoje"
+          badge: dados.evidencias.badge,
+          badgeTipo: dados.evidencias.badgeTipo,
+          descricao: dados.evidencias.descricao
         })}
       </div>
     </section>
