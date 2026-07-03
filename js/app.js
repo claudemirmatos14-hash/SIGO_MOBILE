@@ -1435,7 +1435,7 @@ async function sincronizarDadosBaseObraMobile() {
   }
 }
 
-async function montarTelaMedicoes() {
+/*function montarTelaMedicoes() {
 
   const heroLote =
     await criarHeroLoteMedicaoAtivo_();
@@ -1503,7 +1503,7 @@ async function montarTelaMedicoes() {
 
     </div>
   `;
-}
+}*/
 
 async function preencherDadosAtividadeMedicao() {
   const select = document.getElementById("medicaoAtividade");
