@@ -2611,6 +2611,13 @@ async function atualizarEvidenciaOffline_() {
     );
 
     await adicionarNaFilaSyncSIGO({
+      tipo: "UPDATE",
+      storeOrigem: "TB_EVIDENCIAS",
+      idRegistro: evidenciaAtualizada.idEvidencia,
+      idObra: evidenciaAtualizada.idObra
+    });
+
+    await adicionarNaFilaSyncSIGO({
 
       tipo: "UPDATE",
 
