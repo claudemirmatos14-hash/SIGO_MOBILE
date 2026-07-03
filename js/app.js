@@ -2373,6 +2373,176 @@ function limparFormularioClima() {
   });
 }
 
+async function listarClimasOffline_() {
+
+  const container =
+    document.getElementById("listaClimasOffline");
+
+  if (!container) return;
+
+  try {
+
+    const obraAtiva =
+      obterObraAtivaMobile_();
+
+    const climas =
+      await listarRegistrosSIGO("TB_CLIMA");
+
+    const climasObra =
+      climas
+        .filter(item =>
+          String(item.idObra) === String(obraAtiva)
+        )
+        .sort((a, b) =>
+          new Date(b.criadoEm) -
+          new Date(a.criadoEm)
+        );
+
+    if (!climasObra.length) {
+
+      container.innerHTML = `
+        <div class="card-vazio">
+          Nenhum registro climático encontrado.
+        </div>
+      `;
+
+      return;
+    }
+
+    container.innerHTML =
+      climasObra
+        .map(clima =>
+          criarCardClimaOffline_(clima)
+        )
+        .join("");
+
+  } catch (erro) {
+
+    console.error(
+      "Erro ao listar clima:",
+      erro
+    );
+
+    container.innerHTML = `
+      <div class="card-vazio">
+        Erro ao carregar registros.
+      </div>
+    `;
+
+  }
+
+}
+
+function criarCardClimaOffline_(clima) {
+
+  const status =
+    clima.statusSync || "PENDENTE";
+
+  const badge =
+    status === "SINCRONIZADO"
+      ? "🟢 SINCRONIZADO"
+      : status === "ERRO"
+        ? "🔴 ERRO"
+        : "🟡 PENDENTE";
+
+  const classeStatus =
+    status === "SINCRONIZADO"
+      ? "success"
+      : status === "ERRO"
+        ? "danger"
+        : "warning";
+
+  const bloqueado =
+    status !== "PENDENTE";
+
+  return `
+
+    <article class="clima-card">
+
+      <div class="clima-card__header">
+
+        <div>
+
+          <strong>
+            🌦️ ${clima.condicao || "-"}
+          </strong>
+
+          <span>
+            ${formatarDataMedicao_(clima.data)}
+          </span>
+
+        </div>
+
+        <span class="badge-sync badge-${classeStatus}">
+          ${badge}
+        </span>
+
+      </div>
+
+      <div class="clima-card__grid">
+
+        <div>
+          <small>Período</small>
+          <strong>${clima.periodo || "-"}</strong>
+        </div>
+
+        <div>
+          <small>Temperatura</small>
+          <strong>${clima.temperatura || "-"} °C</strong>
+        </div>
+
+        <div>
+          <small>Impacto</small>
+          <strong>${clima.impacto || "-"}</strong>
+        </div>
+
+        <div>
+          <small>Intensidade</small>
+          <strong>${clima.intensidade || "-"}</strong>
+        </div>
+
+      </div>
+
+      ${
+        clima.atividadeAfetada
+          ? `
+          <div class="clima-card__obs">
+            <small>Atividade Afetada</small>
+            <p>${clima.atividadeAfetada}</p>
+          </div>
+          `
+          : ""
+      }
+
+      <div class="clima-card__actions">
+
+        <button
+          type="button"
+          ${bloqueado ? "disabled" : ""}
+          onclick="editarClimaOffline_('${clima.idClima}')">
+          ✏ Editar
+        </button>
+
+        <button
+          type="button"
+          ${bloqueado ? "disabled" : ""}
+          onclick="excluirClimaOffline_('${clima.idClima}')">
+          🗑 Excluir
+        </button>
+
+        <button
+          type="button"
+          onclick="detalharClimaOffline_('${clima.idClima}')">
+          👁 Detalhes
+        </button>
+
+      </div>
+
+    </article>
+
+  `;
+
+}
 
 /*function montarTelaClima_() {
   const obraAtiva = localStorage.getItem("obraAtiva") || "OBR002";
@@ -2499,78 +2669,11 @@ async function salvarClimaOffline(event) {
         "Não foi possível salvar o registro climático offline."
       );
     }
-}*/
-
-async function listarClimasOffline_() {
-
-  const container =
-    document.getElementById("listaClimasOffline");
-
-  if (!container) return;
-
-  try {
-
-    const climas =
-      await listarRegistrosSIGO("TB_CLIMA");
-
-    if (!climas.length) {
-      container.innerHTML = `
-        <div class="card-vazio">
-          Nenhum registro de clima salvo.
-        </div>
-      `;
-      return;
-    }
-
-    container.innerHTML =
-      climas
-        .sort((a, b) =>
-          new Date(b.criadoEm) - new Date(a.criadoEm)
-        )
-        .map(clima => `
-          <div class="item-offline">
-
-            <strong>
-              ${clima.condicaoClimatica || "Clima"}
-            </strong>
-
-            <small>
-              ${clima.data || "-"} • ${clima.periodo || "-"}
-            </small>
-
-            <small>
-              Intensidade: ${clima.intensidade || "-"}
-            </small>
-
-            <small>
-              Impacto: ${clima.impactoExecucao || "-"}
-            </small>
-
-            <small>
-              Atividade: ${clima.atividadeAfetada || "-"}
-            </small>
-
-            <span class="
-              badge-sync
-              ${clima.statusSync === "SINCRONIZADO" ? "ok" : "pendente"}
-            ">
-              ${clima.statusSync}
-            </span>
-
-          </div>
-        `)
-        .join("");
-
-  } catch (erro) {
-
-    console.error("Erro ao listar climas:", erro);
-
-    container.innerHTML =
-      "Erro ao carregar registros de clima.";
-  }
 }
 
-/*function montarTelaOcorrencias_() {
+
+
+function montarTelaOcorrencias_() {
 
   const obraAtiva =
     localStorage.getItem("obraAtiva") || "OBR002";
