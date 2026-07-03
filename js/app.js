@@ -175,11 +175,11 @@ function navegarPara(tela) {
       window.scrollTo({
         top: 0,
         behavior: "smooth"
-      });
-    })();
-        
-    return;
-  }
+     });
+  })();
+
+  return;
+}
   
   if (!area) return;
 
