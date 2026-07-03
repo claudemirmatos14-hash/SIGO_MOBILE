@@ -13,6 +13,7 @@ let idDiarioEdicao = null;
 let idItemDiarioEdicao = null;
 let idMedicaoEdicao = null;
 let idOcorrenciaEdicao = null;
+let idClimaEdicao = null;
 
 function iniciarSeletorObra() {
   const seletor =
@@ -2701,6 +2702,191 @@ function montarDetalhesClima_(clima) {
   `;
 }
 
+async function editarClimaOffline_(idClima) {
+  try {
+    const climas =
+      await listarRegistrosSIGO("TB_CLIMA");
+
+    const clima =
+      climas.find(item =>
+        String(item.idClima) === String(idClima)
+      );
+
+    if (!clima) {
+      SIGOUI.feedback.warning(
+        "Clima não encontrado",
+        "O registro não foi localizado."
+      );
+      return;
+    }
+
+    idClimaEdicao = idClima;
+
+    document.getElementById("climaData").value =
+      clima.data || "";
+
+    document.getElementById("climaObra").value =
+      clima.idObra || obterObraAtivaMobile_();
+
+    document.getElementById("climaPeriodo").value =
+      clima.periodo || "";
+
+    document.getElementById("climaCondicao").value =
+      clima.condicao || "";
+
+    document.getElementById("climaTemperatura").value =
+      clima.temperatura || "";
+
+    document.getElementById("climaIntensidade").value =
+      clima.intensidade || "";
+
+    document.getElementById("climaImpacto").value =
+      clima.impacto || "";
+
+    document.getElementById("climaAtividadeAfetada").value =
+      clima.atividadeAfetada || "";
+
+    document.getElementById("climaObservacao").value =
+      clima.observacao || "";
+
+    atualizarModoEdicaoClima_();
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+
+    SIGOUI.feedback.info(
+      "Modo edição",
+      "O registro climático foi carregado para edição."
+    );
+
+  } catch (erro) {
+    console.error("Erro ao editar clima:", erro);
+
+    SIGOUI.feedback.error(
+      "Erro",
+      "Não foi possível carregar o clima."
+    );
+  }
+}
+
+function atualizarModoEdicaoClima_() {
+  const botao =
+    document.querySelector(".is-success");
+
+  if (!botao) return;
+
+  if (idClimaEdicao) {
+    botao.innerHTML = "💾 Atualizar";
+
+    botao.setAttribute(
+      "onclick",
+      "atualizarClimaOffline_()"
+    );
+
+  } else {
+    botao.innerHTML = "💾 Salvar";
+
+    botao.setAttribute(
+      "onclick",
+      "salvarClimaPremium()"
+    );
+  }
+}
+
+async function atualizarClimaOffline_() {
+  try {
+    if (!idClimaEdicao) {
+      throw new Error("Nenhum clima em edição.");
+    }
+
+    const climas =
+      await listarRegistrosSIGO("TB_CLIMA");
+
+    const climaAtual =
+      climas.find(item =>
+        String(item.idClima) === String(idClimaEdicao)
+      );
+
+    if (!climaAtual) {
+      throw new Error("Registro climático não encontrado.");
+    }
+
+    const climaAtualizado = {
+      ...climaAtual,
+
+      data:
+        document.getElementById("climaData").value,
+
+      idObra:
+        document.getElementById("climaObra").value ||
+        obterObraAtivaMobile_(),
+
+      periodo:
+        document.getElementById("climaPeriodo").value,
+
+      condicao:
+        document.getElementById("climaCondicao").value,
+
+      temperatura:
+        Number(document.getElementById("climaTemperatura").value || 0),
+
+      intensidade:
+        document.getElementById("climaIntensidade").value,
+
+      impacto:
+        document.getElementById("climaImpacto").value,
+
+      atividadeAfetada:
+        document.getElementById("climaAtividadeAfetada").value,
+
+      observacao:
+        document.getElementById("climaObservacao").value,
+
+      atualizadoEm:
+        new Date().toISOString(),
+
+      statusSync:
+        "PENDENTE"
+    };
+
+    validarClimaOffline_(climaAtualizado);
+
+    await salvarRegistroSIGO(
+      "TB_CLIMA",
+      climaAtualizado
+    );
+
+    await adicionarNaFilaSyncSIGO({
+      tipo: "UPDATE",
+      storeOrigem: "TB_CLIMA",
+      idRegistro: climaAtualizado.idClima,
+      idObra: climaAtualizado.idObra
+    });
+
+    idClimaEdicao = null;
+
+    atualizarModoEdicaoClima_();
+
+    limparFormularioClima();
+
+    await listarClimasOffline_();
+
+    SIGOUI.feedback.success(
+      "Clima atualizado",
+      "Registro climático atualizado com sucesso."
+    );
+
+  } catch (erro) {
+    console.error("Erro ao atualizar clima:", erro);
+
+    SIGOUI.feedback.error(
+      "Erro ao atualizar",
+      erro.message || "Não foi possível atualizar o clima."
+    );
+  }
+}
 /*function montarTelaClima_() {
   const obraAtiva = localStorage.getItem("obraAtiva") || "OBR002";
   const hoje = new Date().toISOString().split("T")[0];
