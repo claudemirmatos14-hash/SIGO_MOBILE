@@ -7166,6 +7166,192 @@ async function excluirMedicaoOffline_(idMedicao) {
   }
 }
 
+async function obterLoteMedicaoAberto_() {
+  const obraAtiva =
+    obterObraAtivaMobile_();
+
+  const lotes =
+    await listarRegistrosSIGO("TB_LOTES_MEDICAO");
+
+  return lotes.find(lote =>
+    String(lote.idObra) === String(obraAtiva) &&
+    String(lote.status) === "ABERTA"
+  ) || null;
+}
+
+async function gerarNumeroMedicao_() {
+  const obraAtiva =
+    obterObraAtivaMobile_();
+
+  const lotes =
+    await listarRegistrosSIGO("TB_LOTES_MEDICAO");
+
+  const lotesObra =
+    lotes.filter(lote =>
+      String(lote.idObra) === String(obraAtiva)
+    );
+
+  const proximo =
+    lotesObra.length + 1;
+
+  return "MED." + String(proximo).padStart(3, "0");
+}
+
+async function salvarLoteMedicao_(dados = {}) {
+  const obraAtiva =
+    obterObraAtivaMobile_();
+
+  const loteAberto =
+    await obterLoteMedicaoAberto_();
+
+  if (
+    loteAberto &&
+    (!dados.idLoteMedicao ||
+      String(dados.idLoteMedicao) !== String(loteAberto.idLoteMedicao))
+  ) {
+    throw new Error(
+      "Já existe uma medição aberta para esta obra."
+    );
+  }
+
+  const agora =
+    new Date().toISOString();
+
+  const lote = {
+    idLoteMedicao:
+      dados.idLoteMedicao || "LOTE-MED-" + Date.now(),
+
+    numeroMedicao:
+      dados.numeroMedicao || await gerarNumeroMedicao_(),
+
+    idObra:
+      dados.idObra || obraAtiva,
+
+    dataInicio:
+      dados.dataInicio || "",
+
+    dataFim:
+      dados.dataFim || "",
+
+    status:
+      dados.status || "ABERTA",
+
+    observacoes:
+      dados.observacoes || "",
+
+    usuarioCriacao:
+      dados.usuarioCriacao || "USUARIO_APP",
+
+    usuarioFechamento:
+      dados.usuarioFechamento || "",
+
+    dataFechamento:
+      dados.dataFechamento || "",
+
+    statusSync:
+      "PENDENTE",
+
+    criadoEm:
+      dados.criadoEm || agora,
+
+    atualizadoEm:
+      dados.idLoteMedicao ? agora : "",
+
+    dataSync:
+      dados.dataSync || ""
+  };
+
+  validarLoteMedicao_(lote);
+
+  await salvarRegistroSIGO(
+    "TB_LOTES_MEDICAO",
+    lote
+  );
+
+  await adicionarNaFilaSyncSIGO({
+    tipo: dados.idLoteMedicao ? "UPDATE" : "INSERT",
+    storeOrigem: "TB_LOTES_MEDICAO",
+    idRegistro: lote.idLoteMedicao,
+    idObra: lote.idObra
+  });
+
+  return lote;
+}
+
+function validarLoteMedicao_(lote) {
+  if (!lote.idObra) {
+    throw new Error("Obra ativa não encontrada.");
+  }
+
+  if (!lote.dataInicio) {
+    throw new Error("Informe a data inicial da medição.");
+  }
+
+  if (!lote.dataFim) {
+    throw new Error("Informe a data final da medição.");
+  }
+
+  if (new Date(lote.dataFim) < new Date(lote.dataInicio)) {
+    throw new Error(
+      "A data final não pode ser menor que a data inicial."
+    );
+  }
+
+  return true;
+}
+
+async function fecharLotesVencidosMedicao_() {
+  const obraAtiva =
+    obterObraAtivaMobile_();
+
+  const hoje =
+    new Date().toISOString().split("T")[0];
+
+  const lotes =
+    await listarRegistrosSIGO("TB_LOTES_MEDICAO");
+
+  const vencidos =
+    lotes.filter(lote =>
+      String(lote.idObra) === String(obraAtiva) &&
+      String(lote.status) === "ABERTA" &&
+      lote.dataFim &&
+      String(lote.dataFim) < String(hoje)
+    );
+
+  for (const lote of vencidos) {
+    lote.status = "FECHADA";
+    lote.dataFechamento = new Date().toISOString();
+    lote.usuarioFechamento = "SISTEMA";
+    lote.atualizadoEm = new Date().toISOString();
+    lote.statusSync = "PENDENTE";
+
+    await salvarRegistroSIGO(
+      "TB_LOTES_MEDICAO",
+      lote
+    );
+
+    await adicionarNaFilaSyncSIGO({
+      tipo: "UPDATE",
+      storeOrigem: "TB_LOTES_MEDICAO",
+      idRegistro: lote.idLoteMedicao,
+      idObra: lote.idObra
+    });
+  }
+
+  return vencidos.length;
+}
+
+async function contarItensDoLoteMedicao_(idLoteMedicao) {
+  if (!idLoteMedicao) return 0;
+
+  const medicoes =
+    await listarRegistrosSIGO("TB_MEDICOES");
+
+  return medicoes.filter(item =>
+    String(item.idLoteMedicao) === String(idLoteMedicao)
+  ).length;
+}
+
 // ============================================
 // FORMATADORES
 // ============================================
