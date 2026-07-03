@@ -1458,6 +1458,12 @@ function montarFormularioMedicao_() {
         readonly: true
       })}
 
+      ${SIGOUI.createInput({
+        id: "medicaoEAP",
+        label: "EAP",
+        readonly: true
+      })}
+
       ${SIGOUI.createSelect({
         id: "medicaoAtividade",
         label: "Atividade",
