@@ -4,55 +4,28 @@
 // =====================================================
 
 async function montarHomePremium() {
-
   const dadosDashboard =
-        await obterDadosDashboardHome_();
-  
-  const tela = SIGOUI.createScreen({
+    await obterDadosDashboardHome_();
 
+  return SIGOUI.createScreen({
     header: true,
 
     hero: SIGOUI.createHeroCard({
-
       titulo: "OBRA ATIVA",
-
       nome: "Selecione uma obra offline",
-
       offline: "0 de 3 obras offline",
-
       atividades: "0 atividades offline",
-
       execucao: "12 em execução"
-
     }),
 
-    
     sections: [
-
-      SIGOUI.createFieldSection(),
-
+      criarSecaoTrabalhoCampoSIGO(dadosDashboard),
       SIGOUI.createStatus(),
-
       SIGOUI.createTools()
-
     ],
 
     bottom: true
-
   });
-
-  SIGOUI.render(".app-premium", tela);
-
-  setTimeout(async () => {
-    if (typeof carregarObrasMobile_ === "function") {
-      await carregarObrasMobile_();
-    }
-  
-    if (typeof atualizarIndicadoresMobile_ === "function") {
-      atualizarIndicadoresMobile_();
-    }
-  }, 100);
-
 }
 
 async function obterDadosDashboardHome_() {
