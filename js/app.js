@@ -2653,6 +2653,79 @@ async function atualizarEvidenciaOffline_() {
 
 }
 
+async function excluirEvidenciaOffline_(idEvidencia) {
+  try {
+    if (!idEvidencia) {
+      throw new Error("ID da evidência não informado.");
+    }
+
+    const evidencias =
+      await listarRegistrosSIGO("TB_EVIDENCIAS");
+
+    const evidencia =
+      evidencias.find(item =>
+        String(item.idEvidencia) === String(idEvidencia)
+      );
+
+    if (!evidencia) {
+      SIGOUI.feedback.warning(
+        "Evidência não encontrada",
+        "O registro não foi localizado."
+      );
+      return;
+    }
+
+    const confirmou = await SIGOUI.feedback.confirm({
+      tipo: "danger",
+      icone: "🗑️",
+      titulo: "Excluir evidência",
+      mensagem:
+        "Esta evidência será removida deste dispositivo.\n\n" +
+        "Deseja realmente continuar?",
+      textoConfirmar: "Excluir",
+      textoCancelar: "Cancelar"
+    });
+
+    if (!confirmou) return;
+
+    await removerRegistroSIGO_(
+      "TB_EVIDENCIAS",
+      idEvidencia
+    );
+
+    await adicionarNaFilaSyncSIGO({
+      tipo: "DELETE",
+      storeOrigem: "TB_EVIDENCIAS",
+      idRegistro: idEvidencia,
+      idObra: evidencia.idObra
+    });
+
+    if (String(idEvidenciaEdicao) === String(idEvidencia)) {
+      idEvidenciaEdicao = null;
+
+      atualizarModoEdicaoEvidencia_();
+
+      if (typeof limparFormularioEvidencia === "function") {
+        limparFormularioEvidencia();
+      }
+    }
+
+    await listarEvidenciasOffline_();
+
+    SIGOUI.feedback.success(
+      "Evidência excluída",
+      "Registro removido com sucesso."
+    );
+
+  } catch (erro) {
+    console.error("Erro ao excluir evidência:", erro);
+
+    SIGOUI.feedback.error(
+      "Erro ao excluir",
+      erro.message || "Não foi possível excluir a evidência."
+    );
+  }
+}
 /*async function salvarEvidenciaOffline(event) {
 
   event.preventDefault();
