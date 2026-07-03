@@ -790,10 +790,11 @@ function montarTelaObrasOffline() {
   });
 }
 
-function montarTelaMedicoes() {
+async function montarTelaMedicoes() {
 
   const heroLote =
     await criarHeroLoteMedicaoAtivo_();
+  
   return SIGOUI.createCrudScreen({
     titulo: "📏 MEDIÇÕES",
     nome: "Registrar avanço físico",
