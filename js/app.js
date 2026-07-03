@@ -248,18 +248,9 @@ return `
 }
 
 function voltarHome() {
-  const area = document.getElementById("telaApp");
-  document.getElementById("homeApp").style.display = "block";
-  document.getElementById("telaApp").innerHTML = "";
 
-  if (!area) return;
+  navegarPara("home");
 
-  area.innerHTML = "";
-
-  window.scrollTo({
-    top: 0,
-    behavior: "smooth"
-  });
 }
 
 function montarTelaDiarioObra_() {
