@@ -44,6 +44,12 @@ function criarStoresSIGO_(db) {
     });
   }
 
+  if (!db.objectStoreNames.contains("TB_LOTES_MEDICAO")) {
+    db.createObjectStore("TB_LOTES_MEDICAO", {
+      keyPath: "idLoteMedicao"
+    });
+  }
+
   if (!db.objectStoreNames.contains("TB_MEDICOES")) {
     db.createObjectStore("TB_MEDICOES", {
       keyPath: "idMedicao"
