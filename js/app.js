@@ -2241,6 +2241,139 @@ function montarTelaClima() {
     bottom: true
   });
 }
+
+async function salvarClimaPremium() {
+  try {
+    const clima = {
+      idClima: "CLI-" + Date.now(),
+
+      idObra:
+        document.getElementById("climaObra").value ||
+        obterObraAtivaMobile_(),
+
+      data:
+        document.getElementById("climaData").value,
+
+      periodo:
+        document.getElementById("climaPeriodo").value,
+
+      condicao:
+        document.getElementById("climaCondicao").value,
+
+      temperatura:
+        Number(document.getElementById("climaTemperatura").value || 0),
+
+      intensidade:
+        document.getElementById("climaIntensidade").value,
+
+      impacto:
+        document.getElementById("climaImpacto").value,
+
+      atividadeAfetada:
+        document.getElementById("climaAtividadeAfetada").value,
+
+      observacao:
+        document.getElementById("climaObservacao").value,
+
+      statusSync:
+        "PENDENTE",
+
+      origem:
+        "APP_OFFLINE",
+
+      criadoEm:
+        new Date().toISOString(),
+
+      atualizadoEm:
+        "",
+
+      dataSync:
+        ""
+    };
+
+    validarClimaOffline_(clima);
+
+    await salvarRegistroSIGO(
+      "TB_CLIMA",
+      clima
+    );
+
+    await adicionarNaFilaSyncSIGO({
+      tipo: "INSERT",
+      storeOrigem: "TB_CLIMA",
+      idRegistro: clima.idClima,
+      idObra: clima.idObra
+    });
+
+    await listarClimasOffline_();
+
+    limparFormularioClima();
+
+    SIGOUI.feedback.success(
+      "Clima salvo",
+      "Registro climático salvo offline."
+    );
+
+  } catch (erro) {
+    console.error("Erro ao salvar clima:", erro);
+
+    SIGOUI.feedback.error(
+      "Erro ao salvar",
+      erro.message || "Não foi possível salvar o clima."
+    );
+  }
+}
+
+function validarClimaOffline_(clima) {
+  if (!clima.idObra) {
+    throw new Error("Obra ativa não encontrada.");
+  }
+
+  if (!clima.data) {
+    throw new Error("Informe a data do registro climático.");
+  }
+
+  if (!clima.periodo) {
+    throw new Error("Informe o período.");
+  }
+
+  if (!clima.condicao) {
+    throw new Error("Informe a condição climática.");
+  }
+
+  if (!clima.impacto) {
+    throw new Error("Informe o impacto na execução.");
+  }
+
+  return true;
+}
+
+function limparFormularioClima() {
+  const hoje =
+    new Date().toISOString().split("T")[0];
+
+  const campos = {
+    climaData: hoje,
+    climaObra: obterObraAtivaMobile_(),
+    climaPeriodo: "",
+    climaCondicao: "",
+    climaTemperatura: "",
+    climaIntensidade: "",
+    climaImpacto: "",
+    climaAtividadeAfetada: "",
+    climaObservacao: ""
+  };
+
+  Object.keys(campos).forEach(id => {
+    const campo = document.getElementById(id);
+
+    if (campo) {
+      campo.value = campos[id];
+    }
+  });
+}
+
+
 /*function montarTelaClima_() {
   const obraAtiva = localStorage.getItem("obraAtiva") || "OBR002";
   const hoje = new Date().toISOString().split("T")[0];
@@ -2317,7 +2450,7 @@ function montarTelaClima() {
 
     </div>
   `;
-}*/
+}
 
 async function salvarClimaOffline(event) {
   event.preventDefault();
@@ -2366,7 +2499,7 @@ async function salvarClimaOffline(event) {
         "Não foi possível salvar o registro climático offline."
       );
     }
-}
+}*/
 
 async function listarClimasOffline_() {
 
