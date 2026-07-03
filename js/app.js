@@ -112,6 +112,15 @@ function navegarPara(tela) {
           await listarOcorrenciasOffline_();
         }
       }
+    },
+
+    clima: {
+      montar: montarTelaClima,
+      depois: async function () {
+        if (typeof listarClimasOffline_ === "function") {
+          await listarClimasOffline_();
+        }
+      }
     }
   };
 
@@ -2102,7 +2111,137 @@ async function abrirEvidenciaOffline(idEvidencia) {
   `;
 }
 
-function montarTelaClima_() {
+function montarTelaClima() {
+  const formClima = `
+    <div class="sigo-form">
+
+      ${SIGOUI.createDate({
+        id: "climaData",
+        label: "Data",
+        value: new Date().toISOString().split("T")[0]
+      })}
+
+      ${SIGOUI.createInput({
+        id: "climaObra",
+        label: "Obra",
+        value: obterObraAtivaMobile_(),
+        readonly: true
+      })}
+
+      ${SIGOUI.createSelect({
+        id: "climaPeriodo",
+        label: "Período",
+        options: [
+          { value: "", label: "Selecione" },
+          { value: "MANHÃ", label: "Manhã" },
+          { value: "TARDE", label: "Tarde" },
+          { value: "NOITE", label: "Noite" }
+        ]
+      })}
+
+      ${SIGOUI.createSelect({
+        id: "climaCondicao",
+        label: "Condição Climática",
+        options: [
+          { value: "", label: "Selecione" },
+          { value: "☀️ ENSOLARADO", label: "☀️ Ensolarado" },
+          { value: "⛅ PARCIALMENTE NUBLADO", label: "⛅ Parcialmente nublado" },
+          { value: "☁️ NUBLADO", label: "☁️ Nublado" },
+          { value: "🌧️ CHUVA", label: "🌧️ Chuva" },
+          { value: "⛈️ TEMPESTADE", label: "⛈️ Tempestade" },
+          { value: "🌫️ NEBLINA", label: "🌫️ Neblina" }
+        ]
+      })}
+
+      ${SIGOUI.createNumber({
+        id: "climaTemperatura",
+        label: "Temperatura",
+        placeholder: "Ex.: 28"
+      })}
+
+      ${SIGOUI.createSelect({
+        id: "climaIntensidade",
+        label: "Intensidade",
+        options: [
+          { value: "", label: "Selecione" },
+          { value: "BAIXA", label: "Baixa" },
+          { value: "MODERADA", label: "Moderada" },
+          { value: "ALTA", label: "Alta" }
+        ]
+      })}
+
+      ${SIGOUI.createSelect({
+        id: "climaImpacto",
+        label: "Impacto na Execução",
+        options: [
+          { value: "", label: "Selecione" },
+          { value: "SEM IMPACTO", label: "Sem impacto" },
+          { value: "REDUÇÃO DE PRODUTIVIDADE", label: "Redução de produtividade" },
+          { value: "PARALISAÇÃO PARCIAL", label: "Paralisação parcial" },
+          { value: "PARALISAÇÃO TOTAL", label: "Paralisação total" }
+        ]
+      })}
+
+      ${SIGOUI.createInput({
+        id: "climaAtividadeAfetada",
+        label: "Atividade Afetada",
+        placeholder: "Atividade impactada, se houver"
+      })}
+
+      ${SIGOUI.createTextarea({
+        id: "climaObservacao",
+        label: "Observação",
+        rows: 3,
+        placeholder: "Observações sobre o clima"
+      })}
+
+    </div>
+  `;
+
+  const listaClima = `
+    <div id="listaClimasOffline" class="sigo-list">
+      <div class="empty-state">
+        <div class="empty-icon">🌦️</div>
+        <h3>Nenhum clima carregado</h3>
+        <p>Os registros climáticos aparecerão aqui.</p>
+      </div>
+    </div>
+  `;
+
+  return SIGOUI.createCrudScreen({
+    titulo: "🌦️ CLIMA",
+    nome: "Registro climático",
+    subtitulo: "Condições da obra",
+    info: "Clima, impacto e produtividade",
+    status: "Modo offline",
+
+    actions: [
+      {
+        icone: "➕",
+        texto: "Novo Clima",
+        tipo: "is-primary",
+        acao: "limparFormularioClima()"
+      },
+      {
+        icone: "💾",
+        texto: "Salvar",
+        tipo: "is-success",
+        acao: "salvarClimaPremium()"
+      }
+    ],
+
+    formTitle: "📋 Dados do Clima",
+    formSubtitle: "Registre as condições climáticas",
+    form: formClima,
+
+    listTitle: "📚 Climas Registrados",
+    listSubtitle: "Histórico offline da obra ativa",
+    list: listaClima,
+
+    bottom: true
+  });
+}
+/*function montarTelaClima_() {
   const obraAtiva = localStorage.getItem("obraAtiva") || "OBR002";
   const hoje = new Date().toISOString().split("T")[0];
 
@@ -2178,7 +2317,7 @@ function montarTelaClima_() {
 
     </div>
   `;
-}
+}*/
 
 async function salvarClimaOffline(event) {
   event.preventDefault();
