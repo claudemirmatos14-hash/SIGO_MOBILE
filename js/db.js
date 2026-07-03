@@ -45,9 +45,19 @@ function criarStoresSIGO_(db) {
   }
 
   if (!db.objectStoreNames.contains("TB_LOTES_MEDICAO")) {
-    db.createObjectStore("TB_LOTES_MEDICAO", {
+
+    const store = db.createObjectStore("TB_LOTES_MEDICAO", {
       keyPath: "idLoteMedicao"
     });
+  
+    store.createIndex("idObra", "idObra", { unique: false });
+  
+    store.createIndex("numeroMedicao", "numeroMedicao", { unique: false });
+  
+    store.createIndex("status", "status", { unique: false });
+  
+    store.createIndex("statusSync", "statusSync", { unique: false });
+  
   }
 
   if (!db.objectStoreNames.contains("TB_MEDICOES")) {
