@@ -2384,7 +2384,274 @@ function formatarTamanhoArquivo_(bytes) {
   return (tamanho / (1024 * 1024)).toFixed(2) + " MB";
 }
 
+async function editarEvidenciaOffline_(idEvidencia) {
 
+  try {
+
+    const evidencias =
+      await listarRegistrosSIGO("TB_EVIDENCIAS");
+
+    const evidencia =
+      evidencias.find(item =>
+        String(item.idEvidencia) === String(idEvidencia)
+      );
+
+    if (!evidencia) {
+
+      SIGOUI.feedback.warning(
+        "Evidência não encontrada",
+        "O registro não foi localizado."
+      );
+
+      return;
+
+    }
+
+    idEvidenciaEdicao = idEvidencia;
+
+    document.getElementById("evidenciaData").value =
+      evidencia.data || "";
+
+    document.getElementById("evidenciaObra").value =
+      evidencia.idObra || obterObraAtivaMobile_();
+
+    document.getElementById("evidenciaCategoria").value =
+      evidencia.categoria || "";
+
+    document.getElementById("evidenciaTitulo").value =
+      evidencia.titulo || "";
+
+    document.getElementById("evidenciaDescricao").value =
+      evidencia.descricao || "";
+
+    document.getElementById("evidenciaAtividade").value =
+      evidencia.idAtividade || "";
+
+    document.getElementById("evidenciaOrigem").value =
+      evidencia.origem || "APP_OFFLINE";
+
+    atualizarModoEdicaoEvidencia_();
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+
+    SIGOUI.feedback.info(
+      "Modo edição",
+      "A evidência foi carregada para edição."
+    );
+
+  }
+
+  catch (erro) {
+
+    console.error(erro);
+
+    SIGOUI.feedback.error(
+      "Erro",
+      "Não foi possível carregar a evidência."
+    );
+
+  }
+
+}
+
+function atualizarModoEdicaoEvidencia_() {
+
+  const botao =
+    document.querySelector(".is-success");
+
+  if (!botao) return;
+
+  if (idEvidenciaEdicao) {
+
+    botao.innerHTML =
+      "💾 Atualizar";
+
+    botao.setAttribute(
+      "onclick",
+      "atualizarEvidenciaOffline_()"
+    );
+
+  }
+
+  else {
+
+    botao.innerHTML =
+      "💾 Salvar";
+
+    botao.setAttribute(
+      "onclick",
+      "salvarEvidenciaPremium()"
+    );
+
+  }
+
+}
+
+async function atualizarEvidenciaOffline_() {
+
+  try {
+
+    if (!idEvidenciaEdicao) {
+
+      throw new Error(
+        "Nenhuma evidência em edição."
+      );
+
+    }
+
+    const evidencias =
+      await listarRegistrosSIGO(
+        "TB_EVIDENCIAS"
+      );
+
+    const evidenciaAtual =
+      evidencias.find(item =>
+        String(item.idEvidencia) ===
+        String(idEvidenciaEdicao)
+      );
+
+    if (!evidenciaAtual) {
+
+      throw new Error(
+        "Evidência não encontrada."
+      );
+
+    }
+
+    let arquivoBase64 =
+      evidenciaAtual.arquivoBase64;
+
+    let arquivoNome =
+      evidenciaAtual.arquivoNome;
+
+    let arquivoTipo =
+      evidenciaAtual.arquivoTipo;
+
+    let arquivoTamanho =
+      evidenciaAtual.arquivoTamanho;
+
+    const inputArquivo =
+      document.getElementById(
+        "evidenciaArquivo"
+      );
+
+    if (
+      inputArquivo &&
+      inputArquivo.files &&
+      inputArquivo.files.length
+    ) {
+
+      const arquivo =
+        inputArquivo.files[0];
+
+      arquivoBase64 =
+        await converterArquivoParaBase64_(
+          arquivo
+        );
+
+      arquivoNome =
+        arquivo.name;
+
+      arquivoTipo =
+        arquivo.type;
+
+      arquivoTamanho =
+        arquivo.size;
+
+    }
+
+    const evidenciaAtualizada = {
+
+      ...evidenciaAtual,
+
+      data:
+        document.getElementById("evidenciaData").value,
+
+      idObra:
+        document.getElementById("evidenciaObra").value,
+
+      categoria:
+        document.getElementById("evidenciaCategoria").value,
+
+      titulo:
+        document.getElementById("evidenciaTitulo").value,
+
+      descricao:
+        document.getElementById("evidenciaDescricao").value,
+
+      idAtividade:
+        document.getElementById("evidenciaAtividade").value,
+
+      arquivoBase64,
+
+      arquivoNome,
+
+      arquivoTipo,
+
+      arquivoTamanho,
+
+      atualizadoEm:
+        new Date().toISOString(),
+
+      statusSync:
+        "PENDENTE"
+
+    };
+
+    validarEvidenciaOffline_(
+      evidenciaAtualizada
+    );
+
+    await salvarRegistroSIGO(
+      "TB_EVIDENCIAS",
+      evidenciaAtualizada
+    );
+
+    await adicionarNaFilaSyncSIGO({
+
+      tipo: "UPDATE",
+
+      storeOrigem:
+        "TB_EVIDENCIAS",
+
+      idRegistro:
+        evidenciaAtualizada.idEvidencia,
+
+      idObra:
+        evidenciaAtualizada.idObra
+
+    });
+
+    idEvidenciaEdicao = null;
+
+    atualizarModoEdicaoEvidencia_();
+
+    limparFormularioEvidencia();
+
+    await listarEvidenciasOffline_();
+
+    SIGOUI.feedback.success(
+      "Evidência atualizada",
+      "Registro atualizado com sucesso."
+    );
+
+  }
+
+  catch (erro) {
+
+    console.error(erro);
+
+    SIGOUI.feedback.error(
+      "Erro",
+      erro.message
+    );
+
+  }
+
+}
 
 /*async function salvarEvidenciaOffline(event) {
 
