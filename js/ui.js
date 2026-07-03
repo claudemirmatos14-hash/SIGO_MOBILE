@@ -804,10 +804,11 @@ async function montarTelaMedicoes() {
 
     actions: [
       {
-        icone: "➕",
-        texto: "Nova",
+        id: "btnGerenciarMedicao",
+        icone: "📦",
+        texto: "Gerenciar",
         tipo: "is-primary",
-        acao: "novaMedicaoPremium()"
+        acao: "abrirDrawerLoteMedicao_()"
       },
       {
         id: "btnSalvarMedicao",
