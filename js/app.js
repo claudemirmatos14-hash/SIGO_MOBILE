@@ -257,9 +257,7 @@ return `
 }
 
 function voltarHome() {
-
   navegarPara("home");
-
 }
 
 function montarTelaDiarioObra_() {
