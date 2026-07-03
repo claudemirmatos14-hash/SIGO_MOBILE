@@ -163,20 +163,21 @@ function navegarPara(tela) {
         await telasPremium[tela].montar();
   
       SIGOUI.render(".app-premium", htmlTela);
-
-    setTimeout(async () => {
-      if (typeof carregarObrasMobile_ === "function") {
-        await carregarObrasMobile_();
-      }
-
-      await telasPremium[tela].depois();
-    }, 100);
-
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth"
-    });
-
+  
+      setTimeout(async () => {
+        if (typeof carregarObrasMobile_ === "function") {
+          await carregarObrasMobile_();
+        }
+  
+        await telasPremium[tela].depois();
+      }, 100);
+  
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+      });
+    })();
+  
     return;
   }
   
