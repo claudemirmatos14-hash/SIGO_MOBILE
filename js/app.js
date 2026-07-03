@@ -122,6 +122,15 @@ function navegarPara(tela) {
           await listarClimasOffline_();
         }
       }
+    },
+
+    evidencias: {
+      montar: montarTelaEvidencias,
+      depois: async function () {
+        if (typeof listarEvidenciasOffline_ === "function") {
+          await listarEvidenciasOffline_();
+        }
+      }
     }
   };
 
@@ -3854,6 +3863,116 @@ async function excluirOcorrenciaOffline_(idOcorrencia) {
 
 }
 
+function montarTelaEvidencias() {
+  const formEvidencia = `
+    <div class="sigo-form">
+
+      ${SIGOUI.createDate({
+        id: "evidenciaData",
+        label: "Data",
+        value: new Date().toISOString().split("T")[0]
+      })}
+
+      ${SIGOUI.createInput({
+        id: "evidenciaObra",
+        label: "Obra",
+        value: obterObraAtivaMobile_(),
+        readonly: true
+      })}
+
+      ${SIGOUI.createSelect({
+        id: "evidenciaCategoria",
+        label: "Categoria",
+        options: [
+          { value: "", label: "Selecione" },
+          { value: "EXECUÇÃO", label: "📷 Execução" },
+          { value: "SEGURANÇA", label: "🛡 Segurança" },
+          { value: "QUALIDADE", label: "🏗 Qualidade" },
+          { value: "MATERIAIS", label: "📦 Materiais" },
+          { value: "EQUIPAMENTOS", label: "🚧 Equipamentos" },
+          { value: "OCORRÊNCIA", label: "⚠ Ocorrência" },
+          { value: "OUTRO", label: "📑 Outro" }
+        ]
+      })}
+
+      ${SIGOUI.createInput({
+        id: "evidenciaTitulo",
+        label: "Título",
+        placeholder: "Ex.: Foto da concretagem"
+      })}
+
+      ${SIGOUI.createTextarea({
+        id: "evidenciaDescricao",
+        label: "Descrição",
+        rows: 3,
+        placeholder: "Descreva a evidência"
+      })}
+
+      ${SIGOUI.createInput({
+        id: "evidenciaArquivo",
+        label: "Arquivo / Foto",
+        type: "file"
+      })}
+
+      ${SIGOUI.createInput({
+        id: "evidenciaAtividade",
+        label: "Atividade Vinculada",
+        placeholder: "Opcional"
+      })}
+
+      ${SIGOUI.createInput({
+        id: "evidenciaOrigem",
+        label: "Origem",
+        value: "APP_OFFLINE",
+        readonly: true
+      })}
+
+    </div>
+  `;
+
+  const listaEvidencias = `
+    <div id="listaEvidenciasOffline" class="sigo-list">
+      <div class="empty-state">
+        <div class="empty-icon">📷</div>
+        <h3>Nenhuma evidência carregada</h3>
+        <p>As evidências registradas aparecerão aqui.</p>
+      </div>
+    </div>
+  `;
+
+  return SIGOUI.createCrudScreen({
+    titulo: "📷 EVIDÊNCIAS",
+    nome: "Registro de evidências",
+    subtitulo: "Fotos e anexos offline",
+    info: "Obra, atividade e observações",
+    status: "Modo offline",
+
+    actions: [
+      {
+        icone: "➕",
+        texto: "Nova Evidência",
+        tipo: "is-primary",
+        acao: "limparFormularioEvidencia()"
+      },
+      {
+        icone: "💾",
+        texto: "Salvar",
+        tipo: "is-success",
+        acao: "salvarEvidenciaPremium()"
+      }
+    ],
+
+    formTitle: "📋 Dados da Evidência",
+    formSubtitle: "Registre fotos e informações de campo",
+    form: formEvidencia,
+
+    listTitle: "📚 Evidências Registradas",
+    listSubtitle: "Histórico offline da obra ativa",
+    list: listaEvidencias,
+
+    bottom: true
+  });
+}
 /*async function registrarSyncQueueSIGO_(config = {}) {
   const registro = {
     idSync: "SYNC-" + Date.now() + "-" + Math.floor(Math.random() * 1000),
