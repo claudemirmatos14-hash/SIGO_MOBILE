@@ -55,6 +55,97 @@ async function montarHomePremium() {
 
 }
 
+async function obterDadosDashboardHome_() {
+  const obraAtiva = obterObraAtivaMobile_();
+
+  const [
+    diarios,
+    itens,
+    medicoes,
+    ocorrencias,
+    climas,
+    evidencias
+  ] = await Promise.all([
+    listarRegistrosSIGO("TB_DIARIOS"),
+    listarRegistrosSIGO("TB_DIARIO_ITENS"),
+    listarRegistrosSIGO("TB_MEDICOES"),
+    listarRegistrosSIGO("TB_OCORRENCIAS"),
+    listarRegistrosSIGO("TB_CLIMA"),
+    listarRegistrosSIGO("TB_EVIDENCIAS")
+  ]);
+
+  const filtrarObra = lista =>
+    (lista || []).filter(item =>
+      String(item.idObra) === String(obraAtiva)
+    );
+
+  const d = filtrarObra(diarios);
+  const i = filtrarObra(itens);
+  const m = filtrarObra(medicoes);
+  const o = filtrarObra(ocorrencias);
+  const c = filtrarObra(climas);
+  const e = filtrarObra(evidencias);
+
+  const ultimoClima = c
+    .slice()
+    .sort((a, b) =>
+      new Date(b.criadoEm || b.data) -
+      new Date(a.criadoEm || a.data)
+    )[0];
+
+  const abertas = o.filter(x =>
+    String(x.status || "").toUpperCase() === "ABERTA"
+  ).length;
+
+  const criticas = o.filter(x =>
+    String(x.prioridade || "").toUpperCase() === "CRÍTICA"
+  ).length;
+
+  return {
+    diario: {
+      badge: `${d.length} diário(s)`,
+      badgeTipo: definirBadgeTipoPendencia_(d),
+      descricao: contarPendentesDashboard_(d)
+    },
+
+    diarioItens: {
+      badge: `${i.length} item(ns)`,
+      badgeTipo: definirBadgeTipoPendencia_(i),
+      descricao: contarPendentesDashboard_(i)
+    },
+
+    medicoes: {
+      badge: `${m.length} medição(ões)`,
+      badgeTipo: definirBadgeTipoPendencia_(m),
+      descricao: contarPendentesDashboard_(m)
+    },
+
+    ocorrencias: {
+      badge: `${abertas} aberta(s)`,
+      badgeTipo: criticas ? "is-danger" : definirBadgeTipoPendencia_(o),
+      descricao: criticas
+        ? `${criticas} crítica(s)`
+        : contarPendentesDashboard_(o)
+    },
+
+    clima: {
+      badge: ultimoClima
+        ? (ultimoClima.periodo || "Hoje")
+        : "Sem registro",
+      badgeTipo: definirBadgeTipoPendencia_(c),
+      descricao: ultimoClima
+        ? `${ultimoClima.condicao || "-"} ${ultimoClima.temperatura || ""}°C`
+        : "Nenhum clima registrado"
+    },
+
+    evidencias: {
+      badge: `${e.length} evidência(s)`,
+      badgeTipo: definirBadgeTipoPendencia_(e),
+      descricao: contarPendentesDashboard_(e)
+    }
+  };
+}
+
 function criarCardObraAtivaSIGO() {
   return `
     <section class="sigo-card sigo-card--hero obra-card">
