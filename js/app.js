@@ -2544,6 +2544,163 @@ function criarCardClimaOffline_(clima) {
 
 }
 
+async function detalharClimaOffline_(idClima) {
+  try {
+    const climas =
+      await listarRegistrosSIGO("TB_CLIMA");
+
+    const clima =
+      climas.find(item =>
+        String(item.idClima) === String(idClima)
+      );
+
+    if (!clima) {
+      SIGOUI.feedback.warning(
+        "Clima não encontrado",
+        "O registro não foi localizado."
+      );
+      return;
+    }
+
+    SIGOUI.showDrawer({
+      titulo: "🌦️ Clima",
+      subtitulo:
+        `${formatarDataMedicao_(clima.data)} • ${clima.periodo || "-"}`,
+      conteudo:
+        montarDetalhesClima_(clima),
+      textoFechar: "Fechar"
+    });
+
+  } catch (erro) {
+    console.error("Erro ao detalhar clima:", erro);
+
+    SIGOUI.feedback.error(
+      "Erro",
+      "Não foi possível abrir o clima."
+    );
+  }
+}
+
+function montarDetalhesClima_(clima) {
+  const status =
+    clima.statusSync || "PENDENTE";
+
+  let badge = "";
+  let classe = "";
+  let descricao = "";
+
+  switch (status) {
+    case "SINCRONIZADO":
+      badge = "🟢 SINCRONIZADO";
+      classe = "success";
+      descricao = "Registro enviado ao SIGO.";
+      break;
+
+    case "ERRO":
+      badge = "🔴 ERRO";
+      classe = "danger";
+      descricao = "Falha na sincronização.";
+      break;
+
+    default:
+      badge = "🟡 PENDENTE";
+      classe = "warning";
+      descricao = "Aguardando sincronização.";
+  }
+
+  return `
+    <div class="drawer-status">
+      <span class="badge-sync badge-${classe}">
+        ${badge}
+      </span>
+
+      <p class="drawer-status-text">
+        ${descricao}
+      </p>
+    </div>
+
+    <div class="drawer-grid">
+
+      <div class="drawer-kpi">
+        <small>Condição</small>
+        <strong>${clima.condicao || "-"}</strong>
+      </div>
+
+      <div class="drawer-kpi">
+        <small>Período</small>
+        <strong>${clima.periodo || "-"}</strong>
+      </div>
+
+      <div class="drawer-kpi">
+        <small>Temperatura</small>
+        <strong>${clima.temperatura || "-"} °C</strong>
+      </div>
+
+      <div class="drawer-kpi">
+        <small>Impacto</small>
+        <strong>${clima.impacto || "-"}</strong>
+      </div>
+
+    </div>
+
+    <div class="drawer-section">
+      <h4>Dados do Clima</h4>
+
+      <div class="drawer-item">
+        <span>Data</span>
+        <strong>${formatarDataMedicao_(clima.data)}</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Obra</span>
+        <strong>${clima.idObra || "-"}</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Intensidade</span>
+        <strong>${clima.intensidade || "-"}</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Atividade Afetada</span>
+        <strong>${clima.atividadeAfetada || "-"}</strong>
+      </div>
+    </div>
+
+    <div class="drawer-section">
+      <h4>Observação</h4>
+
+      <p>
+        ${clima.observacao || "Nenhuma observação registrada."}
+      </p>
+    </div>
+
+    <div class="drawer-section">
+      <h4>Auditoria</h4>
+
+      <div class="drawer-item">
+        <span>ID</span>
+        <strong>${clima.idClima || "-"}</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Criado em</span>
+        <strong>${formatarDataHoraMedicao_(clima.criadoEm)}</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Status Sync</span>
+        <strong>${status}</strong>
+      </div>
+
+      <div class="drawer-item">
+        <span>Versão</span>
+        <strong>1.0</strong>
+      </div>
+    </div>
+  `;
+}
+
 /*function montarTelaClima_() {
   const obraAtiva = localStorage.getItem("obraAtiva") || "OBR002";
   const hoje = new Date().toISOString().split("T")[0];
