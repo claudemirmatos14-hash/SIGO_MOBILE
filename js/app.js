@@ -176,7 +176,8 @@ function navegarPara(tela) {
         top: 0,
         behavior: "smooth"
       });
- 
+    })();
+        
     return;
   }
   
