@@ -7405,6 +7405,158 @@ async function criarHeroLoteMedicaoAtivo_() {
   `;
 }
 
+async function abrirDrawerLoteMedicao_() {
+  try {
+    await fecharLotesVencidosMedicao_();
+
+    const lote =
+      await obterLoteMedicaoAberto_();
+
+    SIGOUI.showDrawer({
+      titulo: lote
+        ? "📦 Gerenciar Medição"
+        : "➕ Nova Medição",
+
+      subtitulo: lote
+        ? `${lote.numeroMedicao} • ${lote.status}`
+        : "Defina o período da nova medição",
+
+      conteudo: montarFormularioLoteMedicao_(lote),
+
+      textoFechar: "Cancelar"
+    });
+
+  } catch (erro) {
+    console.error("Erro ao abrir lote:", erro);
+
+    SIGOUI.feedback.error(
+      "Erro",
+      "Não foi possível abrir o gerenciamento da medição."
+    );
+  }
+}
+
+function montarFormularioLoteMedicao_(lote = null) {
+  const hoje =
+    new Date().toISOString().split("T")[0];
+
+  return `
+    <div class="drawer-section" style="border-top:none;margin-top:0;padding-top:0;">
+
+      <input
+        type="hidden"
+        id="loteMedicaoId"
+        value="${lote ? lote.idLoteMedicao : ""}"
+      >
+
+      <input
+        type="hidden"
+        id="loteMedicaoNumero"
+        value="${lote ? lote.numeroMedicao : ""}"
+      >
+
+      <div class="drawer-grid">
+
+        <div class="drawer-kpi">
+          <small>Medição</small>
+          <strong>${lote ? lote.numeroMedicao : "Nova"}</strong>
+        </div>
+
+        <div class="drawer-kpi">
+          <small>Status</small>
+          <strong>${lote ? lote.status : "ABERTA"}</strong>
+        </div>
+
+      </div>
+
+      <div class="sigo-form" style="margin-top:16px;">
+
+        ${SIGOUI.createDate({
+          id: "loteMedicaoDataInicio",
+          label: "Data Inicial",
+          value: lote ? lote.dataInicio : hoje
+        })}
+
+        ${SIGOUI.createDate({
+          id: "loteMedicaoDataFim",
+          label: "Data Final",
+          value: lote ? lote.dataFim : hoje
+        })}
+
+        ${SIGOUI.createTextarea({
+          id: "loteMedicaoObservacoes",
+          label: "Observações",
+          rows: 3,
+          placeholder: "Observações da medição",
+          value: lote ? lote.observacoes : ""
+        })}
+
+      </div>
+
+      <div class="drawer-actions" style="margin-top:18px;">
+        <button
+          type="button"
+          class="sigo-action-btn is-success"
+          onclick="salvarLoteMedicaoDrawer_()">
+          <span>💾</span>
+          <strong>Definir / Salvar</strong>
+        </button>
+      </div>
+
+    </div>
+  `;
+}
+
+async function salvarLoteMedicaoDrawer_() {
+  try {
+    const idLote =
+      document.getElementById("loteMedicaoId").value;
+
+    const numeroMedicao =
+      document.getElementById("loteMedicaoNumero").value;
+
+    const dataInicio =
+      document.getElementById("loteMedicaoDataInicio").value;
+
+    const dataFim =
+      document.getElementById("loteMedicaoDataFim").value;
+
+    const observacoes =
+      document.getElementById("loteMedicaoObservacoes").value;
+
+    const lote =
+      await salvarLoteMedicao_({
+        idLoteMedicao: idLote,
+        numeroMedicao: numeroMedicao,
+        dataInicio: dataInicio,
+        dataFim: dataFim,
+        observacoes: observacoes,
+        status: "ABERTA"
+      });
+
+    if (typeof SIGOUI.closeDrawer === "function") {
+      SIGOUI.closeDrawer();
+    }
+
+    SIGOUI.feedback.success(
+      "Medição definida",
+      `${lote.numeroMedicao} está pronta para receber itens.`
+    );
+
+    navegarPara("medicoes");
+
+  } catch (erro) {
+    console.error("Erro ao salvar lote:", erro);
+
+    SIGOUI.feedback.error(
+      "Erro ao salvar",
+      erro.message || "Não foi possível salvar a medição."
+    );
+  }
+}
+
+
+
 // ============================================
 // FORMATADORES
 // ============================================
