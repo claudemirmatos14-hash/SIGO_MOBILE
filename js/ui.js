@@ -3,10 +3,11 @@
 // UX.07.12.2.2
 // =====================================================
 
-function montarHomePremium() {
+async function montarHomePremium() {
 
-  const dados = await obterDadosDashboardHome_();
-
+  const dadosDashboard =
+        await obterDadosDashboardHome_();
+  
   const tela = SIGOUI.createScreen({
 
     header: true,
