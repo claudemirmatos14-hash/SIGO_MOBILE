@@ -2610,6 +2610,8 @@ async function atualizarEvidenciaOffline_() {
       evidenciaAtualizada
     );
 
+    console.log("REGISTRANDO UPDATE EVIDÊNCIA NA FILA", evidenciaAtualizada.idEvidencia);
+
     await adicionarNaFilaSyncSIGO({
       tipo: "UPDATE",
       storeOrigem: "TB_EVIDENCIAS",
