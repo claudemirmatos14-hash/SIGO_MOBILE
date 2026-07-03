@@ -1843,7 +1843,197 @@ async function converterArquivoBase64_(arquivo) {
 
 }
 
-async function salvarEvidenciaOffline(event) {
+async function salvarEvidenciaPremium() {
+  try {
+    const inputArquivo =
+      document.getElementById("evidenciaArquivo");
+
+    const arquivo =
+      inputArquivo && inputArquivo.files
+        ? inputArquivo.files[0]
+        : null;
+
+    if (!arquivo) {
+      throw new Error("Selecione uma foto ou arquivo.");
+    }
+
+    const arquivoBase64 =
+      await converterArquivoParaBase64_(arquivo);
+
+    const evidencia = {
+      idEvidencia: "EVI-" + Date.now(),
+
+      idObra:
+        document.getElementById("evidenciaObra").value ||
+        obterObraAtivaMobile_(),
+
+      data:
+        document.getElementById("evidenciaData").value,
+
+      categoria:
+        document.getElementById("evidenciaCategoria").value,
+
+      titulo:
+        document.getElementById("evidenciaTitulo").value,
+
+      descricao:
+        document.getElementById("evidenciaDescricao").value,
+
+      arquivoNome:
+        arquivo.name,
+
+      arquivoTipo:
+        arquivo.type,
+
+      arquivoTamanho:
+        arquivo.size,
+
+      arquivoBase64:
+        arquivoBase64,
+
+      idAtividade:
+        document.getElementById("evidenciaAtividade").value || "",
+
+      idDiario:
+        "",
+
+      idItemDiario:
+        "",
+
+      idMedicao:
+        "",
+
+      idOcorrencia:
+        "",
+
+      latitude:
+        "",
+
+      longitude:
+        "",
+
+      statusSync:
+        "PENDENTE",
+
+      origem:
+        "APP_OFFLINE",
+
+      criadoEm:
+        new Date().toISOString(),
+
+      atualizadoEm:
+        "",
+
+      dataSync:
+        ""
+    };
+
+    validarEvidenciaOffline_(evidencia);
+
+    await salvarRegistroSIGO(
+      "TB_EVIDENCIAS",
+      evidencia
+    );
+
+    await adicionarNaFilaSyncSIGO({
+      tipo: "INSERT",
+      storeOrigem: "TB_EVIDENCIAS",
+      idRegistro: evidencia.idEvidencia,
+      idObra: evidencia.idObra
+    });
+
+    await listarEvidenciasOffline_();
+
+    limparFormularioEvidencia();
+
+    SIGOUI.feedback.success(
+      "Evidência salva",
+      "Registro salvo offline com sucesso."
+    );
+
+  } catch (erro) {
+    console.error("Erro ao salvar evidência:", erro);
+
+    SIGOUI.feedback.error(
+      "Erro ao salvar",
+      erro.message || "Não foi possível salvar a evidência."
+    );
+  }
+}
+
+function converterArquivoParaBase64_(arquivo) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      resolve(reader.result);
+    };
+
+    reader.onerror = () => {
+      reject(new Error("Erro ao ler o arquivo."));
+    };
+
+    reader.readAsDataURL(arquivo);
+  });
+}
+
+function validarEvidenciaOffline_(evidencia) {
+  if (!evidencia.idObra) {
+    throw new Error("Obra ativa não encontrada.");
+  }
+
+  if (!evidencia.data) {
+    throw new Error("Informe a data da evidência.");
+  }
+
+  if (!evidencia.categoria) {
+    throw new Error("Informe a categoria da evidência.");
+  }
+
+  if (!evidencia.titulo) {
+    throw new Error("Informe o título da evidência.");
+  }
+
+  if (!evidencia.arquivoBase64) {
+    throw new Error("Selecione uma foto ou arquivo.");
+  }
+
+  return true;
+}
+
+function limparFormularioEvidencia() {
+  const hoje =
+    new Date().toISOString().split("T")[0];
+
+  const campos = {
+    evidenciaData: hoje,
+    evidenciaObra: obterObraAtivaMobile_(),
+    evidenciaCategoria: "",
+    evidenciaTitulo: "",
+    evidenciaDescricao: "",
+    evidenciaAtividade: "",
+    evidenciaOrigem: "APP_OFFLINE"
+  };
+
+  Object.keys(campos).forEach(id => {
+    const campo = document.getElementById(id);
+
+    if (campo) {
+      campo.value = campos[id];
+    }
+  });
+
+  const arquivo =
+    document.getElementById("evidenciaArquivo");
+
+  if (arquivo) {
+    arquivo.value = "";
+  }
+}
+
+
+
+/*async function salvarEvidenciaOffline(event) {
 
   event.preventDefault();
 
@@ -2119,7 +2309,7 @@ async function abrirEvidenciaOffline(idEvidencia) {
     </div>
 
   `;
-}
+}*/
 
 function montarTelaClima() {
   const formClima = `
