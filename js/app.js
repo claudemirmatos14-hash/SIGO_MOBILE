@@ -72,6 +72,15 @@ function navegarPara(tela) {
   const area = document.getElementById("telaApp");
 
   const telasPremium = {
+    home: {
+      montar: montarHomePremium,
+      depois: async function () {
+        if (typeof carregarIndicadoresHomePremium === "function") {
+          await carregarIndicadoresHomePremium();
+        }
+      }
+    },
+    
     obras: {
       montar: montarTelaObrasOffline,
       depois: async function () {
