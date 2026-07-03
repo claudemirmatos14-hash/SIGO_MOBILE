@@ -794,22 +794,7 @@ async function montarTelaMedicoes() {
 
   const heroLote =
     await criarHeroLoteMedicaoAtivo_();
-  
- const formMedicao = `
-    <div class="sigo-form">
 
-      ${SIGOUI.createDate({
-        id: "medicaoData",
-        label: "Data"
-      })}
-
-      ${SIGOUI.createInput({
-        id: "medicaoObra",
-        label: "Obra Ativa",
-        value: obterObraAtivaMobile_(),
-        readonly: true
-      })}
-  
   return SIGOUI.createCrudScreen({
     titulo: "📏 MEDIÇÕES",
     nome: "Registrar avanço físico",
@@ -834,16 +819,18 @@ async function montarTelaMedicoes() {
       }
     ],
 
-    formTitle: "📋 Dados da Medição",
-    formSubtitle: "Medição vinculada ao planejamento offline",
     extraSections: [
       heroLote
     ],
-    
-    form: formMedicao,
-    
+
+    formTitle: "📋 Dados da Medição",
+    formSubtitle: "Medição vinculada ao planejamento offline",
+
+    form: montarFormularioMedicao_(),
+
     listTitle: "📚 Histórico Offline",
     listSubtitle: "Medições registradas neste dispositivo",
+
     list: `
       <div id="listaMedicoesOffline" class="sigo-list">
         Nenhuma medição salva.
