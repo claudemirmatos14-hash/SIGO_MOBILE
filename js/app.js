@@ -1609,6 +1609,13 @@ async function salvarMedicaoOffline(event) {
 
   const medicao = {
     idMedicao: "MED-" + Date.now(),
+
+    idLoteMedicao:
+      loteAberto.idLoteMedicao,
+    
+    numeroMedicao:
+      loteAberto.numeroMedicao,
+    
     data: document.getElementById("medicaoData").value,
     idObra: obterObraAtivaMobile_(),
     atividade: document.getElementById("medicaoAtividade").value,
@@ -1645,6 +1652,8 @@ async function salvarMedicaoOffline(event) {
 
     await atualizarIndicadoresMobile_();
     await listarMedicoesOffline_();
+
+    navegarPara("medicoes");
 
    SIGOUI.feedback.success(
       "Medição salva",
@@ -6553,6 +6562,19 @@ async function salvarMedicaoPremium() {
 
 async function atualizarMedicaoOffline_() {
   try {
+    
+    const loteAberto =
+      await obterLoteMedicaoAberto_();
+    
+    if (!loteAberto) {
+      SIGOUI.feedback.warning(
+        "Nenhuma medição aberta",
+        "Crie uma nova medição antes de registrar itens."
+      );
+    
+      return;
+    }
+    
     if (!idMedicaoEdicao) {
       throw new Error("Nenhuma medição selecionada para edição.");
     }
