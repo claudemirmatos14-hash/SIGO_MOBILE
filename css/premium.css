@@ -1963,7 +1963,7 @@ BARRA DE PROGRESSO
   grid-template-columns: auto 1fr;
   gap: 12px;
   align-items: flex-start;
-  margin-bottom: 12px;
+  margin-bottom:16px;
 }
 
 .medicao-card__lote {
@@ -1982,6 +1982,7 @@ BARRA DE PROGRESSO
   font-size: 14px;
   font-weight: 900;
   color: #0f172a;
+  margin-bottom:4px;
 }
 
 .medicao-card__atividade small {
@@ -1990,4 +1991,11 @@ BARRA DE PROGRESSO
   font-size: 12px;
   font-weight: 700;
   color: #475569;
+}
+
+.medicao-card__topo{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:8px;
 }
