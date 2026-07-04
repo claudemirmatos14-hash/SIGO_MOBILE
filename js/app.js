@@ -119,6 +119,11 @@ function navegarPara(tela) {
     medicoes: {
       montar: montarTelaMedicoes,
       depois: async function () {
+
+        if (typeof fecharLotesVencidosMedicao_ === "function") {
+          await fecharLotesVencidosMedicao_();
+        }
+        
         if (typeof carregarAtividadesMedicaoOffline_ === "function") {
           await carregarAtividadesMedicaoOffline_();
         }
@@ -1623,6 +1628,25 @@ async function salvarMedicaoOffline(event) {
   
   const loteAberto =
     await obterLoteMedicaoAberto_();
+
+  const hoje =
+    new Date().toISOString().split("T")[0];
+  
+  if (
+    loteAberto.dataFim &&
+    String(loteAberto.dataFim) < String(hoje)
+  ) {
+    await fecharLotesVencidosMedicao_();
+  
+    SIGOUI.feedback.warning(
+      "Medição encerrada",
+      "O período desta medição venceu. Crie uma nova medição para continuar."
+    );
+  
+    navegarPara("medicoes");
+  
+    return;
+  }
 
   if (!loteAberto) {
 
