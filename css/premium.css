@@ -1957,3 +1957,37 @@ BARRA DE PROGRESSO
   font-weight: 800;
   color: #64748b;
 }
+
+.medicao-card__cabecalho {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.medicao-card__lote {
+  font-size: 12px;
+  font-weight: 900;
+  color: #0f172a;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+
+.medicao-card__atividade strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.medicao-card__atividade small {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+}
