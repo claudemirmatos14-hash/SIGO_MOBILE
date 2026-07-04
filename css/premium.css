@@ -2120,3 +2120,11 @@ BARRA DE PROGRESSO
   color: #334155;
 }
 
+.medicao-timeline__item {
+  cursor: pointer;
+}
+
+.medicao-timeline__item:hover .medicao-timeline__content {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
