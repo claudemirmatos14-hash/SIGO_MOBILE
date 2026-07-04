@@ -2128,3 +2128,45 @@ BARRA DE PROGRESSO
   border-color: #2563eb;
   background: #eff6ff;
 }
+
+.historico-medicoes-drawer {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.historico-medicao-item {
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 16px;
+  padding: 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+}
+
+.historico-medicao-item strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.historico-medicao-item small {
+  display: block;
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.historico-medicao-item span {
+  display: block;
+  font-size: 11px;
+  font-weight: 900;
+  text-align: right;
+}
