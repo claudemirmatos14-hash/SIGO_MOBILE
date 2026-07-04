@@ -7898,6 +7898,154 @@ async function obterLoteHistoricoSelecionado_() {
 
   return await obterLoteMedicaoAberto_();
 }
+
+async function abrirDrawerHistoricoMedicoes_() {
+  try {
+    const conteudo =
+      await montarDrawerHistoricoMedicoes_();
+
+    SIGOUI.showDrawer({
+      titulo: "📚 Histórico de Medições",
+      subtitulo: "Todos os lotes da obra ativa",
+      conteudo: conteudo,
+      textoFechar: "Fechar"
+    });
+
+  } catch (erro) {
+    console.error("Erro ao abrir histórico de medições:", erro);
+
+    SIGOUI.feedback.error(
+      "Erro",
+      "Não foi possível abrir o histórico de medições."
+    );
+  }
+}
+
+async function montarDrawerHistoricoMedicoes_() {
+  const obraAtiva =
+    obterObraAtivaMobile_();
+
+  const lotes =
+    await listarRegistrosSIGO("TB_LOTES_MEDICAO");
+
+  const medicoes =
+    await listarRegistrosSIGO("TB_MEDICOES");
+
+  const lotesObra =
+    lotes
+      .filter(lote =>
+        String(lote.idObra) === String(obraAtiva)
+      )
+      .sort((a, b) =>
+        new Date(b.criadoEm || b.dataInicio) -
+        new Date(a.criadoEm || a.dataInicio)
+      );
+
+  if (!lotesObra.length) {
+    return `
+      <div class="drawer-section">
+        <p>Nenhuma medição encontrada para esta obra.</p>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="drawer-section" style="border-top:none;margin-top:0;padding-top:0;">
+
+      ${SIGOUI.createInput({
+        id: "pesquisaHistoricoMedicao",
+        label: "Pesquisar",
+        placeholder: "Ex.: MED.001",
+        oninput: "filtrarHistoricoMedicoesDrawer_()"
+      })}
+
+      <div id="listaHistoricoMedicoesDrawer" class="historico-medicoes-drawer">
+        ${lotesObra
+          .map(lote => {
+            const totalItens =
+              medicoes.filter(item =>
+                String(item.idLoteMedicao) === String(lote.idLoteMedicao)
+              ).length;
+
+            return criarItemDrawerHistoricoMedicao_(lote, totalItens);
+          })
+          .join("")}
+      </div>
+
+    </div>
+  `;
+}
+
+function criarItemDrawerHistoricoMedicao_(lote, totalItens = 0) {
+  const status =
+    lote.status || "ABERTA";
+
+  const badge =
+    status === "ABERTA"
+      ? "🟢 ABERTA"
+      : "⚪ FECHADA";
+
+  return `
+    <button
+      type="button"
+      class="historico-medicao-item"
+      data-medicao="${lote.numeroMedicao || ""}"
+      onclick="selecionarLoteHistoricoDrawer_('${lote.idLoteMedicao}')">
+
+      <div>
+        <strong>${lote.numeroMedicao || "MED.---"}</strong>
+        <small>
+          ${formatarDataMedicao_(lote.dataInicio)}
+          →
+          ${formatarDataMedicao_(lote.dataFim)}
+        </small>
+      </div>
+
+      <div>
+        <span>${badge}</span>
+        <small>${totalItens} item(ns)</small>
+      </div>
+
+    </button>
+  `;
+}
+
+async function selecionarLoteHistoricoDrawer_(idLoteMedicao) {
+  idLoteMedicaoSelecionado =
+    idLoteMedicao;
+
+  if (typeof SIGOUI.closeDrawer === "function") {
+    SIGOUI.closeDrawer();
+  }
+
+  await listarMedicoesOffline_();
+
+  SIGOUI.feedback.info(
+    "Medição selecionada",
+    "Histórico atualizado para o lote selecionado."
+  );
+}
+
+function filtrarHistoricoMedicoesDrawer_() {
+  const termo =
+    document
+      .getElementById("pesquisaHistoricoMedicao")
+      .value
+      .toUpperCase();
+
+  const itens =
+    document.querySelectorAll(".historico-medicao-item");
+
+  itens.forEach(item => {
+    const medicao =
+      item.dataset.medicao || "";
+
+    item.style.display =
+      medicao.toUpperCase().includes(termo)
+        ? "flex"
+        : "none";
+  });
+}
 // ============================================
 // FORMATADORES
 // ============================================
