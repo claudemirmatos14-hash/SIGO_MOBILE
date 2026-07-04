@@ -1004,26 +1004,32 @@ function criarCardMedicaoOffline_(medicao) {
   return `
     <article class="medicao-card">
 
-      <div class="medicao-card__cabecalho">
-        <div class="medicao-card__lote">
-          📦 ${medicao.numeroMedicao || "MED.---"}
+     <div class="medicao-card__cabecalho">
+
+        <div class="medicao-card__topo">
+      
+          <div class="medicao-card__lote">
+            📦 ${medicao.numeroMedicao || "MED.---"}
+          </div>
+      
+          <span class="badge-sync badge-${classeStatus}">
+            ${badge}
+          </span>
+      
         </div>
       
         <div class="medicao-card__atividade">
+      
           <strong>
             🔖 EAP ${medicao.eap || medicao.atividade || "-"}
           </strong>
       
           <small>
-            ${medicao.servico || "Serviço não informado"}
+            📋 ${medicao.servico || "Serviço não informado"}
           </small>
+      
         </div>
       
-      </div>
-       <div>
-        <span class="badge-sync badge-${classeStatus}">
-          ${badge}
-        </span>
       </div>
 
       <div class="medicao-card__grid">
