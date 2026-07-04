@@ -1625,9 +1625,20 @@ async function carregarAtividadesMedicaoOffline_() {
 
 async function salvarMedicaoOffline(event) {
   event.preventDefault();
+
+  
   
   const loteAberto =
     await obterLoteMedicaoAberto_();
+
+   if (!loteAberto) {
+      SIGOUI.feedback.warning(
+        "Nenhuma medição aberta",
+        "Clique em Nova Medição para definir o período antes de salvar itens."
+      );
+  
+      return;
+    }
 
   const hoje =
     new Date().toISOString().split("T")[0];
