@@ -800,6 +800,9 @@ async function montarTelaMedicoes() {
   const loteAberto =
     await obterLoteMedicaoAberto_();
 
+  const acaoBotao =
+    await obterAcaoBotaoLoteMedicao_();
+
   return SIGOUI.createCrudScreen({
     titulo: "📏 MEDIÇÕES",
     nome: "Registrar avanço físico",
@@ -810,10 +813,10 @@ async function montarTelaMedicoes() {
     actions: [
       {
         id: "btnGerenciarMedicao",
-        icone: "📦",
-        texto: "Gerenciar",
-        tipo: "is-primary",
-        acao: "abrirDrawerLoteMedicao_()"
+        icone: acaoBotao.icone,
+        texto: acaoBotao.texto,
+        tipo: acaoBotao.tipo,
+        acao: acaoBotao.acao
       },
       {
         id: "btnSalvarMedicao",
