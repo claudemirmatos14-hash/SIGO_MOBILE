@@ -791,10 +791,6 @@ function montarTelaObrasOffline() {
 }
 
 async function montarTelaMedicoes() {
-
-  const timelineLotes =
-  await criarTimelineLotesMedicao_();
-
   await fecharLotesVencidosMedicao_();
 
   const heroLote =
@@ -802,6 +798,12 @@ async function montarTelaMedicoes() {
 
   const loteAberto =
     await obterLoteMedicaoAberto_();
+
+  const loteHistorico =
+    await obterLoteHistoricoSelecionado_();
+
+  const timelineLotes =
+    await criarTimelineLotesMedicao_();
 
   const acaoBotao =
     await obterAcaoBotaoLoteMedicao_();
@@ -840,12 +842,12 @@ async function montarTelaMedicoes() {
 
     form: montarFormularioMedicao_(),
 
-    listTitle: loteAberto
-      ? `📚 Histórico da ${loteAberto.numeroMedicao}`
-      : "📚 Histórico",
+    listTitle: `📚 Histórico da ${
+      loteHistorico?.numeroMedicao || "Medição"
+    }`,
 
-    listSubtitle: loteAberto
-      ? "Itens registrados nesta medição"
+    listSubtitle: loteHistorico
+      ? `Itens registrados na ${loteHistorico.numeroMedicao}`
       : "Nenhuma medição aberta",
 
     list: `
