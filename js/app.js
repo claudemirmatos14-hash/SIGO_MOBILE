@@ -12,6 +12,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 let idDiarioEdicao = null;
 let idItemDiarioEdicao = null;
 let idMedicaoEdicao = null;
+let idLoteMedicaoSelecionado = null;
 let idOcorrenciaEdicao = null;
 let idClimaEdicao = null;
 let idEvidenciaEdicao = null;
@@ -6741,8 +6742,32 @@ async function listarMedicoesOffline_() {
     const obraAtiva =
       obterObraAtivaMobile_();
 
-    const loteAberto =
-      await obterLoteMedicaoAberto_();
+    let loteReferencia = null;
+
+    if (idLoteMedicaoSelecionado) {
+      const lotes =
+        await listarRegistrosSIGO("TB_LOTES_MEDICAO");
+    
+      loteReferencia =
+        lotes.find(lote =>
+          String(lote.idLoteMedicao) ===
+          String(idLoteMedicaoSelecionado)
+        ) || null;
+    }
+    
+    if (!loteReferencia) {
+      loteReferencia =
+        await obterLoteMedicaoAberto_();
+    }
+    
+    if (!loteReferencia) {
+      container.innerHTML = `
+        <div class="card-vazio">
+          Nenhuma medição selecionada.
+        </div>
+      `;
+      return;
+    }
 
     if (!loteAberto) {
       container.innerHTML = `
@@ -6760,7 +6785,7 @@ async function listarMedicoesOffline_() {
       medicoes
         .filter(item =>
           String(item.idObra) === String(obraAtiva) &&
-          String(item.idLoteMedicao) === String(loteAberto.idLoteMedicao)
+          String(item.idLoteMedicao) === String(loteReferencia.idLoteMedicao)
         )
         .sort((a, b) =>
           new Date(b.criadoEm) - new Date(a.criadoEm)
@@ -6769,7 +6794,7 @@ async function listarMedicoesOffline_() {
     if (!medicoesDoLote.length) {
       container.innerHTML = `
         <div class="card-vazio">
-          Nenhum item registrado na ${loteAberto.numeroMedicao}.
+          Nenhum item registrado na ${loteReferencia.numeroMedicao}.
         </div>
       `;
       return;
@@ -7826,7 +7851,11 @@ function criarItemTimelineLoteMedicao_(lote, totalItens = 0) {
       : "⚪ FECHADA";
 
   return `
-    <article class="medicao-timeline__item ${classe}">
+    <article
+      class="medicao-timeline__item ${classe}"
+      onclick="selecionarLoteMedicaoTimeline_('${lote.idLoteMedicao}')"
+    >
+    
       <div class="medicao-timeline__dot"></div>
 
       <div class="medicao-timeline__content">
@@ -7847,6 +7876,18 @@ function criarItemTimelineLoteMedicao_(lote, totalItens = 0) {
       </div>
     </article>
   `;
+}
+
+async function selecionarLoteMedicaoTimeline_(idLoteMedicao) {
+  idLoteMedicaoSelecionado =
+    idLoteMedicao;
+
+  await listarMedicoesOffline_();
+
+  SIGOUI.feedback.info(
+    "Medição selecionada",
+    "Histórico atualizado para o lote selecionado."
+  );
 }
 
 // ============================================
