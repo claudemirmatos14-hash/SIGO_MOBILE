@@ -1011,7 +1011,7 @@ function criarCardMedicaoOffline_(medicao) {
         <div class="medicao-lote-tag">
             📦 ${medicao.numeroMedicao}
         </div>
-        
+        <div>
           <strong>
             📏 ${medicao.eap || medicao.atividade || "-"}
           </strong>
