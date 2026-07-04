@@ -1007,7 +1007,7 @@ function criarCardMedicaoOffline_(medicao) {
     <article class="medicao-card">
 
       <div class="medicao-card__header">
-        <div>
+       
         <div class="medicao-lote-tag">
             📦 ${medicao.numeroMedicao}
         </div>
