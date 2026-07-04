@@ -7635,6 +7635,44 @@ async function salvarLoteMedicaoDrawer_() {
   }
 }
 
+async function obterAcaoBotaoLoteMedicao_() {
+
+  await fecharLotesVencidosMedicao_();
+
+  const lote =
+    await obterLoteMedicaoAberto_();
+
+  if (!lote) {
+    return {
+      icone: "➕",
+      texto: "Nova Medição",
+      tipo: "is-primary",
+      acao: "abrirDrawerLoteMedicao_()"
+    };
+  }
+
+  const hoje =
+    new Date().toISOString().split("T")[0];
+
+  if (
+    lote.dataFim &&
+    String(lote.dataFim) < String(hoje)
+  ) {
+    return {
+      icone: "⚠️",
+      texto: "Revisar",
+      tipo: "is-warning",
+      acao: "abrirDrawerLoteMedicao_()"
+    };
+  }
+
+  return {
+    icone: "📦",
+    texto: "Gerenciar",
+    tipo: "is-primary",
+    acao: "abrirDrawerLoteMedicao_()"
+  };
+}
 
 
 // ============================================
