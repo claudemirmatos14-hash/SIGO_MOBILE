@@ -1019,15 +1019,15 @@ function criarCardMedicaoOffline_(medicao) {
         </div>
       
         <div class="medicao-card__atividade">
-      
-          <strong>
-            🔖 EAP ${medicao.eap || medicao.atividade || "-"}
-          </strong>
-      
-          <small>
+
+          <div class="medicao-card__servico">
             📋 ${medicao.servico || "Serviço não informado"}
-          </small>
-      
+          </div>
+        
+          <div class="medicao-card__eap">
+            🔖 EAP ${medicao.eap || medicao.atividade || "-"}
+          </div>
+        
         </div>
       
       </div>
