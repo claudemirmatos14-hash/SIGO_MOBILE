@@ -1020,9 +1020,7 @@ function criarCardMedicaoOffline_(medicao) {
         </div>
       
       </div>
-       
-       
-
+       <div>
         <span class="badge-sync badge-${classeStatus}">
           ${badge}
         </span>
