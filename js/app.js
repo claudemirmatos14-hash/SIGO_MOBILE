@@ -7792,8 +7792,19 @@ async function criarTimelineLotesMedicao_() {
           <span>📚</span>
           <h2>HISTÓRICO DE MEDIÇÕES</h2>
         </div>
-
-        <p>Nenhum lote de medição criado.</p>
+    
+        <div class="medicao-timeline">
+          ${cards.join("")}
+        </div>
+    
+        <div class="medicao-timeline-footer">
+          <button
+            type="button"
+            class="btn-secondary"
+            onclick="abrirDrawerHistoricoMedicoes_()">
+            📚 Ver todas as medições
+          </button>
+        </div>
       </section>
     `;
   }
