@@ -795,6 +795,9 @@ async function montarTelaMedicoes() {
   const heroLote =
     await criarHeroLoteMedicaoAtivo_();
 
+  const loteAberto =
+    await obterLoteMedicaoAberto_();
+
   return SIGOUI.createCrudScreen({
     titulo: "📏 MEDIÇÕES",
     nome: "Registrar avanço físico",
@@ -828,19 +831,14 @@ async function montarTelaMedicoes() {
 
     form: montarFormularioMedicao_(),
 
-   const loteAberto =
-      await obterLoteMedicaoAberto_();
-    
-    listTitle:
-      loteAberto
-        ? `📚 Histórico da ${loteAberto.numeroMedicao}`
-        : "📚 Histórico",
-    
-    listSubtitle:
-      loteAberto
-        ? "Itens registrados nesta medição"
-        : "Nenhuma medição aberta",
-        
+    listTitle: loteAberto
+      ? `📚 Histórico da ${loteAberto.numeroMedicao}`
+      : "📚 Histórico",
+
+    listSubtitle: loteAberto
+      ? "Itens registrados nesta medição"
+      : "Nenhuma medição aberta",
+
     list: `
       <div id="listaMedicoesOffline" class="sigo-list">
         Nenhuma medição salva.
