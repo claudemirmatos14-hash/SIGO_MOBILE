@@ -7768,7 +7768,7 @@ async function obterAcaoBotaoLoteMedicao_() {
   };
 }
 
-async function criarTimelineLotesMedicao_() {
+/*async function criarTimelineLotesMedicao_() {
   const obraAtiva =
     obterObraAtivaMobile_();
 
@@ -7833,6 +7833,74 @@ async function criarTimelineLotesMedicao_() {
 
       <div class="medicao-timeline">
         ${cards.join("")}
+      </div>
+    </section>
+  `;
+}*/
+
+async function criarTimelineLotesMedicao_() {
+  const obraAtiva =
+    obterObraAtivaMobile_();
+
+  const lotes =
+    await listarRegistrosSIGO("TB_LOTES_MEDICAO");
+
+  const lotesObra =
+    lotes
+      .filter(lote =>
+        String(lote.idObra) === String(obraAtiva)
+      )
+      .sort((a, b) =>
+        new Date(b.criadoEm || b.dataInicio) -
+        new Date(a.criadoEm || a.dataInicio)
+      );
+
+  if (!lotesObra.length) {
+    return `
+      <section class="sigo-card medicao-timeline-card">
+        <div class="section-title">
+          <span>📚</span>
+          <h2>HISTÓRICO DE MEDIÇÕES</h2>
+        </div>
+
+        <p>Nenhum lote de medição criado.</p>
+      </section>
+    `;
+  }
+
+  const itens =
+    await listarRegistrosSIGO("TB_MEDICOES");
+
+  const cards =
+    await Promise.all(
+      lotesObra.map(async lote => {
+        const totalItens =
+          itens.filter(item =>
+            String(item.idLoteMedicao) === String(lote.idLoteMedicao)
+          ).length;
+
+        return criarItemTimelineLoteMedicao_(lote, totalItens);
+      })
+    );
+
+  return `
+    <section class="sigo-card medicao-timeline-card">
+      <div class="section-title">
+        <span>📚</span>
+        <h2>HISTÓRICO DE MEDIÇÕES</h2>
+      </div>
+
+      <div class="medicao-timeline">
+        ${cards.join("")}
+      </div>
+
+      <div class="medicao-timeline-footer">
+        <button
+          type="button"
+          class="btn-secondary"
+          onclick="abrirDrawerHistoricoMedicoes_()">
+          📚 Ver todas as medições
+        </button>
       </div>
     </section>
   `;
