@@ -792,6 +792,8 @@ function montarTelaObrasOffline() {
 
 async function montarTelaMedicoes() {
 
+  await fecharLotesVencidosMedicao_();
+
   const heroLote =
     await criarHeroLoteMedicaoAtivo_();
 
