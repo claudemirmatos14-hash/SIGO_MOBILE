@@ -2170,3 +2170,11 @@ BARRA DE PROGRESSO
   font-weight: 900;
   text-align: right;
 }
+
+.medicao-timeline-footer {
+  margin-top: 14px;
+}
+
+.medicao-timeline-footer button {
+  width: 100%;
+}
