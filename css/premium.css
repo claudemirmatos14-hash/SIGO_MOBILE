@@ -2018,3 +2018,33 @@ BARRA DE PROGRESSO
   font-weight: 700;
   color: #64748b;
 }
+
+.medicao-lote-dashboard {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.medicao-lote-dashboard div {
+  background: #f8fafc;
+  border-radius: 14px;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.medicao-lote-dashboard small {
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  color: #64748b;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.medicao-lote-dashboard strong {
+  font-size: 14px;
+  font-weight: 900;
+  color: #0f172a;
+}
+
