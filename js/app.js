@@ -6769,15 +6769,6 @@ async function listarMedicoesOffline_() {
       return;
     }
 
-    if (!loteAberto) {
-      container.innerHTML = `
-        <div class="card-vazio">
-          Nenhuma medição aberta.
-        </div>
-      `;
-      return;
-    }
-
     const medicoes =
       await listarRegistrosSIGO("TB_MEDICOES");
 
