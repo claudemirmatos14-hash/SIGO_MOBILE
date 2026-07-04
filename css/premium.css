@@ -2048,3 +2048,75 @@ BARRA DE PROGRESSO
   color: #0f172a;
 }
 
+.medicao-timeline-card {
+  margin-bottom: 16px;
+}
+
+.medicao-timeline {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.medicao-timeline__item {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 10px;
+  position: relative;
+}
+
+.medicao-timeline__dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  margin-top: 6px;
+  background: #94a3b8;
+}
+
+.medicao-timeline__item.is-open .medicao-timeline__dot {
+  background: #22c55e;
+}
+
+.medicao-timeline__item.is-closed .medicao-timeline__dot {
+  background: #94a3b8;
+}
+
+.medicao-timeline__content {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 12px;
+}
+
+.medicao-timeline__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+
+.medicao-timeline__header strong {
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.medicao-timeline__header span {
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.medicao-timeline__content small {
+  display: block;
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.medicao-timeline__content p {
+  margin: 6px 0 0;
+  font-size: 12px;
+  font-weight: 800;
+  color: #334155;
+}
+
