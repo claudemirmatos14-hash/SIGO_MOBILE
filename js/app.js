@@ -7447,15 +7447,41 @@ async function criarHeroLoteMedicaoAtivo_() {
           <h2>NENHUMA MEDIÇÃO ABERTA</h2>
         </div>
 
-        <p>
-          Crie uma nova medição para registrar os itens medidos.
-        </p>
+        <p>Crie uma nova medição para registrar os itens medidos.</p>
       </section>
     `;
   }
 
+  const medicoes =
+    await listarRegistrosSIGO("TB_MEDICOES");
+
+  const itensLote =
+    medicoes.filter(item =>
+      String(item.idLoteMedicao) === String(lote.idLoteMedicao)
+    );
+
   const totalItens =
-    await contarItensDoLoteMedicao_(lote.idLoteMedicao);
+    itensLote.length;
+
+  const quantidadeTotal =
+    itensLote.reduce((total, item) =>
+      total + Number(item.qtdeExecutada || 0),
+      0
+    );
+
+  const hoje =
+    new Date().toISOString().split("T")[0];
+
+  const diasRestantes =
+    lote.dataFim
+      ? Math.max(
+          0,
+          Math.ceil(
+            (new Date(lote.dataFim) - new Date(hoje)) /
+            (1000 * 60 * 60 * 24)
+          )
+        )
+      : 0;
 
   return `
     <section class="sigo-card medicao-lote-card">
@@ -7478,8 +7504,21 @@ async function criarHeroLoteMedicaoAtivo_() {
         ${formatarDataMedicao_(lote.dataFim)}
       </div>
 
-      <div class="medicao-lote-itens">
-        ${totalItens} item(ns) medido(s)
+      <div class="medicao-lote-dashboard">
+        <div>
+          <small>Itens medidos</small>
+          <strong>${totalItens}</strong>
+        </div>
+
+        <div>
+          <small>Quantidade medida</small>
+          <strong>${formatarNumeroMedicao_(quantidadeTotal)}</strong>
+        </div>
+
+        <div>
+          <small>Dias restantes</small>
+          <strong>${diasRestantes}</strong>
+        </div>
       </div>
     </section>
   `;
