@@ -1959,8 +1959,8 @@ BARRA DE PROGRESSO
 }
 
 .medicao-card__cabecalho {
-  display: grid;
-  grid-template-columns: auto 1fr;
+   display: flex;
+  flex-direction: column;
   gap: 12px;
   align-items: flex-start;
   margin-bottom:16px;
@@ -1993,28 +1993,28 @@ BARRA DE PROGRESSO
   color: #475569;
 }
 
-.medicao-card__topo{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    margin-bottom:8px;
-}
-
 .medicao-card__atividade{
     display:flex;
     flex-direction:column;
     gap:6px;
 }
 
-.medicao-card__servico{
-    font-size:15px;
-    font-weight:700;
-    color:#0f172a;
-    line-height:1.3;
+.medicao-card__topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
 }
 
-.medicao-card__eap{
-    font-size:12px;
-    font-weight:600;
-    color:#64748b;
+.medicao-card__servico {
+  font-size: 15px;
+  font-weight: 900;
+  color: #0f172a;
+  line-height: 1.3;
+}
+
+.medicao-card__eap {
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
 }
