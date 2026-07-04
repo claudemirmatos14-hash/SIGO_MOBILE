@@ -828,9 +828,19 @@ async function montarTelaMedicoes() {
 
     form: montarFormularioMedicao_(),
 
-    listTitle: "📚 Histórico Offline",
-    listSubtitle: "Medições registradas neste dispositivo",
-
+   const loteAberto =
+      await obterLoteMedicaoAberto_();
+    
+    listTitle:
+      loteAberto
+        ? `📚 Histórico da ${loteAberto.numeroMedicao}`
+        : "📚 Histórico",
+    
+    listSubtitle:
+      loteAberto
+        ? "Itens registrados nesta medição"
+        : "Nenhuma medição aberta",
+        
     list: `
       <div id="listaMedicoesOffline" class="sigo-list">
         Nenhuma medição salva.
@@ -998,6 +1008,10 @@ function criarCardMedicaoOffline_(medicao) {
 
       <div class="medicao-card__header">
         <div>
+        <div class="medicao-lote-tag">
+            📦 ${medicao.numeroMedicao}
+        </div>
+        
           <strong>
             📏 ${medicao.eap || medicao.atividade || "-"}
           </strong>
