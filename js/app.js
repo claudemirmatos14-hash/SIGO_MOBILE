@@ -7881,6 +7881,23 @@ async function selecionarLoteMedicaoTimeline_(idLoteMedicao) {
   );
 }
 
+async function obterLoteHistoricoSelecionado_() {
+
+  if (idLoteMedicaoSelecionado) {
+
+    const lotes =
+      await listarRegistrosSIGO("TB_LOTES_MEDICAO");
+
+    return (
+      lotes.find(lote =>
+        String(lote.idLoteMedicao) ===
+        String(idLoteMedicaoSelecionado)
+      ) || null
+    );
+  }
+
+  return await obterLoteMedicaoAberto_();
+}
 // ============================================
 // FORMATADORES
 // ============================================
