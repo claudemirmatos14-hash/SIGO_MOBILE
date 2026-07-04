@@ -1169,6 +1169,16 @@ async function sincronizarSIGO() {
       pendentes.some(item => item.idRegistro === medicao.idMedicao)
     );
 
+    const lotesMedicao =
+      await listarRegistrosSIGO("TB_LOTES_MEDICAO");
+    
+    const lotesMedicaoPendentes =
+      lotesMedicao.filter(lote =>
+        pendentes.some(item =>
+          item.idRegistro === lote.idLoteMedicao
+        )
+      );
+
     const evidencias = await listarRegistrosSIGO("TB_EVIDENCIAS");
 
     const evidenciasPendentes = evidencias.filter(evidencia =>
@@ -1202,14 +1212,15 @@ async function sincronizarSIGO() {
       idUsuario: "USUARIO_APP",
       idObra: obraAtiva,
       dataEnvio: new Date().toISOString(),
-      pacote: {
-        diarios: diariosPendentes,
-        diarioItens: diarioItensPendentes,
-        medicoes: medicoesPendentes,
-        ocorrencias: ocorrenciasPendentes,
-        clima: climasPendentes,
-        evidencias: evidenciasPendentes
-      }
+   pacote: {
+      diarios: diariosPendentes,
+      diarioItens: diarioItensPendentes,
+      lotesMedicao: lotesMedicaoPendentes,
+      medicoes: medicoesPendentes,
+      ocorrencias: ocorrenciasPendentes,
+      clima: climasPendentes,
+      evidencias: evidenciasPendentes
+    }
     };
 
     console.log("Enviando para API SIGO:", payload);
@@ -1257,6 +1268,16 @@ async function sincronizarSIGO() {
         await atualizarRegistroSIGO(
           "TB_MEDICOES",
           medicao
+        );
+      }
+
+    for (const lote of lotesMedicaoPendentes) {
+        lote.statusSync = "SINCRONIZADO";
+        lote.dataSync = new Date().toISOString();
+      
+        await atualizarRegistroSIGO(
+          "TB_LOTES_MEDICAO",
+          lote
         );
       }
 
@@ -1316,6 +1337,13 @@ async function sincronizarSIGO() {
     await listarClimasOffline_();
     await listarOcorrenciasOffline_();
     await listarItensDiarioOffline_();
+
+    if (
+      typeof navegarPara === "function" &&
+      document.getElementById("listaMedicoesOffline")
+    ) {
+      navegarPara("medicoes");
+    }
 
     localStorage.setItem(
       "SIGO_ULTIMA_SYNC",
