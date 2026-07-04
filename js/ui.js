@@ -792,6 +792,9 @@ function montarTelaObrasOffline() {
 
 async function montarTelaMedicoes() {
 
+  const timelineLotes =
+  await criarTimelineLotesMedicao_();
+
   await fecharLotesVencidosMedicao_();
 
   const heroLote =
@@ -828,7 +831,8 @@ async function montarTelaMedicoes() {
     ],
 
     extraSections: [
-      heroLote
+      heroLote,
+      timelineLotes
     ],
 
     formTitle: "📋 Dados da Medição",
