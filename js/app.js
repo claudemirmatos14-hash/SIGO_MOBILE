@@ -428,6 +428,17 @@ async function atualizarIndicadoresMobile_() {
 
     const fila =
       await listarRegistrosSIGO("TB_SYNC_QUEUE");
+    
+    const totalAtividades =
+      await contarAtividadesOfflineObra_();
+    
+        const el =
+          document.getElementById("contadorAtividadesOffline");
+        
+        if (el) {
+          el.textContent =
+            `${totalAtividades} atividades offline`;
+        }
 
     const pendentes =
       fila.filter(item => item.statusSync === "PENDENTE");
