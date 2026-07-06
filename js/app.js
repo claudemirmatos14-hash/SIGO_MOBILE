@@ -8154,14 +8154,17 @@ async function atualizarCabecalhoHistoricoMedicao_() {
 }
 
 async function contarAtividadesOfflineObra_() {
-  const obraAtiva =
+  const obraAtivaBruta =
     obterObraAtivaMobile_();
+
+  const obraAtiva =
+    String(obraAtivaBruta).split(" ")[0].trim();
 
   const atividades =
     await listarRegistrosSIGO("TB_ATIVIDADES_OBRA");
 
   return atividades.filter(item =>
-    String(item.idObra) === String(obraAtiva)
+    String(item.idObra).trim() === String(obraAtiva)
   ).length;
 }
 
