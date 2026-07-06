@@ -444,6 +444,22 @@ async function atualizarIndicadoresMobile_() {
             `${totalAtividades} atividades offline`;
         }
 
+    const atividades =
+      await listarRegistrosSIGO("TB_ATIVIDADES_OBRA");
+    
+    const atividadesObra =
+      atividades.filter(item =>
+        String(item.idObra) === String(obterObraAtivaMobile_())
+      );
+    
+    const totalAtividades =
+      atividadesObra.length;
+    
+    const emExecucao =
+      atividadesObra.filter(item =>
+        String(item.status).toUpperCase() === "EM EXECUÇÃO"
+      ).length;
+    
     const pendentes =
       fila.filter(item => item.statusSync === "PENDENTE");
 
