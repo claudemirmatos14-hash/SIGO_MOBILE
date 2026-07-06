@@ -1,5 +1,5 @@
 const SIGO_DB_NAME = "SIGO_OFFLINE_DB";
-const SIGO_DB_VERSION = 6;
+const SIGO_DB_VERSION = 7;
 
 let SIGO_DB = null;
 
@@ -122,6 +122,21 @@ if (!db.objectStoreNames.contains("TB_PARAMETROS_OBRA")) {
   db.createObjectStore("TB_PARAMETROS_OBRA", {
     keyPath: "idObra"
   });
+}
+
+  if (!db.objectStoreNames.contains("TB_NOTIFICACOES")) {
+
+  const store = db.createObjectStore("TB_NOTIFICACOES", {
+    keyPath: "idNotificacao"
+  });
+
+  store.createIndex("idObra", "idObra", { unique: false });
+
+  store.createIndex("tipo", "tipo", { unique: false });
+
+  store.createIndex("lida", "lida", { unique: false });
+
+  store.createIndex("criadaEm", "criadaEm", { unique: false });
 }
 }
 
