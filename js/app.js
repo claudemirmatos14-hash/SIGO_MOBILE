@@ -8142,6 +8142,18 @@ async function atualizarCabecalhoHistoricoMedicao_() {
       : "Nenhuma medição selecionada";
 }
 
+async function contarAtividadesOfflineObra_() {
+  const obraAtiva =
+    obterObraAtivaMobile_();
+
+  const atividades =
+    await listarRegistrosSIGO("TB_ATIVIDADES_OBRA");
+
+  return atividades.filter(item =>
+    String(item.idObra) === String(obraAtiva)
+  ).length;
+}
+
 // ============================================
 // FORMATADORES
 // ============================================
