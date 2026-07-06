@@ -7845,7 +7845,7 @@ async function criarTimelineLotesMedicao_() {
   const lotes =
     await listarRegistrosSIGO("TB_LOTES_MEDICAO");
 
-  const lotesObra =
+ const lotesObra =
     lotes
       .filter(lote =>
         String(lote.idObra) === String(obraAtiva)
@@ -7853,7 +7853,8 @@ async function criarTimelineLotesMedicao_() {
       .sort((a, b) =>
         new Date(b.criadoEm || b.dataInicio) -
         new Date(a.criadoEm || a.dataInicio)
-      );
+      )
+      .slice(0, 3);
 
   if (!lotesObra.length) {
     return `
