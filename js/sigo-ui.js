@@ -640,10 +640,16 @@ function createCrudScreen(config = {}) {
       ),
 
       createSection(
-        config.listTitle || "Registros",
-        config.listSubtitle || "Histórico offline",
-        config.list || ""
-      )
+      config.listTitleId
+        ? `<span id="${config.listTitleId}">${config.listTitle || "Registros"}</span>`
+        : config.listTitle || "Registros",
+    
+      config.listSubtitleId
+        ? `<span id="${config.listSubtitleId}">${config.listSubtitle || "Histórico offline"}</span>`
+        : config.listSubtitle || "Histórico offline",
+    
+      config.list || ""
+    )
     ],
 
     bottom: config.bottom !== false
