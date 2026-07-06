@@ -62,6 +62,8 @@ function atualizarNomeObra_(seletor, nomeObra) {
 }
 
 function navegarPara(tela) {
+localStorage.setItem("telaAtualMobile", tela);
+  
   const app = document.querySelector(".app-premium");
   const area = document.getElementById("telaApp");
 
@@ -8263,14 +8265,44 @@ async function definirObraAtivaPeloSeletor_() {
   const select = document.getElementById("obraAtiva");
   if (!select || !select.value) return;
 
-  SIGOAppContext.setObraAtiva(select.value);
+  const idObra = select.value;
+
+  SIGOAppContext.setObraAtiva(idObra);
 
   await atualizarHeroObraAtivaMobile_();
-  await atualizarIndicadoresMobile_();
+
+  if (typeof atualizarIndicadoresMobile_ === "function") {
+    await atualizarIndicadoresMobile_();
+  }
 
   if (typeof atualizarDashboardHome_ === "function") {
     await atualizarDashboardHome_();
   }
+
+  if (typeof atualizarTelaAtualPorObra_ === "function") {
+    await atualizarTelaAtualPorObra_();
+  }
+}
+
+async function atualizarTelaAtualPorObra_() {
+  const telaAtual =
+    localStorage.getItem("telaAtualMobile") || "home";
+
+  console.log("Atualizando tela pela troca de obra:", telaAtual);
+
+  if (typeof navegarPara === "function") {
+    await navegarPara(telaAtual);
+    return;
+  }
+
+  if (typeof navegarParaMobile_ === "function") {
+    await navegarParaMobile_(telaAtual);
+    return;
+  }
+
+  console.warn(
+    "Nenhuma função de navegação encontrada para atualizar a tela."
+  );
 }
 
 // ============================================
