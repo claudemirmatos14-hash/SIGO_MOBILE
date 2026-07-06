@@ -8172,6 +8172,28 @@ async function contarAtividadesOfflineObra_() {
   ).length;
 }
 
+async function definirObraAtivaPeloSeletor_() {
+  const select =
+    document.getElementById("obraAtiva");
+
+  if (!select || !select.value) return;
+
+  localStorage.setItem(
+    "obraAtiva",
+    select.value
+  );
+
+  await carregarObrasMobile_();
+
+  if (typeof atualizarIndicadoresMobile_ === "function") {
+    await atualizarIndicadoresMobile_();
+  }
+
+  if (typeof atualizarDashboardHome_ === "function") {
+    await atualizarDashboardHome_();
+  }
+}
+
 // ============================================
 // FORMATADORES
 // ============================================
