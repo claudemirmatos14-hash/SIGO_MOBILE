@@ -424,42 +424,48 @@ async function salvarDiarioOffline(event) {
 }
 
 async function atualizarIndicadoresMobile_() {
-
   try {
-
     const diarios =
       await listarRegistrosSIGO("TB_DIARIOS");
 
     const fila =
       await listarRegistrosSIGO("TB_SYNC_QUEUE");
-    
-    const totalAtividades =
-      await contarAtividadesOfflineObra_();
-    
-        const el =
-          document.getElementById("contadorAtividadesOffline");
-        
-        if (el) {
-          el.textContent =
-            `${totalAtividades} atividades offline`;
-        }
 
     const atividades =
       await listarRegistrosSIGO("TB_ATIVIDADES_OBRA");
-    
+
+    const obraAtiva =
+      obterObraAtivaMobile_();
+
     const atividadesObra =
       atividades.filter(item =>
-        String(item.idObra) === String(obterObraAtivaMobile_())
+        String(item.idObra) === String(obraAtiva)
       );
-    
+
     const totalAtividades =
       atividadesObra.length;
-    
+
     const emExecucao =
       atividadesObra.filter(item =>
-        String(item.status).toUpperCase() === "EM EXECUÇÃO"
+        String(item.status || "").toUpperCase() === "EM EXECUÇÃO"
       ).length;
-    
+
+    const elAtividades =
+      document.getElementById("contadorAtividadesOffline");
+
+    if (elAtividades) {
+      elAtividades.textContent =
+        `${totalAtividades} atividades offline`;
+    }
+
+    const elExecucao =
+      document.getElementById("contadorAtividadesExecucao");
+
+    if (elExecucao) {
+      elExecucao.textContent =
+        `${emExecucao} em execução`;
+    }
+
     const pendentes =
       fila.filter(item => item.statusSync === "PENDENTE");
 
@@ -475,30 +481,12 @@ async function atualizarIndicadoresMobile_() {
     }
 
   } catch (erro) {
-
     console.error(
       "Erro ao atualizar indicadores:",
       erro
     );
-
   }
 }
-
-document.addEventListener("DOMContentLoaded", async () => {
-  try {
-    await abrirBancoLocalSIGO();
-
-    console.log("SIGO Mobile inicializado.");
-
-    navegarPara("home");
-
-  } catch (erro) {
-    console.error(
-      "Falha ao inicializar banco local.",
-      erro
-    );
-  }
-});
 
 function contarPendentesDashboard_(lista = []) {
   const pendentes = lista.filter(item =>
