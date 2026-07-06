@@ -8192,11 +8192,35 @@ async function contarAtividadesOfflineObra_() {
   ).length;
 }
 
+// =====================================================
+// UX.08.1 — APP CONTEXT GLOBAL MULTIOBRAS
+// =====================================================
+const SIGOAppContext = {
+  getObraAtiva() {
+    return localStorage.getItem("obraAtiva") || "";
+  },
+
+  setObraAtiva(idObra) {
+    if (!idObra) return;
+
+    const obraAnterior = this.getObraAtiva();
+
+    localStorage.setItem("obraAtiva", idObra);
+
+    window.dispatchEvent(new CustomEvent("sigo:obra-alterada", {
+      detail: {
+        obraAnterior: obraAnterior,
+        obraAtual: idObra
+      }
+    }));
+  }
+};
+
 async function definirObraAtivaPeloSeletor_() {
   const select = document.getElementById("obraAtiva");
   if (!select || !select.value) return;
 
-  localStorage.setItem("obraAtiva", select.value);
+  SIGOAppContext.setObraAtiva(select.value);
 
   await carregarObrasMobile_();
   await atualizarIndicadoresMobile_();
