@@ -25,6 +25,8 @@ function iniciarSeletorObra() {
   seletor.addEventListener("change", async function () {
     const idObra = seletor.value;
 
+     console.log("TROCOU SELECT:", idObra);
+
     if (!idObra) return;
 
     SIGOAppContext.setObraAtiva(idObra);
@@ -8204,7 +8206,12 @@ const SIGOAppContext = {
 };
 
 async function atualizarHeroObraAtivaMobile_() {
+
+   console.log("CHAMOU atualizarHeroObraAtivaMobile_");
+  
   const idObraAtiva = SIGOAppContext.getObraAtiva();
+   console.log("obra ativa no contexto:", idObraAtiva);
+  
   if (!idObraAtiva) return;
 
   const obras = await listarRegistrosSIGO("TB_OBRAS");
