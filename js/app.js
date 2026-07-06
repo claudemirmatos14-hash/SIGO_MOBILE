@@ -8220,21 +8220,13 @@ async function contarAtividadesOfflineObra_() {
 }
 
 async function definirObraAtivaPeloSeletor_() {
-  const select =
-    document.getElementById("obraAtiva");
-
+  const select = document.getElementById("obraAtiva");
   if (!select || !select.value) return;
 
-  localStorage.setItem(
-    "obraAtiva",
-    select.value
-  );
+  localStorage.setItem("obraAtiva", select.value);
 
   await carregarObrasMobile_();
-
-  if (typeof atualizarIndicadoresMobile_ === "function") {
-    await atualizarIndicadoresMobile_();
-  }
+  await atualizarIndicadoresMobile_();
 
   if (typeof atualizarDashboardHome_ === "function") {
     await atualizarDashboardHome_();
