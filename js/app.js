@@ -8216,13 +8216,45 @@ const SIGOAppContext = {
   }
 };
 
+async function atualizarHeroObraAtivaMobile_() {
+  const idObraAtiva = SIGOAppContext.getObraAtiva();
+  if (!idObraAtiva) return;
+
+  const obras = await listarRegistrosSIGO("TB_OBRAS");
+
+  const obraSelecionada = obras.find(obra =>
+    String(obra.idObra) === String(idObraAtiva)
+  );
+
+  if (!obraSelecionada) return;
+
+  const nomeObra = document.getElementById("nomeObra");
+  if (nomeObra) {
+    nomeObra.textContent =
+      obraSelecionada.nomeObra || obraSelecionada.idObra;
+  }
+
+  const codigoObra = document.getElementById("codigoObra");
+  if (codigoObra) {
+    codigoObra.textContent = obraSelecionada.idObra || "";
+  }
+
+  const contadorObrasOffline =
+    document.getElementById("contadorObrasOffline");
+
+  if (contadorObrasOffline) {
+    contadorObrasOffline.textContent =
+      obras.length + " de 3 obras offline";
+  }
+}
+
 async function definirObraAtivaPeloSeletor_() {
   const select = document.getElementById("obraAtiva");
   if (!select || !select.value) return;
 
   SIGOAppContext.setObraAtiva(select.value);
 
-  await carregarObrasMobile_();
+  await atualizarHeroObraAtivaMobile_();
   await atualizarIndicadoresMobile_();
 
   if (typeof atualizarDashboardHome_ === "function") {
