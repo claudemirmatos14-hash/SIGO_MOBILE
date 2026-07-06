@@ -8126,6 +8126,21 @@ function filtrarHistoricoMedicoesDrawer_() {
         : "none";
   });
 }
+
+async function atualizarCabecalhoHistoricoMedicao_() {
+
+  const lote =
+    await obterLoteHistoricoSelecionado_();
+
+  document.getElementById("tituloHistoricoMedicao").textContent =
+    `📚 Histórico da ${lote?.numeroMedicao || "Medição"}`;
+
+  document.getElementById("subtituloHistoricoMedicao").textContent =
+    lote
+      ? `Itens registrados na ${lote.numeroMedicao}`
+      : "Nenhuma medição selecionada";
+}
+
 // ============================================
 // FORMATADORES
 // ============================================
