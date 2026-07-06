@@ -213,7 +213,7 @@ function createHeroCard(config = {}) {
         <h2>${config.titulo || "OBRA ATIVA"}</h2>
       </div>
 
-      <select id="obraAtiva">
+      <select id="obraAtiva" onchange="definirObraAtivaPeloSeletor_()">
         <option value="${obraAtiva}">
           ${obraAtiva || config.select || "Carregando obras..."}
         </option>
