@@ -8137,7 +8137,7 @@ async function atualizarCabecalhoHistoricoMedicao_() {
 
   document.getElementById("subtituloHistoricoMedicao").textContent =
     lote
-      ? `Itens registrados na ${lote.numeroMedicao}`
+      ? "Itens vinculados a este lote"
       : "Nenhuma medição selecionada";
 }
 
