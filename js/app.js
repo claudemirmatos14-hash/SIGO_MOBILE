@@ -5930,33 +5930,6 @@ async function carregarObrasMobile_() {
 
   const obras = await listarRegistrosSIGO("TB_OBRAS");
 
-  select.onchange = async function () {
-
-    localStorage.setItem(
-      "obraAtiva",
-      this.value
-    );
-  
-    const obraSelecionada =
-      obras.find(obra =>
-        String(obra.idObra) === String(this.value)
-      );
-  
-    const nomeObra =
-      document.getElementById("nomeObra");
-  
-    if (nomeObra && obraSelecionada) {
-      nomeObra.textContent =
-        obraSelecionada.nomeObra || obraSelecionada.idObra;
-    }
-  
-    await atualizarIndicadoresMobile_();
-  
-    if (typeof atualizarDashboardHome_ === "function") {
-      await atualizarDashboardHome_();
-    }
-  };
-
   const contador =
     document.getElementById("contadorObrasOffline");
 
