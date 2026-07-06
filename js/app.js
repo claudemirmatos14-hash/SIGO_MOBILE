@@ -7953,6 +7953,7 @@ async function selecionarLoteMedicaoTimeline_(idLoteMedicao) {
     idLoteMedicao;
 
   await listarMedicoesOffline_();
+  await atualizarCabecalhoHistoricoMedicao_();
 
   SIGOUI.feedback.info(
     "Medição selecionada",
