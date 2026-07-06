@@ -127,7 +127,7 @@ function criarCardObraAtivaSIGO() {
         <h2>OBRA ATIVA</h2>
       </div>
 
-      <select id="obraAtiva">
+     <select id="obraAtiva" onchange="definirObraAtivaPeloSeletor_()">
         <option value="">Carregando obras...</option>
       </select>
 
