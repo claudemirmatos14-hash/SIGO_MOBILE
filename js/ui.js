@@ -138,7 +138,7 @@ function criarCardObraAtivaSIGO() {
           <div class="obra-meta">
             <small id="contadorObrasOffline">0 de 3 obras offline</small>
             <small id="contadorAtividadesOffline">0 atividades offline</small>
-            <small>12 em execução</small>
+            <small id="contadorAtividadesExecucao">0 em execução</small>
           </div>
         </div>
 
