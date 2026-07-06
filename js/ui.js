@@ -849,7 +849,7 @@ async function montarTelaMedicoes() {
     }`,
 
     listSubtitle: loteHistorico
-      ? `Itens registrados na ${loteHistorico.numeroMedicao}`
+      ? "Itens vinculados a este lote"
       : "Nenhuma medição aberta",
 
     list: `
