@@ -488,6 +488,22 @@ async function atualizarIndicadoresMobile_() {
   }
 }
 
+document.addEventListener("DOMContentLoaded", async () => {
+    try {
+      await abrirBancoLocalSIGO();
+  
+      console.log("SIGO Mobile inicializado.");
+  
+      navegarPara("home");
+  
+    } catch (erro) {
+      console.error(
+        "Falha ao inicializar banco local.",
+        erro
+      );
+    }
+  });
+
 function contarPendentesDashboard_(lista = []) {
   const pendentes = lista.filter(item =>
     String(item.statusSync || "").toUpperCase() === "PENDENTE"
