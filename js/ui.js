@@ -839,6 +839,8 @@ async function montarTelaMedicoes() {
 
     formTitle: "📋 Dados da Medição",
     formSubtitle: "Medição vinculada ao planejamento offline",
+    listTitleId: "tituloHistoricoMedicao",
+    listSubtitleId: "subtituloHistoricoMedicao",
 
     form: montarFormularioMedicao_(),
 
