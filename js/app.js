@@ -6768,16 +6768,18 @@ async function listarMedicoesOffline_() {
 
     let loteReferencia = null;
 
-    if (idLoteMedicaoSelecionado) {
-      const lotes =
-        await listarRegistrosSIGO("TB_LOTES_MEDICAO");
-    
-      loteReferencia =
-        lotes.find(lote =>
-          String(lote.idLoteMedicao) ===
-          String(idLoteMedicaoSelecionado)
-        ) || null;
-    }
+   if (idLoteMedicaoSelecionado) {
+    const lotes =
+      await listarRegistrosSIGO("TB_LOTES_MEDICAO");
+  
+    loteReferencia =
+      lotes.find(lote =>
+        String(lote.idLoteMedicao) ===
+          String(idLoteMedicaoSelecionado) &&
+        String(lote.idObra) ===
+          String(obraAtiva)
+      ) || null;
+  }
     
     if (!loteReferencia) {
       loteReferencia =
@@ -7536,6 +7538,7 @@ async function criarHeroLoteMedicaoAtivo_() {
 
   const itensLote =
     medicoes.filter(item =>
+      String(item.idObra) === String(lote.idObra) &&
       String(item.idLoteMedicao) === String(lote.idLoteMedicao)
     );
 
@@ -7899,10 +7902,12 @@ async function criarTimelineLotesMedicao_() {
   const cards =
     await Promise.all(
       lotesObra.map(async lote => {
-        const totalItens =
-          itens.filter(item =>
-            String(item.idLoteMedicao) === String(lote.idLoteMedicao)
-          ).length;
+        
+  const totalItens =
+    itens.filter(item =>
+      String(item.idObra) === String(obraAtiva) &&
+      String(item.idLoteMedicao) === String(lote.idLoteMedicao)
+    ).length;
 
         return criarItemTimelineLoteMedicao_(lote, totalItens);
       })
@@ -7987,18 +7992,23 @@ async function selecionarLoteMedicaoTimeline_(idLoteMedicao) {
 }
 
 async function obterLoteHistoricoSelecionado_() {
+  const obraAtiva = obterObraAtivaMobile_();
 
   if (idLoteMedicaoSelecionado) {
-
     const lotes =
       await listarRegistrosSIGO("TB_LOTES_MEDICAO");
 
-    return (
+    const loteSelecionado =
       lotes.find(lote =>
-        String(lote.idLoteMedicao) ===
-        String(idLoteMedicaoSelecionado)
-      ) || null
-    );
+        String(lote.idLoteMedicao) === String(idLoteMedicaoSelecionado) &&
+        String(lote.idObra) === String(obraAtiva)
+      ) || null;
+
+    if (loteSelecionado) {
+      return loteSelecionado;
+    }
+
+    idLoteMedicaoSelecionado = null;
   }
 
   return await obterLoteMedicaoAberto_();
