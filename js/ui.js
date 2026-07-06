@@ -15,7 +15,7 @@ async function montarHomePremium() {
       nome: "Selecione uma obra offline",
       offline: "0 de 3 obras offline",
       atividades: "0 atividades offline",
-      execucao: "12 em execução"
+      execucao: "0 em execução"
     }),
 
     sections: [
