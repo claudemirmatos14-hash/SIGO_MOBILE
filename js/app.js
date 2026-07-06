@@ -18,11 +18,7 @@ let idClimaEdicao = null;
 let idEvidenciaEdicao = null;
 
 function iniciarSeletorObra() {
-  const seletor =
-    document.getElementById("obraAtiva");
-
-  const nomeObra =
-    document.getElementById("nomeObra");
+  const seletor = document.getElementById("obraAtiva");
 
   if (!seletor) return;
 
@@ -31,24 +27,17 @@ function iniciarSeletorObra() {
 
     if (!idObra) return;
 
-    const obras =
-      await listarRegistrosSIGO("TB_OBRAS");
+    SIGOAppContext.setObraAtiva(idObra);
 
-    const obra =
-      obras.find(item =>
-        String(item.idObra) === String(idObra)
-      );
+    await atualizarHeroObraAtivaMobile_();
 
-    localStorage.setItem("obraAtiva", idObra);
-
-    await atualizarHomeMobile_();
-
-    if (nomeObra && obra) {
-      nomeObra.textContent =
-        obra.nomeObra || obra.idObra;
+    if (typeof atualizarHomeMobile_ === "function") {
+      await atualizarHomeMobile_();
     }
 
-    await atualizarPainelSaudeSync_();
+    if (typeof atualizarPainelSaudeSync_ === "function") {
+      await atualizarPainelSaudeSync_();
+    }
 
     console.log(
       "Obra ativa alterada pelo seletor:",
@@ -58,14 +47,16 @@ function iniciarSeletorObra() {
 }
 
 function atualizarNomeObra_(seletor, nomeObra) {
-  if (!nomeObra) return;
+  // UX.08.1:
+  // O Hero da obra agora é atualizado exclusivamente por:
+  // atualizarHeroObraAtivaMobile_()
+  //
+  // Esta função foi mantida apenas para evitar erro
+  // em chamadas antigas do sistema.
 
-  const textoSelecionado =
-    seletor.options[seletor.selectedIndex].textContent.trim();
-
-  const partes = textoSelecionado.split(" - ");
-
-  nomeObra.textContent = partes[1] || textoSelecionado;
+  if (typeof atualizarHeroObraAtivaMobile_ === "function") {
+    atualizarHeroObraAtivaMobile_();
+  }
 }
 
 function navegarPara(tela) {
@@ -6146,40 +6137,36 @@ async function definirObraAtivaMobile_(idObra) {
       throw new Error("ID da obra não informado.");
     }
 
-    const obras =
-      await listarRegistrosSIGO("TB_OBRAS");
+    const obras = await listarRegistrosSIGO("TB_OBRAS");
 
-    const obra =
-      obras.find(item =>
-        String(item.idObra) === String(idObra)
-      );
+    const obra = obras.find(item =>
+      String(item.idObra) === String(idObra)
+    );
 
     if (!obra) {
-      throw new Error(
-        "Obra não encontrada no banco offline."
-      );
+      throw new Error("Obra não encontrada no banco offline.");
     }
 
-    localStorage.setItem("obraAtiva", idObra);
+    SIGOAppContext.setObraAtiva(idObra);
 
-    await atualizarHomeMobile_();
-    await listarObrasOfflineMobile_();
+    await atualizarHeroObraAtivaMobile_();
 
-    const nomeObra =
-      document.getElementById("nomeObra");
-
-    if (nomeObra) {
-      nomeObra.textContent =
-        obra.nomeObra || obra.idObra;
+    if (typeof atualizarHomeMobile_ === "function") {
+      await atualizarHomeMobile_();
     }
 
-   SIGOUI.feedback.success(
+    if (typeof listarObrasOfflineMobile_ === "function") {
+      await listarObrasOfflineMobile_();
+    }
+
+    SIGOUI.feedback.success(
       "Obra ativa alterada",
       `Agora você está trabalhando na obra "${obra.nomeObra || obra.idObra}".`
     );
 
   } catch (erro) {
     console.error("Erro ao definir obra ativa:", erro);
+
     SIGOUI.feedback.error(
       "Erro ao definir obra ativa",
       erro.message || "Não foi possível alterar a obra ativa."
@@ -8227,6 +8214,13 @@ async function atualizarHeroObraAtivaMobile_() {
   );
 
   if (!obraSelecionada) return;
+  
+  // Mantém o seletor sincronizado com a obra ativa
+  const seletor = document.getElementById("obraAtiva");
+  
+  if (seletor && seletor.value !== idObraAtiva) {
+    seletor.value = idObraAtiva;
+  }
 
   const nomeObra = document.getElementById("nomeObra");
   if (nomeObra) {
