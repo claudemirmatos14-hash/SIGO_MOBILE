@@ -9323,6 +9323,56 @@ window.atualizarInterfaceAposEventoSIGO_ = async function (evento, dados = {}) {
   }
 };
 
+
+// =====================================================
+// UX.11.1 — SMART DATA BINDING
+// Observador central das stores do IndexedDB
+// =====================================================
+
+window.SIGODataBinding = {
+
+  watchers: {},
+
+  watch(storeName, callback) {
+    if (!storeName || typeof callback !== "function") return;
+
+    if (!this.watchers[storeName]) {
+      this.watchers[storeName] = [];
+    }
+
+    this.watchers[storeName].push(callback);
+
+    console.log("DataBinding watch:", storeName);
+  },
+
+  unwatch(storeName, callback) {
+    if (!this.watchers[storeName]) return;
+
+    this.watchers[storeName] =
+      this.watchers[storeName].filter(fn => fn !== callback);
+  },
+
+  async notify(storeName, dados = {}) {
+    if (!storeName) return;
+
+    console.log("DataBinding notify:", storeName, dados);
+
+    const callbacks =
+      this.watchers[storeName] || [];
+
+    for (const callback of callbacks) {
+      try {
+        await callback(dados);
+      } catch (erro) {
+        console.error(
+          `Erro no DataBinding da store ${storeName}:`,
+          erro
+        );
+      }
+    }
+  }
+
+};
 // ============================================
 // FORMATADORES
 // ============================================
