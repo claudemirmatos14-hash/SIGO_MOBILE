@@ -1159,3 +1159,93 @@ function formatarDataMedicao_(data) {
     return data;
   }
 }
+
+// =====================================================
+// UX.10.1 — SMART UI BASE
+// Atualização inteligente de componentes
+// =====================================================
+
+window.atualizarHTMLSIGO_ = function (id, html) {
+  const elemento =
+    document.getElementById(id);
+
+  if (!elemento) {
+    console.warn(
+      "Smart UI: elemento não encontrado:",
+      id
+    );
+    return false;
+  }
+
+  elemento.innerHTML =
+    html || "";
+
+  return true;
+};
+
+
+window.atualizarTextoSIGO_ = function (id, texto) {
+  const elemento =
+    document.getElementById(id);
+
+  if (!elemento) {
+    console.warn(
+      "Smart UI: elemento não encontrado:",
+      id
+    );
+    return false;
+  }
+
+  elemento.textContent =
+    texto || "";
+
+  return true;
+};
+
+
+window.mostrarElementoSIGO_ = function (id) {
+  const elemento =
+    document.getElementById(id);
+
+  if (!elemento) return false;
+
+  elemento.style.display = "";
+
+  return true;
+};
+
+
+window.ocultarElementoSIGO_ = function (id) {
+  const elemento =
+    document.getElementById(id);
+
+  if (!elemento) return false;
+
+  elemento.style.display = "none";
+
+  return true;
+};
+
+
+window.adicionarClasseSIGO_ = function (id, classe) {
+  const elemento =
+    document.getElementById(id);
+
+  if (!elemento || !classe) return false;
+
+  elemento.classList.add(classe);
+
+  return true;
+};
+
+
+window.removerClasseSIGO_ = function (id, classe) {
+  const elemento =
+    document.getElementById(id);
+
+  if (!elemento || !classe) return false;
+
+  elemento.classList.remove(classe);
+
+  return true;
+};
