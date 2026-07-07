@@ -1404,3 +1404,152 @@ window.atualizarSmartSyncSIGO_ = async function () {
     return false;
   }
 };
+
+// =====================================================
+// UX.13.1 — SMART OFFLINE ENGINE BASE
+// Motor central de sincronização offline
+// =====================================================
+
+window.SIGOOfflineEngine = {
+
+  async registrarAlteracao(dados = {}) {
+    try {
+      const itemFila = {
+        idSyncLocal:
+          dados.idSyncLocal || crypto.randomUUID(),
+
+        store:
+          dados.store || "",
+
+        acao:
+          dados.acao || "UPDATE",
+
+        chave:
+          dados.chave || "",
+
+        idObra:
+          dados.idObra || obterObraAtivaMobile_(),
+
+        payload:
+          dados.payload || null,
+
+        status:
+          "PENDENTE",
+
+        tentativas:
+          0,
+
+        erro:
+          "",
+
+        criadoEm:
+          new Date().toISOString(),
+
+        atualizadoEm:
+          new Date().toISOString()
+      };
+
+      await salvarRegistroSIGO(
+        "TB_SYNC_QUEUE",
+        itemFila
+      );
+
+      return itemFila;
+
+    } catch (erro) {
+      console.error(
+        "Erro ao registrar alteração offline:",
+        erro
+      );
+
+      return null;
+    }
+  },
+
+
+  async listarPendencias() {
+    const fila =
+      await listarRegistrosSIGO("TB_SYNC_QUEUE");
+
+    return fila
+      .filter(item =>
+        item.status === "PENDENTE" ||
+        item.status === "ERRO"
+      )
+      .sort((a, b) =>
+        new Date(a.criadoEm) - new Date(b.criadoEm)
+      );
+  },
+
+
+  async marcarComoSincronizando(idSyncLocal) {
+    const fila =
+      await listarRegistrosSIGO("TB_SYNC_QUEUE");
+
+    const item =
+      fila.find(reg =>
+        String(reg.idSyncLocal) === String(idSyncLocal)
+      );
+
+    if (!item) return false;
+
+    item.status = "SINCRONIZANDO";
+    item.atualizadoEm = new Date().toISOString();
+
+    await salvarRegistroSIGO(
+      "TB_SYNC_QUEUE",
+      item
+    );
+
+    return true;
+  },
+
+
+  async marcarComoSincronizado(idSyncLocal) {
+    const fila =
+      await listarRegistrosSIGO("TB_SYNC_QUEUE");
+
+    const item =
+      fila.find(reg =>
+        String(reg.idSyncLocal) === String(idSyncLocal)
+      );
+
+    if (!item) return false;
+
+    item.status = "SINCRONIZADO";
+    item.atualizadoEm = new Date().toISOString();
+
+    await salvarRegistroSIGO(
+      "TB_SYNC_QUEUE",
+      item
+    );
+
+    return true;
+  },
+
+
+  async marcarComoErro(idSyncLocal, mensagemErro = "") {
+    const fila =
+      await listarRegistrosSIGO("TB_SYNC_QUEUE");
+
+    const item =
+      fila.find(reg =>
+        String(reg.idSyncLocal) === String(idSyncLocal)
+      );
+
+    if (!item) return false;
+
+    item.status = "ERRO";
+    item.erro = mensagemErro;
+    item.tentativas = Number(item.tentativas || 0) + 1;
+    item.atualizadoEm = new Date().toISOString();
+
+    await salvarRegistroSIGO(
+      "TB_SYNC_QUEUE",
+      item
+    );
+
+    return true;
+  }
+
+};
