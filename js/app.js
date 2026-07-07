@@ -8871,41 +8871,159 @@ async function atualizarTelaAtualPorObra_() {
 // =====================================================
 
 window.registrarEventoSIGO_ = async function (evento = {}) {
-
   try {
+    const chaveEvento =
+      evento.evento || evento.chave || "";
 
-    const notificacao = {
+    const dados =
+      evento.dados || {};
 
-      categoria:
-        evento.categoria || "SISTEMA",
+    const modelo =
+      window.SIGO_CATALOGO_EVENTOS?.[chaveEvento];
 
-      tipo:
-        evento.tipo || "INFO",
+    let notificacao = null;
 
-      titulo:
-        evento.titulo || "",
-
-      mensagem:
-        evento.mensagem || "",
-
-      icone:
-        evento.icone || "🔔"
-
-    };
+    if (modelo) {
+      notificacao = {
+        categoria: modelo.categoria,
+        tipo: modelo.tipo,
+        prioridade: modelo.prioridade,
+        titulo: modelo.titulo,
+        mensagem:
+          typeof modelo.mensagem === "function"
+            ? modelo.mensagem(dados)
+            : modelo.mensagem,
+        icone: modelo.icone,
+        acao: modelo.acao || "",
+        dados: dados
+      };
+    } else {
+      notificacao = {
+        categoria: evento.categoria || "SISTEMA",
+        tipo: evento.tipo || "INFO",
+        prioridade: evento.prioridade || "BAIXA",
+        titulo: evento.titulo || "Evento SIGO",
+        mensagem: evento.mensagem || "Evento registrado no sistema.",
+        icone: evento.icone || "🔔",
+        acao: evento.acao || "",
+        dados: dados
+      };
+    }
 
     await criarNotificacaoSIGO_(notificacao);
 
     return true;
 
   } catch (erro) {
-
-    console.error(
-      "Erro ao registrar evento:",
-      erro
-    );
-
+    console.error("Erro ao registrar evento:", erro);
     return false;
+  }
+};
 
+// =====================================================
+// UX.09.1 — CATÁLOGO DE EVENTOS SIGO
+// =====================================================
+
+window.SIGO_CATALOGO_EVENTOS = {
+
+  OBRA_ALTERADA: {
+    categoria: "OBRA",
+    tipo: "INFO",
+    prioridade: "BAIXA",
+    icone: "🏗",
+    titulo: "Obra ativa alterada",
+    mensagem: (dados = {}) =>
+      `Agora você está trabalhando na obra "${dados.nomeObra || dados.idObra || "selecionada"}".`
+  },
+
+  MEDICAO_SALVA: {
+    categoria: "MEDICAO",
+    tipo: "SUCESSO",
+    prioridade: "MEDIA",
+    icone: "📏",
+    titulo: "Medição salva",
+    mensagem: (dados = {}) =>
+      `${dados.numeroMedicao || "Medição"} salva com sucesso.`
+  },
+
+  LOTE_MEDICAO_CRIADO: {
+    categoria: "MEDICAO",
+    tipo: "SUCESSO",
+    prioridade: "MEDIA",
+    icone: "📦",
+    titulo: "Nova medição criada",
+    mensagem: (dados = {}) =>
+      `${dados.numeroMedicao || "Nova medição"} criada com sucesso.`
+  },
+
+  DIARIO_SALVO: {
+    categoria: "DIARIO",
+    tipo: "SUCESSO",
+    prioridade: "MEDIA",
+    icone: "📋",
+    titulo: "Diário salvo",
+    mensagem: (dados = {}) =>
+      `Diário ${dados.data || ""} salvo com sucesso.`
+  },
+
+  ITEM_DIARIO_SALVO: {
+    categoria: "DIARIO",
+    tipo: "SUCESSO",
+    prioridade: "BAIXA",
+    icone: "📝",
+    titulo: "Item do diário salvo",
+    mensagem: (dados = {}) =>
+      `${dados.servico || "Item do diário"} registrado com sucesso.`
+  },
+
+  OCORRENCIA_CRIADA: {
+    categoria: "OCORRENCIA",
+    tipo: "ALERTA",
+    prioridade: "ALTA",
+    icone: "⚠️",
+    titulo: "Ocorrência registrada",
+    mensagem: (dados = {}) =>
+      dados.titulo || dados.descricao || "Nova ocorrência registrada."
+  },
+
+  EVIDENCIA_ANEXADA: {
+    categoria: "EVIDENCIA",
+    tipo: "SUCESSO",
+    prioridade: "BAIXA",
+    icone: "📷",
+    titulo: "Evidência anexada",
+    mensagem: (dados = {}) =>
+      dados.descricao || "Nova evidência registrada na obra."
+  },
+
+  BASE_ATUALIZADA: {
+    categoria: "BASE",
+    tipo: "INFO",
+    prioridade: "MEDIA",
+    icone: "📥",
+    titulo: "Base atualizada",
+    mensagem: (dados = {}) =>
+      dados.mensagem || "Dados-base da obra atualizados com sucesso."
+  },
+
+  SYNC_CONCLUIDO: {
+    categoria: "SYNC",
+    tipo: "SUCESSO",
+    prioridade: "BAIXA",
+    icone: "🔄",
+    titulo: "Sincronização concluída",
+    mensagem: (dados = {}) =>
+      dados.mensagem || "Todos os dados pendentes foram enviados."
+  },
+
+  SYNC_ERRO: {
+    categoria: "SYNC",
+    tipo: "ERRO",
+    prioridade: "ALTA",
+    icone: "🔴",
+    titulo: "Erro de sincronização",
+    mensagem: (dados = {}) =>
+      dados.mensagem || dados.message || "Não foi possível sincronizar os dados."
   }
 
 };
