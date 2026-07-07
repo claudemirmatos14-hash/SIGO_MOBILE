@@ -9088,78 +9088,65 @@ window.SIGOEventBus = {
 };
 
 // =====================================================
-// UX.09.2.3 — LISTENERS REAIS DO SISTEMA
+// UX.09.3 — LISTENERS MODULARES DO EVENTBUS
 // =====================================================
 
-window.inicializarListenersSIGO_ = function () {
+window.inicializarListenersBadge_ = function () {
+  console.log("Listeners Badge inicializados.");
+};
 
+window.inicializarListenersHome_ = function () {
+  console.log("Listeners Home inicializados.");
+};
+
+window.inicializarListenersMedicoes_ = function () {
+  console.log("Listeners Medições inicializados.");
+};
+
+window.inicializarListenersDiario_ = function () {
+  console.log("Listeners Diário inicializados.");
+};
+
+window.inicializarListenersSync_ = function () {
+  console.log("Listeners Sync inicializados.");
+};
+
+window.inicializarListenersObras_ = function () {
+  console.log("Listeners Obras inicializados.");
+};
+
+// =====================================================
+// UX.09.2.3 — LISTENERS REAIS DO SISTEMA
+// =====================================================
+window.inicializarListenersSIGO_ = function () {
   if (!window.SIGOEventBus) {
     console.warn("SIGOEventBus não encontrado.");
     return;
   }
 
- SIGOEventBus.on("MEDICAO_SALVA", async function (dados) {
-    if (typeof atualizarBadgeNotificacoes_ === "function") {
-      await atualizarBadgeNotificacoes_();
-    }
-  });
-  
-  SIGOEventBus.on("MEDICAO_SALVA", async function (dados) {
-    if (typeof atualizarIndicadoresMobile_ === "function") {
-      await atualizarIndicadoresMobile_();
-    }
-  });
-  
-  SIGOEventBus.on("MEDICAO_SALVA", async function (dados) {
-    if (typeof atualizarDashboardHome_ === "function") {
-      await atualizarDashboardHome_();
-    }
-  });
-  
-  SIGOEventBus.on("MEDICAO_SALVA", async function (dados) {
-    const telaAtual =
-      localStorage.getItem("telaAtualMobile") || "home";
-  
-    if (telaAtual === "medicoes") {
-      await navegarPara("medicoes");
-    }
-  });
+  if (typeof inicializarListenersBadge_ === "function") {
+    inicializarListenersBadge_();
+  }
 
-  SIGOEventBus.on("LOTE_MEDICAO_CRIADO", async function (dados) {
-    await atualizarInterfaceAposEventoSIGO_("LOTE_MEDICAO_CRIADO", dados);
-  });
+  if (typeof inicializarListenersHome_ === "function") {
+    inicializarListenersHome_();
+  }
 
-  SIGOEventBus.on("DIARIO_SALVO", async function (dados) {
-    await atualizarInterfaceAposEventoSIGO_("DIARIO_SALVO", dados);
-  });
+  if (typeof inicializarListenersMedicoes_ === "function") {
+    inicializarListenersMedicoes_();
+  }
 
-  SIGOEventBus.on("ITEM_DIARIO_SALVO", async function (dados) {
-    await atualizarInterfaceAposEventoSIGO_("ITEM_DIARIO_SALVO", dados);
-  });
+  if (typeof inicializarListenersDiario_ === "function") {
+    inicializarListenersDiario_();
+  }
 
-  SIGOEventBus.on("OCORRENCIA_CRIADA", async function (dados) {
-    await atualizarInterfaceAposEventoSIGO_("OCORRENCIA_CRIADA", dados);
-  });
+  if (typeof inicializarListenersSync_ === "function") {
+    inicializarListenersSync_();
+  }
 
-  SIGOEventBus.on("EVIDENCIA_ANEXADA", async function (dados) {
-    await atualizarInterfaceAposEventoSIGO_("EVIDENCIA_ANEXADA", dados);
-  });
-
-  SIGOEventBus.on("SYNC_CONCLUIDO", async function (dados) {
-    await atualizarInterfaceAposEventoSIGO_("SYNC_CONCLUIDO", dados);
-  });
-
-  SIGOEventBus.on("SYNC_ERRO", async function (dados) {
-    await atualizarInterfaceAposEventoSIGO_("SYNC_ERRO", dados);
-  });
-
-  SIGOEventBus.on("BASE_ATUALIZADA", async function (dados) {
-    await atualizarInterfaceAposEventoSIGO_("BASE_ATUALIZADA", dados);
-  });
-
-  SIGOEventBus.on("OBRA_ALTERADA", async function (dados) {
-    await atualizarInterfaceAposEventoSIGO_("OBRA_ALTERADA", dados);
-  });
+  if (typeof inicializarListenersObras_ === "function") {
+    inicializarListenersObras_();
+  }
 
   console.log("Listeners SIGO inicializados.");
 };
