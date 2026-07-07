@@ -9190,6 +9190,26 @@ window.inicializarListenersDiario_ = function () {
 };
 
 window.inicializarListenersSync_ = function () {
+  if (!window.SIGOEventBus) return;
+
+  const atualizarSync = async function () {
+    if (typeof atualizarPainelSaudeSync_ === "function") {
+      await atualizarPainelSaudeSync_();
+    }
+
+    if (typeof atualizarBadgeNotificacoes_ === "function") {
+      await atualizarBadgeNotificacoes_();
+    }
+
+    if (typeof atualizarIndicadoresMobile_ === "function") {
+      await atualizarIndicadoresMobile_();
+    }
+  };
+
+  SIGOEventBus.on("SYNC_CONCLUIDO", atualizarSync);
+  SIGOEventBus.on("SYNC_ERRO", atualizarSync);
+  SIGOEventBus.on("BASE_ATUALIZADA", atualizarSync);
+
   console.log("Listeners Sync inicializados.");
 };
 
