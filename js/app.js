@@ -9599,6 +9599,24 @@ window.obterChaveRegistroSIGO_ = function (storeName, registro = {}) {
   return registro[campo] || "";
 };
 
+// =====================================================
+// UX.13.2.1 — STORES SINCRONIZÁVEIS
+// =====================================================
+
+window.SIGO_STORES_SINCRONIZAVEIS = [
+  "TB_MEDICOES",
+  "TB_LOTES_MEDICAO",
+  "TB_DIARIOS",
+  "TB_DIARIO_ITENS",
+  "TB_OCORRENCIAS",
+  "TB_CLIMA",
+  "TB_EVIDENCIAS"
+];
+
+window.storeSincronizavelSIGO_ = function (storeName) {
+  return window.SIGO_STORES_SINCRONIZAVEIS.includes(storeName);
+};
+
 // ============================================
 // FORMATADORES
 // ============================================
