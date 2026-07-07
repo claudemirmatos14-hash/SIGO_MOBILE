@@ -9115,6 +9115,32 @@ window.inicializarListenersBadge_ = function () {
 };
 
 window.inicializarListenersHome_ = function () {
+  if (!window.SIGOEventBus) return;
+
+  const atualizarHome = async function () {
+    if (typeof atualizarHeroObraAtivaMobile_ === "function") {
+      await atualizarHeroObraAtivaMobile_();
+    }
+
+    if (typeof atualizarIndicadoresMobile_ === "function") {
+      await atualizarIndicadoresMobile_();
+    }
+
+    if (typeof atualizarDashboardHome_ === "function") {
+      await atualizarDashboardHome_();
+    }
+  };
+
+  SIGOEventBus.on("MEDICAO_SALVA", atualizarHome);
+  SIGOEventBus.on("LOTE_MEDICAO_CRIADO", atualizarHome);
+  SIGOEventBus.on("DIARIO_SALVO", atualizarHome);
+  SIGOEventBus.on("ITEM_DIARIO_SALVO", atualizarHome);
+  SIGOEventBus.on("OCORRENCIA_CRIADA", atualizarHome);
+  SIGOEventBus.on("EVIDENCIA_ANEXADA", atualizarHome);
+  SIGOEventBus.on("BASE_ATUALIZADA", atualizarHome);
+  SIGOEventBus.on("SYNC_CONCLUIDO", atualizarHome);
+  SIGOEventBus.on("OBRA_ALTERADA", atualizarHome);
+
   console.log("Listeners Home inicializados.");
 };
 
