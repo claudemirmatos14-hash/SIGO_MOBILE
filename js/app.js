@@ -8291,6 +8291,113 @@ window.atualizarBadgeNotificacoes_ = async function () {
 };
 
 // =====================================================
+// UX.08.2.6 — EVENTOS DO SISTEMA SIGO
+// =====================================================
+
+window.SIGOEventos = {
+
+  async obraAlterada(obra = {}) {
+    await criarNotificacaoSIGO_({
+      tipo: "INFO",
+      categoria: "OBRA",
+      prioridade: "BAIXA",
+      titulo: "Obra ativa alterada",
+      mensagem: `Agora você está trabalhando na obra "${obra.nomeObra || obra.idObra || "selecionada"}".`,
+      icone: "🏗"
+    });
+  },
+
+  async medicaoSalva(medicao = {}) {
+    await criarNotificacaoSIGO_({
+      tipo: "SUCESSO",
+      categoria: "MEDICAO",
+      prioridade: "MEDIA",
+      titulo: "Medição salva",
+      mensagem: `${medicao.numeroMedicao || "Medição"} salva com sucesso.`,
+      icone: "📏"
+    });
+  },
+
+  async loteMedicaoCriado(lote = {}) {
+    await criarNotificacaoSIGO_({
+      tipo: "SUCESSO",
+      categoria: "MEDICAO",
+      prioridade: "MEDIA",
+      titulo: "Nova medição criada",
+      mensagem: `${lote.numeroMedicao || "Nova medição"} criada com sucesso.`,
+      icone: "📦"
+    });
+  },
+
+  async diarioSalvo(diario = {}) {
+    await criarNotificacaoSIGO_({
+      tipo: "SUCESSO",
+      categoria: "DIARIO",
+      prioridade: "MEDIA",
+      titulo: "Diário salvo",
+      mensagem: `Diário ${diario.data || ""} salvo com sucesso.`,
+      icone: "📋"
+    });
+  },
+
+  async ocorrenciaCriada(ocorrencia = {}) {
+    await criarNotificacaoSIGO_({
+      tipo: "ALERTA",
+      categoria: "OCORRENCIA",
+      prioridade: "ALTA",
+      titulo: "Ocorrência registrada",
+      mensagem: ocorrencia.titulo || ocorrencia.descricao || "Nova ocorrência registrada.",
+      icone: "⚠️"
+    });
+  },
+
+  async evidenciaAnexada(evidencia = {}) {
+    await criarNotificacaoSIGO_({
+      tipo: "SUCESSO",
+      categoria: "EVIDENCIA",
+      prioridade: "BAIXA",
+      titulo: "Evidência anexada",
+      mensagem: evidencia.descricao || "Nova evidência registrada na obra.",
+      icone: "📷"
+    });
+  },
+
+  async baseAtualizada(dados = {}) {
+    await criarNotificacaoSIGO_({
+      tipo: "INFO",
+      categoria: "BASE",
+      prioridade: "MEDIA",
+      titulo: "Base atualizada",
+      mensagem: dados.mensagem || "Dados-base da obra atualizados com sucesso.",
+      icone: "📥"
+    });
+  },
+
+  async syncConcluido(dados = {}) {
+    await criarNotificacaoSIGO_({
+      tipo: "SUCESSO",
+      categoria: "SYNC",
+      prioridade: "BAIXA",
+      titulo: "Sincronização concluída",
+      mensagem: dados.mensagem || "Todos os dados pendentes foram enviados.",
+      icone: "🔄"
+    });
+  },
+
+  async syncErro(erro = {}) {
+    await criarNotificacaoSIGO_({
+      tipo: "ERRO",
+      categoria: "SYNC",
+      prioridade: "ALTA",
+      titulo: "Erro de sincronização",
+      mensagem: erro.mensagem || erro.message || "Não foi possível sincronizar os dados.",
+      icone: "🔴"
+    });
+  }
+
+};
+
+// =====================================================
 // UX.08.2.5 — CENTRAL DE NOTIFICAÇÕES
 // =====================================================
 
