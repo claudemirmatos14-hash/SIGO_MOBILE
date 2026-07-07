@@ -8217,6 +8217,8 @@ const SIGOAppContext = {
   }
 };
 
+
+
 async function atualizarHeroObraAtivaMobile_() {
 
    console.log("CHAMOU atualizarHeroObraAtivaMobile_");
