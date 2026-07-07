@@ -492,6 +492,11 @@ async function atualizarIndicadoresMobile_() {
 document.addEventListener("DOMContentLoaded", async () => {
     try {
       await abrirBancoLocalSIGO();
+
+       if (typeof inicializarListenersSIGO_ === "function") {
+          inicializarListenersSIGO_();
+        }
+
   
       console.log("SIGO Mobile inicializado.");
   
