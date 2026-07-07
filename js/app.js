@@ -9145,6 +9145,22 @@ window.inicializarListenersHome_ = function () {
 };
 
 window.inicializarListenersMedicoes_ = function () {
+  if (!window.SIGOEventBus) return;
+
+  const atualizarMedicoes = async function () {
+    const telaAtual =
+      localStorage.getItem("telaAtualMobile") || "home";
+
+    if (telaAtual !== "medicoes") return;
+
+    if (typeof navegarPara === "function") {
+      await navegarPara("medicoes");
+    }
+  };
+
+  SIGOEventBus.on("MEDICAO_SALVA", atualizarMedicoes);
+  SIGOEventBus.on("LOTE_MEDICAO_CRIADO", atualizarMedicoes);
+
   console.log("Listeners Medições inicializados.");
 };
 
