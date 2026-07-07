@@ -8615,6 +8615,77 @@ window.formatarDataNotificacao_ = function (dataISO) {
   return data.toLocaleDateString("pt-BR");
 };
 
+// =====================================================
+// UX.08.2.5.2.1 — AGRUPAR NOTIFICAÇÕES POR PERÍODO
+// =====================================================
+
+window.agruparNotificacoesTimeline_ = function (notificacoes = []) {
+
+  const hoje =
+    new Date();
+
+  const ontem =
+    new Date();
+
+  ontem.setDate(hoje.getDate() - 1);
+
+  const grupos = {
+    hoje: {
+      titulo: "Hoje",
+      itens: []
+    },
+
+    ontem: {
+      titulo: "Ontem",
+      itens: []
+    },
+
+    semana: {
+      titulo: "Esta Semana",
+      itens: []
+    },
+
+    antigas: {
+      titulo: "Mais Antigas",
+      itens: []
+    }
+  };
+
+  notificacoes.forEach(item => {
+    const data =
+      new Date(item.criadaEm);
+
+    const diffDias =
+      Math.floor(
+        (zerarHora_(hoje) - zerarHora_(data)) /
+        (1000 * 60 * 60 * 24)
+      );
+
+    if (diffDias === 0) {
+      grupos.hoje.itens.push(item);
+    } else if (diffDias === 1) {
+      grupos.ontem.itens.push(item);
+    } else if (diffDias <= 7) {
+      grupos.semana.itens.push(item);
+    } else {
+      grupos.antigas.itens.push(item);
+    }
+  });
+
+  return Object
+    .values(grupos)
+    .filter(grupo => grupo.itens.length > 0);
+
+};
+
+window.zerarHora_ = function (data) {
+  const novaData =
+    new Date(data);
+
+  novaData.setHours(0, 0, 0, 0);
+
+  return novaData;
+};
 
 window.selecionarNotificacaoDrawer_ = async function (idNotificacao) {
   const notificacoes =
