@@ -1,5 +1,5 @@
 const SIGO_DB_NAME = "SIGO_OFFLINE_DB";
-const SIGO_DB_VERSION = 7;
+const SIGO_DB_VERSION = 8;
 
 let SIGO_DB = null;
 
@@ -187,6 +187,15 @@ function listarRegistrosSIGO(storeName) {
 
     try {
 
+      if (
+        window.SIGODataCache &&
+        SIGODataCache.has(storeName)
+      ) {
+        return resolve(
+          SIGODataCache.get(storeName)
+        );
+      }
+
       const db = SIGO_DB || await abrirBancoLocalSIGO();
 
       const transaction = db.transaction(
@@ -199,7 +208,14 @@ function listarRegistrosSIGO(storeName) {
       const request = store.getAll();
 
       request.onsuccess = () => {
-        resolve(request.result || []);
+        const dados =
+          request.result || [];
+
+        if (window.SIGODataCache) {
+          SIGODataCache.set(storeName, dados);
+        }
+
+        resolve(dados);
       };
 
       request.onerror = () => {
