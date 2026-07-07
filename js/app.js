@@ -8425,6 +8425,66 @@ window.abrirCentralNotificacoes_ = async function () {
   }
 };
 
+// =====================================================
+// RESUMO DA CENTRAL DE NOTIFICAÇÕES
+// =====================================================
+
+window.montarResumoNotificacoes_ = async function () {
+
+  const obraAtiva =
+    obterObraAtivaMobile_();
+
+  const notificacoes =
+    await listarRegistrosSIGO("TB_NOTIFICACOES");
+
+  const notificacoesObra =
+    notificacoes.filter(item =>
+      String(item.idObra) === String(obraAtiva)
+    );
+
+  const total =
+    notificacoesObra.length;
+
+  const naoLidas =
+    notificacoesObra.filter(item =>
+      item.lida === false
+    ).length;
+
+  if (!total) {
+
+    return `
+      <div class="notificacoes-resumo vazio">
+        Nenhuma notificação desta obra.
+      </div>
+    `;
+
+  }
+
+  if (!naoLidas) {
+
+    return `
+      <div class="notificacoes-resumo sucesso">
+        ✔ Todas as notificações foram lidas
+        <small>${total} notificações</small>
+      </div>
+    `;
+
+  }
+
+  return `
+    <div class="notificacoes-resumo alerta">
+
+      <strong>${naoLidas}</strong>
+      não lida(s)
+
+      <small>
+        ${total} notificação(ões)
+      </small>
+
+    </div>
+  `;
+
+};
 
 window.montarDrawerNotificacoes_ = async function () {
   const obraAtiva =
@@ -8443,8 +8503,13 @@ window.montarDrawerNotificacoes_ = async function () {
       );
 
   if (!notificacoesObra.length) {
-    return `
-      <div class="drawer-section">
+   const resumo =
+  await montarResumoNotificacoes_();
+
+  return `
+    <div class="drawer-section">
+  
+      ${resumo}
         <p>Nenhuma notificação para esta obra.</p>
       </div>
     `;
