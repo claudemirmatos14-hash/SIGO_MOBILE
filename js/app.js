@@ -9160,15 +9160,13 @@ window.inicializarListenersDiario_ = function () {
     const telaAtual =
       localStorage.getItem("telaAtualMobile") || "home";
 
-    if (
-  telaAtual !== "diario" &&
-  telaAtual !== "diarioItens"
-) {
-  return;
-  }
+    if (telaAtual === "diario") {
+      await atualizarSmartDiarioSIGO_();
+      return;
+    }
 
-    if (typeof navegarPara === "function") {
-      await navegarPara(telaAtual);
+    if (telaAtual === "diarioItens") {
+      await navegarPara("diarioItens");
     }
   };
 
