@@ -8866,6 +8866,50 @@ async function atualizarTelaAtualPorObra_() {
   );
 }
 
+// =====================================================
+// UX.08.2.6.1 — CENTRAL DE EVENTOS SIGO
+// =====================================================
+
+window.registrarEventoSIGO_ = async function (evento = {}) {
+
+  try {
+
+    const notificacao = {
+
+      categoria:
+        evento.categoria || "SISTEMA",
+
+      tipo:
+        evento.tipo || "INFO",
+
+      titulo:
+        evento.titulo || "",
+
+      mensagem:
+        evento.mensagem || "",
+
+      icone:
+        evento.icone || "🔔"
+
+    };
+
+    await criarNotificacaoSIGO_(notificacao);
+
+    return true;
+
+  } catch (erro) {
+
+    console.error(
+      "Erro ao registrar evento:",
+      erro
+    );
+
+    return false;
+
+  }
+
+};
+
 // ============================================
 // FORMATADORES
 // ============================================
