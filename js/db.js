@@ -157,7 +157,16 @@ function salvarRegistroSIGO(storeName, registro) {
 
       const request = store.put(registro);
 
-      request.onsuccess = () => {
+      request.onsuccess = async () => {
+
+        if (window.SIGODataBinding) {
+          await SIGODataBinding.notify(storeName, {
+            acao: "UPDATE",
+            store: storeName,
+            registro: registro
+          });
+        }
+
         resolve(registro);
       };
 
@@ -357,7 +366,25 @@ async function removerRegistrosPorObraSIGO_(storeName, idObra) {
     });
 
   return new Promise((resolve, reject) => {
-    transaction.oncomplete = () => resolve(true);
+   transaction.oncomplete = async () => {
+
+      resolve(true);
+    
+      if (window.SIGODataBinding) {
+    
+        await SIGODataBinding.notify(storeName, {
+    
+          acao: "DELETE_MANY",
+    
+          store: storeName,
+    
+          idObra
+    
+        });
+    
+      }
+    
+    };
     transaction.onerror = () => reject(transaction.error);
   });
 }
@@ -378,7 +405,25 @@ async function removerRegistroSIGO_(storeName, idRegistro) {
     const request =
       store.delete(idRegistro);
 
-    request.onsuccess = () => resolve(true);
+    request.onsuccess = async () => {
+
+      resolve(true);
+    
+      if (window.SIGODataBinding) {
+    
+        await SIGODataBinding.notify(storeName, {
+    
+          acao: "DELETE",
+    
+          store: storeName,
+    
+          chave: idRegistro
+    
+        });
+    
+      }
+    
+    };
 
     request.onerror = () => reject(request.error);
 
@@ -399,7 +444,25 @@ async function removerRegistroPorChaveSIGO_(storeName, chave) {
   store.delete(chave);
 
   return new Promise((resolve, reject) => {
-    transaction.oncomplete = () => resolve(true);
+   transaction.oncomplete = async () => {
+
+      resolve(true);
+    
+      if (window.SIGODataBinding) {
+    
+        await SIGODataBinding.notify(storeName, {
+    
+          acao: "DELETE",
+    
+          store: storeName,
+    
+          chave
+    
+        });
+    
+      }
+    
+    };
     transaction.onerror = () => reject(transaction.error);
   });
 }
