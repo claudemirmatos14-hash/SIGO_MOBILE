@@ -9123,15 +9123,6 @@ window.inicializarListenersHome_ = function () {
     }
   };
 
-    if (typeof atualizarIndicadoresMobile_ === "function") {
-      await atualizarIndicadoresMobile_();
-    }
-
-    if (typeof atualizarDashboardHome_ === "function") {
-      await atualizarDashboardHome_();
-    }
-  };
-
   SIGOEventBus.on("MEDICAO_SALVA", atualizarHome);
   SIGOEventBus.on("LOTE_MEDICAO_CRIADO", atualizarHome);
   SIGOEventBus.on("DIARIO_SALVO", atualizarHome);
