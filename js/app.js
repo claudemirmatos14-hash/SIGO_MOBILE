@@ -9240,6 +9240,9 @@ window.inicializarListenersObras_ = function () {
   SIGOEventBus.on("BASE_ATUALIZADA", atualizarObras);
   SIGOEventBus.on("OBRA_BAIXADA", atualizarObras);
 
+  SIGOEventBus.on("TB_OBRAS_UPDATED", atualizarObras);
+  SIGOEventBus.on("TB_ATIVIDADES_OBRA_UPDATED", atualizarObras);
+
   console.log("Listeners Obras inicializados.");
 };
 
