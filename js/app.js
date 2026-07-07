@@ -8290,6 +8290,122 @@ window.atualizarBadgeNotificacoes_ = async function () {
   }
 };
 
+window.abrirCentralNotificacoes_ = async function () {
+  try {
+    const conteudo =
+      await montarDrawerNotificacoes_();
+
+    SIGOUI.showDrawer({
+      titulo: "🔔 Central de Notificações",
+      subtitulo: "Mensagens da obra ativa",
+      conteudo: conteudo,
+      textoFechar: "Fechar"
+    });
+
+    await marcarNotificacoesComoLidas_();
+
+  } catch (erro) {
+    console.error("Erro ao abrir notificações:", erro);
+
+    SIGOUI.feedback.error(
+      "Erro",
+      "Não foi possível abrir a central de notificações."
+    );
+  }
+};
+
+window.montarDrawerNotificacoes_ = async function () {
+  const obraAtiva =
+    obterObraAtivaMobile_();
+
+  const notificacoes =
+    await listarRegistrosSIGO("TB_NOTIFICACOES");
+
+  const notificacoesObra =
+    notificacoes
+      .filter(item =>
+        String(item.idObra) === String(obraAtiva)
+      )
+      .sort((a, b) =>
+        new Date(b.criadaEm) - new Date(a.criadaEm)
+      );
+
+  if (!notificacoesObra.length) {
+    return `
+      <div class="drawer-section">
+        <p>Nenhuma notificação para esta obra.</p>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="drawer-section" style="border-top:none;margin-top:0;padding-top:0;">
+
+      <div id="listaNotificacoesDrawer" class="notificacoes-drawer">
+        ${notificacoesObra
+          .map(item => criarItemNotificacaoDrawer_(item))
+          .join("")}
+      </div>
+
+    </div>
+  `;
+};
+
+window.criarItemNotificacaoDrawer_ = function (item) {
+  const statusClasse =
+    item.lida ? "is-read" : "is-unread";
+
+  const data =
+    item.criadaEm
+      ? new Date(item.criadaEm).toLocaleString("pt-BR")
+      : "";
+
+  return `
+    <div class="notificacao-item ${statusClasse}">
+      <div class="notificacao-icone">
+        ${item.icone || "🔔"}
+      </div>
+
+      <div class="notificacao-conteudo">
+        <strong>${item.titulo || "Notificação"}</strong>
+        <p>${item.mensagem || ""}</p>
+        <small>${data}</small>
+      </div>
+    </div>
+  `;
+};
+
+window.marcarNotificacoesComoLidas_ = async function () {
+  const obraAtiva =
+    obterObraAtivaMobile_();
+
+  const notificacoes =
+    await listarRegistrosSIGO("TB_NOTIFICACOES");
+
+  const notificacoesObraNaoLidas =
+    notificacoes.filter(item =>
+      String(item.idObra) === String(obraAtiva) &&
+      item.lida === false
+    );
+
+  for (const item of notificacoesObraNaoLidas) {
+    item.lida = true;
+    item.lidaEm = new Date().toISOString();
+
+    await salvarRegistroSIGO(
+      "TB_NOTIFICACOES",
+      item
+    );
+  }
+
+  if (typeof atualizarBadgeNotificacoes_ === "function") {
+    await atualizarBadgeNotificacoes_();
+  }
+};
+
+
+
+
 async function atualizarHeroObraAtivaMobile_() {
 
    console.log("CHAMOU atualizarHeroObraAtivaMobile_");
