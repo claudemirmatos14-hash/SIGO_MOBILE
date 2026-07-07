@@ -9098,6 +9098,122 @@ SIGOEventBus.on(
   }
 );
 
+// =====================================================
+// UX.09.2.3 — LISTENERS REAIS DO SISTEMA
+// =====================================================
+
+window.inicializarListenersSIGO_ = function () {
+
+  if (!window.SIGOEventBus) {
+    console.warn("SIGOEventBus não encontrado.");
+    return;
+  }
+
+  SIGOEventBus.on("MEDICAO_SALVA", async function (dados) {
+    await atualizarInterfaceAposEventoSIGO_("MEDICAO_SALVA", dados);
+  });
+
+  SIGOEventBus.on("LOTE_MEDICAO_CRIADO", async function (dados) {
+    await atualizarInterfaceAposEventoSIGO_("LOTE_MEDICAO_CRIADO", dados);
+  });
+
+  SIGOEventBus.on("DIARIO_SALVO", async function (dados) {
+    await atualizarInterfaceAposEventoSIGO_("DIARIO_SALVO", dados);
+  });
+
+  SIGOEventBus.on("ITEM_DIARIO_SALVO", async function (dados) {
+    await atualizarInterfaceAposEventoSIGO_("ITEM_DIARIO_SALVO", dados);
+  });
+
+  SIGOEventBus.on("OCORRENCIA_CRIADA", async function (dados) {
+    await atualizarInterfaceAposEventoSIGO_("OCORRENCIA_CRIADA", dados);
+  });
+
+  SIGOEventBus.on("EVIDENCIA_ANEXADA", async function (dados) {
+    await atualizarInterfaceAposEventoSIGO_("EVIDENCIA_ANEXADA", dados);
+  });
+
+  SIGOEventBus.on("SYNC_CONCLUIDO", async function (dados) {
+    await atualizarInterfaceAposEventoSIGO_("SYNC_CONCLUIDO", dados);
+  });
+
+  SIGOEventBus.on("SYNC_ERRO", async function (dados) {
+    await atualizarInterfaceAposEventoSIGO_("SYNC_ERRO", dados);
+  });
+
+  SIGOEventBus.on("BASE_ATUALIZADA", async function (dados) {
+    await atualizarInterfaceAposEventoSIGO_("BASE_ATUALIZADA", dados);
+  });
+
+  SIGOEventBus.on("OBRA_ALTERADA", async function (dados) {
+    await atualizarInterfaceAposEventoSIGO_("OBRA_ALTERADA", dados);
+  });
+
+  console.log("Listeners SIGO inicializados.");
+};
+
+window.atualizarInterfaceAposEventoSIGO_ = async function (evento, dados = {}) {
+  try {
+    console.log("Atualizando interface após evento:", evento, dados);
+
+    if (typeof atualizarBadgeNotificacoes_ === "function") {
+      await atualizarBadgeNotificacoes_();
+    }
+
+    if (typeof atualizarIndicadoresMobile_ === "function") {
+      await atualizarIndicadoresMobile_();
+    }
+
+    if (typeof atualizarDashboardHome_ === "function") {
+      await atualizarDashboardHome_();
+    }
+
+    if (typeof atualizarPainelSaudeSync_ === "function") {
+      await atualizarPainelSaudeSync_();
+    }
+
+    const telaAtual =
+      localStorage.getItem("telaAtualMobile") || "home";
+
+    if (
+      evento === "MEDICAO_SALVA" ||
+      evento === "LOTE_MEDICAO_CRIADO"
+    ) {
+      if (telaAtual === "medicoes") {
+        await navegarPara("medicoes");
+      }
+    }
+
+    if (
+      evento === "DIARIO_SALVO" ||
+      evento === "ITEM_DIARIO_SALVO"
+    ) {
+      if (telaAtual === "diario" || telaAtual === "itensDiario") {
+        await navegarPara(telaAtual);
+      }
+    }
+
+    if (evento === "OCORRENCIA_CRIADA") {
+      if (telaAtual === "ocorrencias") {
+        await navegarPara("ocorrencias");
+      }
+    }
+
+    if (evento === "EVIDENCIA_ANEXADA") {
+      if (telaAtual === "evidencias") {
+        await navegarPara("evidencias");
+      }
+    }
+
+    if (evento === "BASE_ATUALIZADA") {
+      await navegarPara(telaAtual);
+    }
+
+  } catch (erro) {
+    console.error("Erro ao atualizar interface após evento:", erro);
+  }
+};
+
 // ============================================
 // FORMATADORES
 // ============================================
