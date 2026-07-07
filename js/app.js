@@ -9214,6 +9214,34 @@ window.inicializarListenersSync_ = function () {
 };
 
 window.inicializarListenersObras_ = function () {
+  if (!window.SIGOEventBus) return;
+
+  const atualizarObras = async function () {
+    if (typeof atualizarHeroObraAtivaMobile_ === "function") {
+      await atualizarHeroObraAtivaMobile_();
+    }
+
+    if (typeof carregarObrasMobile_ === "function") {
+      await carregarObrasMobile_();
+    }
+
+    if (typeof listarObrasOfflineMobile_ === "function") {
+      await listarObrasOfflineMobile_();
+    }
+
+    if (typeof listarObrasDisponiveisMobile_ === "function") {
+      await listarObrasDisponiveisMobile_();
+    }
+
+    if (typeof atualizarIndicadoresMobile_ === "function") {
+      await atualizarIndicadoresMobile_();
+    }
+  };
+
+  SIGOEventBus.on("OBRA_ALTERADA", atualizarObras);
+  SIGOEventBus.on("BASE_ATUALIZADA", atualizarObras);
+  SIGOEventBus.on("OBRA_BAIXADA", atualizarObras);
+
   console.log("Listeners Obras inicializados.");
 };
 
