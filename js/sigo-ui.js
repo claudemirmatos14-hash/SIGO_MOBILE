@@ -190,8 +190,33 @@ function createHeader() {
         </div>
 
         <div class="sigo-header-actions">
-          <button type="button" class="icon-button">🔔</button>
-          <span class="status-online">● Online</span>
+
+          <button
+            id="btnNotificacoes"
+            type="button"
+            class="icon-button"
+            onclick="abrirCentralNotificacoes_()">
+        
+            🔔
+        
+            <span
+              id="badgeNotificacoes"
+              class="notification-badge">
+        
+              0
+        
+            </span>
+        
+          </button>
+        
+          <span
+            id="statusConexao"
+            class="status-online">
+        
+            ● Online
+        
+          </span>
+        
         </div>
       </div>
     </header>
