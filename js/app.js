@@ -8507,23 +8507,31 @@ window.montarDrawerNotificacoes_ = async function () {
   
   if (!notificacoesObra.length) {
     return `
-      <div class="drawer-section">
-        ${resumo}
-  
-        <p>Nenhuma notificação para esta obra.</p>
+      <div class="notificacoes-resumo sucesso">
+    
+        <div class="resumo-titulo">
+          ✔ Todas as notificações foram lidas
+        </div>
+    
+        <div class="resumo-subtitulo">
+          ${total} notificação(ões) nesta obra
+        </div>
+    
       </div>
     `;
   }
   
   return `
-    <div class="drawer-section" style="border-top:none;margin-top:0;padding-top:0;">
-      ${resumo}
+    <div class="notificacoes-resumo alerta">
   
-      <div id="listaNotificacoesDrawer" class="notificacoes-drawer">
-        ${notificacoesObra
-          .map(item => criarItemDrawerNotificacao_(item))
-          .join("")}
+      <div class="resumo-titulo">
+        🔔 ${naoLidas} não lida(s)
       </div>
+  
+      <div class="resumo-subtitulo">
+        ${total} notificação(ões) nesta obra
+      </div>
+  
     </div>
   `;
 };
