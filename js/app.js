@@ -8290,6 +8290,10 @@ window.atualizarBadgeNotificacoes_ = async function () {
   }
 };
 
+// =====================================================
+// UX.08.2.5 — CENTRAL DE NOTIFICAÇÕES
+// =====================================================
+
 window.abrirCentralNotificacoes_ = async function () {
   try {
     const conteudo =
@@ -8313,6 +8317,7 @@ window.abrirCentralNotificacoes_ = async function () {
     );
   }
 };
+
 
 window.montarDrawerNotificacoes_ = async function () {
   const obraAtiva =
@@ -8340,18 +8345,17 @@ window.montarDrawerNotificacoes_ = async function () {
 
   return `
     <div class="drawer-section" style="border-top:none;margin-top:0;padding-top:0;">
-
       <div id="listaNotificacoesDrawer" class="notificacoes-drawer">
         ${notificacoesObra
-          .map(item => criarItemNotificacaoDrawer_(item))
+          .map(item => criarItemDrawerNotificacao_(item))
           .join("")}
       </div>
-
     </div>
   `;
 };
 
-window.criarItemNotificacaoDrawer_ = function (item) {
+
+window.criarItemDrawerNotificacao_ = function (item) {
   const statusClasse =
     item.lida ? "is-read" : "is-unread";
 
@@ -8361,7 +8365,11 @@ window.criarItemNotificacaoDrawer_ = function (item) {
       : "";
 
   return `
-    <div class="notificacao-item ${statusClasse}">
+    <button
+      type="button"
+      class="notificacao-item ${statusClasse}"
+      onclick="selecionarNotificacaoDrawer_('${item.idNotificacao}')">
+
       <div class="notificacao-icone">
         ${item.icone || "🔔"}
       </div>
@@ -8371,9 +8379,41 @@ window.criarItemNotificacaoDrawer_ = function (item) {
         <p>${item.mensagem || ""}</p>
         <small>${data}</small>
       </div>
-    </div>
+
+    </button>
   `;
 };
+
+
+window.selecionarNotificacaoDrawer_ = async function (idNotificacao) {
+  const notificacoes =
+    await listarRegistrosSIGO("TB_NOTIFICACOES");
+
+  const notificacao =
+    notificacoes.find(item =>
+      String(item.idNotificacao) === String(idNotificacao)
+    );
+
+  if (!notificacao) return;
+
+  notificacao.lida = true;
+  notificacao.lidaEm = new Date().toISOString();
+
+  await salvarRegistroSIGO(
+    "TB_NOTIFICACOES",
+    notificacao
+  );
+
+  if (typeof atualizarBadgeNotificacoes_ === "function") {
+    await atualizarBadgeNotificacoes_();
+  }
+
+  SIGOUI.feedback.info(
+    notificacao.titulo || "Notificação",
+    notificacao.mensagem || ""
+  );
+};
+
 
 window.marcarNotificacoesComoLidas_ = async function () {
   const obraAtiva =
@@ -8382,13 +8422,13 @@ window.marcarNotificacoesComoLidas_ = async function () {
   const notificacoes =
     await listarRegistrosSIGO("TB_NOTIFICACOES");
 
-  const notificacoesObraNaoLidas =
+  const naoLidas =
     notificacoes.filter(item =>
       String(item.idObra) === String(obraAtiva) &&
       item.lida === false
     );
 
-  for (const item of notificacoesObraNaoLidas) {
+  for (const item of naoLidas) {
     item.lida = true;
     item.lidaEm = new Date().toISOString();
 
@@ -8402,7 +8442,6 @@ window.marcarNotificacoesComoLidas_ = async function () {
     await atualizarBadgeNotificacoes_();
   }
 };
-
 
 
 
