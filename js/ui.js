@@ -1412,59 +1412,55 @@ window.atualizarSmartSyncSIGO_ = async function () {
 
 window.SIGOOfflineEngine = {
 
-  async registrarAlteracao(dados = {}) {
-    try {
-      const itemFila = {
-        idSyncLocal:
-          dados.idSyncLocal || crypto.randomUUID(),
+ async registrarAlteracao(dados = {}) {
+  try {
+    const storeOrigem = dados.store || "";
+    const acao = dados.acao || "UPDATE";
+    const chave = dados.chave || "";
 
-        store:
-          dados.store || "",
-
-        acao:
-          dados.acao || "UPDATE",
-
-        chave:
-          dados.chave || "",
-
-        idObra:
-          dados.idObra || obterObraAtivaMobile_(),
-
-        payload:
-          dados.payload || null,
-
-        status:
-          "PENDENTE",
-
-        tentativas:
-          0,
-
-        erro:
-          "",
-
-        criadoEm:
-          new Date().toISOString(),
-
-        atualizadoEm:
-          new Date().toISOString()
-      };
-
-      await salvarRegistroSIGO(
-        "TB_SYNC_QUEUE",
-        itemFila
-      );
-
-      return itemFila;
-
-    } catch (erro) {
-      console.error(
-        "Erro ao registrar alteração offline:",
-        erro
-      );
-
+    if (!storeOrigem || !chave) {
       return null;
     }
-  },
+
+    const fila = await listarRegistrosSIGO("TB_SYNC_QUEUE");
+
+    const existente = fila.find(item =>
+      String(item.store).trim() === String(storeOrigem).trim() &&
+      String(item.chave).trim() === String(chave).trim() &&
+      String(item.status).trim() !== "SINCRONIZADO"
+    );
+
+    const itemFila = existente || {
+      idSyncLocal: dados.idSyncLocal || crypto.randomUUID(),
+      store: storeOrigem,
+      chave: chave,
+      criadoEm: new Date().toISOString()
+    };
+
+    itemFila.acao = acao;
+    itemFila.idObra = dados.idObra || obterObraAtivaMobile_();
+    itemFila.payload = dados.payload || null;
+    itemFila.status = "PENDENTE";
+    itemFila.erro = "";
+    itemFila.tentativas = Number(itemFila.tentativas || 0);
+    itemFila.atualizadoEm = new Date().toISOString();
+
+    await salvarRegistroSIGO(
+      "TB_SYNC_QUEUE",
+      itemFila
+    );
+
+    return itemFila;
+
+  } catch (erro) {
+    console.error(
+      "Erro ao registrar alteração offline:",
+      erro
+    );
+
+    return null;
+  }
+},
 
 
   async listarPendencias() {
