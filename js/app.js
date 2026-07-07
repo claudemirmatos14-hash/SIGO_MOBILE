@@ -9088,22 +9088,6 @@ window.SIGOEventBus = {
 };
 
 // =====================================================
-// Listener padrão
-// =====================================================
-
-SIGOEventBus.on(
-  "MEDICAO_SALVA",
-  async function (dados) {
-
-    console.log(
-      "Listener MEDICAO_SALVA",
-      dados
-    );
-
-  }
-);
-
-// =====================================================
 // UX.09.2.3 — LISTENERS REAIS DO SISTEMA
 // =====================================================
 
