@@ -9529,6 +9529,52 @@ window.SIGODataCache = {
 
 };
 
+// =====================================================
+// UX.12.4 — CACHE INTELIGENTE POR OBRA
+// =====================================================
+
+window.gerarChaveCacheObraSIGO_ = function (storeName, idObra) {
+  return `${storeName}::OBRA::${idObra}`;
+};
+
+
+window.listarRegistrosPorObraCacheSIGO_ = async function (storeName, idObra) {
+  if (!storeName || !idObra) return [];
+
+  const chaveCache =
+    gerarChaveCacheObraSIGO_(storeName, idObra);
+
+  if (
+    window.SIGODataCache &&
+    SIGODataCache.has(chaveCache)
+  ) {
+    return SIGODataCache.get(chaveCache);
+  }
+
+  const registros =
+    await listarRegistrosSIGO(storeName);
+
+  const registrosObra =
+    registros.filter(item =>
+      String(item.idObra) === String(idObra)
+    );
+
+  if (window.SIGODataCache) {
+    SIGODataCache.set(chaveCache, registrosObra);
+  }
+
+  return registrosObra;
+};
+
+window.invalidarCacheObraSIGO_ = function (storeName, idObra) {
+  if (!window.SIGODataCache || !storeName || !idObra) return false;
+
+  const chaveCache =
+    gerarChaveCacheObraSIGO_(storeName, idObra);
+
+  return SIGODataCache.invalidate(chaveCache);
+};
+
 // ============================================
 // FORMATADORES
 // ============================================
