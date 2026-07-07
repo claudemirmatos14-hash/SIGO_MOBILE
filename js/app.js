@@ -496,7 +496,9 @@ document.addEventListener("DOMContentLoaded", async () => {
        if (typeof inicializarListenersSIGO_ === "function") {
           inicializarListenersSIGO_();
         }
-
+       if (typeof inicializarDataBindingEventBus_ === "function") {
+          inicializarDataBindingEventBus_();
+        }
   
       console.log("SIGO Mobile inicializado.");
   
@@ -9372,6 +9374,43 @@ window.SIGODataBinding = {
     }
   }
 
+};
+
+// =====================================================
+// UX.11.2.2 — DATA BINDING → EVENTBUS
+// =====================================================
+
+window.inicializarDataBindingEventBus_ = function () {
+  if (!window.SIGODataBinding || !window.SIGOEventBus) {
+    console.warn("DataBinding ou EventBus não encontrado.");
+    return;
+  }
+
+  const stores = [
+    "TB_MEDICOES",
+    "TB_LOTES_MEDICAO",
+    "TB_DIARIOS",
+    "TB_DIARIO_ITENS",
+    "TB_OCORRENCIAS",
+    "TB_EVIDENCIAS",
+    "TB_SYNC_QUEUE",
+    "TB_OBRAS",
+    "TB_ATIVIDADES_OBRA"
+  ];
+
+  stores.forEach(storeName => {
+    SIGODataBinding.watch(storeName, async function (dados = {}) {
+      await SIGOEventBus.emit(
+        `${storeName}_UPDATED`,
+        {
+          store: storeName,
+          ...dados
+        }
+      );
+    });
+  });
+
+  console.log("DataBinding integrado ao EventBus.");
 };
 // ============================================
 // FORMATADORES
