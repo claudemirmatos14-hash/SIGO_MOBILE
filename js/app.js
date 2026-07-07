@@ -9117,7 +9117,7 @@ window.inicializarListenersBadge_ = function () {
 window.inicializarListenersHome_ = function () {
   if (!window.SIGOEventBus) return;
 
- const atualizarHome = async function () {
+  const atualizarHome = async function () {
     if (typeof atualizarSmartHomeSIGO_ === "function") {
       await atualizarSmartHomeSIGO_();
     }
