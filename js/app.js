@@ -9206,6 +9206,7 @@ window.inicializarListenersSync_ = function () {
   SIGOEventBus.on("SYNC_CONCLUIDO", atualizarSync);
   SIGOEventBus.on("SYNC_ERRO", atualizarSync);
   SIGOEventBus.on("BASE_ATUALIZADA", atualizarSync);
+  SIGOEventBus.on("TB_SYNC_QUEUE_UPDATED", atualizarSync);
 
   console.log("Listeners Sync inicializados.");
 };
