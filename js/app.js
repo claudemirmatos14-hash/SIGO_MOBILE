@@ -9463,6 +9463,72 @@ window.inicializarDataBindingEventBus_ = function () {
 
   console.log("DataBinding integrado ao EventBus.");
 };
+
+// =====================================================
+// UX.12.1 — SMART CACHE BASE
+// Cache central em memória do SIGO Mobile
+// =====================================================
+
+window.SIGODataCache = {
+
+  cache: {},
+
+  set(chave, dados) {
+    if (!chave) return false;
+
+    this.cache[chave] = {
+      dados: dados,
+      atualizadoEm: new Date().toISOString()
+    };
+
+    return true;
+  },
+
+  get(chave) {
+    if (!chave) return null;
+
+    const item =
+      this.cache[chave];
+
+    if (!item) return null;
+
+    return item.dados;
+  },
+
+  has(chave) {
+    return !!this.cache[chave];
+  },
+
+  invalidate(chave) {
+    if (!chave) return false;
+
+    delete this.cache[chave];
+
+    console.log("Cache invalidado:", chave);
+
+    return true;
+  },
+
+  clear() {
+    this.cache = {};
+
+    console.log("Cache limpo.");
+
+    return true;
+  },
+
+  info() {
+    return Object.keys(this.cache).map(chave => ({
+      chave: chave,
+      atualizadoEm: this.cache[chave].atualizadoEm,
+      total: Array.isArray(this.cache[chave].dados)
+        ? this.cache[chave].dados.length
+        : 1
+    }));
+  }
+
+};
+
 // ============================================
 // FORMATADORES
 // ============================================
