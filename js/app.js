@@ -8526,32 +8526,93 @@ window.montarDrawerNotificacoes_ = async function () {
 
 
 window.criarItemDrawerNotificacao_ = function (item) {
-  const statusClasse =
-    item.lida ? "is-read" : "is-unread";
 
   const data =
-    item.criadaEm
-      ? new Date(item.criadaEm).toLocaleString("pt-BR")
-      : "";
+    formatarDataNotificacao_(item.criadaEm);
+
+  const categoria =
+    item.categoria || "SISTEMA";
+
+  const classeCategoria =
+    categoria.toLowerCase();
 
   return `
+
     <button
       type="button"
-      class="notificacao-item ${statusClasse}"
+      class="card-notificacao ${classeCategoria}"
       onclick="selecionarNotificacaoDrawer_('${item.idNotificacao}')">
 
-      <div class="notificacao-icone">
-        ${item.icone || "🔔"}
+      <div class="notificacao-faixa"></div>
+
+      <div class="notificacao-header">
+
+        <div class="notificacao-icone">
+          ${item.icone || "🔔"}
+        </div>
+
+        <div class="notificacao-info">
+
+          <div class="notificacao-categoria">
+            ${categoria}
+          </div>
+
+          <div class="notificacao-titulo">
+            ${item.titulo}
+          </div>
+
+        </div>
+
       </div>
 
-      <div class="notificacao-conteudo">
-        <strong>${item.titulo || "Notificação"}</strong>
-        <p>${item.mensagem || ""}</p>
-        <small>${data}</small>
+      <div class="notificacao-mensagem">
+        ${item.mensagem}
+      </div>
+
+      <div class="notificacao-rodape">
+
+        <span class="notificacao-data">
+          ${data}
+        </span>
+
       </div>
 
     </button>
+
   `;
+
+};
+
+window.formatarDataNotificacao_ = function (dataISO) {
+
+  if (!dataISO) return "";
+
+  const data =
+    new Date(dataISO);
+
+  const hoje =
+    new Date();
+
+  const ontem =
+    new Date();
+
+  ontem.setDate(hoje.getDate() - 1);
+
+  const hora =
+    data.toLocaleTimeString("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+
+  if (data.toDateString() === hoje.toDateString()) {
+    return "Hoje • " + hora;
+  }
+
+  if (data.toDateString() === ontem.toDateString()) {
+    return "Ontem • " + hora;
+  }
+
+  return data.toLocaleDateString("pt-BR");
 };
 
 
