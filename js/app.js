@@ -9187,7 +9187,9 @@ window.inicializarListenersDiario_ = function () {
 
   SIGOEventBus.on("DIARIO_SALVO", atualizarDiario);
   SIGOEventBus.on("ITEM_DIARIO_SALVO", atualizarDiario);
-
+  
+  SIGOEventBus.on("TB_DIARIOS_UPDATED", atualizarDiario);
+  
   console.log("Listeners Diário inicializados.");
 };
 
