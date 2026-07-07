@@ -9028,6 +9028,54 @@ window.SIGO_CATALOGO_EVENTOS = {
 
 };
 
+// =====================================================
+// UX.09.2 — EVENTBUS SIGO
+// Barramento central de eventos do SIGO Mobile
+// =====================================================
+
+window.SIGOEventBus = {
+
+  listeners: {},
+
+  on(evento, callback) {
+    if (!evento || typeof callback !== "function") return;
+
+    if (!this.listeners[evento]) {
+      this.listeners[evento] = [];
+    }
+
+    this.listeners[evento].push(callback);
+  },
+
+  off(evento, callback) {
+    if (!this.listeners[evento]) return;
+
+    this.listeners[evento] =
+      this.listeners[evento].filter(fn => fn !== callback);
+  },
+
+  async emit(evento, dados = {}) {
+    if (!evento) return;
+
+    console.log("SIGOEventBus.emit:", evento, dados);
+
+    const callbacks =
+      this.listeners[evento] || [];
+
+    for (const callback of callbacks) {
+      try {
+        await callback(dados);
+      } catch (erro) {
+        console.error(
+          `Erro ao executar listener do evento ${evento}:`,
+          erro
+        );
+      }
+    }
+  }
+
+};
+
 // ============================================
 // FORMATADORES
 // ============================================
