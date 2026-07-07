@@ -1,5 +1,5 @@
 const SIGO_DB_NAME = "SIGO_OFFLINE_DB";
-const SIGO_DB_VERSION = 10;
+const SIGO_DB_VERSION = 11;
 
 let SIGO_DB = null;
 
@@ -177,6 +177,24 @@ function salvarRegistroSIGO(storeName, registro) {
             registro: registro
           });
         }
+
+        if (
+            window.SIGOOfflineEngine &&
+            storeName !== "TB_SYNC_QUEUE"
+          ) {
+            const chave =
+              obterChaveRegistroSIGO_(storeName, registro);
+          
+            if (chave) {
+              await SIGOOfflineEngine.registrarAlteracao({
+                store: storeName,
+                acao: "UPDATE",
+                chave: chave,
+                idObra: registro.idObra || obterObraAtivaMobile_(),
+                payload: registro
+              });
+            }
+          }
 
         resolve(registro);
       };
