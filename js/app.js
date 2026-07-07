@@ -9135,6 +9135,15 @@ window.inicializarListenersHome_ = function () {
   SIGOEventBus.on("SYNC_CONCLUIDO", atualizarHome);
   SIGOEventBus.on("OBRA_ALTERADA", atualizarHome);
 
+  SIGOEventBus.on("TB_OBRAS_UPDATED", atualizarHome);
+  SIGOEventBus.on("TB_ATIVIDADES_OBRA_UPDATED", atualizarHome);
+  SIGOEventBus.on("TB_DIARIOS_UPDATED", atualizarHome);
+  SIGOEventBus.on("TB_DIARIO_ITENS_UPDATED", atualizarHome);
+  SIGOEventBus.on("TB_MEDICOES_UPDATED", atualizarHome);
+  SIGOEventBus.on("TB_OCORRENCIAS_UPDATED", atualizarHome);
+  SIGOEventBus.on("TB_EVIDENCIAS_UPDATED", atualizarHome);
+  SIGOEventBus.on("TB_SYNC_QUEUE_UPDATED", atualizarHome);
+
   console.log("Listeners Home inicializados.");
 };
 
