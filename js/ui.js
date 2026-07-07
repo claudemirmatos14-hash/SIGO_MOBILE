@@ -1328,3 +1328,28 @@ window.atualizarSmartMedicoesSIGO_ = async function () {
     return false;
   }
 };
+
+// =====================================================
+// UX.10.4 — SMART UI DIÁRIO
+// =====================================================
+
+window.atualizarSmartDiarioSIGO_ = async function () {
+  try {
+    const telaAtual =
+      localStorage.getItem("telaAtualMobile") || "home";
+
+    if (telaAtual !== "diario") {
+      return false;
+    }
+
+    if (typeof listarDiariosOffline_ === "function") {
+      await listarDiariosOffline_();
+    }
+
+    return true;
+
+  } catch (erro) {
+    console.error("Erro ao atualizar Smart UI Diário:", erro);
+    return false;
+  }
+};
