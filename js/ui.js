@@ -1249,3 +1249,29 @@ window.removerClasseSIGO_ = function (id, classe) {
 
   return true;
 };
+
+// =====================================================
+// UX.10.2 — SMART UI HOME
+// =====================================================
+
+window.atualizarSmartHomeSIGO_ = async function () {
+  try {
+    if (typeof atualizarHeroObraAtivaMobile_ === "function") {
+      await atualizarHeroObraAtivaMobile_();
+    }
+
+    if (typeof atualizarIndicadoresMobile_ === "function") {
+      await atualizarIndicadoresMobile_();
+    }
+
+    if (typeof atualizarDashboardHome_ === "function") {
+      await atualizarDashboardHome_();
+    }
+
+    return true;
+
+  } catch (erro) {
+    console.error("Erro ao atualizar Smart UI Home:", erro);
+    return false;
+  }
+};
