@@ -8514,10 +8514,8 @@ window.montarDrawerNotificacoes_ = async function () {
 
   return `
     <div class="drawer-section" style="border-top:none;margin-top:0;padding-top:0;">
-      <div id="listaNotificacoesDrawer" class="notificacoes-drawer">
-        ${notificacoesObra
-          .map(item => criarItemDrawerNotificacao_(item))
-          .join("")}
+      <div id="listaNotificacoesDrawer" class="notificacoes-drawer timeline-notificacoes">
+        ${renderizarTimelineNotificacoes_(notificacoesObra)}
       </div>
     </div>
   `;
@@ -8688,6 +8686,36 @@ window.zerarHora_ = function (data) {
   novaData.setHours(0, 0, 0, 0);
 
   return novaData;
+};
+
+window.renderizarTimelineNotificacoes_ = function (notificacoes = []) {
+  const grupos =
+    agruparNotificacoesTimeline_(notificacoes);
+
+  if (!grupos.length) {
+    return "";
+  }
+
+  return grupos
+    .map(grupo => {
+      return `
+        <div class="grupo-notificacoes">
+
+          <div class="grupo-notificacoes-header">
+            <span>${grupo.titulo}</span>
+            <small>${grupo.quantidade || grupo.itens.length}</small>
+          </div>
+
+          <div class="grupo-notificacoes-lista">
+            ${grupo.itens
+              .map(item => criarItemDrawerNotificacao_(item))
+              .join("")}
+          </div>
+
+        </div>
+      `;
+    })
+    .join("");
 };
 
 window.selecionarNotificacaoDrawer_ = async function (idNotificacao) {
