@@ -8910,9 +8910,15 @@ window.registrarEventoSIGO_ = async function (evento = {}) {
       };
     }
 
-    await criarNotificacaoSIGO_(notificacao);
+   await criarNotificacaoSIGO_(notificacao);
 
-    return true;
+// Dispara o evento no barramento
+  await SIGOEventBus.emit(
+    chaveEvento || "EVENTO_GENERICO",
+    notificacao
+  );
+  
+  return true;
 
   } catch (erro) {
     console.error("Erro ao registrar evento:", erro);
@@ -9075,6 +9081,22 @@ window.SIGOEventBus = {
   }
 
 };
+
+// =====================================================
+// Listener padrão
+// =====================================================
+
+SIGOEventBus.on(
+  "MEDICAO_SALVA",
+  async function (dados) {
+
+    console.log(
+      "Listener MEDICAO_SALVA",
+      dados
+    );
+
+  }
+);
 
 // ============================================
 // FORMATADORES
