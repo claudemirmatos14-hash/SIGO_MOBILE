@@ -9092,6 +9092,25 @@ window.SIGOEventBus = {
 // =====================================================
 
 window.inicializarListenersBadge_ = function () {
+  if (!window.SIGOEventBus) return;
+
+  const atualizarBadge = async function () {
+    if (typeof atualizarBadgeNotificacoes_ === "function") {
+      await atualizarBadgeNotificacoes_();
+    }
+  };
+
+  SIGOEventBus.on("MEDICAO_SALVA", atualizarBadge);
+  SIGOEventBus.on("LOTE_MEDICAO_CRIADO", atualizarBadge);
+  SIGOEventBus.on("DIARIO_SALVO", atualizarBadge);
+  SIGOEventBus.on("ITEM_DIARIO_SALVO", atualizarBadge);
+  SIGOEventBus.on("OCORRENCIA_CRIADA", atualizarBadge);
+  SIGOEventBus.on("EVIDENCIA_ANEXADA", atualizarBadge);
+  SIGOEventBus.on("BASE_ATUALIZADA", atualizarBadge);
+  SIGOEventBus.on("SYNC_CONCLUIDO", atualizarBadge);
+  SIGOEventBus.on("SYNC_ERRO", atualizarBadge);
+  SIGOEventBus.on("OBRA_ALTERADA", atualizarBadge);
+
   console.log("Listeners Badge inicializados.");
 };
 
