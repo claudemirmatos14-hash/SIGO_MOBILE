@@ -9327,13 +9327,18 @@ window.atualizarInterfaceAposEventoSIGO_ = async function (evento, dados = {}) {
 
 
 // =====================================================
-// UX.11.1 — SMART DATA BINDING
-// Observador central das stores do IndexedDB
+// UX.11.3.1 — SMART DATA BINDING COM DEBOUNCE
 // =====================================================
 
 window.SIGODataBinding = {
 
   watchers: {},
+
+  timers: {},
+
+  pendentes: {},
+
+  delay: 250,
 
   watch(storeName, callback) {
     if (!storeName || typeof callback !== "function") return;
@@ -9357,7 +9362,34 @@ window.SIGODataBinding = {
   async notify(storeName, dados = {}) {
     if (!storeName) return;
 
-    console.log("DataBinding notify:", storeName, dados);
+    this.pendentes[storeName] = {
+      store: storeName,
+      acao: dados.acao || "UPDATE",
+      ultimoRegistro: dados.registro || null,
+      chave: dados.chave || null,
+      idObra: dados.idObra || null,
+      origem: dados.origem || "",
+      quantidade:
+        (this.pendentes[storeName]?.quantidade || 0) + 1
+    };
+
+    clearTimeout(this.timers[storeName]);
+
+    this.timers[storeName] = setTimeout(async () => {
+      await this.flush(storeName);
+    }, this.delay);
+  },
+
+  async flush(storeName) {
+    const dados =
+      this.pendentes[storeName];
+
+    if (!dados) return;
+
+    delete this.pendentes[storeName];
+    delete this.timers[storeName];
+
+    console.log("DataBinding flush:", storeName, dados);
 
     const callbacks =
       this.watchers[storeName] || [];
