@@ -9140,13 +9140,8 @@ window.inicializarListenersMedicoes_ = function () {
   if (!window.SIGOEventBus) return;
 
   const atualizarMedicoes = async function () {
-    const telaAtual =
-      localStorage.getItem("telaAtualMobile") || "home";
-
-    if (telaAtual !== "medicoes") return;
-
-    if (typeof navegarPara === "function") {
-      await navegarPara("medicoes");
+    if (typeof atualizarSmartMedicoesSIGO_ === "function") {
+      await atualizarSmartMedicoesSIGO_();
     }
   };
 
