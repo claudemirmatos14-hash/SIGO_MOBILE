@@ -832,10 +832,18 @@ async function montarTelaMedicoes() {
       }
     ],
 
-    extraSections: [
-      heroLote,
-      timelineLotes
-    ],
+   extraSections: [
+  `
+      <div id="smartHeroMedicao">
+        ${heroLote}
+      </div>
+    `,
+    `
+      <div id="smartTimelineMedicoes">
+        ${timelineLotes}
+      </div>
+    `
+  ],
 
     formTitle: "📋 Dados da Medição",
     formSubtitle: "Medição vinculada ao planejamento offline",
@@ -1287,6 +1295,26 @@ window.atualizarSmartMedicoesSIGO_ = async function () {
 
     if (telaAtual !== "medicoes") {
       return false;
+    }
+
+    if (typeof criarHeroLoteMedicaoAtivo_ === "function") {
+      const hero =
+        await criarHeroLoteMedicaoAtivo_();
+
+      atualizarHTMLSIGO_(
+        "smartHeroMedicao",
+        hero
+      );
+    }
+
+    if (typeof criarTimelineLotesMedicao_ === "function") {
+      const timeline =
+        await criarTimelineLotesMedicao_();
+
+      atualizarHTMLSIGO_(
+        "smartTimelineMedicoes",
+        timeline
+      );
     }
 
     if (typeof listarMedicoesOffline_ === "function") {
