@@ -2204,3 +2204,179 @@ BARRA DE PROGRESSO
 .medicao-timeline-footer button {
   width: 100%;
 }
+
+/* =====================================================
+   UX.08.2.5.1.3 — Cards Premium das Notificações
+===================================================== */
+
+.notificacoes-drawer{
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+}
+
+.card-notificacao{
+
+    position:relative;
+
+    width:100%;
+
+    border:none;
+
+    background:#FFFFFF;
+
+    border-radius:16px;
+
+    padding:16px;
+
+    text-align:left;
+
+    cursor:pointer;
+
+    box-shadow:
+        0 6px 18px rgba(15,23,42,.06);
+
+    transition:.20s;
+
+    overflow:hidden;
+
+}
+
+.card-notificacao:hover{
+
+    transform:translateY(-2px);
+
+    box-shadow:
+        0 12px 26px rgba(15,23,42,.10);
+
+}
+
+.notificacao-faixa{
+
+    position:absolute;
+
+    left:0;
+
+    top:0;
+
+    bottom:0;
+
+    width:6px;
+
+    border-radius:6px;
+
+    background:#CBD5E1;
+
+}
+
+.card-notificacao.medicao .notificacao-faixa{
+    background:#22C55E;
+}
+
+.card-notificacao.diario .notificacao-faixa{
+    background:#3B82F6;
+}
+
+.card-notificacao.sync .notificacao-faixa{
+    background:#F59E0B;
+}
+
+.card-notificacao.erro .notificacao-faixa{
+    background:#EF4444;
+}
+
+.card-notificacao.sistema .notificacao-faixa{
+    background:#64748B;
+}
+
+.notificacao-header{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:14px;
+
+}
+
+.notificacao-icone{
+
+    width:48px;
+
+    height:48px;
+
+    border-radius:14px;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    font-size:22px;
+
+    background:#EEF2FF;
+
+}
+
+.notificacao-info{
+
+    flex:1;
+
+}
+
+.notificacao-categoria{
+
+    font-size:11px;
+
+    font-weight:700;
+
+    color:#64748B;
+
+    text-transform:uppercase;
+
+    letter-spacing:.05em;
+
+}
+
+.notificacao-titulo{
+
+    margin-top:2px;
+
+    font-size:16px;
+
+    font-weight:700;
+
+    color:#111827;
+
+}
+
+.notificacao-mensagem{
+
+    margin-top:14px;
+
+    margin-left:62px;
+
+    color:#475569;
+
+    font-size:13px;
+
+    line-height:1.5;
+
+}
+
+.notificacao-rodape{
+
+    margin-top:12px;
+
+    margin-left:62px;
+
+}
+
+.notificacao-data{
+
+    color:#94A3B8;
+
+    font-size:11px;
+
+}
