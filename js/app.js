@@ -8430,9 +8430,7 @@ window.abrirCentralNotificacoes_ = async function () {
 // =====================================================
 
 window.montarResumoNotificacoes_ = async function () {
-
-  const obraAtiva =
-    obterObraAtivaMobile_();
+  const obraAtiva = obterObraAtivaMobile_();
 
   const notificacoes =
     await listarRegistrosSIGO("TB_NOTIFICACOES");
@@ -8442,8 +8440,7 @@ window.montarResumoNotificacoes_ = async function () {
       String(item.idObra) === String(obraAtiva)
     );
 
-  const total =
-    notificacoesObra.length;
+  const total = notificacoesObra.length;
 
   const naoLidas =
     notificacoesObra.filter(item =>
@@ -8451,39 +8448,44 @@ window.montarResumoNotificacoes_ = async function () {
     ).length;
 
   if (!total) {
-
     return `
       <div class="notificacoes-resumo vazio">
-        Nenhuma notificação desta obra.
+        <div class="resumo-titulo">
+          🔔 Nenhuma notificação
+        </div>
+
+        <div class="resumo-subtitulo">
+          Esta obra ainda não possui notificações.
+        </div>
       </div>
     `;
-
   }
 
   if (!naoLidas) {
-
     return `
       <div class="notificacoes-resumo sucesso">
-        ✔ Todas as notificações foram lidas
-        <small>${total} notificações</small>
+        <div class="resumo-titulo">
+          ✔ Todas as notificações foram lidas
+        </div>
+
+        <div class="resumo-subtitulo">
+          ${total} notificação(ões) nesta obra
+        </div>
       </div>
     `;
-
   }
 
   return `
     <div class="notificacoes-resumo alerta">
+      <div class="resumo-titulo">
+        🔔 ${naoLidas} não lida(s)
+      </div>
 
-      <strong>${naoLidas}</strong>
-      não lida(s)
-
-      <small>
-        ${total} notificação(ões)
-      </small>
-
+      <div class="resumo-subtitulo">
+        ${total} notificação(ões) nesta obra
+      </div>
     </div>
   `;
-
 };
 
 window.montarDrawerNotificacoes_ = async function () {
@@ -8502,39 +8504,25 @@ window.montarDrawerNotificacoes_ = async function () {
         new Date(b.criadaEm) - new Date(a.criadaEm)
       );
 
-   const resumo =
-    await montarResumoNotificacoes_();
-  
   if (!notificacoesObra.length) {
     return `
-      <div class="notificacoes-resumo sucesso">
-    
-        <div class="resumo-titulo">
-          ✔ Todas as notificações foram lidas
-        </div>
-    
-        <div class="resumo-subtitulo">
-          ${total} notificação(ões) nesta obra
-        </div>
-    
+      <div class="drawer-section">
+        <p>Nenhuma notificação para esta obra.</p>
       </div>
     `;
   }
-  
+
   return `
-    <div class="notificacoes-resumo alerta">
-  
-      <div class="resumo-titulo">
-        🔔 ${naoLidas} não lida(s)
+    <div class="drawer-section" style="border-top:none;margin-top:0;padding-top:0;">
+      <div id="listaNotificacoesDrawer" class="notificacoes-drawer">
+        ${notificacoesObra
+          .map(item => criarItemDrawerNotificacao_(item))
+          .join("")}
       </div>
-  
-      <div class="resumo-subtitulo">
-        ${total} notificação(ões) nesta obra
-      </div>
-  
     </div>
   `;
 };
+
 
 
 window.criarItemDrawerNotificacao_ = function (item) {
