@@ -8674,8 +8674,11 @@ window.agruparNotificacoesTimeline_ = function (notificacoes = []) {
 
   return Object
     .values(grupos)
-    .filter(grupo => grupo.itens.length > 0);
-
+    .filter(grupo => grupo.itens.length > 0)
+    .map(grupo => ({
+      ...grupo,
+      quantidade: grupo.itens.length
+    }));
 };
 
 window.zerarHora_ = function (data) {
