@@ -9575,6 +9575,30 @@ window.invalidarCacheObraSIGO_ = function (storeName, idObra) {
   return SIGODataCache.invalidate(chaveCache);
 };
 
+// =====================================================
+// UX.13.2 — CHAVE DE REGISTRO PARA SYNC
+// =====================================================
+
+window.obterChaveRegistroSIGO_ = function (storeName, registro = {}) {
+  const mapa = {
+    TB_OBRAS: "idObra",
+    TB_DIARIOS: "idDiario",
+    TB_DIARIO_ITENS: "idItemDiario",
+    TB_LOTES_MEDICAO: "idLoteMedicao",
+    TB_MEDICOES: "idMedicao",
+    TB_OCORRENCIAS: "idOcorrencia",
+    TB_CLIMA: "idClima",
+    TB_EVIDENCIAS: "idEvidencia",
+    TB_ATIVIDADES_OBRA: "idRegistro"
+  };
+
+  const campo = mapa[storeName];
+
+  if (!campo) return "";
+
+  return registro[campo] || "";
+};
+
 // ============================================
 // FORMATADORES
 // ============================================
