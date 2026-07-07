@@ -1,5 +1,5 @@
 const SIGO_DB_NAME = "SIGO_OFFLINE_DB";
-const SIGO_DB_VERSION = 8;
+const SIGO_DB_VERSION = 9;
 
 let SIGO_DB = null;
 
@@ -158,6 +158,10 @@ function salvarRegistroSIGO(storeName, registro) {
       const request = store.put(registro);
 
       request.onsuccess = async () => {
+
+        if (window.SIGODataCache) {
+          SIGODataCache.invalidate(storeName);
+        }
 
         if (window.SIGODataBinding) {
           await SIGODataBinding.notify(storeName, {
@@ -383,8 +387,10 @@ async function removerRegistrosPorObraSIGO_(storeName, idObra) {
 
   return new Promise((resolve, reject) => {
    transaction.oncomplete = async () => {
-
-      resolve(true);
+     
+      if (window.SIGODataCache) {
+        SIGODataCache.invalidate(storeName);
+      }
     
       if (window.SIGODataBinding) {
     
@@ -399,6 +405,8 @@ async function removerRegistrosPorObraSIGO_(storeName, idObra) {
         });
     
       }
+
+      resolve(true);
     
     };
     transaction.onerror = () => reject(transaction.error);
@@ -423,7 +431,9 @@ async function removerRegistroSIGO_(storeName, idRegistro) {
 
     request.onsuccess = async () => {
 
-      resolve(true);
+      if (window.SIGODataCache) {
+        SIGODataCache.invalidate(storeName);
+      }
     
       if (window.SIGODataBinding) {
     
@@ -438,6 +448,8 @@ async function removerRegistroSIGO_(storeName, idRegistro) {
         });
     
       }
+
+       resolve(true);
     
     };
 
@@ -462,7 +474,9 @@ async function removerRegistroPorChaveSIGO_(storeName, chave) {
   return new Promise((resolve, reject) => {
    transaction.oncomplete = async () => {
 
-      resolve(true);
+     if (window.SIGODataCache) {
+        SIGODataCache.invalidate(storeName);
+      }
     
       if (window.SIGODataBinding) {
     
@@ -477,7 +491,9 @@ async function removerRegistroPorChaveSIGO_(storeName, chave) {
         });
     
       }
-    
+     
+      resolve(true);
+     
     };
     transaction.onerror = () => reject(transaction.error);
   });
