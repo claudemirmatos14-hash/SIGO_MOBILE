@@ -9114,8 +9114,31 @@ window.inicializarListenersSIGO_ = function () {
     return;
   }
 
+ SIGOEventBus.on("MEDICAO_SALVA", async function (dados) {
+    if (typeof atualizarBadgeNotificacoes_ === "function") {
+      await atualizarBadgeNotificacoes_();
+    }
+  });
+  
   SIGOEventBus.on("MEDICAO_SALVA", async function (dados) {
-    await atualizarInterfaceAposEventoSIGO_("MEDICAO_SALVA", dados);
+    if (typeof atualizarIndicadoresMobile_ === "function") {
+      await atualizarIndicadoresMobile_();
+    }
+  });
+  
+  SIGOEventBus.on("MEDICAO_SALVA", async function (dados) {
+    if (typeof atualizarDashboardHome_ === "function") {
+      await atualizarDashboardHome_();
+    }
+  });
+  
+  SIGOEventBus.on("MEDICAO_SALVA", async function (dados) {
+    const telaAtual =
+      localStorage.getItem("telaAtualMobile") || "home";
+  
+    if (telaAtual === "medicoes") {
+      await navegarPara("medicoes");
+    }
   });
 
   SIGOEventBus.on("LOTE_MEDICAO_CRIADO", async function (dados) {
