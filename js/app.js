@@ -9137,18 +9137,20 @@ window.inicializarListenersHome_ = function () {
 };
 
 window.inicializarListenersMedicoes_ = function () {
-  if (!window.SIGOEventBus) return;
+    if (!window.SIGOEventBus) return;
 
-  const atualizarMedicoes = async function () {
-    if (typeof atualizarSmartMedicoesSIGO_ === "function") {
-      await atualizarSmartMedicoesSIGO_();
-    }
-  };
+    const atualizarMedicoes = async function () {
+        console.log(">>> Smart UI Medições");
 
-  SIGOEventBus.on("MEDICAO_SALVA", atualizarMedicoes);
-  SIGOEventBus.on("LOTE_MEDICAO_CRIADO", atualizarMedicoes);
+        if (typeof atualizarSmartMedicoesSIGO_ === "function") {
+            await atualizarSmartMedicoesSIGO_();
+        }
+    };
 
-  console.log("Listeners Medições inicializados.");
+    SIGOEventBus.on("MEDICAO_SALVA", atualizarMedicoes);
+    SIGOEventBus.on("LOTE_MEDICAO_CRIADO", atualizarMedicoes);
+
+    console.log("Listeners Medições inicializados.");
 };
 
 window.inicializarListenersDiario_ = function () {
