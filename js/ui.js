@@ -1275,3 +1275,28 @@ window.atualizarSmartHomeSIGO_ = async function () {
     return false;
   }
 };
+
+// =====================================================
+// UX.10.3 — SMART UI MEDIÇÕES
+// =====================================================
+
+window.atualizarSmartMedicoesSIGO_ = async function () {
+  try {
+    const telaAtual =
+      localStorage.getItem("telaAtualMobile") || "home";
+
+    if (telaAtual !== "medicoes") {
+      return false;
+    }
+
+    if (typeof listarMedicoesOffline_ === "function") {
+      await listarMedicoesOffline_();
+    }
+
+    return true;
+
+  } catch (erro) {
+    console.error("Erro ao atualizar Smart UI Medições:", erro);
+    return false;
+  }
+};
