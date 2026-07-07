@@ -9156,17 +9156,18 @@ window.inicializarListenersMedicoes_ = function () {
 window.inicializarListenersDiario_ = function () {
   if (!window.SIGOEventBus) return;
 
-  const atualizarDiario = async function () {
+ const atualizarDiario = async function () {
     const telaAtual =
       localStorage.getItem("telaAtualMobile") || "home";
-
+  
     if (telaAtual === "diario") {
       await atualizarSmartDiarioSIGO_();
       return;
     }
-
+  
     if (telaAtual === "diarioItens") {
-      await navegarPara("diarioItens");
+      await atualizarSmartItensDiarioSIGO_();
+      return;
     }
   };
 
