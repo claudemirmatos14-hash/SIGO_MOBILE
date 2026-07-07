@@ -9161,6 +9161,9 @@ window.inicializarListenersMedicoes_ = function () {
     SIGOEventBus.on("MEDICAO_SALVA", atualizarMedicoes);
     SIGOEventBus.on("LOTE_MEDICAO_CRIADO", atualizarMedicoes);
 
+    SIGOEventBus.on("TB_MEDICOES_UPDATED", atualizarMedicoes);
+    SIGOEventBus.on("TB_LOTES_MEDICAO_UPDATED", atualizarMedicoes);
+  
     console.log("Listeners Medições inicializados.");
 };
 
