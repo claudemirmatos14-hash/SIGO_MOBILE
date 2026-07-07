@@ -1,5 +1,5 @@
 const SIGO_DB_NAME = "SIGO_OFFLINE_DB";
-const SIGO_DB_VERSION = 9;
+const SIGO_DB_VERSION = 10;
 
 let SIGO_DB = null;
 
@@ -161,6 +161,13 @@ function salvarRegistroSIGO(storeName, registro) {
 
         if (window.SIGODataCache) {
           SIGODataCache.invalidate(storeName);
+        
+          if (registro && registro.idObra) {
+            invalidarCacheObraSIGO_(
+              storeName,
+              registro.idObra
+            );
+          }
         }
 
         if (window.SIGODataBinding) {
