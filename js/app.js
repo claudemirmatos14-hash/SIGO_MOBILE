@@ -9117,10 +9117,11 @@ window.inicializarListenersBadge_ = function () {
 window.inicializarListenersHome_ = function () {
   if (!window.SIGOEventBus) return;
 
-  const atualizarHome = async function () {
-    if (typeof atualizarHeroObraAtivaMobile_ === "function") {
-      await atualizarHeroObraAtivaMobile_();
+ const atualizarHome = async function () {
+    if (typeof atualizarSmartHomeSIGO_ === "function") {
+      await atualizarSmartHomeSIGO_();
     }
+  };
 
     if (typeof atualizarIndicadoresMobile_ === "function") {
       await atualizarIndicadoresMobile_();
