@@ -175,8 +175,14 @@ localStorage.setItem("telaAtualMobile", tela);
         }
   
         await telasPremium[tela].depois();
+        
+// Atualiza o contador de notificações
+  if (typeof atualizarBadgeNotificacoes_ === "function") {
+    await atualizarBadgeNotificacoes_();
+  }
+        
       }, 100);
-  
+      
       window.scrollTo({
         top: 0,
         behavior: "smooth"
