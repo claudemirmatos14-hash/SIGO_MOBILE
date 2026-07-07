@@ -2244,10 +2244,18 @@ BARRA DE PROGRESSO
 
 .card-notificacao:hover{
 
-    transform:translateY(-2px);
+    transform:translateY(-3px);
 
     box-shadow:
-        0 12px 26px rgba(15,23,42,.10);
+        0 12px 30px rgba(15,23,42,.12);
+
+}
+
+.card-notificacao.nao-lida{
+
+    background:#F8FBFF;
+
+    border:1px solid #DBEAFE;
 
 }
 
@@ -2395,12 +2403,18 @@ BARRA DE PROGRESSO
   display: flex;
   flex-direction: column;
   gap: 12px;
+  margin-top:28px;
+
 }
 
 .grupo-notificacoes-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+
+  padding-bottom:8px;
+
+  border-bottom:1px solid #E5E7EB;
 
   padding: 0 4px 2px;
 
@@ -2447,4 +2461,30 @@ BARRA DE PROGRESSO
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.grupo-notificacoes:first-child{
+
+    margin-top:0;
+
+}
+
+.card-notificacao:active{
+
+    transform:scale(.985);
+
+}
+
+.notificacoes-drawer::-webkit-scrollbar{
+
+    width:5px;
+
+}
+
+.notificacoes-drawer::-webkit-scrollbar-thumb{
+
+    background:#CBD5E1;
+
+    border-radius:999px;
+
 }
