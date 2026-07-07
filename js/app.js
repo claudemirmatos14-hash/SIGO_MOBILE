@@ -9165,6 +9165,27 @@ window.inicializarListenersMedicoes_ = function () {
 };
 
 window.inicializarListenersDiario_ = function () {
+  if (!window.SIGOEventBus) return;
+
+  const atualizarDiario = async function () {
+    const telaAtual =
+      localStorage.getItem("telaAtualMobile") || "home";
+
+    if (
+      telaAtual !== "diario" &&
+      telaAtual !== "itensDiario"
+    ) {
+      return;
+    }
+
+    if (typeof navegarPara === "function") {
+      await navegarPara(telaAtual);
+    }
+  };
+
+  SIGOEventBus.on("DIARIO_SALVO", atualizarDiario);
+  SIGOEventBus.on("ITEM_DIARIO_SALVO", atualizarDiario);
+
   console.log("Listeners Diário inicializados.");
 };
 
