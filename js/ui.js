@@ -1378,3 +1378,29 @@ window.atualizarSmartItensDiarioSIGO_ = async function () {
     return false;
   }
 };
+
+// =====================================================
+// UX.10.5 — SMART UI SYNC
+// =====================================================
+
+window.atualizarSmartSyncSIGO_ = async function () {
+  try {
+    if (typeof atualizarPainelSaudeSync_ === "function") {
+      await atualizarPainelSaudeSync_();
+    }
+
+    if (typeof atualizarBadgeNotificacoes_ === "function") {
+      await atualizarBadgeNotificacoes_();
+    }
+
+    if (typeof atualizarIndicadoresMobile_ === "function") {
+      await atualizarIndicadoresMobile_();
+    }
+
+    return true;
+
+  } catch (erro) {
+    console.error("Erro ao atualizar Smart UI Sync:", erro);
+    return false;
+  }
+};
