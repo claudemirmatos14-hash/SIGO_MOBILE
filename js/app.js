@@ -8502,21 +8502,23 @@ window.montarDrawerNotificacoes_ = async function () {
         new Date(b.criadaEm) - new Date(a.criadaEm)
       );
 
-  if (!notificacoesObra.length) {
    const resumo =
-  await montarResumoNotificacoes_();
-
-  return `
-    <div class="drawer-section">
+    await montarResumoNotificacoes_();
   
-      ${resumo}
+  if (!notificacoesObra.length) {
+    return `
+      <div class="drawer-section">
+        ${resumo}
+  
         <p>Nenhuma notificação para esta obra.</p>
       </div>
     `;
   }
-
+  
   return `
     <div class="drawer-section" style="border-top:none;margin-top:0;padding-top:0;">
+      ${resumo}
+  
       <div id="listaNotificacoesDrawer" class="notificacoes-drawer">
         ${notificacoesObra
           .map(item => criarItemDrawerNotificacao_(item))
