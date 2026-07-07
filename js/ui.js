@@ -1353,3 +1353,28 @@ window.atualizarSmartDiarioSIGO_ = async function () {
     return false;
   }
 };
+
+// =====================================================
+// UX.10.4.2 — SMART UI ITENS DO DIÁRIO
+// =====================================================
+
+window.atualizarSmartItensDiarioSIGO_ = async function () {
+  try {
+    const telaAtual =
+      localStorage.getItem("telaAtualMobile") || "home";
+
+    if (telaAtual !== "diarioItens") {
+      return false;
+    }
+
+    if (typeof listarItensDiarioOffline_ === "function") {
+      await listarItensDiarioOffline_();
+    }
+
+    return true;
+
+  } catch (erro) {
+    console.error("Erro ao atualizar Smart UI Itens do Diário:", erro);
+    return false;
+  }
+};
