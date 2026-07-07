@@ -9172,11 +9172,11 @@ window.inicializarListenersDiario_ = function () {
       localStorage.getItem("telaAtualMobile") || "home";
 
     if (
-      telaAtual !== "diario" &&
-      telaAtual !== "itensDiario"
-    ) {
-      return;
-    }
+  telaAtual !== "diario" &&
+  telaAtual !== "diarioItens"
+) {
+  return;
+  }
 
     if (typeof navegarPara === "function") {
       await navegarPara(telaAtual);
