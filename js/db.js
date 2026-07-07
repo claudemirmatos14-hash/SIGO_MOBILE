@@ -1,5 +1,5 @@
 const SIGO_DB_NAME = "SIGO_OFFLINE_DB";
-const SIGO_DB_VERSION = 11;
+const SIGO_DB_VERSION = 12;
 
 let SIGO_DB = null;
 
@@ -178,10 +178,10 @@ function salvarRegistroSIGO(storeName, registro) {
           });
         }
 
-        if (
-            window.SIGOOfflineEngine &&
-            storeName !== "TB_SYNC_QUEUE"
-          ) {
+       if (
+          window.SIGOOfflineEngine &&
+          storeSincronizavelSIGO_(storeName)
+        ) {
             const chave =
               obterChaveRegistroSIGO_(storeName, registro);
           
