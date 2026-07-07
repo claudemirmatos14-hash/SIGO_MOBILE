@@ -38,6 +38,42 @@ async function criarNotificacaoSIGO_(dados) {
     notificacao
   );
 
+  if (typeof atualizarBadgeNotificacoes_ === "function") {
+    await atualizarBadgeNotificacoes_();
+  }
+
   return notificacao;
 
 }
+
+window.atualizarBadgeNotificacoes_ = async function () {
+  const badge = document.getElementById("badgeNotificacoes");
+
+  if (!badge) return;
+
+  try {
+    const obraAtiva = obterObraAtivaMobile_();
+
+    const notificacoes =
+      await listarRegistrosSIGO("TB_NOTIFICACOES");
+
+    const naoLidas =
+      notificacoes.filter(item =>
+        String(item.idObra) === String(obraAtiva) &&
+        item.lida === false
+      );
+
+    const total = naoLidas.length;
+
+    badge.textContent = total;
+
+    if (total > 0) {
+      badge.style.display = "inline-flex";
+    } else {
+      badge.style.display = "none";
+    }
+
+  } catch (erro) {
+    console.error("Erro ao atualizar badge de notificações:", erro);
+  }
+};
