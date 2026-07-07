@@ -1,36 +1,24 @@
 // =====================================================
-// UX.08.2
-// SERVICE DE NOTIFICAÇÕES
+// UX.08.2 — NOTIFICAÇÕES SIGO
 // =====================================================
 
-async function criarNotificacaoSIGO_(dados) {
-
+window.criarNotificacaoSIGO_ = async function (dados = {}) {
   const notificacao = {
+    idNotificacao: crypto.randomUUID(),
 
-    idNotificacao:
-      crypto.randomUUID(),
+    idObra: obterObraAtivaMobile_(),
 
-    idObra:
-      obterObraAtivaMobile_(),
+    tipo: dados.tipo || "INFO",
 
-    tipo:
-      dados.tipo || "INFO",
+    titulo: dados.titulo || "",
 
-    titulo:
-      dados.titulo || "",
+    mensagem: dados.mensagem || "",
 
-    mensagem:
-      dados.mensagem || "",
+    icone: dados.icone || "🔔",
 
-    icone:
-      dados.icone || "🔔",
+    lida: false,
 
-    lida:
-      false,
-
-    criadaEm:
-      new Date().toISOString()
-
+    criadaEm: new Date().toISOString()
   };
 
   await salvarRegistroSIGO(
@@ -38,13 +26,12 @@ async function criarNotificacaoSIGO_(dados) {
     notificacao
   );
 
-  if (typeof atualizarBadgeNotificacoes_ === "function") {
-    await atualizarBadgeNotificacoes_();
+  if (typeof window.atualizarBadgeNotificacoes_ === "function") {
+    await window.atualizarBadgeNotificacoes_();
   }
 
   return notificacao;
-
-}
+};
 
 window.atualizarBadgeNotificacoes_ = async function () {
   const badge = document.getElementById("badgeNotificacoes");
@@ -67,13 +54,13 @@ window.atualizarBadgeNotificacoes_ = async function () {
 
     badge.textContent = total;
 
-    if (total > 0) {
-      badge.style.display = "inline-flex";
-    } else {
-      badge.style.display = "none";
-    }
+    badge.style.display =
+      total > 0 ? "inline-flex" : "none";
 
   } catch (erro) {
-    console.error("Erro ao atualizar badge de notificações:", erro);
+    console.error(
+      "Erro ao atualizar badge de notificações:",
+      erro
+    );
   }
 };
