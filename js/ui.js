@@ -1563,7 +1563,94 @@ window.SIGOOfflineEngine = {
 
       return { total: 0, sincronizados: 0, erros: 1 };
     }
+  },
+
+  async processarRetries() {
+  try {
+    const fila =
+      await listarRegistrosSIGO("TB_SYNC_QUEUE");
+
+    const agora =
+      Date.now();
+
+    const elegiveis =
+      fila.filter(item => {
+        if (item.status !== "ERRO") return false;
+
+        const tentativas =
+          Number(item.tentativas || 0);
+
+        if (tentativas >= SIGO_RETRY_CONFIG.maxTentativas) {
+          return false;
+        }
+
+        const atualizadoEm =
+          new Date(item.atualizadoEm || item.criadoEm).getTime();
+
+        const delay =
+          calcularDelayRetrySIGO_(tentativas);
+
+        return agora - atualizadoEm >= delay;
+      });
+
+    if (!elegiveis.length) {
+      console.log("Retry: nenhuma pendência elegível.");
+      return {
+        total: 0,
+        sincronizados: 0,
+        erros: 0
+      };
+    }
+
+    console.log(
+      `Retry: ${elegiveis.length} item(ns) elegível(is).`
+    );
+
+    let sincronizados = 0;
+    let erros = 0;
+
+    for (const item of elegiveis) {
+      try {
+        await this.marcarComoSincronizando(
+          item.idSyncLocal
+        );
+
+        await new Promise(resolve =>
+          setTimeout(resolve, 300)
+        );
+
+        await this.marcarComoSincronizado(
+          item.idSyncLocal
+        );
+
+        sincronizados++;
+
+      } catch (erroItem) {
+        erros++;
+
+        await this.marcarComoErro(
+          item.idSyncLocal,
+          erroItem.message || String(erroItem)
+        );
+      }
+    }
+
+    return {
+      total: elegiveis.length,
+      sincronizados,
+      erros
+    };
+
+  } catch (erro) {
+    console.error("Erro ao processar retries:", erro);
+
+    return {
+      total: 0,
+      sincronizados: 0,
+      erros: 1
+    };
   }
+}
 
 };
 
@@ -1645,3 +1732,37 @@ window.inicializarSmartSyncAutomaticoSIGO_ = function () {
   console.log("Smart Sync Automático inicializado.");
 };
  
+// =====================================================
+// UX.13.6 — SMART RETRY ENGINE
+// =====================================================
+
+window.SIGO_RETRY_CONFIG = {
+  maxTentativas: 5,
+  baseDelayMs: 1000
+};
+
+window.calcularDelayRetrySIGO_ = function (tentativas = 0) {
+  const tentativa =
+    Number(tentativas || 0);
+
+  return Math.min(
+    SIGO_RETRY_CONFIG.baseDelayMs * Math.pow(2, tentativa),
+    30000
+  );
+};
+
+window.inicializarSmartRetrySIGO_ = function () {
+  if (window.SIGO_RETRY_TIMER) return;
+
+  window.SIGO_RETRY_TIMER = setInterval(async () => {
+    if (
+      navigator.onLine &&
+      window.SIGOOfflineEngine &&
+      typeof SIGOOfflineEngine.processarRetries === "function"
+    ) {
+      await SIGOOfflineEngine.processarRetries();
+    }
+  }, 10000);
+
+  console.log("Smart Retry Engine inicializado.");
+};
