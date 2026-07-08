@@ -6416,17 +6416,24 @@ async function definirObraAtivaMobile_(idObra) {
 }
 
 async function baixarObraOfflineMobile_(idObra) {
+  let obraAnterior = null;
+
   try {
     if (!idObra) {
-      throw new Error("ID da obra não informado.");
+      throw new Error(
+        "ID da obra não informado."
+      );
     }
 
     const obrasLocais =
-      await listarRegistrosSIGO("TB_OBRAS");
+      await listarRegistrosSIGO(
+        "TB_OBRAS"
+      );
 
     const jaExiste =
       obrasLocais.some(obra =>
-        String(obra.idObra) === String(idObra)
+        String(obra.idObra) ===
+        String(idObra)
       );
 
     if (jaExiste) {
@@ -6435,47 +6442,119 @@ async function baixarObraOfflineMobile_(idObra) {
         "Esta obra já está disponível neste dispositivo."
       );
 
-      return;
+      return {
+        ok: false,
+        motivo: "OBRA_JA_BAIXADA"
+      };
     }
 
     if (obrasLocais.length >= 3) {
       SIGOUI.feedback.warning(
         "Limite atingido",
-        "Remova uma obra antes de baixar outra. O limite é de 3 obras offline."
+        "Remova uma obra antes de baixar outra. " +
+        "O limite é de 3 obras offline."
       );
 
-      return;
+      return {
+        ok: false,
+        motivo: "LIMITE_OBRAS_OFFLINE"
+      };
     }
 
-    const obraAnterior =
+    obraAnterior =
       localStorage.getItem("obraAtiva");
 
-    localStorage.setItem("obraAtiva", idObra);
+    // A troca é temporária apenas para informar
+    // à API qual obra deverá ser baixada.
+    localStorage.setItem(
+      "obraAtiva",
+      idObra
+    );
 
-    await sincronizarDadosBaseObraMobile();
+    const resultadoDownload =
+      await sincronizarDadosBaseObraMobile();
 
+    // =====================================================
+    // RESTAURA A OBRA ANTERIOR
+    // =====================================================
     if (obraAnterior) {
-      localStorage.setItem("obraAtiva", obraAnterior);
+      localStorage.setItem(
+        "obraAtiva",
+        obraAnterior
+      );
+    } else if (resultadoDownload?.ok) {
+      // Se ainda não existia obra ativa,
+      // a primeira obra baixada permanece ativa.
+      localStorage.setItem(
+        "obraAtiva",
+        idObra
+      );
     } else {
-      localStorage.setItem("obraAtiva", idObra);
+      localStorage.removeItem(
+        "obraAtiva"
+      );
+    }
+
+    // =====================================================
+    // DOWNLOAD NÃO CONCLUÍDO
+    // =====================================================
+    if (!resultadoDownload?.ok) {
+      console.warn(
+        "Download da obra não concluído:",
+        resultadoDownload
+      );
+
+      return resultadoDownload || {
+        ok: false,
+        erro:
+          "Não foi possível baixar a obra."
+      };
     }
 
     await atualizarHomeMobile_();
     await listarObrasOfflineMobile_();
     await listarObrasDisponiveisMobile_();
 
-    SIGOUI.feedback.success(
-      "Obra baixada",
-      "A obra foi disponibilizada para uso offline."
-    );
+    // Não repetir feedback nem notificação aqui.
+    // sincronizarDadosBaseObraMobile() já executou:
+    //
+    // → feedback de sucesso
+    // → evento OBRA_BAIXADA
+
+    return resultadoDownload;
 
   } catch (erro) {
-    console.error("Erro ao baixar obra offline:", erro);
+    // =====================================================
+    // RESTAURAÇÃO EM CASO DE ERRO INESPERADO
+    // =====================================================
+    if (obraAnterior) {
+      localStorage.setItem(
+        "obraAtiva",
+        obraAnterior
+      );
+    } else {
+      localStorage.removeItem(
+        "obraAtiva"
+      );
+    }
+
+    console.error(
+      "Erro ao baixar obra offline:",
+      erro
+    );
 
     SIGOUI.feedback.error(
       "Erro ao baixar obra",
-      erro.message || "Não foi possível baixar a obra para uso offline."
+      erro.message ||
+      "Não foi possível baixar a obra para uso offline."
     );
+
+    return {
+      ok: false,
+      erro:
+        erro.message ||
+        "Falha ao baixar obra."
+    };
   }
 }
 
