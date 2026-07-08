@@ -8692,8 +8692,8 @@ window.formatarDataNotificacao_ = function (dataISO) {
 // =====================================================
 
 window.SIGO_NOTIFICACOES_LIMPEZA_CONFIG = Object.freeze({
-  diasPadrao: 30,
-  diasPrioridadeAlta: 90
+  diasPadrao: 0,
+  diasPrioridadeAlta: 0
 });
 
 window.notificacaoElegivelParaLimpezaSIGO_ = function (
