@@ -1412,55 +1412,160 @@ window.atualizarSmartSyncSIGO_ = async function () {
 
 window.SIGOOfflineEngine = {
 
- async registrarAlteracao(dados = {}) {
-  try {
-    const storeOrigem = dados.store || "";
-    const acao = dados.acao || "UPDATE";
-    const chave = dados.chave || "";
+  async registrarAlteracao(dados = {}) {
+    try {
+      const storeOrigem = dados.store || "";
+      const acao = dados.acao || "UPDATE";
+      const chave = dados.chave || "";
 
-    if (!storeOrigem || !chave) {
+      if (!storeOrigem || !chave) return null;
+
+      const fila = await listarRegistrosSIGO("TB_SYNC_QUEUE");
+
+      const existente = fila.find(item =>
+        String(item.store).trim() === String(storeOrigem).trim() &&
+        String(item.chave).trim() === String(chave).trim() &&
+        String(item.status).trim() !== "SINCRONIZADO"
+      );
+
+      const itemFila = existente || {
+        idSyncLocal: dados.idSyncLocal || crypto.randomUUID(),
+        store: storeOrigem,
+        chave: chave,
+        criadoEm: new Date().toISOString()
+      };
+
+      itemFila.acao = acao;
+      itemFila.idObra = dados.idObra || obterObraAtivaMobile_();
+      itemFila.payload = dados.payload || null;
+      itemFila.status = "PENDENTE";
+      itemFila.erro = "";
+      itemFila.tentativas = Number(itemFila.tentativas || 0);
+      itemFila.atualizadoEm = new Date().toISOString();
+
+      await salvarRegistroSIGO("TB_SYNC_QUEUE", itemFila);
+
+      return itemFila;
+
+    } catch (erro) {
+      console.error("Erro ao registrar alteração offline:", erro);
       return null;
     }
+  },
 
+  async listarPendencias() {
     const fila = await listarRegistrosSIGO("TB_SYNC_QUEUE");
 
-    const existente = fila.find(item =>
-      String(item.store).trim() === String(storeOrigem).trim() &&
-      String(item.chave).trim() === String(chave).trim() &&
-      String(item.status).trim() !== "SINCRONIZADO"
-    );
+    return fila
+      .filter(item =>
+        item.status === "PENDENTE" ||
+        item.status === "ERRO"
+      )
+      .sort((a, b) =>
+        new Date(a.criadoEm) - new Date(b.criadoEm)
+      );
+  },
 
-    const itemFila = existente || {
-      idSyncLocal: dados.idSyncLocal || crypto.randomUUID(),
-      store: storeOrigem,
-      chave: chave,
-      criadoEm: new Date().toISOString()
-    };
+  async marcarComoSincronizando(idSyncLocal) {
+    const fila = await listarRegistrosSIGO("TB_SYNC_QUEUE");
+    const item = fila.find(reg => String(reg.idSyncLocal) === String(idSyncLocal));
+    if (!item) return false;
 
-    itemFila.acao = acao;
-    itemFila.idObra = dados.idObra || obterObraAtivaMobile_();
-    itemFila.payload = dados.payload || null;
-    itemFila.status = "PENDENTE";
-    itemFila.erro = "";
-    itemFila.tentativas = Number(itemFila.tentativas || 0);
-    itemFila.atualizadoEm = new Date().toISOString();
+    item.status = "SINCRONIZANDO";
+    item.atualizadoEm = new Date().toISOString();
 
-    await salvarRegistroSIGO(
-      "TB_SYNC_QUEUE",
-      itemFila
-    );
+    await salvarRegistroSIGO("TB_SYNC_QUEUE", item);
+    return true;
+  },
 
-    return itemFila;
+  async marcarComoSincronizado(idSyncLocal) {
+    const fila = await listarRegistrosSIGO("TB_SYNC_QUEUE");
+    const item = fila.find(reg => String(reg.idSyncLocal) === String(idSyncLocal));
+    if (!item) return false;
 
-  } catch (erro) {
-    console.error(
-      "Erro ao registrar alteração offline:",
-      erro
-    );
+    item.status = "SINCRONIZADO";
+    item.atualizadoEm = new Date().toISOString();
 
-    return null;
+    await salvarRegistroSIGO("TB_SYNC_QUEUE", item);
+    return true;
+  },
+
+  async marcarComoErro(idSyncLocal, mensagemErro = "") {
+    const fila = await listarRegistrosSIGO("TB_SYNC_QUEUE");
+    const item = fila.find(reg => String(reg.idSyncLocal) === String(idSyncLocal));
+    if (!item) return false;
+
+    item.status = "ERRO";
+    item.erro = mensagemErro;
+    item.tentativas = Number(item.tentativas || 0) + 1;
+    item.atualizadoEm = new Date().toISOString();
+
+    await salvarRegistroSIGO("TB_SYNC_QUEUE", item);
+    return true;
+  },
+
+  async processarFila() {
+    try {
+      const pendencias = await this.listarPendencias();
+
+      if (!pendencias.length) {
+        console.log("Sync: nenhuma pendência.");
+        return { total: 0, sincronizados: 0, erros: 0 };
+      }
+
+      let sincronizados = 0;
+      let erros = 0;
+
+      for (const item of pendencias) {
+        try {
+          await this.marcarComoSincronizando(item.idSyncLocal);
+
+          await new Promise(resolve => setTimeout(resolve, 300));
+
+          await this.marcarComoSincronizado(item.idSyncLocal);
+
+          sincronizados++;
+
+        } catch (erroItem) {
+          erros++;
+
+          await this.marcarComoErro(
+            item.idSyncLocal,
+            erroItem.message || String(erroItem)
+          );
+        }
+      }
+
+      await registrarEventoSIGO_({
+        evento: erros > 0 ? "SYNC_ERRO" : "SYNC_CONCLUIDO",
+        dados: {
+          mensagem: erros > 0
+            ? `${erros} item(ns) com erro na sincronização.`
+            : `${sincronizados} item(ns) sincronizado(s) com sucesso.`
+        }
+      });
+
+      return {
+        total: pendencias.length,
+        sincronizados,
+        erros
+      };
+
+    } catch (erro) {
+      console.error("Erro ao processar fila de sync:", erro);
+
+      await registrarEventoSIGO_({
+        evento: "SYNC_ERRO",
+        dados: {
+          mensagem: "Erro geral ao processar a fila de sincronização."
+        }
+      });
+
+      return { total: 0, sincronizados: 0, erros: 1 };
+    }
   }
-},
+
+};
 
 
   async listarPendencias() {
