@@ -502,6 +502,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (typeof inicializarSmartSyncAutomaticoSIGO_ === "function") {
         inicializarSmartSyncAutomaticoSIGO_();
       }
+
+      if (typeof inicializarSmartRetrySIGO_ === "function") {
+        inicializarSmartRetrySIGO_();
+      }
       
       console.log("SIGO Mobile inicializado.");
   
