@@ -9753,6 +9753,32 @@ window.SIGO_CATALOGO_EVENTOS = {
     }
   },
 
+  CLIMA_REGISTRADO: {
+    categoria: "CLIMA",
+    tipo: "SUCESSO",
+    prioridade: "MEDIA",
+    icone: "🌤️",
+    titulo: "Clima registrado",
+  
+    mensagem: function (dados = {}) {
+      const condicao =
+        dados.condicao ||
+        "Condição climática";
+  
+      const periodo =
+        dados.periodo
+          ? ` no período ${dados.periodo}`
+          : "";
+  
+      const atividade =
+        dados.atividadeAfetada
+          ? ` — atividade: ${dados.atividadeAfetada}`
+          : "";
+  
+      return `${condicao}${periodo}${atividade}.`;
+    }
+  },
+
   BASE_ATUALIZADA: {
     categoria: "BASE",
     tipo: "INFO",
