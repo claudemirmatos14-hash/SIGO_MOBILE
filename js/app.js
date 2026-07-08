@@ -8529,6 +8529,11 @@ window.montarDrawerNotificacoes_ = async function () {
       item.lida !== true
     ).length;
 
+  const totalElegiveisLimpeza =
+    notificacoesObra.filter(item =>
+      notificacaoElegivelParaLimpezaSIGO_(item)
+    ).length;
+
   if (!notificacoesObra.length) {
     return `
       <div class="drawer-section">
@@ -8557,6 +8562,22 @@ window.montarDrawerNotificacoes_ = async function () {
           }
   
         </button>
+
+        <button
+          id="btnLimparNotificacoesAntigas"
+          type="button"
+          class="btn-limpar-notificacoes"
+          onclick="limparNotificacoesAntigasSIGO_()"
+          ${totalElegiveisLimpeza === 0 ? "disabled" : ""}>
+        
+          ${
+            totalElegiveisLimpeza > 0
+              ? `🧹 Limpar antigas <span>${totalElegiveisLimpeza}</span>`
+              : "🧹 Nenhuma antiga"
+          }
+        
+        </button>
+        
       </div>
   
       ${criarFiltrosNotificacoesSIGO_()}
@@ -8665,6 +8686,164 @@ window.formatarDataNotificacao_ = function (dataISO) {
 
   return data.toLocaleDateString("pt-BR");
 };
+
+// =====================================================
+// UX.14.5 — LIMPEZA INTELIGENTE DE NOTIFICAÇÕES
+// =====================================================
+
+window.SIGO_NOTIFICACOES_LIMPEZA_CONFIG = Object.freeze({
+  diasPadrao: 30,
+  diasPrioridadeAlta: 90
+});
+
+window.notificacaoElegivelParaLimpezaSIGO_ = function (
+  item = {},
+  agora = Date.now()
+) {
+  // Nunca excluir notificações não lidas
+  if (item.lida !== true) {
+    return false;
+  }
+
+  const dataReferencia =
+    item.criadaEm ||
+    item.criadoEm ||
+    item.lidaEm;
+
+  if (!dataReferencia) {
+    return false;
+  }
+
+  const timestamp =
+    new Date(dataReferencia).getTime();
+
+  if (Number.isNaN(timestamp)) {
+    return false;
+  }
+
+  const prioridade =
+    String(item.prioridade || "")
+      .trim()
+      .toUpperCase();
+
+  const diasRetencao =
+    prioridade === "ALTA"
+      ? SIGO_NOTIFICACOES_LIMPEZA_CONFIG.diasPrioridadeAlta
+      : SIGO_NOTIFICACOES_LIMPEZA_CONFIG.diasPadrao;
+
+  const idadeMs =
+    agora - timestamp;
+
+  const limiteMs =
+    diasRetencao * 24 * 60 * 60 * 1000;
+
+  return idadeMs >= limiteMs;
+};
+
+window.limparNotificacoesAntigasSIGO_ = async function () {
+  try {
+    const obraAtiva =
+      obterObraAtivaMobile_();
+
+    const notificacoes =
+      await listarRegistrosSIGO(
+        "TB_NOTIFICACOES"
+      );
+
+    const agora =
+      Date.now();
+
+    const elegiveis =
+      notificacoes.filter(item =>
+        String(item.idObra) === String(obraAtiva) &&
+        notificacaoElegivelParaLimpezaSIGO_(
+          item,
+          agora
+        )
+      );
+
+    if (!elegiveis.length) {
+      SIGOUI.feedback.info(
+        "Limpeza de notificações",
+        "Nenhuma notificação antiga pode ser removida."
+      );
+
+      return {
+        removidas: 0,
+        sucesso: true
+      };
+    }
+
+    for (const item of elegiveis) {
+      await removerRegistroSIGO_(
+        "TB_NOTIFICACOES",
+        item.idNotificacao
+      );
+    }
+
+    if (
+      typeof atualizarBadgeNotificacoes_ ===
+      "function"
+    ) {
+      await atualizarBadgeNotificacoes_();
+    }
+
+    if (
+      typeof atualizarCentralNotificacoesAbertaSIGO_ ===
+      "function"
+    ) {
+      await atualizarCentralNotificacoesAbertaSIGO_();
+    }
+
+    SIGOUI.feedback.success(
+      "Limpeza concluída",
+      `${elegiveis.length} notificação(ões) antiga(s) removida(s).`
+    );
+
+    return {
+      removidas: elegiveis.length,
+      sucesso: true
+    };
+
+  } catch (erro) {
+    console.error(
+      "Erro ao limpar notificações antigas:",
+      erro
+    );
+
+    SIGOUI.feedback.error(
+      "Erro",
+      "Não foi possível limpar as notificações antigas."
+    );
+
+    return {
+      removidas: 0,
+      sucesso: false
+    };
+  }
+};
+
+window.atualizarBotaoLimparNotificacoesSIGO_ =
+  function (totalElegiveis = 0) {
+
+    const botao =
+      document.getElementById(
+        "btnLimparNotificacoesAntigas"
+      );
+
+    if (!botao) return;
+
+    const total =
+      Number(totalElegiveis || 0);
+
+    botao.disabled =
+      total === 0;
+
+    botao.innerHTML =
+      total > 0
+        ? `🧹 Limpar antigas <span>${total}</span>`
+        : "🧹 Nenhuma antiga";
+  };
 
 // =====================================================
 // UX.08.2.5.2.1 — AGRUPAR NOTIFICAÇÕES POR PERÍODO
@@ -9084,13 +9263,22 @@ window.atualizarCentralNotificacoesAbertaSIGO_ = async function () {
       item.lida !== true
     ).length;
 
+  const totalElegiveisLimpeza =
+    notificacoesObra.filter(item =>
+      notificacaoElegivelParaLimpezaSIGO_(item)
+    ).length;
+
   container.innerHTML =
     renderizarTimelineNotificacoes_(notificacoesObra) ||
     `<p class="sem-notificacoes">Nenhuma notificação neste filtro.</p>`;
 
   atualizarBotaoMarcarTodasLidasSIGO_(
-  totalNaoLidas
-);
+    totalNaoLidas
+  );
+
+  atualizarBotaoLimparNotificacoesSIGO_(
+    totalElegiveisLimpeza
+  );
 
   return true;
 };
