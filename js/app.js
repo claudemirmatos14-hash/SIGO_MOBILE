@@ -4254,14 +4254,24 @@ async function salvarOcorrenciaPremium() {
     // TODO UX.07.14.SYNC
     // Registrar INSERT na TB_SYNC_QUEUE
 
-    await listarOcorrenciasOffline_();
+   await listarOcorrenciasOffline_();
 
-    limparFormularioOcorrencia();
-
-    SIGOUI.feedback.success(
-      "Ocorrência salva",
-      "Registro salvo offline com sucesso."
-    );
+  // =====================================================
+  // NOTIFICAÇÃO — NOVA OCORRÊNCIA
+  // =====================================================
+  if (typeof registrarEventoSIGO_ === "function") {
+    await registrarEventoSIGO_({
+      evento: "OCORRENCIA_CRIADA",
+      dados: ocorrencia
+    });
+  }
+  
+  limparFormularioOcorrencia();
+  
+  SIGOUI.feedback.success(
+    "Ocorrência salva",
+    "Registro salvo offline com sucesso."
+  );
 
   } catch (erro) {
     console.error("Erro ao salvar ocorrência:", erro);
@@ -9680,6 +9690,24 @@ window.SIGO_CATALOGO_EVENTOS = {
     titulo: "Ocorrência registrada",
     mensagem: (dados = {}) =>
       dados.titulo || dados.descricao || "Nova ocorrência registrada."
+  },
+
+  OCORRENCIA_ATUALIZADA: {
+    categoria: "OCORRENCIA",
+    tipo: "SUCESSO",
+    prioridade: "MEDIA",
+    icone: "⚠️",
+    titulo: "Ocorrência atualizada",
+  
+    mensagem: function (dados = {}) {
+      const identificacao =
+        dados.descricao ||
+        dados.tipo ||
+        dados.local ||
+        "Ocorrência";
+  
+      return `${identificacao} foi atualizada com sucesso.`;
+    }
   },
 
   EVIDENCIA_ANEXADA: {
