@@ -2581,3 +2581,53 @@ BARRA DE PROGRESSO
 .btn-marcar-todas-lidas:disabled span {
   display: none;
 }
+
+.notificacoes-acoes {
+  display: flex;
+  gap: 7px;
+  padding: 2px 2px 10px;
+  overflow-x: auto;
+}
+
+.btn-limpar-notificacoes {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  border: 0;
+  border-radius: 10px;
+  padding: 8px 11px;
+
+  background: #fff7ed;
+  color: #c2410c;
+
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.btn-limpar-notificacoes span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+
+  border-radius: 999px;
+  background: #ea580c;
+  color: #ffffff;
+}
+
+.btn-limpar-notificacoes:disabled {
+  background: #f1f5f9;
+  color: #94a3b8;
+  cursor: default;
+}
+
+.btn-limpar-notificacoes:disabled span {
+  display: none;
+}
