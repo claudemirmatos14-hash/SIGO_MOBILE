@@ -499,7 +499,10 @@ document.addEventListener("DOMContentLoaded", async () => {
        if (typeof inicializarDataBindingEventBus_ === "function") {
           inicializarDataBindingEventBus_();
         }
-  
+      if (typeof inicializarSmartSyncAutomaticoSIGO_ === "function") {
+        inicializarSmartSyncAutomaticoSIGO_();
+      }
+      
       console.log("SIGO Mobile inicializado.");
   
       navegarPara("home");
