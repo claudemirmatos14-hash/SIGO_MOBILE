@@ -5920,14 +5920,35 @@ async function atualizarItemDiarioOffline_() {
       "TB_DIARIO_ITENS",
       itemAtualizado
     );
-
-    // TODO UX.07.14
-    // Registrar UPDATE na TB_SYNC_QUEUE
-
-    encerrarModoEdicaoItemDiario_();
+    
+    // =====================================================
+    // SINCRONIZAÇÃO — UPDATE DO ITEM DO DIÁRIO
+    // =====================================================
+    await adicionarNaFilaSyncSIGO({
+      tipo: "UPDATE",
+      storeOrigem: "TB_DIARIO_ITENS",
+    
+      idRegistro:
+        itemAtualizado.idItem ||
+        itemAtualizado.idItemDiario,
+    
+      idObra: itemAtualizado.idObra
+    });
+   
+   encerrarModoEdicaoItemDiario_();
 
     await listarItensDiarioOffline_();
-
+    
+    // =====================================================
+    // NOTIFICAÇÃO — ITEM DO DIÁRIO ATUALIZADO
+    // =====================================================
+    if (typeof registrarEventoSIGO_ === "function") {
+      await registrarEventoSIGO_({
+        evento: "ITEM_DIARIO_ATUALIZADO",
+        dados: itemAtualizado
+      });
+    }
+    
     SIGOUI.feedback.success(
       "Item atualizado",
       "Registro atualizado com sucesso."
@@ -9757,6 +9778,35 @@ window.SIGO_CATALOGO_EVENTOS = {
     titulo: "Item do diário salvo",
     mensagem: (dados = {}) =>
       `${dados.servico || "Item do diário"} registrado com sucesso.`
+  },
+
+  ITEM_DIARIO_ATUALIZADO: {
+    categoria: "DIARIO",
+    tipo: "SUCESSO",
+    prioridade: "MEDIA",
+    icone: "🛠️",
+    titulo: "Item do diário atualizado",
+  
+    mensagem: function (dados = {}) {
+      const atividade =
+        dados.servico ||
+        dados.atividade ||
+        dados.eap ||
+        "Atividade";
+  
+      const quantidade =
+        Number(dados.qtdeExecutada || 0);
+  
+      const unidade =
+        dados.un || "";
+  
+      const producao =
+        quantidade > 0
+          ? ` — ${quantidade} ${unidade}`.trim()
+          : "";
+  
+      return `${atividade}${producao} atualizado com sucesso.`;
+    }
   },
 
   OCORRENCIA_CRIADA: {
