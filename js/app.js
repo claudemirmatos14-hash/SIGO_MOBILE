@@ -9581,8 +9581,21 @@ window.SIGO_CATALOGO_EVENTOS = {
     prioridade: "MEDIA",
     icone: "📏",
     titulo: "Medição salva",
-    mensagem: (dados = {}) =>
-      `${dados.numeroMedicao || "Medição"} salva com sucesso.`
+  
+    mensagem: function (dados = {}) {
+      const atividade =
+        dados.servico ||
+        dados.atividade ||
+        dados.eap ||
+        "Atividade";
+  
+      const numeroMedicao =
+        dados.numeroMedicao
+          ? ` na ${dados.numeroMedicao}`
+          : "";
+  
+      return `${atividade} registrada${numeroMedicao}.`;
+    }
   },
 
   MEDICAO_ATUALIZAR: {
@@ -9593,13 +9606,18 @@ window.SIGO_CATALOGO_EVENTOS = {
     titulo: "Medição atualizada",
   
     mensagem: function (dados = {}) {
-      const servico =
+      const atividade =
         dados.servico ||
-        dados.eap ||
         dados.atividade ||
-        "Registro de medição";
-  
-      return `${servico} foi atualizado com sucesso.`;
+        dados.eap ||
+        "Atividade";
+    
+      const numeroMedicao =
+        dados.numeroMedicao
+          ? ` na ${dados.numeroMedicao}`
+          : "";
+    
+      return `${atividade} atualizada${numeroMedicao}.`;
     }
   },
 
