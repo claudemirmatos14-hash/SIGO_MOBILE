@@ -6375,29 +6375,87 @@ function formatarDataObraOffline_(dataISO) {
 async function definirObraAtivaMobile_(idObra) {
   try {
     if (!idObra) {
-      throw new Error("ID da obra não informado.");
+      throw new Error(
+        "ID da obra não informado."
+      );
     }
 
-    const obras = await listarRegistrosSIGO("TB_OBRAS");
+    const obras =
+      await listarRegistrosSIGO(
+        "TB_OBRAS"
+      );
 
-    const obra = obras.find(item =>
-      String(item.idObra) === String(idObra)
-    );
+    const obra =
+      obras.find(item =>
+        String(item.idObra) ===
+        String(idObra)
+      );
 
     if (!obra) {
-      throw new Error("Obra não encontrada no banco offline.");
+      throw new Error(
+        "Obra não encontrada no banco offline."
+      );
     }
 
-    SIGOAppContext.setObraAtiva(idObra);
+    const obraAnterior =
+      SIGOAppContext.getObraAtiva();
+
+    if (
+      String(obraAnterior) ===
+      String(idObra)
+    ) {
+      SIGOUI.feedback.info(
+        "Obra já ativa",
+        `"${obra.nomeObra || obra.idObra}" já é a obra ativa.`
+      );
+
+      return;
+    }
+
+    SIGOAppContext.setObraAtiva(
+      idObra
+    );
 
     await atualizarHeroObraAtivaMobile_();
 
-    if (typeof atualizarHomeMobile_ === "function") {
+    if (
+      typeof atualizarHomeMobile_ ===
+      "function"
+    ) {
       await atualizarHomeMobile_();
     }
 
-    if (typeof listarObrasOfflineMobile_ === "function") {
+    if (
+      typeof listarObrasOfflineMobile_ ===
+      "function"
+    ) {
       await listarObrasOfflineMobile_();
+    }
+
+    // =====================================================
+    // NOTIFICAÇÃO — OBRA ATIVA ALTERADA
+    // =====================================================
+    if (
+      typeof registrarEventoSIGO_ ===
+      "function"
+    ) {
+      await registrarEventoSIGO_({
+        evento: "OBRA_ALTERADA",
+
+        dados: {
+          idObra: obra.idObra,
+
+          nomeObra:
+            obra.nomeObra ||
+            obra.idObra,
+
+          obraAnterior:
+            obraAnterior,
+
+          obraAtual:
+            obra.idObra
+        }
+      });
     }
 
     SIGOUI.feedback.success(
@@ -6406,11 +6464,15 @@ async function definirObraAtivaMobile_(idObra) {
     );
 
   } catch (erro) {
-    console.error("Erro ao definir obra ativa:", erro);
+    console.error(
+      "Erro ao definir obra ativa:",
+      erro
+    );
 
     SIGOUI.feedback.error(
       "Erro ao definir obra ativa",
-      erro.message || "Não foi possível alterar a obra ativa."
+      erro.message ||
+      "Não foi possível alterar a obra ativa."
     );
   }
 }
