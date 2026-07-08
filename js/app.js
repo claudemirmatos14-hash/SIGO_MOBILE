@@ -8880,6 +8880,35 @@ window.criarFiltrosNotificacoesSIGO_ = function () {
   `;
 };
 
+window.atualizarCentralNotificacoesAbertaSIGO_ = async function () {
+  const container =
+    document.getElementById("listaNotificacoesDrawer");
+
+  if (!container) return false;
+
+  const obraAtiva =
+    obterObraAtivaMobile_();
+
+  const notificacoes =
+    await listarRegistrosSIGO("TB_NOTIFICACOES");
+
+  const notificacoesObra =
+    notificacoes
+      .filter(item =>
+        String(item.idObra || obraAtiva) === String(obraAtiva)
+      )
+      .sort((a, b) =>
+        new Date(b.criadaEm || b.criadoEm) -
+        new Date(a.criadaEm || a.criadoEm)
+      );
+
+  container.innerHTML =
+    renderizarTimelineNotificacoes_(notificacoesObra) ||
+    `<p class="sem-notificacoes">Nenhuma notificação neste filtro.</p>`;
+
+  return true;
+};
+
 async function atualizarHeroObraAtivaMobile_() {
 
    console.log("CHAMOU atualizarHeroObraAtivaMobile_");
