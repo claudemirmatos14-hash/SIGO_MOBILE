@@ -7415,6 +7415,9 @@ async function gerarNumeroMedicao_() {
 }
 
 async function salvarLoteMedicao_(dados = {}) {
+  const novoLote =
+    !dados.idLoteMedicao;
+
   const obraAtiva =
     obterObraAtivaMobile_();
 
@@ -7423,8 +7426,11 @@ async function salvarLoteMedicao_(dados = {}) {
 
   if (
     loteAberto &&
-    (!dados.idLoteMedicao ||
-      String(dados.idLoteMedicao) !== String(loteAberto.idLoteMedicao))
+    (
+      !dados.idLoteMedicao ||
+      String(dados.idLoteMedicao) !==
+        String(loteAberto.idLoteMedicao)
+    )
   ) {
     throw new Error(
       "Já existe uma medição aberta para esta obra."
@@ -7436,10 +7442,12 @@ async function salvarLoteMedicao_(dados = {}) {
 
   const lote = {
     idLoteMedicao:
-      dados.idLoteMedicao || "LOTE-MED-" + Date.now(),
+      dados.idLoteMedicao ||
+      "LOTE-MED-" + Date.now(),
 
     numeroMedicao:
-      dados.numeroMedicao || await gerarNumeroMedicao_(),
+      dados.numeroMedicao ||
+      await gerarNumeroMedicao_(),
 
     idObra:
       dados.idObra || obraAtiva,
@@ -7486,11 +7494,24 @@ async function salvarLoteMedicao_(dados = {}) {
   );
 
   await adicionarNaFilaSyncSIGO({
-    tipo: dados.idLoteMedicao ? "UPDATE" : "INSERT",
+    tipo: novoLote ? "INSERT" : "UPDATE",
     storeOrigem: "TB_LOTES_MEDICAO",
     idRegistro: lote.idLoteMedicao,
     idObra: lote.idObra
   });
+
+  // =====================================================
+  // NOTIFICAÇÃO — NOVO LOTE DE MEDIÇÃO
+  // =====================================================
+  if (
+    novoLote &&
+    typeof registrarEventoSIGO_ === "function"
+  ) {
+    await registrarEventoSIGO_({
+      evento: "LOTE_MEDICAO_CRIADO",
+      dados: lote
+    });
+  }
 
   return lote;
 }
