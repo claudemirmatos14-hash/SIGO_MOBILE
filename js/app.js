@@ -1803,13 +1803,23 @@ async function salvarMedicaoOffline(event) {
 
     await atualizarIndicadoresMobile_();
     await listarMedicoesOffline_();
-
+    
+    // =====================================================
+    // NOTIFICAÇÃO — NOVA MEDIÇÃO SALVA
+    // =====================================================
+    if (typeof registrarEventoSIGO_ === "function") {
+      await registrarEventoSIGO_({
+        evento: "MEDICAO_SALVA",
+        dados: medicao
+      });
+    }
+    
     navegarPara("medicoes");
-
-   SIGOUI.feedback.success(
+    
+    SIGOUI.feedback.success(
       "Medição salva",
-     "Medição salva offline no banco local."
-   );
+      "Medição salva offline no banco local."
+    );
 
     console.log("Medição salva no IndexedDB:", medicao);
 
