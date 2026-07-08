@@ -8247,6 +8247,8 @@ window.criarNotificacaoSIGO_ = async function (dados = {}) {
 
     idObra: obterObraAtivaMobile_(),
 
+    categoria: dados.categoria || "SISTEMA",
+
     tipo: dados.tipo || "INFO",
 
     titulo: dados.titulo || "",
@@ -9041,22 +9043,31 @@ window.registrarEventoSIGO_ = async function (evento = {}) {
     let notificacao = null;
 
     if (modelo) {
+
       notificacao = {
-        categoria: modelo.categoria,
+        categoria:
+          modelo.categoria ||
+          chaveEvento.split("_")[0],
+    
         tipo: modelo.tipo,
         prioridade: modelo.prioridade,
+    
         titulo: modelo.titulo,
+    
         mensagem:
           typeof modelo.mensagem === "function"
             ? modelo.mensagem(dados)
             : modelo.mensagem,
+    
         icone: modelo.icone,
         acao: modelo.acao || "",
         dados: dados
       };
+    
     } else {
+    
       notificacao = {
-        categoria: evento.categoria || "SISTEMA",
+        categoria: chaveEvento.split("_")[0],
         tipo: evento.tipo || "INFO",
         prioridade: evento.prioridade || "BAIXA",
         titulo: evento.titulo || "Evento SIGO",
@@ -9065,9 +9076,10 @@ window.registrarEventoSIGO_ = async function (evento = {}) {
         acao: evento.acao || "",
         dados: dados
       };
+    
     }
-
-   await criarNotificacaoSIGO_(notificacao);
+    
+    await criarNotificacaoSIGO_(notificacao);
 
 // Dispara o evento no barramento
   await SIGOEventBus.emit(
