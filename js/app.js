@@ -3409,10 +3409,20 @@ async function salvarClimaPremium() {
       idObra: clima.idObra
     });
 
-    await listarClimasOffline_();
-
+     await listarClimasOffline_();
+  
+    // =====================================================
+    // NOTIFICAÇÃO — CLIMA REGISTRADO
+    // =====================================================
+    if (typeof registrarEventoSIGO_ === "function") {
+      await registrarEventoSIGO_({
+        evento: "CLIMA_REGISTRADO",
+        dados: clima
+      });
+    }
+    
     limparFormularioClima();
-
+    
     SIGOUI.feedback.success(
       "Clima salvo",
       "Registro climático salvo offline."
@@ -9776,6 +9786,32 @@ window.SIGO_CATALOGO_EVENTOS = {
           : "";
   
       return `${condicao}${periodo}${atividade}.`;
+    }
+  },
+
+  CLIMA_ATUALIZADO: {
+    categoria: "CLIMA",
+    tipo: "SUCESSO",
+    prioridade: "MEDIA",
+    icone: "🌤️",
+    titulo: "Clima atualizado",
+  
+    mensagem: function (dados = {}) {
+      const condicao =
+        dados.condicao ||
+        "Condição climática";
+  
+      const periodo =
+        dados.periodo
+          ? ` no período ${dados.periodo}`
+          : "";
+  
+      const atividade =
+        dados.atividadeAfetada
+          ? ` — atividade: ${dados.atividadeAfetada}`
+          : "";
+  
+      return `${condicao}${periodo}${atividade} foi atualizado.`;
     }
   },
 
