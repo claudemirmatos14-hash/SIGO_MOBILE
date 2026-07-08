@@ -8720,7 +8720,7 @@ window.renderizarTimelineNotificacoes_ = function (notificacoes = []) {
 
       if (
         SIGONotificacoesState.categoriaAtual !== "TODAS" &&
-        String(item.categoria || item.tipo || "").toUpperCase() !==
+        String(item.categoria || item.tipo || item.evento || item.titulo || "").toUpperCase() !==
         SIGONotificacoesState.categoriaAtual
       ) {
         return false;
@@ -8841,9 +8841,24 @@ window.definirFiltroNotificacoesSIGO_ = async function (filtro = "TODAS") {
     SIGONotificacoesState.categoriaAtual = filtro;
   }
 
-  if (typeof atualizarCentralNotificacoesAbertaSIGO_ === "function") {
-    await atualizarCentralNotificacoesAbertaSIGO_();
-  }
+  document
+    .querySelectorAll(".notificacao-filtro-chip")
+    .forEach(botao => {
+      botao.classList.remove("ativo");
+    });
+
+  document
+    .querySelectorAll(".notificacao-filtro-chip")
+    .forEach(botao => {
+      if (
+        botao.textContent.trim().toUpperCase() ===
+        filtro.replace("_", " ").toUpperCase()
+      ) {
+        botao.classList.add("ativo");
+      }
+    });
+
+  await atualizarCentralNotificacoesAbertaSIGO_();
 };
 
 
