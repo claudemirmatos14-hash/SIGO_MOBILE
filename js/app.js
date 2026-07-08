@@ -6771,9 +6771,19 @@ async function atualizarMedicaoOffline_() {
 
     await listarMedicoesOffline_();
     await atualizarIndicadoresMobile_();
-
+    
     novaMedicaoPremium();
-
+    
+    // =====================================================
+    // NOTIFICAÇÃO — MEDIÇÃO ATUALIZADA
+    // =====================================================
+    if (typeof registrarEventoSIGO_ === "function") {
+      await registrarEventoSIGO_({
+        evento: "MEDICAO_ATUALIZAR",
+        dados: medicaoAtualizada
+      });
+    }
+    
     SIGOUI.feedback.success(
       "Medição atualizada",
       "Registro atualizado offline com sucesso."
