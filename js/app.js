@@ -10052,7 +10052,8 @@ window.inicializarDataBindingEventBus_ = function () {
     "TB_EVIDENCIAS",
     "TB_SYNC_QUEUE",
     "TB_OBRAS",
-    "TB_ATIVIDADES_OBRA"
+    "TB_ATIVIDADES_OBRA",
+    "TB_NOTIFICACOES"
   ];
 
   stores.forEach(storeName => {
