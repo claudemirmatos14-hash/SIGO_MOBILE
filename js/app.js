@@ -2141,12 +2141,22 @@ async function salvarEvidenciaPremium() {
 
     await listarEvidenciasOffline_();
 
-    limparFormularioEvidencia();
-
-    SIGOUI.feedback.success(
-      "Evidência salva",
-      "Registro salvo offline com sucesso."
-    );
+  // =====================================================
+  // NOTIFICAÇÃO — NOVA EVIDÊNCIA ANEXADA
+  // =====================================================
+  if (typeof registrarEventoSIGO_ === "function") {
+    await registrarEventoSIGO_({
+      evento: "EVIDENCIA_ANEXADA",
+      dados: evidencia
+    });
+  }
+  
+  limparFormularioEvidencia();
+  
+  SIGOUI.feedback.success(
+    "Evidência salva",
+    "Registro salvo offline com sucesso."
+  );
 
   } catch (erro) {
     console.error("Erro ao salvar evidência:", erro);
@@ -2814,21 +2824,6 @@ async function atualizarEvidenciaOffline_() {
       storeOrigem: "TB_EVIDENCIAS",
       idRegistro: evidenciaAtualizada.idEvidencia,
       idObra: evidenciaAtualizada.idObra
-    });
-
-    await adicionarNaFilaSyncSIGO({
-
-      tipo: "UPDATE",
-
-      storeOrigem:
-        "TB_EVIDENCIAS",
-
-      idRegistro:
-        evidenciaAtualizada.idEvidencia,
-
-      idObra:
-        evidenciaAtualizada.idObra
-
     });
 
     idEvidenciaEdicao = null;
@@ -9728,6 +9723,24 @@ window.SIGO_CATALOGO_EVENTOS = {
     titulo: "Evidência anexada",
     mensagem: (dados = {}) =>
       dados.descricao || "Nova evidência registrada na obra."
+  },
+
+  EVIDENCIA_ATUALIZADA: {
+    categoria: "EVIDENCIA",
+    tipo: "SUCESSO",
+    prioridade: "MEDIA",
+    icone: "📷",
+    titulo: "Evidência atualizada",
+  
+    mensagem: function (dados = {}) {
+      const identificacao =
+        dados.titulo ||
+        dados.arquivoNome ||
+        dados.categoria ||
+        "Evidência";
+  
+      return `${identificacao} foi atualizada com sucesso.`;
+    }
   },
 
   BASE_ATUALIZADA: {
