@@ -8559,7 +8559,9 @@ window.criarItemDrawerNotificacao_ = function (item) {
 
     <button
       type="button"
-      class="card-notificacao ${classeCategoria}"
+      class="card-notificacao ${classeCategoria} ${
+        item.lida === false ? "nao-lida" : "lida"
+      }"
       onclick="selecionarNotificacaoDrawer_('${item.idNotificacao}')">
 
       <div class="notificacao-faixa"></div>
@@ -8774,37 +8776,66 @@ window.renderizarTimelineNotificacoes_ = function (notificacoes = []) {
     .join("");
 };
 
-window.selecionarNotificacaoDrawer_ = async function (idNotificacao) {
-  const notificacoes =
-    await listarRegistrosSIGO("TB_NOTIFICACOES");
+window.selecionarNotificacaoDrawer_ = async function (
+  idNotificacao
+) {
+  try {
+    const notificacoes =
+      await listarRegistrosSIGO(
+        "TB_NOTIFICACOES"
+      );
 
-  const notificacao =
-    notificacoes.find(item =>
-      String(item.idNotificacao) === String(idNotificacao)
+    const notificacao =
+      notificacoes.find(item =>
+        String(item.idNotificacao) ===
+        String(idNotificacao)
+      );
+
+    if (!notificacao) {
+      return false;
+    }
+
+    // Grava apenas se ainda não estiver lida
+    if (notificacao.lida !== true) {
+      notificacao.lida = true;
+      notificacao.lidaEm =
+        new Date().toISOString();
+
+      await salvarRegistroSIGO(
+        "TB_NOTIFICACOES",
+        notificacao
+      );
+    }
+
+    if (
+      typeof atualizarBadgeNotificacoes_ ===
+      "function"
+    ) {
+      await atualizarBadgeNotificacoes_();
+    }
+
+    if (
+      typeof atualizarCentralNotificacoesAbertaSIGO_ ===
+      "function"
+    ) {
+      await atualizarCentralNotificacoesAbertaSIGO_();
+    }
+
+    SIGOUI.feedback.info(
+      notificacao.titulo || "Notificação",
+      notificacao.mensagem || ""
     );
 
-  if (!notificacao) return;
+    return true;
 
-  notificacao.lida = true;
-  notificacao.lidaEm = new Date().toISOString();
+  } catch (erro) {
+    console.error(
+      "Erro ao selecionar notificação:",
+      erro
+    );
 
-  await salvarRegistroSIGO(
-    "TB_NOTIFICACOES",
-    notificacao
-  );
-
-  if (typeof atualizarCentralNotificacoesAbertaSIGO_ === "function") {
-    await atualizarCentralNotificacoesAbertaSIGO_();
+    return false;
   }
-
-  if (typeof atualizarBadgeNotificacoes_ === "function") {
-    await atualizarBadgeNotificacoes_();
-  }
-
-  SIGOUI.feedback.info(
-    notificacao.titulo || "Notificação",
-    notificacao.mensagem || ""
-  );
 };
 
 
