@@ -1451,11 +1451,10 @@ async function sincronizarSIGO() {
 }
 
 async function sincronizarDadosBaseObraMobile() {
-
   try {
-
     const obraAtiva =
-      localStorage.getItem("obraAtiva") || "OBR002";
+      localStorage.getItem("obraAtiva") ||
+      "OBR002";
 
     const payload = {
       token: SIGO_TOKEN_OFFLINE,
@@ -1466,22 +1465,36 @@ async function sincronizarDadosBaseObraMobile() {
       dataSolicitacao: new Date().toISOString()
     };
 
-    console.log("Solicitando dados-base da obra:", payload);
+    console.log(
+      "Solicitando dados-base da obra:",
+      payload
+    );
 
-    const resposta = await fetch(SIGO_API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "text/plain;charset=utf-8"
-      },
-      body: JSON.stringify(payload)
-    });
+    const resposta = await fetch(
+      SIGO_API_URL,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type":
+            "text/plain;charset=utf-8"
+        },
+        body: JSON.stringify(payload)
+      }
+    );
 
-    const resultado = await resposta.json();
+    const resultado =
+      await resposta.json();
 
-    console.log("Dados-base recebidos:", resultado);
+    console.log(
+      "Dados-base recebidos:",
+      resultado
+    );
 
     if (resultado.status !== "OK") {
-      throw new Error(resultado.mensagem || "Erro ao buscar dados-base.");
+      throw new Error(
+        resultado.mensagem ||
+        "Erro ao buscar dados-base."
+      );
     }
 
     const atividades =
@@ -1490,42 +1503,65 @@ async function sincronizarDadosBaseObraMobile() {
       [];
 
     if (!Array.isArray(atividades)) {
-      throw new Error("A API não retornou uma lista de atividades válida.");
+      throw new Error(
+        "A API não retornou uma lista de atividades válida."
+      );
     }
-
-    console.log("Primeira atividade:", atividades[0]);
-    console.log("Total de atividades recebidas:", atividades.length);
 
     const obrasLocais =
-      await listarRegistrosSIGO("TB_OBRAS");
-    
+      await listarRegistrosSIGO(
+        "TB_OBRAS"
+      );
+
     const jaExiste =
       obrasLocais.some(obra =>
-        String(obra.idObra) === String(obraAtiva)
+        String(obra.idObra) ===
+        String(obraAtiva)
       );
-    
-    if (!jaExiste && obrasLocais.length >= 3) {
+
+    if (
+      !jaExiste &&
+      obrasLocais.length >= 3
+    ) {
       throw new Error(
-        "Limite de 3 obras offline atingido. Remova uma obra antes de baixar outra."
+        "Limite de 3 obras offline atingido. " +
+        "Remova uma obra antes de baixar outra."
       );
     }
-      console.log("Nome obra recebido direto:", resultado.nomeObra);
-      console.log("Nome obra recebido em detalhes:", resultado.detalhes?.nomeObra);
-    
-      await salvarRegistroSIGO("TB_OBRAS", {
+
+    const nomeObra =
+      resultado.detalhes?.nomeObra ||
+      resultado.nomeObra ||
+      obraAtiva;
+
+    const totalAtividades =
+      atividades.length;
+
+    console.log(
+      "Nome da obra recebido:",
+      nomeObra
+    );
+
+    console.log(
+      "Total de atividades recebidas:",
+      totalAtividades
+    );
+
+    await salvarRegistroSIGO(
+      "TB_OBRAS",
+      {
         idObra: obraAtiva,
-        nomeObra:
-          resultado.detalhes?.nomeObra ||
-          resultado.nomeObra ||
-          obraAtiva,
+        nomeObra: nomeObra,
         status: "ATIVA",
         dataSync: new Date().toISOString()
-      });
+      }
+    );
 
-   await removerAtividadesPorObraSIGO_(obraAtiva);
+    await removerAtividadesPorObraSIGO_(
+      obraAtiva
+    );
 
     for (const atividade of atividades) {
-      console.log("Salvando atividade:", atividade);
       await salvarRegistroSIGO(
         "TB_ATIVIDADES_OBRA",
         atividade
@@ -1533,21 +1569,94 @@ async function sincronizarDadosBaseObraMobile() {
     }
 
     await carregarObrasMobile_();
-    
-    SIGOUI.feedback.success(
+
+    // =====================================================
+    // EVENTO — ATUALIZAÇÃO OU PRIMEIRO DOWNLOAD
+    // =====================================================
+    if (
+      typeof registrarEventoSIGO_ ===
+      "function"
+    ) {
+      if (jaExiste) {
+        await registrarEventoSIGO_({
+          evento: "BASE_ATUALIZADA",
+
+          dados: {
+            idObra: obraAtiva,
+            nomeObra: nomeObra,
+            totalAtividades:
+              totalAtividades,
+
+            mensagem:
+              `${totalAtividades} atividade(s) ` +
+              `da obra "${nomeObra}" foram ` +
+              "atualizadas no dispositivo."
+          }
+        });
+
+      } else {
+        await registrarEventoSIGO_({
+          evento: "OBRA_BAIXADA",
+
+          dados: {
+            idObra: obraAtiva,
+            nomeObra: nomeObra,
+            totalAtividades:
+              totalAtividades
+          }
+        });
+      }
+    }
+
+    if (jaExiste) {
+      SIGOUI.feedback.success(
         "Base atualizada",
-        `${atividades.length} atividades sincronizadas para o dispositivo.`
-    );
+        `${totalAtividades} atividades ` +
+        "sincronizadas para o dispositivo."
+      );
+
+    } else {
+      SIGOUI.feedback.success(
+        "Obra baixada",
+        `"${nomeObra}" foi disponibilizada ` +
+        "para uso offline."
+      );
+    }
+
+    return {
+      ok: true,
+
+      operacao:
+        jaExiste
+          ? "ATUALIZACAO_BASE"
+          : "DOWNLOAD_OBRA",
+
+      jaExistia: jaExiste,
+      idObra: obraAtiva,
+      nomeObra: nomeObra,
+      totalAtividades:
+        totalAtividades
+    };
 
   } catch (erro) {
-
-    console.error("Erro ao sincronizar dados-base:", erro);
-
-    SIGOUI.feedback.error(
-        "Erro na atualização",
-        "Não foi possível atualizar os dados-base da obra."
+    console.error(
+      "Erro ao sincronizar dados-base:",
+      erro
     );
 
+    SIGOUI.feedback.error(
+      "Erro na atualização",
+      erro.message ||
+      "Não foi possível atualizar os dados-base da obra."
+    );
+
+    return {
+      ok: false,
+
+      erro:
+        erro.message ||
+        "Falha ao atualizar os dados-base."
+    };
   }
 }
 
