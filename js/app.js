@@ -505,6 +505,11 @@ document.addEventListener("DOMContentLoaded", async () => {
        if (typeof inicializarDataBindingEventBus_ === "function") {
           inicializarDataBindingEventBus_();
         }
+
+      if (typeof inicializarNotificacoesReativasSIGO_ === "function") {
+          inicializarNotificacoesReativasSIGO_();
+        }
+      
       if (typeof inicializarSmartSyncAutomaticoSIGO_ === "function") {
         inicializarSmartSyncAutomaticoSIGO_();
       }
@@ -8844,6 +8849,99 @@ window.atualizarBotaoLimparNotificacoesSIGO_ =
         ? `🧹 Limpar antigas <span>${total}</span>`
         : "🧹 Nenhuma antiga";
   };
+// =====================================================
+// UX.14.6 — CENTRAL DE NOTIFICAÇÕES REATIVA
+// =====================================================
+
+window.inicializarNotificacoesReativasSIGO_ = function () {
+
+  // Evita registrar o mesmo listener várias vezes
+  if (window.SIGO_NOTIFICACOES_REATIVAS_INICIALIZADAS) {
+    return false;
+  }
+
+  if (
+    !window.SIGOEventBus ||
+    typeof SIGOEventBus.on !== "function"
+  ) {
+    console.warn(
+      "EventBus indisponível para notificações reativas."
+    );
+
+    return false;
+  }
+
+  SIGOEventBus.on(
+    "TB_NOTIFICACOES_UPDATED",
+    async function (dados = {}) {
+      try {
+        console.log(
+          ">>> Smart UI Notificações",
+          dados
+        );
+
+        // Atualiza o badge do sino
+        if (
+          typeof atualizarBadgeNotificacoes_ ===
+          "function"
+        ) {
+          await atualizarBadgeNotificacoes_();
+        }
+
+        // Atualiza o drawer somente se estiver aberto
+        if (
+          document.getElementById(
+            "listaNotificacoesDrawer"
+          ) &&
+          typeof atualizarCentralNotificacoesAbertaSIGO_ ===
+            "function"
+        ) {
+          await atualizarCentralNotificacoesAbertaSIGO_();
+        }
+
+        // Atualiza um eventual resumo exibido na interface
+        if (
+          document.getElementById(
+            "resumoNotificacoesSIGO"
+          ) &&
+          typeof montarResumoNotificacoes_ ===
+            "function"
+        ) {
+          const resumo =
+            await montarResumoNotificacoes_();
+
+          const containerResumo =
+            document.getElementById(
+              "resumoNotificacoesSIGO"
+            );
+
+          if (containerResumo) {
+            containerResumo.innerHTML = resumo;
+          }
+        }
+
+        return true;
+
+      } catch (erro) {
+        console.error(
+          "Erro na atualização reativa das notificações:",
+          erro
+        );
+
+        return false;
+      }
+    }
+  );
+
+  window.SIGO_NOTIFICACOES_REATIVAS_INICIALIZADAS =
+    true;
+
+  console.log(
+    "Notificações reativas inicializadas."
+  );
+
+  return true;
+};
 
 // =====================================================
 // UX.08.2.5.2.1 — AGRUPAR NOTIFICAÇÕES POR PERÍODO
@@ -10124,6 +10222,8 @@ window.SIGO_STORES_SINCRONIZAVEIS = [
 window.storeSincronizavelSIGO_ = function (storeName) {
   return window.SIGO_STORES_SINCRONIZAVEIS.includes(storeName);
 };
+
+
 
 // ============================================
 // FORMATADORES
