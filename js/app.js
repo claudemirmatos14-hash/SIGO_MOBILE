@@ -2830,10 +2830,20 @@ async function atualizarEvidenciaOffline_() {
 
     atualizarModoEdicaoEvidencia_();
 
-    limparFormularioEvidencia();
+   limparFormularioEvidencia();
 
     await listarEvidenciasOffline_();
-
+    
+    // =====================================================
+    // NOTIFICAÇÃO — EVIDÊNCIA ATUALIZADA
+    // =====================================================
+    if (typeof registrarEventoSIGO_ === "function") {
+      await registrarEventoSIGO_({
+        evento: "EVIDENCIA_ATUALIZADA",
+        dados: evidenciaAtualizada
+      });
+    }
+    
     SIGOUI.feedback.success(
       "Evidência atualizada",
       "Registro atualizado com sucesso."
