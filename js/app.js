@@ -9565,6 +9565,24 @@ window.SIGO_CATALOGO_EVENTOS = {
       `${dados.numeroMedicao || "Medição"} salva com sucesso.`
   },
 
+  MEDICAO_ATUALIZAR: {
+    categoria: "MEDICAO",
+    tipo: "SUCESSO",
+    prioridade: "MEDIA",
+    icone: "📏",
+    titulo: "Medição atualizada",
+  
+    mensagem: function (dados = {}) {
+      const servico =
+        dados.servico ||
+        dados.eap ||
+        dados.atividade ||
+        "Registro de medição";
+  
+      return `${servico} foi atualizado com sucesso.`;
+    }
+  },
+
   LOTE_MEDICAO_CRIADO: {
     categoria: "MEDICAO",
     tipo: "SUCESSO",
