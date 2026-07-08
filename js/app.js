@@ -3982,10 +3982,20 @@ async function atualizarClimaOffline_() {
 
     atualizarModoEdicaoClima_();
 
-    limparFormularioClima();
+   limparFormularioClima();
 
     await listarClimasOffline_();
-
+    
+    // =====================================================
+    // NOTIFICAÇÃO — CLIMA ATUALIZADO
+    // =====================================================
+    if (typeof registrarEventoSIGO_ === "function") {
+      await registrarEventoSIGO_({
+        evento: "CLIMA_ATUALIZADO",
+        dados: climaAtualizado
+      });
+    }
+    
     SIGOUI.feedback.success(
       "Clima atualizado",
       "Registro climático atualizado com sucesso."
