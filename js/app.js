@@ -345,19 +345,17 @@ function montarTelaDiarioObra_() {
 }
 
 async function salvarDiarioOffline(event) {
-
   if (event) {
     event.preventDefault();
   }
 
   const diario = {
-
     idDiario: "DIA-" + Date.now(),
 
     data:
       document.getElementById("diarioData").value,
 
-   idObra:
+    idObra:
       obterObraAtivaMobile_(),
 
     responsavel:
@@ -373,28 +371,29 @@ async function salvarDiarioOffline(event) {
       document.getElementById("diarioObservacoes").value,
 
     statusDiario: "ABERTO",
-
     statusSync: "PENDENTE",
-
     origem: "APP_OFFLINE",
 
-    criadoEm: new Date().toISOString()
-
+    criadoEm:
+      new Date().toISOString()
   };
 
   try {
+    // 1. Grava o diário e recebe o registro salvo
+    const diarioSalvo =
+      await salvarRegistroSIGO(
+        "TB_DIARIOS",
+        diario
+      );
 
-    await salvarRegistroSIGO(
-      "TB_DIARIOS",
-      diario
-    );
-
-    await adicionarNaFilaSyncSIGO({
-      tipo: "DIARIO_OBRA",
-      storeOrigem: "TB_DIARIOS",
-      idRegistro: diario.idDiario,
-      idObra: diario.idObra
+    // 2. Gera a notificação real da ação
+    await registrarEventoSIGO_({
+      evento: "DIARIO_SALVO",
+      dados: diarioSalvo
     });
+
+    // Não usar adicionarNaFilaSyncSIGO aqui.
+    // salvarRegistroSIGO já integra com SIGOOfflineEngine.
 
     SIGOUI.feedback.success(
       "Diário salvo",
@@ -403,24 +402,31 @@ async function salvarDiarioOffline(event) {
 
     console.log(
       "Diário salvo no IndexedDB:",
-      diario
+      diarioSalvo
     );
 
-    atualizarIndicadoresMobile_();
-    carregarListaDiariosOffline();
+    if (typeof atualizarIndicadoresMobile_ === "function") {
+      await atualizarIndicadoresMobile_();
+    }
+
+    if (typeof carregarListaDiariosOffline === "function") {
+      await carregarListaDiariosOffline();
+    }
+
+    return diarioSalvo;
 
   } catch (erro) {
-
     console.error(
       "Erro ao salvar diário:",
       erro
     );
 
-   SIGOUI.feedback.error(
-    "Erro ao salvar",
-    "Não foi possível salvar diário."
-);
+    SIGOUI.feedback.error(
+      "Erro ao salvar",
+      "Não foi possível salvar diário."
+    );
 
+    return null;
   }
 }
 
