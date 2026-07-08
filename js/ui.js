@@ -322,7 +322,7 @@ function criarSecaoFerramentasSIGO() {
           <span>Buscar dados mais recentes</span>
         </button>
 
-        <button type="button" class="tool-card" onclick="sincronizarSIGO()">
+        <button type="button" class="tool-card"  onclick="sincronizarAgoraSIGO_()">
           <div>☁</div>
           <strong>Sincronizar Agora</strong>
           <span>Enviar e receber informações</span>
