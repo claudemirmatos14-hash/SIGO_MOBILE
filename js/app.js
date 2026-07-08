@@ -4837,12 +4837,22 @@ async function atualizarOcorrenciaOffline_() {
 
     limparFormularioOcorrencia();
 
-    await listarOcorrenciasOffline_();
-
-    SIGOUI.feedback.success(
-      "Ocorrência atualizada",
-      "Registro atualizado com sucesso."
-    );
+  await listarOcorrenciasOffline_();
+  
+  // =====================================================
+  // NOTIFICAÇÃO — OCORRÊNCIA ATUALIZADA
+  // =====================================================
+  if (typeof registrarEventoSIGO_ === "function") {
+    await registrarEventoSIGO_({
+      evento: "OCORRENCIA_ATUALIZADA",
+      dados: ocorrenciaAtualizada
+    });
+  }
+  
+  SIGOUI.feedback.success(
+    "Ocorrência atualizada",
+    "Registro atualizado com sucesso."
+  );
 
   } catch (erro) {
     console.error("Erro ao atualizar ocorrência:", erro);
