@@ -2488,3 +2488,28 @@ BARRA DE PROGRESSO
     border-radius:999px;
 
 }
+
+
+.notificacoes-filtros {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 2px 14px;
+}
+
+.notificacao-filtro-chip {
+  border: 0;
+  border-radius: 999px;
+  padding: 7px 12px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.notificacao-filtro-chip.ativo {
+  background: #2563eb;
+  color: #ffffff;
+}
