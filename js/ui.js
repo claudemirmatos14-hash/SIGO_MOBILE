@@ -693,36 +693,17 @@ function limparFormularioItemDiario() {
 async function salvarDiarioPremium() {
   try {
 
-    // 1. Salva efetivamente o diário
-    const diarioSalvo =
-      await SIGOCRUD.saveOffline(
-        SIGOEntities.diario
-      );
-
-    console.log(
-      "Diário salvo pelo SIGOCRUD:",
-      diarioSalvo
+    await SIGOCRUD.saveOffline(
+      SIGOEntities.diario
     );
-
-    // 2. Gera a notificação real da operação
-    await registrarEventoSIGO_({
-      evento: "DIARIO_SALVO",
-
-      dados: diarioSalvo || {
-        data:
-          document.getElementById("diarioData")
-            ?.value || ""
-      }
-    });
 
     SIGOUI.feedback.success(
       "Diário salvo",
       "Registro salvo offline."
     );
 
-    return diarioSalvo;
-
   } catch (erro) {
+
     console.error(
       "Erro ao salvar diário premium:",
       erro
@@ -730,10 +711,9 @@ async function salvarDiarioPremium() {
 
     SIGOUI.feedback.error(
       "Erro",
-      erro.message || "Não foi possível salvar o diário."
+      erro.message ||
+        "Não foi possível salvar o diário."
     );
-
-    return null;
   }
 }
 
