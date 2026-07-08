@@ -8523,6 +8523,11 @@ window.montarDrawerNotificacoes_ = async function () {
       .sort((a, b) =>
         new Date(b.criadaEm) - new Date(a.criadaEm)
       );
+  
+  const totalNaoLidas =
+    notificacoesObra.filter(item =>
+      item.lida !== true
+    ).length;
 
   if (!notificacoesObra.length) {
     return `
@@ -8532,11 +8537,36 @@ window.montarDrawerNotificacoes_ = async function () {
     `;
   }
 
-  return `
-    <div class="drawer-section" style="border-top:none;margin-top:0;padding-top:0;">
-     ${criarFiltrosNotificacoesSIGO_()}
-      <div id="listaNotificacoesDrawer" class="notificacoes-drawer timeline-notificacoes">
+ return `
+    <div
+      class="drawer-section"
+      style="border-top:none;margin-top:0;padding-top:0;">
+  
+      <div class="notificacoes-acoes">
+        <button
+          id="btnMarcarTodasNotificacoesLidas"
+          type="button"
+          class="btn-marcar-todas-lidas"
+          onclick="marcarNotificacoesComoLidas_()"
+          ${totalNaoLidas === 0 ? "disabled" : ""}>
+  
+          ${
+            totalNaoLidas > 0
+              ? `✓ Marcar todas como lidas <span>${totalNaoLidas}</span>`
+              : "✓ Todas foram lidas"
+          }
+  
+        </button>
+      </div>
+  
+      ${criarFiltrosNotificacoesSIGO_()}
+  
+      <div
+        id="listaNotificacoesDrawer"
+        class="notificacoes-drawer timeline-notificacoes">
+  
         ${renderizarTimelineNotificacoes_(notificacoesObra)}
+  
       </div>
     </div>
   `;
@@ -8839,31 +8869,90 @@ window.selecionarNotificacaoDrawer_ = async function (
 };
 
 
+// =====================================================
+// UX.14.4 — MARCAR TODAS COMO LIDAS
+// =====================================================
+
 window.marcarNotificacoesComoLidas_ = async function () {
-  const obraAtiva =
-    obterObraAtivaMobile_();
+  try {
+    const obraAtiva =
+      obterObraAtivaMobile_();
 
-  const notificacoes =
-    await listarRegistrosSIGO("TB_NOTIFICACOES");
+    const notificacoes =
+      await listarRegistrosSIGO(
+        "TB_NOTIFICACOES"
+      );
 
-  const naoLidas =
-    notificacoes.filter(item =>
-      String(item.idObra) === String(obraAtiva) &&
-      item.lida === false
+    const naoLidas =
+      notificacoes.filter(item =>
+        String(item.idObra) === String(obraAtiva) &&
+        item.lida !== true
+      );
+
+    if (!naoLidas.length) {
+      SIGOUI.feedback.info(
+        "Notificações",
+        "Todas as notificações já foram lidas."
+      );
+
+      return {
+        total: 0,
+        sucesso: true
+      };
+    }
+
+    for (const item of naoLidas) {
+      item.lida = true;
+      item.lidaEm =
+        new Date().toISOString();
+
+      await salvarRegistroSIGO(
+        "TB_NOTIFICACOES",
+        item
+      );
+    }
+
+    if (
+      typeof atualizarBadgeNotificacoes_ ===
+      "function"
+    ) {
+      await atualizarBadgeNotificacoes_();
+    }
+
+    if (
+      typeof atualizarCentralNotificacoesAbertaSIGO_ ===
+      "function"
+    ) {
+      await atualizarCentralNotificacoesAbertaSIGO_();
+    }
+
+    atualizarBotaoMarcarTodasLidasSIGO_(0);
+
+    SIGOUI.feedback.success(
+      "Notificações atualizadas",
+      `${naoLidas.length} notificação(ões) marcada(s) como lida(s).`
     );
 
-  for (const item of naoLidas) {
-    item.lida = true;
-    item.lidaEm = new Date().toISOString();
+    return {
+      total: naoLidas.length,
+      sucesso: true
+    };
 
-    await salvarRegistroSIGO(
-      "TB_NOTIFICACOES",
-      item
+  } catch (erro) {
+    console.error(
+      "Erro ao marcar notificações como lidas:",
+      erro
     );
-  }
 
-  if (typeof atualizarBadgeNotificacoes_ === "function") {
-    await atualizarBadgeNotificacoes_();
+    SIGOUI.feedback.error(
+      "Erro",
+      "Não foi possível atualizar as notificações."
+    );
+
+    return {
+      total: 0,
+      sucesso: false
+    };
   }
 };
 
@@ -8913,6 +9002,27 @@ window.definirFiltroNotificacoesSIGO_ = async function (filtro = "TODAS") {
   console.log("Drawer atualizado.");
 };
 
+window.atualizarBotaoMarcarTodasLidasSIGO_ =
+  function (totalNaoLidas = 0) {
+
+    const botao =
+      document.getElementById(
+        "btnMarcarTodasNotificacoesLidas"
+      );
+
+    if (!botao) return;
+
+    const total =
+      Number(totalNaoLidas || 0);
+
+    botao.disabled =
+      total === 0;
+
+    botao.innerHTML =
+      total > 0
+        ? `✓ Marcar todas como lidas <span>${total}</span>`
+        : "✓ Todas foram lidas";
+  };
 
 // =====================================================
 // UX.14.2 — FILTROS PREMIUM DA CENTRAL
@@ -8969,9 +9079,18 @@ window.atualizarCentralNotificacoesAbertaSIGO_ = async function () {
         new Date(a.criadaEm || a.criadoEm)
       );
 
+  const totalNaoLidas =
+    notificacoesObra.filter(item =>
+      item.lida !== true
+    ).length;
+
   container.innerHTML =
     renderizarTimelineNotificacoes_(notificacoesObra) ||
     `<p class="sem-notificacoes">Nenhuma notificação neste filtro.</p>`;
+
+  atualizarBotaoMarcarTodasLidasSIGO_(
+  totalNaoLidas
+);
 
   return true;
 };
