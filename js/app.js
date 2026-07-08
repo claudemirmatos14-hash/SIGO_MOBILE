@@ -1097,15 +1097,26 @@ async function atualizarDiarioOffline_() {
       statusSync: "PENDENTE"
     };
 
-    await salvarRegistroSIGO(
+   await salvarRegistroSIGO(
       "TB_DIARIOS",
       diarioAtualizado
     );
+    
+    // =====================================================
+    // SINCRONIZAÇÃO — UPDATE DO DIÁRIO
+    // =====================================================
+    await adicionarNaFilaSyncSIGO({
+      tipo: "UPDATE",
+      storeOrigem: "TB_DIARIOS",
+      idRegistro: diarioAtualizado.idDiario,
+      idObra: diarioAtualizado.idObra
+    });
 
     // TODO UX.07.14
     // Registrar UPDATE na TB_SYNC_QUEUE
 
     idDiarioEdicao = null;
+    
     atualizarModoEdicaoDiario_();
 
     if (typeof limparFormularioDiario === "function") {
@@ -1114,6 +1125,16 @@ async function atualizarDiarioOffline_() {
 
     await carregarListaDiariosOffline();
 
+    // =====================================================
+    // NOTIFICAÇÃO — DIÁRIO ATUALIZADO
+    // =====================================================
+    if (typeof registrarEventoSIGO_ === "function") {
+      await registrarEventoSIGO_({
+        evento: "DIARIO_ATUALIZADO",
+        dados: diarioAtualizado
+      });
+    }
+    
     SIGOUI.feedback.success(
       "Diário atualizado",
       "Registro atualizado com sucesso."
@@ -9705,6 +9726,27 @@ window.SIGO_CATALOGO_EVENTOS = {
     titulo: "Diário salvo",
     mensagem: (dados = {}) =>
       `Diário ${dados.data || ""} salvo com sucesso.`
+  },
+
+  DIARIO_ATUALIZADO: {
+    categoria: "DIARIO",
+    tipo: "SUCESSO",
+    prioridade: "MEDIA",
+    icone: "📘",
+    titulo: "Diário atualizado",
+  
+    mensagem: function (dados = {}) {
+      const data =
+        dados.data ||
+        "Data não informada";
+  
+      const responsavel =
+        dados.responsavel
+          ? ` — responsável: ${dados.responsavel}`
+          : "";
+  
+      return `Diário de ${data}${responsavel} atualizado com sucesso.`;
+    }
   },
 
   ITEM_DIARIO_SALVO: {
