@@ -1612,5 +1612,36 @@ window.sincronizarAgoraSIGO_ = async function () {
   }
 };
 
+// =====================================================
+// UX.13.5 — SMART SYNC AUTOMÁTICO
+// =====================================================
 
+window.inicializarSmartSyncAutomaticoSIGO_ = function () {
+
+  window.addEventListener("online", async function () {
+    console.log("Conexão restaurada. Iniciando Smart Sync...");
+
+    if (
+      window.SIGOOfflineEngine &&
+      typeof SIGOOfflineEngine.processarFila === "function"
+    ) {
+      await sincronizarAgoraSIGO_();
+    }
+  });
+
+  window.addEventListener("offline", function () {
+    console.log("Conexão perdida. SIGO operando em modo offline.");
+
+    if (typeof criarNotificacaoSIGO_ === "function") {
+      criarNotificacaoSIGO_({
+        tipo: "ALERTA",
+        titulo: "Modo offline",
+        mensagem: "A conexão foi perdida. Os dados serão sincronizados depois.",
+        icone: "📴"
+      });
+    }
+  });
+
+  console.log("Smart Sync Automático inicializado.");
+};
  
