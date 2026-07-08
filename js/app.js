@@ -8817,6 +8817,39 @@ window.definirFiltroNotificacoesSIGO_ = async function (filtro = "TODAS") {
 };
 
 
+// =====================================================
+// UX.14.2 — FILTROS PREMIUM DA CENTRAL
+// =====================================================
+
+window.criarFiltrosNotificacoesSIGO_ = function () {
+  const filtros = [
+    { id: "TODAS", label: "Todas" },
+    { id: "NAO_LIDAS", label: "Não lidas" },
+    { id: "SYNC", label: "Sync" },
+    { id: "MEDICAO", label: "Medições" },
+    { id: "DIARIO", label: "Diário" },
+    { id: "OCORRENCIA", label: "Ocorrências" },
+    { id: "SISTEMA", label: "Sistema" }
+  ];
+
+  return `
+    <div class="notificacoes-filtros">
+      ${filtros.map(filtro => `
+        <button
+          type="button"
+          class="notificacao-filtro-chip ${
+            SIGONotificacoesState.filtroAtual === filtro.id
+              ? "ativo"
+              : ""
+          }"
+          onclick="definirFiltroNotificacoesSIGO_('${filtro.id}')">
+          ${filtro.label}
+        </button>
+      `).join("")}
+    </div>
+  `;
+};
+
 async function atualizarHeroObraAtivaMobile_() {
 
    console.log("CHAMOU atualizarHeroObraAtivaMobile_");
