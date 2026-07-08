@@ -6561,66 +6561,236 @@ async function baixarObraOfflineMobile_(idObra) {
 async function removerObraOfflineMobile_(idObra) {
   try {
     if (!idObra) {
-      throw new Error("ID da obra não informado.");
+      throw new Error(
+        "ID da obra não informado."
+      );
     }
 
-    const confirmar = await SIGOUI.feedback.confirm({
-      tipo: "warning",
-      icone: "🗑️",
-      titulo: "Remover obra",
-      mensagem:
-        `Deseja remover a obra ${idObra} deste dispositivo?\n\n` +
-        "Todos os dados offline desta obra serão apagados.",
-      textoConfirmar: "Remover",
-      textoCancelar: "Cancelar"
-    });
-    
-    if (!confirmar) return;
+    // =====================================================
+    // LOCALIZA A OBRA ANTES DA EXCLUSÃO
+    // =====================================================
+    const obras =
+      await listarRegistrosSIGO(
+        "TB_OBRAS"
+      );
 
-    await removerRegistrosPorObraSIGO_("TB_ATIVIDADES_OBRA", idObra);
-    await removerRegistrosPorObraSIGO_("TB_DIARIOS", idObra);
-    await removerRegistrosPorObraSIGO_("TB_DIARIO_ITENS", idObra);
-    await removerRegistrosPorObraSIGO_("TB_MEDICOES", idObra);
-    await removerRegistrosPorObraSIGO_("TB_OCORRENCIAS", idObra);
-    await removerRegistrosPorObraSIGO_("TB_CLIMA", idObra);
-    await removerRegistrosPorObraSIGO_("TB_EVIDENCIAS", idObra);
+    const obraRemovida =
+      obras.find(obra =>
+        String(obra.idObra) ===
+        String(idObra)
+      );
 
-    await removerRegistroPorChaveSIGO_("TB_OBRAS", idObra);
+    if (!obraRemovida) {
+      throw new Error(
+        "Obra não encontrada no banco offline."
+      );
+    }
 
-    const obraAtiva = localStorage.getItem("obraAtiva");
+    // =====================================================
+    // PROTEÇÃO CONTRA PERDA DE DADOS NÃO SINCRONIZADOS
+    // =====================================================
+    const fila =
+      await listarRegistrosSIGO(
+        "TB_SYNC_QUEUE"
+      );
 
-    if (String(obraAtiva) === String(idObra)) {
-      const obrasRestantes = await listarRegistrosSIGO("TB_OBRAS");
+    const pendenciasDaObra =
+      fila.filter(item =>
+        String(item.idObra) ===
+          String(idObra) &&
+        String(item.statusSync || "PENDENTE")
+          .toUpperCase() !== "SINCRONIZADO"
+      );
 
-      if (obrasRestantes.length) {
-        localStorage.setItem("obraAtiva", obrasRestantes[0].idObra);
+    if (pendenciasDaObra.length > 0) {
+      SIGOUI.feedback.warning(
+        "Sincronização pendente",
+        `A obra possui ${pendenciasDaObra.length} ` +
+        "registro(s) ainda não sincronizado(s). " +
+        "Sincronize antes de remover a obra."
+      );
+
+      return {
+        ok: false,
+        motivo: "PENDENCIAS_SYNC",
+        totalPendencias:
+          pendenciasDaObra.length
+      };
+    }
+
+    // =====================================================
+    // CONFIRMAÇÃO
+    // =====================================================
+    const nomeObra =
+      obraRemovida.nomeObra ||
+      obraRemovida.idObra;
+
+    const confirmar =
+      await SIGOUI.feedback.confirm({
+        tipo: "warning",
+        icone: "🗑️",
+        titulo: "Remover obra",
+        mensagem:
+          `Deseja remover a obra "${nomeObra}" ` +
+          "deste dispositivo?\n\n" +
+          "Todos os dados offline desta obra serão apagados.",
+        textoConfirmar: "Remover",
+        textoCancelar: "Cancelar"
+      });
+
+    if (!confirmar) {
+      return {
+        ok: false,
+        motivo: "CANCELADO"
+      };
+    }
+
+    const obraAtivaAnterior =
+      window.SIGOAppContext?.getObraAtiva?.() ||
+      localStorage.getItem("obraAtiva");
+
+    // =====================================================
+    // REMOVE TODOS OS DADOS OPERACIONAIS DA OBRA
+    // =====================================================
+    const storesPorObra = [
+      "TB_ATIVIDADES_OBRA",
+      "TB_DIARIOS",
+      "TB_DIARIO_ITENS",
+      "TB_MEDICOES",
+      "TB_LOTES_MEDICAO",
+      "TB_OCORRENCIAS",
+      "TB_CLIMA",
+      "TB_EVIDENCIAS",
+      "TB_SYNC_QUEUE",
+      "TB_NOTIFICACOES"
+    ];
+
+    for (const storeName of storesPorObra) {
+      await removerRegistrosPorObraSIGO_(
+        storeName,
+        idObra
+      );
+    }
+
+    await removerRegistroPorChaveSIGO_(
+      "TB_OBRAS",
+      idObra
+    );
+
+    // =====================================================
+    // REDEFINE A OBRA ATIVA, SE NECESSÁRIO
+    // =====================================================
+    const obrasRestantes =
+      await listarRegistrosSIGO(
+        "TB_OBRAS"
+      );
+
+    let novaObraAtiva =
+      obraAtivaAnterior;
+
+    if (
+      String(obraAtivaAnterior) ===
+      String(idObra)
+    ) {
+      novaObraAtiva =
+        obrasRestantes[0]?.idObra ||
+        null;
+
+      if (novaObraAtiva) {
+        SIGOAppContext.setObraAtiva(
+          novaObraAtiva
+        );
       } else {
-        localStorage.removeItem("obraAtiva");
+        localStorage.removeItem(
+          "obraAtiva"
+        );
       }
     }
 
-   await atualizarHomeMobile_();
-   await listarObrasOfflineMobile_();
-   await listarObrasDisponiveisMobile_();
+    // =====================================================
+    // ATUALIZA A INTERFACE
+    // =====================================================
+    if (
+      typeof atualizarHomeMobile_ ===
+      "function"
+    ) {
+      await atualizarHomeMobile_();
+    }
+
+    if (
+      typeof atualizarHeroObraAtivaMobile_ ===
+      "function"
+    ) {
+      await atualizarHeroObraAtivaMobile_();
+    }
+
+    if (
+      typeof listarObrasOfflineMobile_ ===
+      "function"
+    ) {
+      await listarObrasOfflineMobile_();
+    }
+
+    if (
+      typeof listarObrasDisponiveisMobile_ ===
+      "function"
+    ) {
+      await listarObrasDisponiveisMobile_();
+    }
+
+    // =====================================================
+    // NOTIFICAÇÃO — OBRA REMOVIDA
+    // =====================================================
+    if (
+      novaObraAtiva &&
+      typeof registrarEventoSIGO_ ===
+        "function"
+    ) {
+      await registrarEventoSIGO_({
+        evento: "OBRA_REMOVIDA",
+
+        dados: {
+          idObra:
+            obraRemovida.idObra,
+
+          nomeObra:
+            obraRemovida.nomeObra ||
+            obraRemovida.idObra
+        }
+      });
+    }
 
     SIGOUI.feedback.success(
       "Obra removida",
-      "A obra foi removida deste dispositivo."
+      `"${nomeObra}" foi removida deste dispositivo.`
     );
-    
-    } catch (erro) {
-    
-      console.error(
-        "Erro ao remover obra offline:",
-        erro
-      );
-    
-      SIGOUI.feedback.error(
-        "Erro ao remover obra",
-        erro.message || "Não foi possível remover a obra deste dispositivo."
-      );
-    
-    }
+
+    return {
+      ok: true,
+      idObraRemovida: idObra,
+      nomeObraRemovida: nomeObra,
+      novaObraAtiva: novaObraAtiva
+    };
+
+  } catch (erro) {
+    console.error(
+      "Erro ao remover obra offline:",
+      erro
+    );
+
+    SIGOUI.feedback.error(
+      "Erro ao remover obra",
+      erro.message ||
+      "Não foi possível remover a obra deste dispositivo."
+    );
+
+    return {
+      ok: false,
+      erro:
+        erro.message ||
+        "Falha ao remover obra."
+    };
+  }
 }
 
 async function atualizarHomeMobile_() {
