@@ -8709,25 +8709,31 @@ window.renderizarTimelineNotificacoes_ = function (notificacoes = []) {
   // Aplicar filtros
   // ==========================
   const notificacoesFiltradas =
-    notificacoes.filter(item => {
+  notificacoes.filter(item => {
 
-      if (
-        SIGONotificacoesState.somenteNaoLidas &&
-        item.lida === true
-      ) {
-        return false;
-      }
+    if (
+      SIGONotificacoesState.somenteNaoLidas &&
+      item.lida === true
+    ) {
+      return false;
+    }
 
-      if (
-        SIGONotificacoesState.categoriaAtual !== "TODAS" &&
-        String(item.categoria || item.tipo || item.evento || item.titulo || "").toUpperCase() !==
-        SIGONotificacoesState.categoriaAtual
-      ) {
-        return false;
-      }
+    const textoFiltro =
+      String(item.categoria || "").toUpperCase() + " " +
+      String(item.tipo || "").toUpperCase() + " " +
+      String(item.evento || "").toUpperCase() + " " +
+      String(item.titulo || "").toUpperCase() + " " +
+      String(item.mensagem || "").toUpperCase();
 
-      return true;
-    });
+    if (
+      SIGONotificacoesState.categoriaAtual !== "TODAS" &&
+      !textoFiltro.includes(SIGONotificacoesState.categoriaAtual)
+    ) {
+      return false;
+    }
+
+    return true;
+  });
 
   // ==========================
   // Agrupar timeline
