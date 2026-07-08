@@ -8831,6 +8831,7 @@ window.SIGONotificacoesState = {
 };
 
 window.definirFiltroNotificacoesSIGO_ = async function (filtro = "TODAS") {
+  console.log("Filtro:", filtro);
   SIGONotificacoesState.filtroAtual = filtro;
 
   if (filtro === "NAO_LIDAS") {
@@ -8857,8 +8858,12 @@ window.definirFiltroNotificacoesSIGO_ = async function (filtro = "TODAS") {
         botao.classList.add("ativo");
       }
     });
+  console.log(SIGONotificacoesState);
 
+  console.log("Atualizando drawer...");
+  
   await atualizarCentralNotificacoesAbertaSIGO_();
+  console.log("Drawer atualizado.");
 };
 
 
