@@ -8429,8 +8429,6 @@ window.abrirCentralNotificacoes_ = async function () {
       textoFechar: "Fechar"
     });
 
-    await marcarNotificacoesComoLidas_();
-
   } catch (erro) {
     console.error("Erro ao abrir notificações:", erro);
 
@@ -8788,6 +8786,10 @@ window.selecionarNotificacaoDrawer_ = async function (idNotificacao) {
     "TB_NOTIFICACOES",
     notificacao
   );
+
+  if (typeof atualizarCentralNotificacoesAbertaSIGO_ === "function") {
+    await atualizarCentralNotificacoesAbertaSIGO_();
+  }
 
   if (typeof atualizarBadgeNotificacoes_ === "function") {
     await atualizarBadgeNotificacoes_();
