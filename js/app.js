@@ -8244,19 +8244,6 @@ const SIGOAppContext = {
 };
 
 // =====================================================
-// UX.14 — EVENTOS AUTOMÁTICOS POR STORE
-// =====================================================
-
-window.SIGO_EVENTO_SUCESSO_POR_STORE = Object.freeze({
-  TB_DIARIOS: "DIARIO_SALVO",
-  TB_DIARIO_ITENS: "ITEM_DIARIO_SALVO",
-  TB_MEDICOES: "MEDICAO_SALVA",
-  TB_LOTES_MEDICAO: "LOTE_MEDICAO_CRIADO",
-  TB_OCORRENCIAS: "OCORRENCIA_CRIADA",
-  TB_EVIDENCIAS: "EVIDENCIA_ANEXADA"
-});
-
-// =====================================================
 // UX.08.2 — NOTIFICAÇÕES SIGO
 // =====================================================
 
