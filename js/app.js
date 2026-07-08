@@ -8528,6 +8528,7 @@ window.montarDrawerNotificacoes_ = async function () {
 
   return `
     <div class="drawer-section" style="border-top:none;margin-top:0;padding-top:0;">
+     ${criarFiltrosNotificacoesSIGO_()}
       <div id="listaNotificacoesDrawer" class="notificacoes-drawer timeline-notificacoes">
         ${renderizarTimelineNotificacoes_(notificacoesObra)}
       </div>
@@ -8703,32 +8704,61 @@ window.zerarHora_ = function (data) {
 };
 
 window.renderizarTimelineNotificacoes_ = function (notificacoes = []) {
+
+  // ==========================
+  // Aplicar filtros
+  // ==========================
+  const notificacoesFiltradas =
+    notificacoes.filter(item => {
+
+      if (
+        SIGONotificacoesState.somenteNaoLidas &&
+        item.lida === true
+      ) {
+        return false;
+      }
+
+      if (
+        SIGONotificacoesState.categoriaAtual !== "TODAS" &&
+        String(item.categoria || item.tipo || "").toUpperCase() !==
+        SIGONotificacoesState.categoriaAtual
+      ) {
+        return false;
+      }
+
+      return true;
+    });
+
+  // ==========================
+  // Agrupar timeline
+  // ==========================
   const grupos =
-    agruparNotificacoesTimeline_(notificacoes);
+    agruparNotificacoesTimeline_(notificacoesFiltradas);
 
   if (!grupos.length) {
     return "";
   }
 
+  // ==========================
+  // Renderizar
+  // ==========================
   return grupos
-    .map(grupo => {
-      return `
-        <div class="grupo-notificacoes">
+    .map(grupo => `
+      <div class="grupo-notificacoes">
 
-          <div class="grupo-notificacoes-header">
-            <span>${grupo.titulo}</span>
-            <small>${grupo.quantidade || grupo.itens.length}</small>
-          </div>
-
-          <div class="grupo-notificacoes-lista">
-            ${grupo.itens
-              .map(item => criarItemDrawerNotificacao_(item))
-              .join("")}
-          </div>
-
+        <div class="grupo-notificacoes-header">
+          <span>${grupo.titulo}</span>
+          <small>${grupo.quantidade}</small>
         </div>
-      `;
-    })
+
+        <div class="grupo-notificacoes-lista">
+          ${grupo.itens
+            .map(item => criarItemDrawerNotificacao_(item))
+            .join("")}
+        </div>
+
+      </div>
+    `)
     .join("");
 };
 
