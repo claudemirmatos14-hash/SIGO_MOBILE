@@ -8790,6 +8790,31 @@ window.marcarNotificacoesComoLidas_ = async function () {
   }
 };
 
+// =====================================================
+// UX.14.1 — ESTADO DA CENTRAL DE NOTIFICAÇÕES
+// =====================================================
+
+window.SIGONotificacoesState = {
+  filtroAtual: "TODAS",
+  somenteNaoLidas: false,
+  categoriaAtual: "TODAS"
+};
+
+window.definirFiltroNotificacoesSIGO_ = async function (filtro = "TODAS") {
+  SIGONotificacoesState.filtroAtual = filtro;
+
+  if (filtro === "NAO_LIDAS") {
+    SIGONotificacoesState.somenteNaoLidas = true;
+    SIGONotificacoesState.categoriaAtual = "TODAS";
+  } else {
+    SIGONotificacoesState.somenteNaoLidas = false;
+    SIGONotificacoesState.categoriaAtual = filtro;
+  }
+
+  if (typeof atualizarCentralNotificacoesAbertaSIGO_ === "function") {
+    await atualizarCentralNotificacoesAbertaSIGO_();
+  }
+};
 
 
 async function atualizarHeroObraAtivaMobile_() {
