@@ -1567,5 +1567,50 @@ window.SIGOOfflineEngine = {
 
 };
 
+// =====================================================
+// UX.13.4 — AÇÃO SINCRONIZAR AGORA
+// =====================================================
+
+window.sincronizarAgoraSIGO_ = async function () {
+  try {
+    SIGOUI.feedback.info(
+      "Sincronização",
+      "Processando fila de sincronização..."
+    );
+
+    const resultado =
+      await SIGOOfflineEngine.processarFila();
+
+    if (resultado.erros > 0) {
+      SIGOUI.feedback.error(
+        "Sincronização",
+        `${resultado.erros} item(ns) não foram sincronizados.`
+      );
+      return resultado;
+    }
+
+    SIGOUI.feedback.success(
+      "Sincronização concluída",
+      `${resultado.sincronizados} item(ns) sincronizado(s).`
+    );
+
+    return resultado;
+
+  } catch (erro) {
+    console.error("Erro ao sincronizar agora:", erro);
+
+    SIGOUI.feedback.error(
+      "Erro",
+      "Não foi possível sincronizar agora."
+    );
+
+    return {
+      total: 0,
+      sincronizados: 0,
+      erros: 1
+    };
+  }
+};
+
 
  
