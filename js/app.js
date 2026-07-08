@@ -9671,8 +9671,7 @@ window.registrarEventoSIGO_ = async function (evento = {}) {
 // UX.09.1 — CATÁLOGO DE EVENTOS SIGO
 // =====================================================
 
-window.SIGO_CATALOGO_EVENTOS = {
-
+window.SIGO_CATALOGO_EVENTOS = Object.freeze({
   OBRA_ALTERADA: {
     categoria: "OBRA",
     tipo: "INFO",
@@ -9681,6 +9680,48 @@ window.SIGO_CATALOGO_EVENTOS = {
     titulo: "Obra ativa alterada",
     mensagem: (dados = {}) =>
       `Agora você está trabalhando na obra "${dados.nomeObra || dados.idObra || "selecionada"}".`
+  },
+
+  OBRA_BAIXADA: {
+    categoria: "OBRA",
+    tipo: "SUCESSO",
+    prioridade: "MEDIA",
+    icone: "📥",
+    titulo: "Obra baixada",
+  
+    mensagem: function (dados = {}) {
+      const obra =
+        dados.nomeObra ||
+        dados.idObra ||
+        "Obra";
+  
+      const totalAtividades =
+        Number(dados.totalAtividades || 0);
+  
+      const complemento =
+        totalAtividades > 0
+          ? ` com ${totalAtividades} atividade(s)`
+          : "";
+  
+      return `${obra} foi disponibilizada para uso offline${complemento}.`;
+    }
+  },
+  
+  OBRA_REMOVIDA: {
+    categoria: "OBRA",
+    tipo: "INFO",
+    prioridade: "MEDIA",
+    icone: "🗑️",
+    titulo: "Obra removida",
+  
+    mensagem: function (dados = {}) {
+      const obra =
+        dados.nomeObra ||
+        dados.idObra ||
+        "A obra";
+  
+      return `${obra} foi removida deste dispositivo.`;
+    }
   },
 
   MEDICAO_SALVA: {
@@ -9947,7 +9988,7 @@ window.SIGO_CATALOGO_EVENTOS = {
       dados.mensagem || dados.message || "Não foi possível sincronizar os dados."
   }
 
-};
+});
 
 // =====================================================
 // UX.09.2 — EVENTBUS SIGO
