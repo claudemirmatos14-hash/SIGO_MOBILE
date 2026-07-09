@@ -1,0 +1,19 @@
+{
+  "id": "/SIGO_MOBILE/",
+  "name": "SIGO Mobile — Gestão de Obras",
+  "short_name": "SIGO Mobile",
+  "description": "Aplicativo offline para gestão operacional de obras, medições, diário, ocorrências e evidências.",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "start_url": "./home-premium.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#07111f",
+  "theme_color": "#0b1f36",
+  "categories": [
+    "business",
+    "productivity",
+    "utilities"
+  ]
+}
