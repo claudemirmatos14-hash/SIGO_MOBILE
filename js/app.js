@@ -1727,28 +1727,28 @@ async function sincronizarDadosBaseObraMobile() {
         totalAtividades
     };
 
-  } catch (erro) {
+    } catch (erro) {
+
     console.error(
-      "Erro ao sincronizar dados-base:",
+      "Erro ao sincronizar dados-base da obra:",
       erro
     );
 
+    const mensagemErro =
+      erro?.message ||
+      "Falha ao atualizar os dados-base da obra.";
+
     SIGOUI.feedback.error(
-      "Erro na atualização",
-      erro.message ||
-      "Não foi possível atualizar os dados-base da obra."
+      "Erro ao atualizar dados-base",
+      mensagemErro
     );
 
     return {
       ok: false,
-
-      erro:
-        erro.message ||
-        "Falha ao atualizar os dados-base."
+      erro: mensagemErro
     };
   }
 }
-
 function montarFormularioMedicao_() {
   const obraAtiva =
     obterObraAtivaMobile_();
