@@ -1282,9 +1282,18 @@ async function sincronizarSIGO() {
 
     const diarioItens = await listarRegistrosSIGO("TB_DIARIO_ITENS");
 
-    const diarioItensPendentes = diarioItens.filter(itemDiario =>
-      pendentes.some(item => item.idRegistro === itemDiario.idItemDiario)
-    );
+    const diarioItensPendentes =
+      diarioItens.filter(itemDiario => {
+    
+        const idItem =
+          itemDiario.idItem ||
+          itemDiario.idItemDiario;
+    
+        return pendentes.some(item =>
+          String(item.idRegistro) ===
+          String(idItem)
+        );
+      });
 
     const obraAtiva =
       localStorage.getItem("obraAtiva") || "OBR002";
@@ -1395,8 +1404,12 @@ async function sincronizarSIGO() {
       }
 
     for (const itemDiario of diarioItensPendentes) {
-      itemDiario.statusSync = "SINCRONIZADO";
-      itemDiario.dataSync = new Date().toISOString();
+
+      itemDiario.statusSync =
+        "SINCRONIZADO";
+    
+      itemDiario.dataSync =
+        new Date().toISOString();
     
       await atualizarRegistroSIGO(
         "TB_DIARIO_ITENS",
@@ -1404,11 +1417,14 @@ async function sincronizarSIGO() {
       );
     
       const idItem =
-        itemDiario.idItem || itemDiario.idItemDiario;
+        itemDiario.idItem ||
+        itemDiario.idItemDiario;
     
-     if (
+      if (
+        typeof idItemDiarioEdicao !== "undefined" &&
         idItemDiarioEdicao &&
-        String(idItemDiarioEdicao) === String(idItem)
+        String(idItemDiarioEdicao) ===
+        String(idItem)
       ) {
         encerrarModoEdicaoItemDiario_();
       }
