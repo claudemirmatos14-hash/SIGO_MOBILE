@@ -4,7 +4,7 @@
 // =====================================================
 
 const SIGO_CACHE_VERSION =
-  "sigo-mobile-v3";
+  "sigo-mobile-v4";
 
 const SIGO_BASE_URL =
   new URL("./", self.location.href);
@@ -20,14 +20,23 @@ const SIGO_HOME_URL =
 // =====================================================
 const SIGO_APP_SHELL = [
   "home-premium.html",
+  "manifest.json",
+
   "css/premium.css",
+
   "js/db.js",
   "js/sigo-ui.js",
   "js/entities.js",
   "js/data-crud.js",
   "js/ui.js",
-  "js/app.js"
-].map(caminho =>
+  "js/app.js",
+
+  "icons/icon-192.png",
+  "icons/icon-512.png",
+  "icons/icon-maskable-192.png",
+  "icons/icon-maskable-512.png"
+]
+  .map(caminho =>
   new URL(
     caminho,
     SIGO_BASE_URL
