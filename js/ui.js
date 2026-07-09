@@ -1708,37 +1708,264 @@ window.sincronizarAgoraSIGO_ = async function () {
 };
 
 // =====================================================
-// UX.13.5 — SMART SYNC AUTOMÁTICO
+// UX.13.5 — ESTADO REAL DE CONEXÃO
 // =====================================================
 
-window.inicializarSmartSyncAutomaticoSIGO_ = function () {
+window.SIGO_CONEXAO_REAL_ONLINE = null;
+window.SIGO_ESTADO_CONEXAO_ANTERIOR = null;
 
-  window.addEventListener("online", async function () {
-    console.log("Conexão restaurada. Iniciando Smart Sync...");
+// =====================================================
+// VERIFICA CONECTIVIDADE REAL
+// O arquivo online-check.txt não pode ser armazenado
+// no App Shell do Service Worker.
+// =====================================================
+window.verificarConexaoRealSIGO_ =
+  async function () {
+
+    if (navigator.onLine === false) {
+      return false;
+    }
+
+    const controlador =
+      new AbortController();
+
+    const timeout =
+      setTimeout(
+        () => controlador.abort(),
+        4000
+      );
+
+    try {
+
+      const urlTeste =
+        new URL(
+          "./online-check.txt",
+          window.location.href
+        );
+
+      urlTeste.searchParams.set(
+        "_sigo",
+        Date.now().toString()
+      );
+
+      const resposta =
+        await fetch(
+          urlTeste.href,
+          {
+            method: "GET",
+            cache: "no-store",
+            signal: controlador.signal
+          }
+        );
+
+      if (!resposta.ok) {
+        return false;
+      }
+
+      const conteudo =
+        await resposta.text();
+
+      return (
+        conteudo.trim() ===
+        "SIGO_ONLINE"
+      );
+
+    } catch (erro) {
+
+      return false;
+
+    } finally {
+
+      clearTimeout(timeout);
+    }
+  };
+
+// =====================================================
+// ATUALIZA O SELO VISUAL
+// =====================================================
+window.aplicarStatusConexaoSIGO_ =
+  function (estaOnline) {
+
+    const elemento =
+      document.getElementById(
+        "statusConexao"
+      );
+
+    if (!elemento) {
+      return;
+    }
+
+    // Mantém a classe principal para preservar
+    // tamanho, padding e formato do selo.
+    elemento.classList.add(
+      "status-online"
+    );
+
+    elemento.classList.toggle(
+      "status-offline",
+      !estaOnline
+    );
+
+    elemento.textContent =
+      estaOnline
+        ? "● Online"
+        : "● Offline";
+
+    elemento.title =
+      estaOnline
+        ? "Conectado à internet"
+        : "Operando sem conexão";
+  };
+
+// =====================================================
+// AVALIA MUDANÇAS DE ESTADO
+// =====================================================
+window.atualizarStatusConexaoSIGO_ =
+  async function (
+    processarTransicao = true
+  ) {
+
+    const estaOnline =
+      await verificarConexaoRealSIGO_();
+
+    const estadoAnterior =
+      window.SIGO_ESTADO_CONEXAO_ANTERIOR;
+
+    window.SIGO_CONEXAO_REAL_ONLINE =
+      estaOnline;
+
+    window.SIGO_ESTADO_CONEXAO_ANTERIOR =
+      estaOnline;
+
+    aplicarStatusConexaoSIGO_(
+      estaOnline
+    );
+
+    // Primeira avaliação do aplicativo:
+    // apenas atualiza o selo.
+    if (
+      estadoAnterior === null ||
+      processarTransicao === false
+    ) {
+      return estaOnline;
+    }
+
+    // Não executa novamente quando o estado
+    // permanece igual.
+    if (
+      estadoAnterior === estaOnline
+    ) {
+      return estaOnline;
+    }
+
+    // =================================================
+    // OFFLINE → ONLINE
+    // =================================================
+    if (estaOnline) {
+
+      console.log(
+        "Conexão restaurada. Iniciando Smart Sync..."
+      );
+
+      if (
+        window.SIGOOfflineEngine &&
+        typeof SIGOOfflineEngine
+          .processarFila === "function" &&
+        typeof sincronizarAgoraSIGO_ ===
+          "function"
+      ) {
+        await sincronizarAgoraSIGO_();
+      }
+
+      return true;
+    }
+
+    // =================================================
+    // ONLINE → OFFLINE
+    // =================================================
+    console.log(
+      "Conexão perdida. SIGO operando em modo offline."
+    );
 
     if (
-      window.SIGOOfflineEngine &&
-      typeof SIGOOfflineEngine.processarFila === "function"
+      typeof criarNotificacaoSIGO_ ===
+      "function"
     ) {
-      await sincronizarAgoraSIGO_();
-    }
-  });
-
-  window.addEventListener("offline", function () {
-    console.log("Conexão perdida. SIGO operando em modo offline.");
-
-    if (typeof criarNotificacaoSIGO_ === "function") {
-      criarNotificacaoSIGO_({
+      await criarNotificacaoSIGO_({
         tipo: "ALERTA",
         titulo: "Modo offline",
-        mensagem: "A conexão foi perdida. Os dados serão sincronizados depois.",
+        mensagem:
+          "A conexão foi perdida. " +
+          "Os dados serão sincronizados depois.",
         icone: "📴"
       });
     }
-  });
 
-  console.log("Smart Sync Automático inicializado.");
-};
+    return false;
+  };
+
+// =====================================================
+// INICIALIZA MONITORAMENTO
+// =====================================================
+window.inicializarSmartSyncAutomaticoSIGO_ =
+  async function () {
+
+    if (
+      window.SIGO_SMART_SYNC_INICIALIZADO
+    ) {
+      return;
+    }
+
+    window.SIGO_SMART_SYNC_INICIALIZADO =
+      true;
+
+    // Os eventos continuam úteis para mudanças
+    // reais informadas pelo navegador.
+    window.addEventListener(
+      "online",
+      () => {
+        atualizarStatusConexaoSIGO_();
+      }
+    );
+
+    window.addEventListener(
+      "offline",
+      () => {
+        atualizarStatusConexaoSIGO_();
+      }
+    );
+
+    // Ao retornar à aba, verifica novamente.
+    document.addEventListener(
+      "visibilitychange",
+      () => {
+        if (!document.hidden) {
+          atualizarStatusConexaoSIGO_();
+        }
+      }
+    );
+
+    // Primeira avaliação sem notificação.
+    await atualizarStatusConexaoSIGO_(
+      false
+    );
+
+    // navigator.onLine pode permanecer true
+    // mesmo sem acesso real. Por isso existe
+    // uma verificação periódica.
+    window.SIGO_MONITOR_CONEXAO_TIMER =
+      setInterval(
+        () => {
+          atualizarStatusConexaoSIGO_();
+        },
+        15000
+      );
+
+    console.log(
+      "Smart Sync Automático inicializado."
+    );
+  };
+
  
 // =====================================================
 // UX.13.6 — SMART RETRY ENGINE
@@ -1764,7 +1991,7 @@ window.inicializarSmartRetrySIGO_ = function () {
 
   window.SIGO_RETRY_TIMER = setInterval(async () => {
     if (
-      navigator.onLine &&
+      window.SIGO_CONEXAO_REAL_ONLINE === true &&
       window.SIGOOfflineEngine &&
       typeof SIGOOfflineEngine.processarRetries === "function"
     ) {
