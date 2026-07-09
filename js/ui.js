@@ -1663,49 +1663,87 @@ window.SIGOOfflineEngine = {
 };
 
 // =====================================================
-// UX.13.4 — AÇÃO SINCRONIZAR AGORA
+// SMART SYNC — DELEGA PARA O SINCRONIZADOR REAL
 // =====================================================
 
-window.sincronizarAgoraSIGO_ = async function () {
-  try {
-    SIGOUI.feedback.info(
-      "Sincronização",
-      "Processando fila de sincronização..."
-    );
+window.SIGO_SYNC_EM_ANDAMENTO = false;
 
-    const resultado =
-      await SIGOOfflineEngine.processarFila();
+window.sincronizarAgoraSIGO_ =
+  async function () {
 
-    if (resultado.erros > 0) {
-      SIGOUI.feedback.error(
-        "Sincronização",
-        `${resultado.erros} item(ns) não foram sincronizados.`
+    if (
+      window.SIGO_SYNC_EM_ANDAMENTO
+    ) {
+      console.log(
+        "Smart Sync ignorado: " +
+        "já existe uma sincronização em andamento."
       );
-      return resultado;
+
+      return {
+        ok: false,
+        motivo: "SYNC_EM_ANDAMENTO"
+      };
     }
 
-    SIGOUI.feedback.success(
-      "Sincronização concluída",
-      `${resultado.sincronizados} item(ns) sincronizado(s).`
-    );
+    if (
+      typeof window.sincronizarSIGO !==
+      "function"
+    ) {
+      console.error(
+        "A função sincronizarSIGO() " +
+        "não foi encontrada."
+      );
 
-    return resultado;
+      return {
+        ok: false,
+        motivo: "SINCRONIZADOR_NAO_ENCONTRADO"
+      };
+    }
 
-  } catch (erro) {
-    console.error("Erro ao sincronizar agora:", erro);
+    window.SIGO_SYNC_EM_ANDAMENTO =
+      true;
 
-    SIGOUI.feedback.error(
-      "Erro",
-      "Não foi possível sincronizar agora."
-    );
+    try {
 
-    return {
-      total: 0,
-      sincronizados: 0,
-      erros: 1
-    };
-  }
-};
+      console.log(
+        "Smart Sync: delegando para sincronizarSIGO()."
+      );
+
+      /*
+       * sincronizarSIGO() já executa:
+       * - leitura da fila
+       * - montagem do pacote
+       * - envio para a API
+       * - atualização das tabelas
+       * - atualização da fila
+       * - feedback
+       * - SYNC_CONCLUIDO ou SYNC_ERRO
+       *
+       * Portanto, não duplicamos feedback
+       * nem notificações neste wrapper.
+       */
+      return await window.sincronizarSIGO();
+
+    } catch (erro) {
+
+      console.error(
+        "Erro no Smart Sync:",
+        erro
+      );
+
+      return {
+        ok: false,
+        erro:
+          erro?.message ||
+          "Falha no Smart Sync."
+      };
+
+    } finally {
+
+      window.SIGO_SYNC_EM_ANDAMENTO =
+        false;
+    }
+  };
 
 // =====================================================
 // UX.13.5 — ESTADO REAL DE CONEXÃO
@@ -1867,14 +1905,11 @@ window.atualizarStatusConexaoSIGO_ =
         "Conexão restaurada. Iniciando Smart Sync..."
       );
 
-      if (
-        window.SIGOOfflineEngine &&
-        typeof SIGOOfflineEngine
-          .processarFila === "function" &&
-        typeof sincronizarAgoraSIGO_ ===
-          "function"
+     if (
+        typeof window.sincronizarAgoraSIGO_ ===
+        "function"
       ) {
-        await sincronizarAgoraSIGO_();
+        await window.sincronizarAgoraSIGO_();
       }
 
       return true;
