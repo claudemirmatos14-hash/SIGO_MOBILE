@@ -1,5 +1,5 @@
 const SIGO_DB_NAME = "SIGO_OFFLINE_DB";
-const SIGO_DB_VERSION = 13;
+const SIGO_DB_VERSION = 14;
 
 let SIGO_DB = null;
 
@@ -280,10 +280,75 @@ function adicionarNaFilaSyncSIGO(registro) {
 
       const request = store.put(itemFila);
 
-      request.onsuccess = () => {
-        resolve(itemFila);
-      };
+     request.onsuccess = async () => {
 
+    /*
+     * O registro já foi gravado no IndexedDB.
+     * Agora precisamos invalidar o cache para
+     * que as próximas consultas enxerguem
+     * imediatamente a nova pendência.
+     */
+  
+    try {
+  
+      // ==========================================
+      // 1. INVALIDAR CACHE DA FILA
+      // ==========================================
+  
+      if (window.SIGODataCache) {
+  
+        SIGODataCache.invalidate(
+          "TB_SYNC_QUEUE"
+        );
+  
+        if (
+          itemFila.idObra &&
+          typeof invalidarCacheObraSIGO_ ===
+            "function"
+        ) {
+          invalidarCacheObraSIGO_(
+            "TB_SYNC_QUEUE",
+            itemFila.idObra
+          );
+        }
+      }
+  
+      // ==========================================
+      // 2. NOTIFICAR DATABINDING
+      // ==========================================
+  
+      if (
+        window.SIGODataBinding &&
+        typeof SIGODataBinding.notify ===
+          "function"
+      ) {
+        await SIGODataBinding.notify(
+          "TB_SYNC_QUEUE",
+          {
+            acao: "UPDATE",
+            store: "TB_SYNC_QUEUE",
+            registro: itemFila
+          }
+        );
+      }
+  
+    } catch (erroAtualizacaoFila) {
+  
+      /*
+       * A pendência já está segura no IndexedDB.
+       * Uma falha de atualização visual não deve
+       * transformar a gravação em erro.
+       */
+  
+      console.warn(
+        "Pendência criada, mas não foi possível " +
+        "atualizar o cache da fila:",
+        erroAtualizacaoFila
+      );
+    }
+  
+    resolve(itemFila);
+  };
       request.onerror = () => {
         reject("Erro ao adicionar item na fila de sincronização.");
       };
