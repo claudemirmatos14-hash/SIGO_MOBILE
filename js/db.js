@@ -1,5 +1,5 @@
 const SIGO_DB_NAME = "SIGO_OFFLINE_DB";
-const SIGO_DB_VERSION = 12;
+const SIGO_DB_VERSION = 13;
 
 let SIGO_DB = null;
 
@@ -178,23 +178,17 @@ function salvarRegistroSIGO(storeName, registro) {
           });
         }
 
-       if (
-          window.SIGOOfflineEngine &&
-          storeSincronizavelSIGO_(storeName)
-        ) {
-            const chave =
-              obterChaveRegistroSIGO_(storeName, registro);
-          
-            if (chave) {
-              await SIGOOfflineEngine.registrarAlteracao({
-                store: storeName,
-                acao: "UPDATE",
-                chave: chave,
-                idObra: registro.idObra || obterObraAtivaMobile_(),
-                payload: registro
-              });
-            }
-          }
+      // ==========================================
+      // FILA DE SINCRONIZAÇÃO
+      // ==========================================
+      /*
+       * A fila oficial é criada explicitamente por
+       * adicionarNaFilaSyncSIGO().
+       *
+       * Não registrar alterações automaticamente
+       * dentro de salvarRegistroSIGO(), pois isso
+       * criaria dois itens para a mesma operação.
+       */
 
         resolve(registro);
       };
