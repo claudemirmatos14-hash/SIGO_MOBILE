@@ -1432,21 +1432,110 @@ async function sincronizarSIGO() {
       "SIGO_ULTIMA_SYNC",
       new Date().toLocaleString("pt-BR")
     );
-    await atualizarPainelSaudeSync_();
+   await atualizarPainelSaudeSync_();
 
+    // =====================================================
+    // RESUMO DA SINCRONIZAÇÃO
+    // =====================================================
+    const resumoSync = {
+      total: pendentes.length,
+      diarios: diariosPendentes.length,
+      itensDiario: diarioItensPendentes.length,
+      lotesMedicao: lotesMedicaoPendentes.length,
+      medicoes: medicoesPendentes.length,
+      ocorrencias: ocorrenciasPendentes.length,
+      climas: climasPendentes.length,
+      evidencias: evidenciasPendentes.length
+    };
+    
+    const detalhesSync = [
+      resumoSync.diarios
+        ? `${resumoSync.diarios} diário(s)`
+        : "",
+    
+      resumoSync.itensDiario
+        ? `${resumoSync.itensDiario} item(ns) do diário`
+        : "",
+    
+      resumoSync.lotesMedicao
+        ? `${resumoSync.lotesMedicao} lote(s) de medição`
+        : "",
+    
+      resumoSync.medicoes
+        ? `${resumoSync.medicoes} medição(ões)`
+        : "",
+    
+      resumoSync.ocorrencias
+        ? `${resumoSync.ocorrencias} ocorrência(s)`
+        : "",
+    
+      resumoSync.climas
+        ? `${resumoSync.climas} registro(s) climático(s)`
+        : "",
+    
+      resumoSync.evidencias
+        ? `${resumoSync.evidencias} evidência(s)`
+        : ""
+    ]
+      .filter(Boolean)
+      .join(", ");
+    
+    // =====================================================
+    // NOTIFICAÇÃO — SINCRONIZAÇÃO CONCLUÍDA
+    // =====================================================
+    if (typeof registrarEventoSIGO_ === "function") {
+      await registrarEventoSIGO_({
+        evento: "SYNC_CONCLUIDO",
+    
+        dados: {
+          ...resumoSync,
+    
+          mensagem:
+            `${resumoSync.total} registro(s) ` +
+            `sincronizado(s) com sucesso` +
+            (detalhesSync
+              ? `: ${detalhesSync}.`
+              : ".")
+        }
+      });
+    }
+    
     SIGOUI.feedback.success(
-        "Sincronização concluída",
-        "Dados enviados ao SIGO com sucesso."
+      "Sincronização concluída",
+      `${resumoSync.total} registro(s) enviado(s) ao SIGO.`
     );
 
-  } catch (erro) {
+ } catch (erro) {
 
-    console.error("Erro ao sincronizar com API SIGO:", erro);
-
+    console.error(
+      "Erro ao sincronizar com API SIGO:",
+      erro
+    );
+  
+    const mensagemErro =
+      erro?.message ||
+      "Não foi possível sincronizar com o SIGO.";
+  
+    // =====================================================
+    // NOTIFICAÇÃO — ERRO DE SINCRONIZAÇÃO
+    // =====================================================
+    if (typeof registrarEventoSIGO_ === "function") {
+      await registrarEventoSIGO_({
+        evento: "SYNC_ERRO",
+  
+        dados: {
+          mensagem: mensagemErro,
+          message: mensagemErro,
+          ocorridoEm:
+            new Date().toISOString()
+        }
+      });
+    }
+  
     SIGOUI.feedback.error(
-    "Erro de sincronização",
-    "Não foi possível sincronizar com o SIGO."
-);
+      "Erro de sincronização",
+      mensagemErro
+    );
   }
 }
 
