@@ -5576,50 +5576,199 @@ async function validarAtividadeItemDiarioOffline_(item) {
   return true;
 }
 
-async function listarItensDiarioOffline_() {
-  const container =
-    document.getElementById("listaItensDiarioOffline");
+async function listarItensDiarioOffline_(
+  idDiarioInformado = ""
+) {
 
-  if (!container) return;
+  const container =
+    document.getElementById(
+      "listaItensDiarioOffline"
+    );
+
+  if (!container) {
+    return [];
+  }
 
   try {
+
+    // ==========================================
+    // 1. IDENTIFICAR A OBRA ATIVA
+    // ==========================================
+
     const obraAtiva =
-      obterObraAtivaMobile_();
+      String(
+        obterObraAtivaMobile_() || ""
+      ).trim();
 
-    const itens =
-      await listarRegistrosSIGO("TB_DIARIO_ITENS");
+    if (!obraAtiva) {
 
-    const itensObra =
-      itens
-        .filter(item =>
-          String(item.idObra) === String(obraAtiva)
-        )
-        .sort((a, b) =>
-          new Date(b.criadoEm) - new Date(a.criadoEm)
-        );
-
-    if (!itensObra.length) {
       container.innerHTML = `
         <div class="card-vazio">
-          Nenhum item registrado.
+          Nenhuma obra ativa selecionada.
         </div>
       `;
-      return;
+
+      return [];
     }
 
+    // ==========================================
+    // 2. IDENTIFICAR O DIÁRIO ATIVO
+    // ==========================================
+
+    const diarioAtivoContexto =
+      typeof obterDiarioAtivoSIGO_ ===
+        "function"
+        ? obterDiarioAtivoSIGO_(
+            obraAtiva
+          )
+        : "";
+
+    const idDiarioAtivo =
+      String(
+        idDiarioInformado ||
+        diarioAtivoContexto ||
+        ""
+      ).trim();
+
+    if (!idDiarioAtivo) {
+
+      container.innerHTML = `
+        <div class="card-vazio">
+          <strong>Nenhum Diário ativo.</strong>
+          <br>
+          Crie ou abra um Diário antes de
+          registrar atividades.
+        </div>
+      `;
+
+      return [];
+    }
+
+    // ==========================================
+    // 3. CARREGAR DIÁRIOS E ITENS
+    // ==========================================
+
+    const [
+      diarios,
+      itens
+    ] = await Promise.all([
+      listarRegistrosSIGO(
+        "TB_DIARIOS"
+      ),
+
+      listarRegistrosSIGO(
+        "TB_DIARIO_ITENS"
+      )
+    ]);
+
+    // ==========================================
+    // 4. VALIDAR O DIÁRIO NO BANCO LOCAL
+    // ==========================================
+
+    const diarioAtivo =
+      diarios.find(diario =>
+        String(diario.idDiario) ===
+          String(idDiarioAtivo) &&
+
+        String(diario.idObra) ===
+          String(obraAtiva)
+      ) || null;
+
+    if (!diarioAtivo) {
+
+      if (
+        typeof limparDiarioAtivoSIGO_ ===
+          "function"
+      ) {
+        limparDiarioAtivoSIGO_(
+          obraAtiva
+        );
+      }
+
+      container.innerHTML = `
+        <div class="card-vazio">
+          O Diário ativo não foi encontrado
+          nesta obra.
+        </div>
+      `;
+
+      return [];
+    }
+
+    // ==========================================
+    // 5. FILTRAR POR OBRA E DIÁRIO
+    // ==========================================
+
+    const itensDiario =
+      itens
+        .filter(item =>
+          String(item.idObra) ===
+            String(obraAtiva) &&
+
+          String(item.idDiario) ===
+            String(idDiarioAtivo)
+        )
+        .sort((a, b) =>
+          new Date(
+            b.criadoEm || 0
+          ) -
+          new Date(
+            a.criadoEm || 0
+          )
+        );
+
+    container.dataset.idObra =
+      obraAtiva;
+
+    container.dataset.idDiario =
+      idDiarioAtivo;
+
+    // ==========================================
+    // 6. EXIBIR ESTADO VAZIO
+    // ==========================================
+
+    if (!itensDiario.length) {
+
+      container.innerHTML = `
+        <div class="card-vazio">
+          Nenhuma atividade registrada
+          neste Diário.
+        </div>
+      `;
+
+      return [];
+    }
+
+    // ==========================================
+    // 7. RENDERIZAR SOMENTE OS ITENS DO DIÁRIO
+    // ==========================================
+
     container.innerHTML =
-      itensObra
-        .map(item => criarCardItemDiarioOffline_(item))
+      itensDiario
+        .map(item =>
+          criarCardItemDiarioOffline_(
+            item
+          )
+        )
         .join("");
 
+    return itensDiario;
+
   } catch (erro) {
-    console.error("Erro ao listar itens:", erro);
+
+    console.error(
+      "Erro ao listar itens do Diário:",
+      erro
+    );
 
     container.innerHTML = `
       <div class="card-vazio">
-        Erro ao carregar itens do diário.
+        Erro ao carregar as atividades
+        deste Diário.
       </div>
     `;
+
+    return [];
   }
 }
 
