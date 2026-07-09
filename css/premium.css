@@ -2631,3 +2631,13 @@ BARRA DE PROGRESSO
 .btn-limpar-notificacoes:disabled span {
   display: none;
 }
+
+/* =====================================================
+   SIGO MOBILE — STATUS OFFLINE
+===================================================== */
+
+.status-online.status-offline {
+  background: rgba(239, 68, 68, 0.16);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.28);
+}
