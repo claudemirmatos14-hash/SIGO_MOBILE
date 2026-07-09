@@ -211,10 +211,19 @@ function createHeader() {
         
           <span
             id="statusConexao"
-            class="status-online">
-        
-            ● Online
-        
+            class="status-online${
+              window.SIGO_CONEXAO_REAL_ONLINE === false
+                ? " status-offline"
+                : ""
+            }"
+          >
+            ${
+              window.SIGO_CONEXAO_REAL_ONLINE === true
+                ? "● Online"
+                : window.SIGO_CONEXAO_REAL_ONLINE === false
+                  ? "● Offline"
+                  : "● Verificando"
+            }
           </span>
         
         </div>
