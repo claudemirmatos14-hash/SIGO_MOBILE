@@ -11107,3 +11107,81 @@ function formatarDataHoraMedicao_(valor) {
     return valor;
   }
 }
+
+// =====================================================
+// SIGO MOBILE — REGISTRO DO SERVICE WORKER
+// =====================================================
+async function registrarServiceWorkerSIGO_() {
+  if (!("serviceWorker" in navigator)) {
+    console.warn(
+      "[SIGO PWA] Service Worker não suportado."
+    );
+
+    return {
+      ok: false,
+      motivo: "NAO_SUPORTADO"
+    };
+  }
+
+  try {
+    const urlServiceWorker =
+      new URL(
+        "./service-worker.js",
+        window.location.href
+      ).href;
+
+    const escopo =
+      new URL(
+        "./",
+        window.location.href
+      ).href;
+
+    const registro =
+      await navigator.serviceWorker.register(
+        urlServiceWorker,
+        {
+          scope: escopo,
+          updateViaCache: "none"
+        }
+      );
+
+    await navigator.serviceWorker.ready;
+
+    console.log(
+      "[SIGO PWA] Service Worker registrado:",
+      {
+        scope: registro.scope,
+        ativo:
+          registro.active?.scriptURL ||
+          null,
+        estado:
+          registro.active?.state ||
+          null
+      }
+    );
+
+    return {
+      ok: true,
+      scope: registro.scope,
+      registro: registro
+    };
+
+  } catch (erro) {
+    console.error(
+      "[SIGO PWA] Erro ao registrar Service Worker:",
+      erro
+    );
+
+    return {
+      ok: false,
+      erro:
+        erro?.message ||
+        "Falha no registro do Service Worker."
+    };
+  }
+}
+
+window.addEventListener(
+  "load",
+  registrarServiceWorkerSIGO_
+);
