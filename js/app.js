@@ -6996,14 +6996,36 @@ async function editarItemDiarioOffline_(idItem) {
 
 function atualizarModoEdicaoItemDiario_() {
 
+  // Localiza exclusivamente o botão responsável
+  // por salvar ou atualizar um ITEM do Diário.
   const botao =
-    document.querySelector(".is-success");
+    [...document.querySelectorAll(
+      "button"
+    )].find(elemento => {
+
+      const acao =
+        String(
+          elemento.getAttribute(
+            "onclick"
+          ) || ""
+        )
+          .replace(/\s+/g, "");
+
+      return (
+        acao ===
+          "salvarItemDiarioPremium()" ||
+
+        acao ===
+          "atualizarItemDiarioOffline_()"
+      );
+    });
 
   if (!botao) return;
 
   if (idItemDiarioEdicao) {
 
-    botao.innerHTML = "💾 Atualizar";
+    botao.innerHTML =
+      "💾 Atualizar Item";
 
     botao.setAttribute(
       "onclick",
@@ -7012,15 +7034,14 @@ function atualizarModoEdicaoItemDiario_() {
 
   } else {
 
-    botao.innerHTML = "💾 Salvar";
+    botao.innerHTML =
+      "➕ Adicionar Item";
 
     botao.setAttribute(
       "onclick",
       "salvarItemDiarioPremium()"
     );
-
   }
-
 }
 
 async function atualizarItemDiarioOffline_() {
