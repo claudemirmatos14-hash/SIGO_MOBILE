@@ -1435,69 +1435,221 @@ function montarDetalhesDiario_(diario) {
   `;
 }
 
-async function editarDiarioOffline_(idDiario) {
+async function editarDiarioOffline_(
+  idDiario
+) {
 
   try {
 
+    // ==========================================
+    // 1. VALIDAR OBRA E DIÁRIO
+    // ==========================================
+
+    const idObraAtiva =
+      String(
+        obterObraAtivaMobile_() || ""
+      ).trim();
+
+    const idDiarioSelecionado =
+      String(
+        idDiario || ""
+      ).trim();
+
+    if (!idObraAtiva) {
+
+      SIGOUI.feedback.warning(
+        "Obra não selecionada",
+        "Selecione uma obra antes de abrir o Diário."
+      );
+
+      return null;
+    }
+
+    if (!idDiarioSelecionado) {
+      throw new Error(
+        "ID do Diário não informado."
+      );
+    }
+
+    // ==========================================
+    // 2. LOCALIZAR O DIÁRIO NA OBRA ATIVA
+    // ==========================================
+
     const diarios =
-      await listarRegistrosSIGO("TB_DIARIOS");
+      await listarRegistrosSIGO(
+        "TB_DIARIOS"
+      );
 
     const diario =
       diarios.find(item =>
-        String(item.idDiario) === String(idDiario)
-      );
+        String(item.idDiario) ===
+          idDiarioSelecionado &&
+
+        String(item.idObra) ===
+          idObraAtiva
+      ) || null;
 
     if (!diario) {
 
       SIGOUI.feedback.warning(
         "Diário não encontrado",
-        "O registro não foi localizado."
+        "O registro não foi localizado na obra ativa."
       );
 
-      return;
+      return null;
     }
 
-    idDiarioEdicao = idDiario;
+    // ==========================================
+    // 3. LIMPAR DADOS DO ITEM ANTERIOR
+    // ==========================================
 
-    document.getElementById("diarioData").value =
-      diario.data || "";
+    if (
+      typeof limparFormularioItemDiario ===
+        "function"
+    ) {
+      limparFormularioItemDiario();
+    }
 
-    document.getElementById("diarioResponsavel").value =
-      diario.responsavel || "";
+    // ==========================================
+    // 4. DEFINIR MODO DE EDIÇÃO
+    // ==========================================
 
-    document.getElementById("diarioEquipe").value =
-      diario.equipe || "";
+    idDiarioEdicao =
+      diario.idDiario;
 
-    document.getElementById("diarioHoras").value =
-      diario.horasDia || diario.horas || "";
+    if (
+      typeof definirDiarioAtivoSIGO_ ===
+        "function"
+    ) {
+      definirDiarioAtivoSIGO_(
+        diario.idDiario,
+        diario.idObra
+      );
+    }
 
-    document.getElementById("diarioClima").value =
-      diario.clima || "";
+    // ==========================================
+    // 5. PREENCHER O CABEÇALHO
+    // ==========================================
 
-    document.getElementById("diarioOcorrencias").value =
-      diario.ocorrencias || "";
+    const preencherCampo =
+      function (
+        idElemento,
+        valor
+      ) {
 
-    document.getElementById("diarioObservacoes").value =
-      diario.observacoes || "";
+        const elemento =
+          document.getElementById(
+            idElemento
+          );
 
-    atualizarModoEdicaoDiario_();
+        if (elemento) {
+          elemento.value =
+            valor ?? "";
+        }
+      };
+
+    preencherCampo(
+      "diarioData",
+      diario.data
+    );
+
+    preencherCampo(
+      "diarioResponsavel",
+      diario.responsavel
+    );
+
+    preencherCampo(
+      "diarioEquipe",
+      diario.equipe
+    );
+
+    preencherCampo(
+      "diarioHoras",
+      diario.horasDia ||
+      diario.horas ||
+      ""
+    );
+
+    preencherCampo(
+      "diarioClima",
+      diario.clima
+    );
+
+    preencherCampo(
+      "diarioOcorrencias",
+      diario.ocorrencias
+    );
+
+    preencherCampo(
+      "diarioObservacoes",
+      diario.observacoes
+    );
+
+    if (
+      typeof atualizarModoEdicaoDiario_ ===
+        "function"
+    ) {
+      atualizarModoEdicaoDiario_();
+    }
+
+    // ==========================================
+    // 6. CARREGAR ITENS DO DIÁRIO SELECIONADO
+    // ==========================================
+
+    if (
+      document.getElementById(
+        "listaItensDiarioOffline"
+      ) &&
+      typeof listarItensDiarioOffline_ ===
+        "function"
+    ) {
+      await listarItensDiarioOffline_(
+        diario.idDiario
+      );
+    }
+
+    // ==========================================
+    // 7. ATUALIZAR CONTEXTO E DATA DO ITEM
+    // ==========================================
+
+    if (
+      typeof atualizarContextoDiarioAtivoUX19_ ===
+        "function"
+    ) {
+      await atualizarContextoDiarioAtivoUX19_();
+    }
+
+    // ==========================================
+    // 8. RETORNAR AO TOPO DO DIÁRIO
+    // ==========================================
 
     window.scrollTo({
       top: 0,
       behavior: "smooth"
     });
 
-  } catch (erro) {
-
-    console.error(erro);
-
-    SIGOUI.feedback.error(
-      "Erro",
-      "Não foi possível carregar o diário."
+    SIGOUI.feedback.info(
+      "Diário aberto",
+      "Cabeçalho e atividades carregados para edição."
     );
 
-  }
+    return diario;
 
+  } catch (erro) {
+
+    console.error(
+      "Erro ao abrir Diário:",
+      erro
+    );
+
+    SIGOUI.feedback.error(
+      "Erro ao abrir Diário",
+      erro.message ||
+      "Não foi possível carregar o Diário."
+    );
+
+    return null;
+  }
 }
 
 function atualizarModoEdicaoDiario_() {
