@@ -7270,120 +7270,404 @@ async function atualizarItemDiarioOffline_() {
 
   try {
 
+    // ==========================================
+    // 1. VALIDAR O MODO DE EDIÇÃO
+    // ==========================================
+
     if (!idItemDiarioEdicao) {
-      throw new Error("Nenhum item em edição.");
+      throw new Error(
+        "Nenhum item está em edição."
+      );
     }
+
+    // ==========================================
+    // 2. IDENTIFICAR OBRA E DIÁRIO ATIVOS
+    // ==========================================
+
+    const idObraAtiva =
+      String(
+        typeof obterObraAtivaMobile_ ===
+          "function"
+          ? obterObraAtivaMobile_()
+          : ""
+      ).trim();
+
+    if (!idObraAtiva) {
+      throw new Error(
+        "Nenhuma obra ativa foi identificada."
+      );
+    }
+
+    const idDiarioAtivo =
+      String(
+        typeof obterDiarioAtivoSIGO_ ===
+          "function"
+          ? obterDiarioAtivoSIGO_(
+              idObraAtiva
+            )
+          : ""
+      ).trim();
+
+    if (!idDiarioAtivo) {
+      throw new Error(
+        "Nenhum Diário ativo foi identificado."
+      );
+    }
+
+    // ==========================================
+    // 3. LOCALIZAR O ITEM EXISTENTE
+    // ==========================================
 
     const itens =
-      await listarRegistrosSIGO("TB_DIARIO_ITENS");
-
-    const itemAtual =
-      itens.find(item =>
-        String(item.idItem || item.idItemDiario) ===
-        String(idItemDiarioEdicao)
+      await listarRegistrosSIGO(
+        "TB_DIARIO_ITENS"
       );
 
+    const itemAtual =
+      itens.find(registro => {
+
+        const idRegistro =
+          String(
+            registro.idItemDiario ||
+            registro.idItem ||
+            ""
+          );
+
+        return (
+          idRegistro ===
+            String(
+              idItemDiarioEdicao
+            ) &&
+
+          String(
+            registro.idObra || ""
+          ) ===
+            idObraAtiva &&
+
+          String(
+            registro.idDiario || ""
+          ) ===
+            idDiarioAtivo
+        );
+      }) || null;
+
     if (!itemAtual) {
-      throw new Error("Registro não encontrado.");
+      throw new Error(
+        "O item em edição não pertence ao Diário ativo."
+      );
     }
+
+    // ==========================================
+    // 4. FUNÇÃO SEGURA PARA LER OS CAMPOS
+    // ==========================================
+
+    const obterValorCampo =
+      function (idElemento) {
+
+        const elemento =
+          document.getElementById(
+            idElemento
+          );
+
+        if (!elemento) {
+          throw new Error(
+            "Campo não encontrado na tela: " +
+            idElemento
+          );
+        }
+
+        return elemento.value;
+      };
+
+    // ==========================================
+    // 5. LER DADOS COM NOMES CANÔNICOS
+    // ==========================================
+
+    const dadosFormulario = {
+
+      idAtividade:
+        String(
+          obterValorCampo(
+            "itemDiarioAtividade"
+          ) || ""
+        ).trim(),
+
+      eap:
+        String(
+          obterValorCampo(
+            "itemDiarioEap"
+          ) || ""
+        ).trim(),
+
+      servico:
+        String(
+          obterValorCampo(
+            "itemDiarioServico"
+          ) || ""
+        ).trim(),
+
+      equipe:
+        String(
+          obterValorCampo(
+            "itemDiarioEquipe"
+          ) || ""
+        ).trim(),
+
+      equipamento:
+        String(
+          obterValorCampo(
+            "itemDiarioEquipamento"
+          ) || ""
+        ).trim(),
+
+      qtdeExecutada:
+        Number(
+          obterValorCampo(
+            "itemDiarioQtde"
+          ) || 0
+        ),
+
+      unidade:
+        String(
+          obterValorCampo(
+            "itemDiarioUnidade"
+          ) || ""
+        ).trim(),
+
+      horasTrabalhadas:
+        Number(
+          obterValorCampo(
+            "itemDiarioHoras"
+          ) || 0
+        ),
+
+      observacao:
+        String(
+          obterValorCampo(
+            "itemDiarioObservacao"
+          ) || ""
+        ).trim()
+    };
+
+    // ==========================================
+    // 6. REUTILIZAR A VALIDAÇÃO DA ENTIDADE
+    // ==========================================
+
+    if (
+      typeof SIGOEntities?.diarioItem
+        ?.validate === "function"
+    ) {
+      await SIGOEntities.diarioItem.validate({
+        ...dadosFormulario
+      });
+    }
+
+    // ==========================================
+    // 7. REVALIDAR O DIÁRIO E HERDAR A DATA
+    // ==========================================
+
+    let dadosVinculo = {
+      idDiario:
+        idDiarioAtivo,
+
+      data:
+        itemAtual.data || ""
+    };
+
+    if (
+      typeof SIGOEntities?.diarioItem
+        ?.beforeSave === "function"
+    ) {
+      const resultadoVinculo =
+        await SIGOEntities
+          .diarioItem
+          .beforeSave({
+            ...dadosFormulario
+          });
+
+      dadosVinculo = {
+        ...dadosVinculo,
+        ...(resultadoVinculo || {})
+      };
+    }
+
+    if (
+      String(
+        dadosVinculo.idDiario || ""
+      ) !== idDiarioAtivo
+    ) {
+      throw new Error(
+        "O vínculo retornado não corresponde ao Diário ativo."
+      );
+    }
+
+    // ==========================================
+    // 8. PRESERVAR O MESMO REGISTRO
+    // ==========================================
 
     const itemAtualizado = {
 
       ...itemAtual,
+      ...dadosFormulario,
+
+      idItemDiario:
+        itemAtual.idItemDiario ||
+        itemAtual.idItem,
+
+      idObra:
+        idObraAtiva,
+
+      idDiario:
+        idDiarioAtivo,
 
       data:
-        document.getElementById("itemDiarioData").value,
+        dadosVinculo.data,
 
-      atividade:
-        document.getElementById("itemDiarioAtividade").value,
-
-      eap:
-        document.getElementById("itemDiarioEap").value,
-
-      servico:
-        document.getElementById("itemDiarioServico").value,
-
-      equipe:
-        document.getElementById("itemDiarioEquipe").value,
-
-      equipamento:
-        document.getElementById("itemDiarioEquipamento").value,
-
-      qtdeExecutada:
-        Number(
-          document.getElementById("itemDiarioQtde").value || 0
-        ),
-
-      un:
-        document.getElementById("itemDiarioUnidade").value,
-
-      horasTrabalhadas:
-        Number(
-          document.getElementById("itemDiarioHoras").value || 0
-        ),
-
-      observacao:
-        document.getElementById("itemDiarioObservacao").value,
-
-      atualizadoEm:
-        new Date().toISOString(),
+      statusItem:
+        itemAtual.statusItem ||
+        "ABERTO",
 
       statusSync:
-        "PENDENTE"
+        "PENDENTE",
 
+      atualizadoEm:
+        new Date().toISOString()
     };
 
-    await validarAtividadeItemDiarioOffline_(itemAtualizado);
+    // ==========================================
+    // 9. MANTER VALIDAÇÃO OPERACIONAL LEGADA
+    // ==========================================
+
+    if (
+      typeof validarAtividadeItemDiarioOffline_ ===
+        "function"
+    ) {
+      await validarAtividadeItemDiarioOffline_({
+        ...itemAtualizado,
+
+        // Compatibilidade somente durante
+        // a validação da função antiga.
+        atividade:
+          itemAtualizado.idAtividade,
+
+        un:
+          itemAtualizado.unidade
+      });
+    }
+
+    // ==========================================
+    // 10. ATUALIZAR O INDEXEDDB
+    // ==========================================
 
     await salvarRegistroSIGO(
       "TB_DIARIO_ITENS",
       itemAtualizado
     );
-    
-    // =====================================================
-    // SINCRONIZAÇÃO — UPDATE DO ITEM DO DIÁRIO
-    // =====================================================
-    await adicionarNaFilaSyncSIGO({
-      tipo: "UPDATE",
-      storeOrigem: "TB_DIARIO_ITENS",
-    
-      idRegistro:
-        itemAtualizado.idItem ||
-        itemAtualizado.idItemDiario,
-    
-      idObra: itemAtualizado.idObra
-    });
-   
-   encerrarModoEdicaoItemDiario_();
 
-    await listarItensDiarioOffline_();
-    
-    // =====================================================
-    // NOTIFICAÇÃO — ITEM DO DIÁRIO ATUALIZADO
-    // =====================================================
-    if (typeof registrarEventoSIGO_ === "function") {
+    // ==========================================
+    // 11. REGISTRAR UPDATE NA FILA OFICIAL
+    // ==========================================
+
+    await adicionarNaFilaSyncSIGO({
+      tipo:
+        "UPDATE",
+
+      storeOrigem:
+        "TB_DIARIO_ITENS",
+
+      idRegistro:
+        itemAtualizado.idItemDiario,
+
+      idObra:
+        itemAtualizado.idObra
+    });
+
+    // ==========================================
+    // 12. REGISTRAR NOTIFICAÇÃO
+    // ==========================================
+
+    if (
+      typeof registrarEventoSIGO_ ===
+        "function"
+    ) {
       await registrarEventoSIGO_({
-        evento: "ITEM_DIARIO_ATUALIZADO",
-        dados: itemAtualizado
+        evento:
+          "ITEM_DIARIO_ATUALIZADO",
+
+        dados:
+          itemAtualizado
       });
     }
-    
+
+    // ==========================================
+    // 13. ENCERRAR SOMENTE A EDIÇÃO DO ITEM
+    // ==========================================
+
+    if (
+      typeof limparFormularioItemDiario ===
+        "function"
+    ) {
+      await limparFormularioItemDiario();
+    } else {
+      idItemDiarioEdicao = null;
+
+      if (
+        typeof atualizarModoEdicaoItemDiario_ ===
+          "function"
+      ) {
+        atualizarModoEdicaoItemDiario_();
+      }
+    }
+
+    // ==========================================
+    // 14. ATUALIZAR A INTERFACE UNIFICADA
+    // ==========================================
+
+    if (
+      typeof listarItensDiarioOffline_ ===
+        "function"
+    ) {
+      await listarItensDiarioOffline_(
+        itemAtualizado.idDiario
+      );
+    }
+
+    if (
+      typeof atualizarContextoDiarioAtivoUX19_ ===
+        "function"
+    ) {
+      await atualizarContextoDiarioAtivoUX19_();
+    }
+
+    if (
+      typeof atualizarIndicadoresMobile_ ===
+        "function"
+    ) {
+      await atualizarIndicadoresMobile_();
+    }
+
     SIGOUI.feedback.success(
       "Item atualizado",
-      "Registro atualizado com sucesso."
+      "A atividade foi atualizada no mesmo registro."
     );
+
+    return itemAtualizado;
 
   } catch (erro) {
 
-    console.error(erro);
-
-    SIGOUI.feedback.error(
-      "Erro",
-      erro.message
+    console.error(
+      "Erro ao atualizar item do Diário:",
+      erro
     );
 
-  }
+    SIGOUI.feedback.error(
+      "Erro ao atualizar item",
+      erro.message ||
+      "Não foi possível atualizar a atividade."
+    );
 
+    return null;
+  }
 }
 
 async function excluirItemDiarioOffline_(idItem) {
