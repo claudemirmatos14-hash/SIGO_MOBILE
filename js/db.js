@@ -1,5 +1,5 @@
 const SIGO_DB_NAME = "SIGO_OFFLINE_DB";
-const SIGO_DB_VERSION = 15;
+const SIGO_DB_VERSION = 16;
 
 let SIGO_DB = null;
 
@@ -273,7 +273,11 @@ function ehPendenciaDeleteSIGO_(
 
 
 // =====================================================
-// CONVERTER PENDÊNCIA EM TOMBSTONE
+// MONTAR TOMBSTONE DA FILA
+//
+// Suporta:
+// - DIARIO_ITEM / TB_DIARIO_ITENS
+// - DIARIO / TB_DIARIOS
 // =====================================================
 function montarTombstoneFilaSIGO_(
   pendencia
@@ -289,27 +293,70 @@ function montarTombstoneFilaSIGO_(
       origem.storeOrigem ||
       pendencia?.storeOrigem ||
       ""
-    ).trim();
+    )
+      .trim()
+      .toUpperCase();
+
+  const ehItemDiario =
+    storeOrigem ===
+    "TB_DIARIO_ITENS";
+
+  const ehDiario =
+    storeOrigem ===
+    "TB_DIARIOS";
+
+
+  // ===================================================
+  // IDENTIFICAR O REGISTRO
+  // ===================================================
 
   const idRegistro =
     String(
       origem.idRegistro ||
       origem.idItemDiario ||
+      origem.idDiario ||
       pendencia?.idRegistro ||
+      pendencia?.idDiario ||
       ""
     ).trim();
 
-  const entidade =
+
+  // ===================================================
+  // NORMALIZAR A ENTIDADE
+  // ===================================================
+
+  let entidade =
     String(
       origem.entidade ||
       pendencia?.entidade ||
-      (
-        storeOrigem ===
-        "TB_DIARIO_ITENS"
-          ? "DIARIO_ITEM"
-          : storeOrigem
-      )
-    ).trim();
+      ""
+    )
+      .trim()
+      .toUpperCase();
+
+  if (!entidade) {
+
+    if (ehItemDiario) {
+
+      entidade =
+        "DIARIO_ITEM";
+
+    } else if (ehDiario) {
+
+      entidade =
+        "DIARIO";
+
+    } else {
+
+      entidade =
+        storeOrigem;
+    }
+  }
+
+
+  // ===================================================
+  // MONTAR TOMBSTONE CANÔNICO
+  // ===================================================
 
   return {
     entidade,
@@ -322,8 +369,7 @@ function montarTombstoneFilaSIGO_(
       String(
         origem.idItemDiario ||
         (
-          storeOrigem ===
-          "TB_DIARIO_ITENS"
+          ehItemDiario
             ? idRegistro
             : ""
         )
@@ -333,7 +379,11 @@ function montarTombstoneFilaSIGO_(
       String(
         origem.idDiario ||
         pendencia?.idDiario ||
-        ""
+        (
+          ehDiario
+            ? idRegistro
+            : ""
+        )
       ).trim(),
 
     idObra:
