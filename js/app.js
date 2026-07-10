@@ -342,6 +342,140 @@ async function atualizarContextoDiarioAtivoUX19_() {
   }
 }
 
+async function iniciarNovoDiarioUnificadoUX19_() {
+
+  try {
+
+    // ==========================================
+    // 1. VALIDAR OBRA ATIVA
+    // ==========================================
+
+    const obraAtiva =
+      String(
+        obterObraAtivaMobile_() || ""
+      ).trim();
+
+    if (!obraAtiva) {
+
+      SIGOUI.feedback.warning(
+        "Obra não selecionada",
+        "Selecione uma obra antes de criar o Diário."
+      );
+
+      return false;
+    }
+
+    // ==========================================
+    // 2. ENCERRAR O CONTEXTO DO DIÁRIO ANTERIOR
+    // ==========================================
+
+    if (
+      typeof limparDiarioAtivoSIGO_ ===
+        "function"
+    ) {
+      limparDiarioAtivoSIGO_(
+        obraAtiva
+      );
+    }
+
+    // ==========================================
+    // 3. LIMPAR FORMULÁRIO DO CABEÇALHO
+    // ==========================================
+
+    if (
+      typeof limparFormularioDiario ===
+        "function"
+    ) {
+      limparFormularioDiario();
+    }
+
+    // ==========================================
+    // 4. LIMPAR FORMULÁRIO DOS ITENS
+    // ==========================================
+
+    if (
+      typeof limparFormularioItemDiario ===
+        "function"
+    ) {
+      limparFormularioItemDiario();
+    }
+
+    // A data do item será definida apenas
+    // depois que o novo Diário for salvo.
+
+    const campoDataItem =
+      document.getElementById(
+        "itemDiarioData"
+      );
+
+    if (campoDataItem) {
+      campoDataItem.value = "";
+      campoDataItem.readOnly = true;
+    }
+
+    // ==========================================
+    // 5. LIMPAR A LISTA DE ITENS EXIBIDA
+    // ==========================================
+
+    const listaItens =
+      document.getElementById(
+        "listaItensDiarioOffline"
+      );
+
+    if (listaItens) {
+
+      listaItens.dataset.idObra =
+        obraAtiva;
+
+      listaItens.dataset.idDiario =
+        "";
+
+      listaItens.innerHTML = `
+        <div class="card-vazio">
+          <strong>Novo Diário ainda não salvo.</strong>
+          <br>
+          Preencha os dados gerais e clique em
+          <strong>Salvar Diário</strong> antes de
+          adicionar atividades.
+        </div>
+      `;
+    }
+
+    // ==========================================
+    // 6. ATUALIZAR O QUADRO DE CONTEXTO
+    // ==========================================
+
+    if (
+      typeof atualizarContextoDiarioAtivoUX19_ ===
+        "function"
+    ) {
+      await atualizarContextoDiarioAtivoUX19_();
+    }
+
+    SIGOUI.feedback.info(
+      "Novo Diário",
+      "Preencha e salve o cabeçalho antes de adicionar atividades."
+    );
+
+    return true;
+
+  } catch (erro) {
+
+    console.error(
+      "Erro ao iniciar novo Diário:",
+      erro
+    );
+
+    SIGOUI.feedback.error(
+      "Erro ao iniciar Diário",
+      erro.message ||
+      "Não foi possível iniciar um novo Diário."
+    );
+
+    return false;
+  }
+}
+
 function navegarPara(tela) {
 localStorage.setItem("telaAtualMobile", tela);
   
