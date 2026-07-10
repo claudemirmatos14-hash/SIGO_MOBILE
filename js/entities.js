@@ -546,22 +546,50 @@ const SIGOEntities = {
         };
       },
 
-    afterSave:
-      async function () {
-
+   afterSave:
+      async function (
+        registroSalvo
+      ) {
+    
+        // ==========================================
+        // 1. ATUALIZAR A LISTA DO DIÁRIO
+        // ==========================================
+    
+        if (
+          document.getElementById(
+            "listaItensDiarioOffline"
+          ) &&
+          typeof listarItensDiarioOffline_ ===
+            "function"
+        ) {
+          await listarItensDiarioOffline_(
+            registroSalvo.idDiario
+          );
+        }
+    
+        // ==========================================
+        // 2. ATUALIZAR O CONTEXTO E O CONTADOR
+        // ==========================================
+    
+        if (
+          typeof atualizarContextoDiarioAtivoUX19_ ===
+            "function"
+        ) {
+          await atualizarContextoDiarioAtivoUX19_();
+        }
+    
+        // ==========================================
+        // 3. ATUALIZAR INDICADORES GERAIS
+        // ==========================================
+    
         if (
           typeof atualizarIndicadoresMobile_ ===
-          "function"
+            "function"
         ) {
           await atualizarIndicadoresMobile_();
         }
-
-        if (
-          typeof listarItensDiarioOffline_ ===
-          "function"
-        ) {
-          await listarItensDiarioOffline_();
-        }
+    
+        return registroSalvo;
       }
   }
 };
