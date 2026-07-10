@@ -292,6 +292,25 @@ const SIGOEntities = {
             registroSalvo.idDiario,
             registroSalvo.idObra
           );
+
+          // O Diário acabou de ser criado.
+          // A partir deste momento, novos salvamentos
+          // devem atualizar o mesmo registro.
+          if (
+            typeof idDiarioEdicao !==
+              "undefined"
+          ) {
+            idDiarioEdicao =
+              registroSalvo.idDiario;
+          }
+          
+          if (
+            typeof atualizarModoEdicaoDiario_ ===
+              "function"
+          ) {
+            atualizarModoEdicaoDiario_();
+          }
+          
         }
       
         // ==========================================
