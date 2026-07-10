@@ -61,6 +61,287 @@ function atualizarNomeObra_(seletor, nomeObra) {
   }
 }
 
+async function atualizarContextoDiarioAtivoUX19_() {
+
+  const area =
+    document.getElementById(
+      "contextoDiarioAtivoUX19"
+    );
+
+  const texto =
+    document.getElementById(
+      "textoContextoDiarioAtivoUX19"
+    );
+
+  if (!area || !texto) {
+    return null;
+  }
+
+  const escaparTextoUX19_ =
+    function (valor = "") {
+
+      return String(valor)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    };
+
+  const formatarDataUX19_ =
+    function (valor = "") {
+
+      const data =
+        String(valor || "").trim();
+
+      const partes =
+        data.split("-");
+
+      if (partes.length !== 3) {
+        return data || "Não informada";
+      }
+
+      return [
+        partes[2],
+        partes[1],
+        partes[0]
+      ].join("/");
+    };
+
+  try {
+
+    // ==========================================
+    // 1. IDENTIFICAR OBRA E DIÁRIO ATIVOS
+    // ==========================================
+
+    const obraAtiva =
+      String(
+        obterObraAtivaMobile_() || ""
+      ).trim();
+
+    const idDiarioAtivo =
+      obraAtiva &&
+      typeof obterDiarioAtivoSIGO_ ===
+        "function"
+        ? String(
+            obterDiarioAtivoSIGO_(
+              obraAtiva
+            ) || ""
+          ).trim()
+        : "";
+
+    if (!obraAtiva || !idDiarioAtivo) {
+
+      area.dataset.idDiario = "";
+      area.dataset.idObra = obraAtiva;
+
+      texto.innerHTML = `
+        Nenhum Diário aberto nesta obra.
+        Crie ou abra um Diário para registrar
+        a produção executada.
+      `;
+
+      const campoData =
+        document.getElementById(
+          "itemDiarioData"
+        );
+
+      if (campoData) {
+        campoData.value = "";
+        campoData.readOnly = true;
+      }
+
+      return null;
+    }
+
+    // ==========================================
+    // 2. LOCALIZAR O DIÁRIO E SEUS ITENS
+    // ==========================================
+
+    const [
+      diarios,
+      itens
+    ] = await Promise.all([
+
+      listarRegistrosSIGO(
+        "TB_DIARIOS"
+      ),
+
+      listarRegistrosSIGO(
+        "TB_DIARIO_ITENS"
+      )
+
+    ]);
+
+    const diarioAtivo =
+      diarios.find(diario =>
+        String(diario.idObra) ===
+          obraAtiva &&
+
+        String(diario.idDiario) ===
+          idDiarioAtivo
+      ) || null;
+
+    if (!diarioAtivo) {
+
+      if (
+        typeof limparDiarioAtivoSIGO_ ===
+          "function"
+      ) {
+        limparDiarioAtivoSIGO_(
+          obraAtiva
+        );
+      }
+
+      area.dataset.idDiario = "";
+      area.dataset.idObra = obraAtiva;
+
+      texto.innerHTML = `
+        O Diário selecionado não foi
+        encontrado no banco local.
+      `;
+
+      return null;
+    }
+
+    const itensDoDiario =
+      itens.filter(item =>
+        String(item.idObra) ===
+          obraAtiva &&
+
+        String(item.idDiario) ===
+          idDiarioAtivo
+      );
+
+    // ==========================================
+    // 3. PREPARAR INFORMAÇÕES
+    // ==========================================
+
+    const statusDiario =
+      String(
+        diarioAtivo.statusDiario ||
+        "ABERTO"
+      ).toUpperCase();
+
+    const statusSync =
+      String(
+        diarioAtivo.statusSync ||
+        "PENDENTE"
+      ).toUpperCase();
+
+    const dataFormatada =
+      formatarDataUX19_(
+        diarioAtivo.data
+      );
+
+    area.dataset.idObra =
+      obraAtiva;
+
+    area.dataset.idDiario =
+      idDiarioAtivo;
+
+    area.dataset.statusDiario =
+      statusDiario;
+
+    // ==========================================
+    // 4. MOSTRAR O CONTEXTO REAL
+    // ==========================================
+
+    texto.innerHTML = `
+      <div
+        style="
+          display: grid;
+          gap: 8px;
+          margin-top: 10px;
+        "
+      >
+
+        <div>
+          <strong>Diário:</strong>
+          ${escaparTextoUX19_(
+            idDiarioAtivo
+          )}
+        </div>
+
+        <div>
+          <strong>Data:</strong>
+          ${escaparTextoUX19_(
+            dataFormatada
+          )}
+        </div>
+
+        <div>
+          <strong>Responsável:</strong>
+          ${escaparTextoUX19_(
+            diarioAtivo.responsavel ||
+            "Não informado"
+          )}
+        </div>
+
+        <div>
+          <strong>Status:</strong>
+          ${escaparTextoUX19_(
+            statusDiario
+          )}
+        </div>
+
+        <div>
+          <strong>Sincronização:</strong>
+          ${escaparTextoUX19_(
+            statusSync
+          )}
+        </div>
+
+        <div>
+          <strong>Atividades registradas:</strong>
+          ${itensDoDiario.length}
+        </div>
+
+      </div>
+    `;
+
+    // ==========================================
+    // 5. HERDAR A DATA NO FORMULÁRIO DO ITEM
+    // ==========================================
+
+    const campoDataItem =
+      document.getElementById(
+        "itemDiarioData"
+      );
+
+    if (campoDataItem) {
+
+      campoDataItem.value =
+        diarioAtivo.data || "";
+
+      campoDataItem.readOnly =
+        true;
+    }
+
+    return {
+      diario:
+        diarioAtivo,
+
+      totalItens:
+        itensDoDiario.length
+    };
+
+  } catch (erro) {
+
+    console.error(
+      "Erro ao atualizar contexto do Diário:",
+      erro
+    );
+
+    texto.innerHTML = `
+      Não foi possível carregar os dados
+      do Diário ativo.
+    `;
+
+    return null;
+  }
+}
+
 function navegarPara(tela) {
 localStorage.setItem("telaAtualMobile", tela);
   
@@ -140,6 +421,17 @@ localStorage.setItem("telaAtualMobile", tela);
           "function"
       ) {
         await carregarListaDiariosOffline();
+      }
+      
+      // ==========================================
+      // 4. ATUALIZAR CONTEXTO DO DIÁRIO ATIVO
+      // ==========================================
+      
+      if (
+        typeof atualizarContextoDiarioAtivoUX19_ ===
+          "function"
+      ) {
+        await atualizarContextoDiarioAtivoUX19_();
       }
     }
   },
