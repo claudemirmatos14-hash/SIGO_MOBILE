@@ -346,8 +346,14 @@ function criarSecaoFerramentasSIGO() {
 }
 
 function montarTelaDiarioObra() {
+
+  // =====================================================
+  // 1. CABEÇALHO DO DIÁRIO
+  // =====================================================
+
   const formDiario = `
     <div class="sigo-form">
+
       ${SIGOUI.createDate({
         id: "diarioData",
         label: "Data"
@@ -375,12 +381,32 @@ function montarTelaDiarioObra() {
         id: "diarioClima",
         label: "Clima",
         options: [
-          { value: "", label: "Selecione" },
-          { value: "☀️ ENSOLARADO", label: "☀️ Ensolarado" },
-          { value: "⛅ PARCIALMENTE NUBLADO", label: "⛅ Parcialmente Nublado" },
-          { value: "☁️ NUBLADO", label: "☁️ Nublado" },
-          { value: "🌧️ CHUVOSO", label: "🌧️ Chuvoso" },
-          { value: "⛈️ TEMPESTADE", label: "⛈️ Tempestade" }
+          {
+            value: "",
+            label: "Selecione"
+          },
+          {
+            value: "☀️ ENSOLARADO",
+            label: "☀️ Ensolarado"
+          },
+          {
+            value:
+              "⛅ PARCIALMENTE NUBLADO",
+            label:
+              "⛅ Parcialmente Nublado"
+          },
+          {
+            value: "☁️ NUBLADO",
+            label: "☁️ Nublado"
+          },
+          {
+            value: "🌧️ CHUVOSO",
+            label: "🌧️ Chuvoso"
+          },
+          {
+            value: "⛈️ TEMPESTADE",
+            label: "⛈️ Tempestade"
+          }
         ]
       })}
 
@@ -388,59 +414,316 @@ function montarTelaDiarioObra() {
         id: "diarioOcorrencias",
         label: "Ocorrências Gerais",
         rows: 3,
-        placeholder: "Descreva ocorrências gerais"
+        placeholder:
+          "Descreva ocorrências gerais"
       })}
 
       ${SIGOUI.createTextarea({
         id: "diarioObservacoes",
         label: "Observações Gerais",
         rows: 3,
-        placeholder: "Observações do dia"
+        placeholder:
+          "Observações do dia"
       })}
+
     </div>
   `;
 
-  const listaDiarios = `
-    <div id="listaDiariosOffline" class="sigo-list">
-      <div class="empty-state">
-        <div class="empty-icon">📭</div>
-        <h3>Nenhum diário carregado</h3>
-        <p>Os registros aparecerão aqui após carregar a lista.</p>
-      </div>
+  // =====================================================
+  // 2. IDENTIFICAÇÃO DO DIÁRIO ATIVO
+  // =====================================================
+
+  const contextoDiario = `
+    <div
+      id="contextoDiarioAtivoUX19"
+      class="card-vazio"
+      style="
+        margin-top: 22px;
+        margin-bottom: 18px;
+        text-align: left;
+      ">
+
+      <strong>
+        📘 Produção do Diário ativo
+      </strong>
+
+      <br>
+
+      <span id="textoContextoDiarioAtivoUX19">
+        Os itens adicionados abaixo serão
+        vinculados ao Diário atualmente aberto.
+      </span>
+
     </div>
   `;
+
+  // =====================================================
+  // 3. FORMULÁRIO DOS ITENS
+  // =====================================================
+
+  const formItemDiario = `
+    <div
+      style="
+        margin-top: 20px;
+        margin-bottom: 12px;
+      ">
+
+      <h3 style="margin-bottom: 6px;">
+        👷 Produção executada
+      </h3>
+
+      <p style="
+        margin-top: 0;
+        opacity: 0.75;
+      ">
+        Registre as atividades executadas
+        dentro deste Diário.
+      </p>
+
+    </div>
+
+    <div class="sigo-form">
+
+      ${SIGOUI.createDate({
+        id: "itemDiarioData",
+        label: "Data do Diário"
+      })}
+
+      ${SIGOUI.createSelect({
+        id: "itemDiarioAtividade",
+        label: "Atividade",
+        options: [
+          {
+            value: "",
+            label:
+              "Carregando atividades..."
+          }
+        ],
+        onchange:
+          "preencherDadosAtividadeItemDiario()"
+      })}
+
+      ${SIGOUI.createInput({
+        id: "itemDiarioEap",
+        label: "EAP",
+        placeholder: "EAP da atividade",
+        readonly: true
+      })}
+
+      ${SIGOUI.createInput({
+        id: "itemDiarioServico",
+        label: "Serviço",
+        placeholder:
+          "Serviço selecionado",
+        readonly: true
+      })}
+
+      ${SIGOUI.createInput({
+        id: "itemDiarioEquipe",
+        label: "Equipe executora",
+        placeholder:
+          "Equipe responsável"
+      })}
+
+      ${SIGOUI.createInput({
+        id: "itemDiarioEquipamento",
+        label: "Equipamento",
+        placeholder:
+          "Equipamento utilizado"
+      })}
+
+      ${SIGOUI.createNumber({
+        id: "itemDiarioQtde",
+        label: "Quantidade Executada",
+        placeholder: "Ex.: 12.50"
+      })}
+
+      ${SIGOUI.createInput({
+        id: "itemDiarioUnidade",
+        label: "Unidade",
+        placeholder: "m², m³, h, un...",
+        readonly: true
+      })}
+
+      ${SIGOUI.createNumber({
+        id: "itemDiarioHoras",
+        label: "Horas Trabalhadas",
+        placeholder: "Ex.: 8"
+      })}
+
+      ${SIGOUI.createTextarea({
+        id: "itemDiarioObservacao",
+        label: "Observação da atividade",
+        rows: 3,
+        placeholder:
+          "Observações do item executado"
+      })}
+
+    </div>
+  `;
+
+  // =====================================================
+  // 4. LISTA DE ITENS E HISTÓRICO
+  // =====================================================
+
+  const listasDiario = `
+
+    <div style="margin-bottom: 12px;">
+
+      <h3 style="margin-bottom: 6px;">
+        📋 Atividades deste Diário
+      </h3>
+
+      <p style="
+        margin-top: 0;
+        opacity: 0.75;
+      ">
+        Somente os itens vinculados ao
+        Diário ativo serão exibidos.
+      </p>
+
+    </div>
+
+    <div
+      id="listaItensDiarioOffline"
+      class="sigo-list">
+
+      <div class="empty-state">
+
+        <div class="empty-icon">
+          📭
+        </div>
+
+        <h3>
+          Nenhuma atividade carregada
+        </h3>
+
+        <p>
+          Os itens do Diário aparecerão aqui.
+        </p>
+
+      </div>
+
+    </div>
+
+    <div
+      style="
+        margin-top: 32px;
+        padding-top: 24px;
+        border-top:
+          1px solid rgba(148, 163, 184, 0.25);
+      ">
+
+      <h3 style="margin-bottom: 6px;">
+        📚 Histórico de Diários
+      </h3>
+
+      <p style="
+        margin-top: 0;
+        opacity: 0.75;
+      ">
+        Diários disponíveis na obra ativa.
+      </p>
+
+    </div>
+
+    <div
+      id="listaDiariosOffline"
+      class="sigo-list">
+
+      <div class="empty-state">
+
+        <div class="empty-icon">
+          📭
+        </div>
+
+        <h3>
+          Nenhum Diário carregado
+        </h3>
+
+        <p>
+          Os registros aparecerão aqui.
+        </p>
+
+      </div>
+
+    </div>
+  `;
+
+  // =====================================================
+  // 5. TELA UNIFICADA
+  // =====================================================
 
   return SIGOUI.createCrudScreen({
-    titulo: "📘 DIÁRIO DE OBRA",
-    nome: "Relatório diário da obra",
-    subtitulo: "Registro operacional",
-    info: "Produção, equipe e observações",
-    status: "Modo offline",
+
+    titulo:
+      "📘 DIÁRIO DE OBRA",
+
+    nome:
+      "Relatório diário integrado",
+
+    subtitulo:
+      "Cabeçalho e produção executada",
+
+    info:
+      "Equipe, clima, atividades e observações",
+
+    status:
+      "Modo offline",
 
     actions: [
       {
         icone: "➕",
         texto: "Novo Diário",
         tipo: "is-primary",
-        acao: "limparFormularioDiario()"
+        acao:
+          "limparFormularioDiario()"
       },
       {
         icone: "💾",
-        texto: "Salvar",
+        texto: "Salvar Diário",
         tipo: "is-success",
-        acao: "salvarDiarioPremium()"
+        acao:
+          "salvarDiarioPremium()"
+      },
+      {
+        icone: "🧹",
+        texto: "Novo Item",
+        tipo: "is-primary",
+        acao:
+          "limparFormularioItemDiario()"
+      },
+      {
+        icone: "➕",
+        texto: "Adicionar Item",
+        tipo: "is-success",
+        acao:
+          "salvarItemDiarioPremium()"
       }
     ],
 
-    formTitle: "📋 Dados do Diário",
-    formSubtitle: "Informações principais do relatório",
-    form: formDiario,
+    formTitle:
+      "📋 Dados do Diário",
 
-    listTitle: "📚 Diários Registrados",
-    listSubtitle: "Histórico offline da obra ativa",
-    list: listaDiarios,
+    formSubtitle:
+      "Informações gerais e produção do dia",
 
-    bottom: true
+    form:
+      formDiario +
+      contextoDiario +
+      formItemDiario,
+
+    listTitle:
+      "📊 Registros do Diário",
+
+    listSubtitle:
+      "Atividades vinculadas e histórico offline",
+
+    list:
+      listasDiario,
+
+    bottom:
+      true
   });
 }
 
