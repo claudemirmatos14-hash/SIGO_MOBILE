@@ -276,29 +276,77 @@ const SIGOEntities = {
     // ===============================================
     // APÓS SALVAR, TORNA O DIÁRIO ATIVO
     // ===============================================
-    afterSave:
-      async function (
+    afterSave: async function (
         registroSalvo
       ) {
-
-        definirDiarioAtivoSIGO_(
-          registroSalvo.idDiario,
-          registroSalvo.idObra
-        );
-
+      
+        // ==========================================
+        // 1. DEFINIR O NOVO DIÁRIO COMO ATIVO
+        // ==========================================
+      
         if (
-          typeof atualizarIndicadoresMobile_ ===
-          "function"
+          typeof definirDiarioAtivoSIGO_ ===
+            "function"
         ) {
-          await atualizarIndicadoresMobile_();
+          definirDiarioAtivoSIGO_(
+            registroSalvo.idDiario,
+            registroSalvo.idObra
+          );
         }
-
+      
+        // ==========================================
+        // 2. CARREGAR ITENS DO NOVO DIÁRIO
+        // ==========================================
+      
         if (
+          document.getElementById(
+            "listaItensDiarioOffline"
+          ) &&
+          typeof listarItensDiarioOffline_ ===
+            "function"
+        ) {
+          await listarItensDiarioOffline_(
+            registroSalvo.idDiario
+          );
+        }
+      
+        // ==========================================
+        // 3. ATUALIZAR O CONTEXTO VISUAL
+        // ==========================================
+      
+        if (
+          typeof atualizarContextoDiarioAtivoUX19_ ===
+            "function"
+        ) {
+          await atualizarContextoDiarioAtivoUX19_();
+        }
+      
+        // ==========================================
+        // 4. ATUALIZAR HISTÓRICO DOS DIÁRIOS
+        // ==========================================
+      
+        if (
+          document.getElementById(
+            "listaDiariosOffline"
+          ) &&
           typeof carregarListaDiariosOffline ===
-          "function"
+            "function"
         ) {
           await carregarListaDiariosOffline();
         }
+      
+        // ==========================================
+        // 5. ATUALIZAR INDICADORES
+        // ==========================================
+      
+        if (
+          typeof atualizarIndicadoresMobile_ ===
+            "function"
+        ) {
+          await atualizarIndicadoresMobile_();
+        }
+      
+        return registroSalvo;
       }
   },
 
