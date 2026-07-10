@@ -7022,9 +7022,15 @@ async function listarItensDiarioOffline_(
 }
 
 function criarCardItemDiarioOffline_(item) {
-  const status = item.statusSync || "PENDENTE";
-  const bloqueado =
-  status !== "PENDENTE";
+ const status =
+    item.statusSync ||
+    "PENDENTE";
+  
+  // A edição mantém a regra atual.
+  // Itens sincronizados continuam protegidos
+  // contra edição direta pelo card.
+  const bloqueadoEdicao =
+    status !== "PENDENTE";
 
   const badge =
     status === "SINCRONIZADO"
@@ -7131,14 +7137,13 @@ function criarCardItemDiarioOffline_(item) {
 
         <button
           type="button"
-          ${bloqueado ? "disabled" : ""}
+          ${bloqueadoEdicao ? "disabled" : ""}
           onclick="editarItemDiarioOffline_('${item.idItem || item.idItemDiario || ""}')">
           ✏ Editar
         </button>
 
         <button
           type="button"
-          ${bloqueado ? "disabled" : ""}
           onclick="excluirItemDiarioOffline_('${item.idItem || item.idItemDiario || ""}')">
           🗑 Excluir
         </button>
