@@ -2258,30 +2258,178 @@ async function sincronizarSIGO() {
 
     // =================================================
     // TOMBSTONES
+    //
+    // Ordem:
+    // 1. itens dos Diários;
+    // 2. cabeçalhos dos Diários.
     // =================================================
+    
     const exclusoes =
-      exclusoesPendentes.map(
-        montarTombstoneFilaSIGO_
-      );
-
+      exclusoesPendentes
+        .map(
+          montarTombstoneFilaSIGO_
+        )
+        .sort(
+          (a, b) => {
+    
+            const prioridade =
+              exclusao => {
+    
+                if (
+                  exclusao.storeOrigem ===
+                  "TB_DIARIO_ITENS"
+                ) {
+                  return 1;
+                }
+    
+                if (
+                  exclusao.storeOrigem ===
+                  "TB_DIARIOS"
+                ) {
+                  return 2;
+                }
+    
+                return 99;
+              };
+    
+            return (
+              prioridade(a) -
+              prioridade(b)
+            );
+          }
+        );
+    
+    
+    const storesExclusaoPermitidas =
+      new Set([
+        "TB_DIARIO_ITENS",
+        "TB_DIARIOS"
+      ]);
+    
+    
     exclusoes.forEach(
       exclusao => {
-
+    
+        const storeOrigem =
+          String(
+            exclusao.storeOrigem || ""
+          )
+            .trim()
+            .toUpperCase();
+    
+        const entidade =
+          String(
+            exclusao.entidade || ""
+          )
+            .trim()
+            .toUpperCase();
+    
+        const idRegistro =
+          String(
+            exclusao.idRegistro || ""
+          ).trim();
+    
+        const idDiario =
+          String(
+            exclusao.idDiario || ""
+          ).trim();
+    
+        const idObra =
+          String(
+            exclusao.idObra || ""
+          ).trim();
+    
+    
+        // ==========================================
+        // STORE SUPORTADA
+        // ==========================================
+    
         if (
-          exclusao.storeOrigem !==
-          "TB_DIARIO_ITENS"
+          !storesExclusaoPermitidas
+            .has(
+              storeOrigem
+            )
         ) {
+    
           throw new Error(
             "Exclusão ainda não suportada para a store " +
-            exclusao.storeOrigem +
+            storeOrigem +
             "."
           );
         }
-
+    
+    
+        // ==========================================
+        // CAMPOS OBRIGATÓRIOS
+        // ==========================================
+    
         if (
-          !exclusao.idRegistro ||
-          !exclusao.idObra
+          !idRegistro ||
+          !idObra
         ) {
+    
+          throw new Error(
+            "Tombstone sem ID do registro ou ID da obra."
+          );
+        }
+    
+        if (!idDiario) {
+    
+          throw new Error(
+            "Tombstone sem ID do Diário."
+          );
+        }
+    
+    
+        // ==========================================
+        // COMPATIBILIDADE ENTRE STORE E ENTIDADE
+        // ==========================================
+    
+        if (
+          storeOrigem ===
+            "TB_DIARIO_ITENS" &&
+          entidade !==
+            "DIARIO_ITEM"
+        ) {
+    
+          throw new Error(
+            "Entidade incompatível com TB_DIARIO_ITENS: " +
+            entidade
+          );
+        }
+    
+        if (
+          storeOrigem ===
+            "TB_DIARIOS" &&
+          entidade !==
+            "DIARIO"
+        ) {
+    
+          throw new Error(
+            "Entidade incompatível com TB_DIARIOS: " +
+            entidade
+          );
+        }
+    
+    
+        // ==========================================
+        // CABEÇALHO: ID_REGISTRO = ID_DIARIO
+        // ==========================================
+    
+        if (
+          storeOrigem ===
+            "TB_DIARIOS" &&
+          idRegistro !==
+            idDiario
+        ) {
+    
+          throw new Error(
+            "Conflito entre idRegistro e idDiario " +
+            "no tombstone do Diário."
+          );
+        }
+      }
+    );
           throw new Error(
             "Tombstone de exclusão incompleto."
           );
