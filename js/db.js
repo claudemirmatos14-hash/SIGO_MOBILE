@@ -252,112 +252,330 @@ function listarRegistrosSIGO(storeName) {
   });
 }
 
-function adicionarNaFilaSyncSIGO(registro) {
+// =====================================================
+// IDENTIFICAR PENDÊNCIA DE EXCLUSÃO
+// =====================================================
+function ehPendenciaDeleteSIGO_(
+  pendencia
+) {
 
-  return new Promise(async (resolve, reject) => {
+  const operacao =
+    String(
+      pendencia?.operacao ||
+      pendencia?.tipo ||
+      ""
+    )
+      .trim()
+      .toUpperCase();
 
-    try {
+  return operacao === "DELETE";
+}
 
-      const db = SIGO_DB || await abrirBancoLocalSIGO();
 
-      const transaction = db.transaction(
-        ["TB_SYNC_QUEUE"],
-        "readwrite"
-      );
+// =====================================================
+// CONVERTER PENDÊNCIA EM TOMBSTONE
+// =====================================================
+function montarTombstoneFilaSIGO_(
+  pendencia
+) {
 
-      const store = transaction.objectStore("TB_SYNC_QUEUE");
+  const origem =
+    pendencia?.payloadExclusao ||
+    pendencia?.exclusao ||
+    {};
 
-      const itemFila = {
-        idSyncLocal: "SYNC-LOCAL-" + Date.now(),
-        tipo: registro.tipo,
-        storeOrigem: registro.storeOrigem,
-        idRegistro: registro.idRegistro,
-        idObra: registro.idObra,
-        statusSync: "PENDENTE",
-        tentativas: 0,
-        criadoEm: new Date().toISOString()
-      };
+  const storeOrigem =
+    String(
+      origem.storeOrigem ||
+      pendencia?.storeOrigem ||
+      ""
+    ).trim();
 
-      const request = store.put(itemFila);
+  const idRegistro =
+    String(
+      origem.idRegistro ||
+      origem.idItemDiario ||
+      pendencia?.idRegistro ||
+      ""
+    ).trim();
 
-     request.onsuccess = async () => {
+  const entidade =
+    String(
+      origem.entidade ||
+      pendencia?.entidade ||
+      (
+        storeOrigem ===
+        "TB_DIARIO_ITENS"
+          ? "DIARIO_ITEM"
+          : storeOrigem
+      )
+    ).trim();
 
-    /*
-     * O registro já foi gravado no IndexedDB.
-     * Agora precisamos invalidar o cache para
-     * que as próximas consultas enxerguem
-     * imediatamente a nova pendência.
-     */
-  
-    try {
-  
-      // ==========================================
-      // 1. INVALIDAR CACHE DA FILA
-      // ==========================================
-  
-      if (window.SIGODataCache) {
-  
-        SIGODataCache.invalidate(
-          "TB_SYNC_QUEUE"
-        );
-  
+  return {
+    entidade,
+
+    storeOrigem,
+
+    idRegistro,
+
+    idItemDiario:
+      String(
+        origem.idItemDiario ||
+        (
+          storeOrigem ===
+          "TB_DIARIO_ITENS"
+            ? idRegistro
+            : ""
+        )
+      ).trim(),
+
+    idDiario:
+      String(
+        origem.idDiario ||
+        pendencia?.idDiario ||
+        ""
+      ).trim(),
+
+    idObra:
+      String(
+        origem.idObra ||
+        pendencia?.idObra ||
+        ""
+      ).trim()
+  };
+}
+
+
+// =====================================================
+// CRIAR CHAVE STORE + ID
+// =====================================================
+function criarChavePendenciaSyncSIGO_(
+  storeOrigem,
+  idRegistro
+) {
+
+  return (
+    String(storeOrigem || "").trim() +
+    "::" +
+    String(idRegistro || "").trim()
+  );
+}
+
+function adicionarNaFilaSyncSIGO(
+  registro
+) {
+
+  return new Promise(
+    async (
+      resolve,
+      reject
+    ) => {
+
+      try {
+
         if (
-          itemFila.idObra &&
-          typeof invalidarCacheObraSIGO_ ===
-            "function"
+          !registro ||
+          typeof registro !== "object"
         ) {
-          invalidarCacheObraSIGO_(
-            "TB_SYNC_QUEUE",
-            itemFila.idObra
+          throw new Error(
+            "Registro da fila não informado."
           );
         }
-      }
-  
-      // ==========================================
-      // 2. NOTIFICAR DATABINDING
-      // ==========================================
-  
-      if (
-        window.SIGODataBinding &&
-        typeof SIGODataBinding.notify ===
-          "function"
-      ) {
-        await SIGODataBinding.notify(
-          "TB_SYNC_QUEUE",
-          {
-            acao: "UPDATE",
-            store: "TB_SYNC_QUEUE",
-            registro: itemFila
-          }
-        );
-      }
-  
-    } catch (erroAtualizacaoFila) {
-  
-      /*
-       * A pendência já está segura no IndexedDB.
-       * Uma falha de atualização visual não deve
-       * transformar a gravação em erro.
-       */
-  
-      console.warn(
-        "Pendência criada, mas não foi possível " +
-        "atualizar o cache da fila:",
-        erroAtualizacaoFila
-      );
-    }
-  
-    resolve(itemFila);
-  };
-      request.onerror = () => {
-        reject("Erro ao adicionar item na fila de sincronização.");
-      };
 
-    } catch (erro) {
-      reject(erro);
-    }
+        const db =
+          SIGO_DB ||
+          await abrirBancoLocalSIGO();
 
-  });
+        const transaction =
+          db.transaction(
+            ["TB_SYNC_QUEUE"],
+            "readwrite"
+          );
+
+        const store =
+          transaction.objectStore(
+            "TB_SYNC_QUEUE"
+          );
+
+        const tipo =
+          String(
+            registro.tipo ||
+            registro.entidade ||
+            ""
+          ).trim();
+
+        const operacao =
+          String(
+            registro.operacao ||
+            (
+              tipo.toUpperCase() ===
+              "DELETE"
+                ? "DELETE"
+                : "UPSERT"
+            )
+          )
+            .trim()
+            .toUpperCase();
+
+        const itemFila = {
+          idSyncLocal:
+            "SYNC-LOCAL-" +
+            Date.now(),
+
+          tipo,
+
+          operacao,
+
+          entidade:
+            String(
+              registro.entidade || ""
+            ).trim(),
+
+          storeOrigem:
+            String(
+              registro.storeOrigem || ""
+            ).trim(),
+
+          idRegistro:
+            String(
+              registro.idRegistro || ""
+            ).trim(),
+
+          idObra:
+            String(
+              registro.idObra || ""
+            ).trim(),
+
+          idDiario:
+            String(
+              registro.idDiario || ""
+            ).trim(),
+
+          payloadExclusao:
+            registro.payloadExclusao ||
+            registro.exclusao ||
+            null,
+
+          statusSync:
+            "PENDENTE",
+
+          tentativas: 0,
+
+          criadoEm:
+            new Date().toISOString()
+        };
+
+        if (!itemFila.storeOrigem) {
+          throw new Error(
+            "Store de origem não informada."
+          );
+        }
+
+        if (!itemFila.idRegistro) {
+          throw new Error(
+            "ID do registro não informado."
+          );
+        }
+
+        if (!itemFila.idObra) {
+          throw new Error(
+            "ID da obra não informado."
+          );
+        }
+
+        if (
+          itemFila.operacao ===
+            "DELETE" &&
+          !itemFila.payloadExclusao
+        ) {
+          throw new Error(
+            "Payload da exclusão não informado."
+          );
+        }
+
+        const request =
+          store.put(
+            itemFila
+          );
+
+        request.onsuccess =
+          async () => {
+
+            try {
+
+              if (
+                window.SIGODataCache
+              ) {
+
+                SIGODataCache.invalidate(
+                  "TB_SYNC_QUEUE"
+                );
+
+                if (
+                  itemFila.idObra &&
+                  typeof invalidarCacheObraSIGO_ ===
+                    "function"
+                ) {
+
+                  invalidarCacheObraSIGO_(
+                    "TB_SYNC_QUEUE",
+                    itemFila.idObra
+                  );
+                }
+              }
+
+              if (
+                window.SIGODataBinding &&
+                typeof SIGODataBinding.notify ===
+                  "function"
+              ) {
+
+                await SIGODataBinding.notify(
+                  "TB_SYNC_QUEUE",
+                  {
+                    acao:
+                      itemFila.operacao,
+
+                    store:
+                      "TB_SYNC_QUEUE",
+
+                    registro:
+                      itemFila
+                  }
+                );
+              }
+
+            } catch (
+              erroAtualizacaoFila
+            ) {
+
+              console.warn(
+                "Pendência criada, mas não foi possível " +
+                "atualizar o cache da fila:",
+                erroAtualizacaoFila
+              );
+            }
+
+            resolve(
+              itemFila
+            );
+          };
+
+        request.onerror = () => {
+
+          reject(
+            request.error ||
+            new Error(
+              "Erro ao adicionar item na fila."
+            )
+          );
+        };
+
+      } catch (erro) {
+        reject(erro);
+      }
+    }
+  );
 }
 
 function atualizarRegistroSIGO(storeName, registro) {
