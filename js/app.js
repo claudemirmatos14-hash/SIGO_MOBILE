@@ -8106,72 +8106,784 @@ async function atualizarItemDiarioOffline_() {
   }
 }
 
-async function excluirItemDiarioOffline_(idItem) {
+// =====================================================
+// EXCLUIR ITEM DO DIÁRIO COM FILA ATÔMICA
+//
+// Regras:
+//
+// Item nunca sincronizado:
+// - cancela UPSERTs pendentes;
+// - remove somente do dispositivo;
+// - não envia DELETE ao servidor.
+//
+// Item já sincronizado:
+// - cancela UPSERTs pendentes;
+// - cria tombstone DELETE;
+// - remove o item localmente.
+//
+// Todas as alterações ocorrem na mesma transação.
+// =====================================================
+async function excluirItemDiarioComFilaAtomicaSIGO_(
+  item
+) {
+
+  if (
+    !item ||
+    typeof item !== "object"
+  ) {
+    throw new Error(
+      "Item do Diário não informado."
+    );
+  }
+
+  const idItem =
+    String(
+      item.idItemDiario ||
+      item.idItem ||
+      ""
+    ).trim();
+
+  const idDiario =
+    String(
+      item.idDiario || ""
+    ).trim();
+
+  const idObra =
+    String(
+      item.idObra || ""
+    ).trim();
+
+  if (!idItem) {
+    throw new Error(
+      "ID do item não informado."
+    );
+  }
+
+  if (!idDiario) {
+    throw new Error(
+      "O item não está vinculado a um Diário."
+    );
+  }
+
+  if (!idObra) {
+    throw new Error(
+      "O item não está vinculado a uma obra."
+    );
+  }
+
+  const db =
+    SIGO_DB ||
+    await abrirBancoLocalSIGO();
+
+  return new Promise(
+    (
+      resolve,
+      reject
+    ) => {
+
+      const transaction =
+        db.transaction(
+          [
+            "TB_DIARIO_ITENS",
+            "TB_SYNC_QUEUE"
+          ],
+          "readwrite"
+        );
+
+      const storeItens =
+        transaction.objectStore(
+          "TB_DIARIO_ITENS"
+        );
+
+      const storeFila =
+        transaction.objectStore(
+          "TB_SYNC_QUEUE"
+        );
+
+      const resultado = {
+        idItem,
+        idDiario,
+        idObra,
+
+        jaSincronizado:
+          false,
+
+        pendenciasCanceladas:
+          0,
+
+        tombstoneCriado:
+          false,
+
+        tombstoneReutilizado:
+          false,
+
+        idSyncDelete:
+          "",
+
+        itemRemovido:
+          false
+      };
+
+      let erroOperacao =
+        null;
+
+      transaction.oncomplete =
+        () => {
+
+          resolve(
+            resultado
+          );
+        };
+
+      transaction.onerror =
+        () => {
+
+          reject(
+            erroOperacao ||
+            transaction.error ||
+            new Error(
+              "Falha na transação de exclusão."
+            )
+          );
+        };
+
+      transaction.onabort =
+        () => {
+
+          reject(
+            erroOperacao ||
+            transaction.error ||
+            new Error(
+              "A exclusão foi cancelada."
+            )
+          );
+        };
+
+
+      // ================================================
+      // LER A FILA DENTRO DA MESMA TRANSAÇÃO
+      // ================================================
+      const requestFila =
+        storeFila.getAll();
+
+      requestFila.onerror =
+        () => {
+
+          erroOperacao =
+            requestFila.error ||
+            new Error(
+              "Não foi possível consultar a fila."
+            );
+
+          transaction.abort();
+        };
+
+      requestFila.onsuccess =
+        () => {
+
+          try {
+
+            const fila =
+              Array.isArray(
+                requestFila.result
+              )
+                ? requestFila.result
+                : [];
+
+            const relacionadas =
+              fila.filter(
+                pendencia => {
+
+                  return (
+                    String(
+                      pendencia.storeOrigem ||
+                      ""
+                    ).trim() ===
+                      "TB_DIARIO_ITENS" &&
+
+                    String(
+                      pendencia.idRegistro ||
+                      ""
+                    ).trim() ===
+                      idItem &&
+
+                    String(
+                      pendencia.idObra ||
+                      ""
+                    ).trim() ===
+                      idObra
+                  );
+                }
+              );
+
+
+            // ==========================================
+            // DESCOBRIR SE O REGISTRO JÁ EXISTIU
+            // NO SERVIDOR
+            // ==========================================
+            const itemJaSincronizado =
+              String(
+                item.statusSync || ""
+              )
+                .trim()
+                .toUpperCase() ===
+                "SINCRONIZADO" ||
+
+              Boolean(
+                String(
+                  item.dataSync || ""
+                ).trim()
+              );
+
+            const possuiHistoricoSincronizado =
+              relacionadas.some(
+                pendencia => {
+
+                  return (
+                    String(
+                      pendencia.statusSync ||
+                      ""
+                    )
+                      .trim()
+                      .toUpperCase() ===
+                    "SINCRONIZADO"
+                  );
+                }
+              );
+
+            const deletePendenteExistente =
+              relacionadas.find(
+                pendencia => {
+
+                  return (
+                    String(
+                      pendencia.statusSync ||
+                      ""
+                    )
+                      .trim()
+                      .toUpperCase() ===
+                      "PENDENTE" &&
+
+                    ehPendenciaDeleteSIGO_(
+                      pendencia
+                    )
+                  );
+                }
+              ) || null;
+
+            resultado.jaSincronizado =
+              itemJaSincronizado ||
+              possuiHistoricoSincronizado ||
+              Boolean(
+                deletePendenteExistente
+              );
+
+
+            // ==========================================
+            // CANCELAR UPSERTS PENDENTES DO MESMO ITEM
+            // ==========================================
+            const agora =
+              new Date()
+                .toISOString();
+
+            relacionadas
+              .filter(
+                pendencia => {
+
+                  return (
+                    String(
+                      pendencia.statusSync ||
+                      ""
+                    )
+                      .trim()
+                      .toUpperCase() ===
+                      "PENDENTE" &&
+
+                    !ehPendenciaDeleteSIGO_(
+                      pendencia
+                    )
+                  );
+                }
+              )
+              .forEach(
+                pendencia => {
+
+                  pendencia.statusSync =
+                    "CANCELADO";
+
+                  pendencia.canceladoEm =
+                    agora;
+
+                  pendencia.motivoCancelamento =
+                    "REGISTRO_EXCLUIDO_LOCALMENTE";
+
+                  storeFila.put(
+                    pendencia
+                  );
+
+                  resultado
+                    .pendenciasCanceladas++;
+                }
+              );
+
+
+            // ==========================================
+            // CRIAR OU REUTILIZAR TOMBSTONE
+            // ==========================================
+            if (
+              resultado.jaSincronizado
+            ) {
+
+              if (
+                deletePendenteExistente
+              ) {
+
+                resultado.tombstoneReutilizado =
+                  true;
+
+                resultado.idSyncDelete =
+                  String(
+                    deletePendenteExistente
+                      .idSyncLocal ||
+                    ""
+                  );
+
+              } else {
+
+                const idSyncDelete =
+                  "SYNC-LOCAL-" +
+                  Date.now() +
+                  "-DEL-" +
+                  Math.random()
+                    .toString(36)
+                    .slice(2, 8);
+
+                const tombstone = {
+                  idSyncLocal:
+                    idSyncDelete,
+
+                  tipo:
+                    "DELETE",
+
+                  operacao:
+                    "DELETE",
+
+                  entidade:
+                    "DIARIO_ITEM",
+
+                  storeOrigem:
+                    "TB_DIARIO_ITENS",
+
+                  idRegistro:
+                    idItem,
+
+                  idObra,
+
+                  idDiario,
+
+                  payloadExclusao: {
+                    entidade:
+                      "DIARIO_ITEM",
+
+                    storeOrigem:
+                      "TB_DIARIO_ITENS",
+
+                    idRegistro:
+                      idItem,
+
+                    idItemDiario:
+                      idItem,
+
+                    idDiario,
+
+                    idObra
+                  },
+
+                  statusSync:
+                    "PENDENTE",
+
+                  tentativas:
+                    0,
+
+                  criadoEm:
+                    agora
+                };
+
+                storeFila.put(
+                  tombstone
+                );
+
+                resultado.tombstoneCriado =
+                  true;
+
+                resultado.idSyncDelete =
+                  idSyncDelete;
+              }
+            }
+
+
+            // ==========================================
+            // REMOVER O ITEM LOCAL
+            // ==========================================
+            const requestDelete =
+              storeItens.delete(
+                idItem
+              );
+
+            requestDelete.onerror =
+              () => {
+
+                erroOperacao =
+                  requestDelete.error ||
+                  new Error(
+                    "Não foi possível remover o item."
+                  );
+
+                transaction.abort();
+              };
+
+            requestDelete.onsuccess =
+              () => {
+
+                resultado.itemRemovido =
+                  true;
+              };
+
+          } catch (erro) {
+
+            erroOperacao =
+              erro;
+
+            transaction.abort();
+          }
+        };
+    }
+  );
+}
+
+// =====================================================
+// EXCLUIR ITEM DO DIÁRIO — UX.19
+// =====================================================
+async function excluirItemDiarioOffline_(
+  idItem
+) {
+
   try {
-    if (!idItem) {
-      throw new Error("ID do item não informado.");
+
+    const idItemNormalizado =
+      String(
+        idItem || ""
+      ).trim();
+
+    if (!idItemNormalizado) {
+      throw new Error(
+        "ID do item não informado."
+      );
     }
 
+
+    // ================================================
+    // CONTEXTO ATIVO
+    // ================================================
+    const obraAtiva =
+      String(
+        await obterObraAtivaMobile_() ||
+        ""
+      ).trim();
+
+    if (!obraAtiva) {
+      throw new Error(
+        "Nenhuma obra ativa foi encontrada."
+      );
+    }
+
+    const idDiarioAtivo =
+      String(
+        obterDiarioAtivoSIGO_(
+          obraAtiva
+        ) ||
+        ""
+      ).trim();
+
+    if (!idDiarioAtivo) {
+      throw new Error(
+        "Abra o Diário correspondente antes de excluir o item."
+      );
+    }
+
+
+    // ================================================
+    // LOCALIZAR O ITEM DENTRO DO CONTEXTO CORRETO
+    // ================================================
     const itens =
-      await listarRegistrosSIGO("TB_DIARIO_ITENS");
+      await listarRegistrosSIGO(
+        "TB_DIARIO_ITENS"
+      );
 
     const item =
-      itens.find(reg =>
-        String(reg.idItem || reg.idItemDiario) === String(idItem)
+      itens.find(
+        registro => {
+
+          const idRegistro =
+            String(
+              registro.idItemDiario ||
+              registro.idItem ||
+              ""
+            ).trim();
+
+          return (
+            idRegistro ===
+              idItemNormalizado &&
+
+            String(
+              registro.idObra ||
+              ""
+            ).trim() ===
+              obraAtiva &&
+
+            String(
+              registro.idDiario ||
+              ""
+            ).trim() ===
+              idDiarioAtivo
+          );
+        }
       );
 
     if (!item) {
+
       SIGOUI.feedback.warning(
         "Item não encontrado",
-        "O registro não foi localizado no banco offline."
+        "O registro não pertence à obra e ao Diário atualmente abertos."
       );
+
       return;
     }
 
-    const confirmou = await SIGOUI.feedback.confirm({
-      tipo: "danger",
-      icone: "🗑️",
-      titulo: "Excluir item",
-      mensagem:
-        "Este item do diário será removido deste dispositivo.\n\n" +
-        "Deseja realmente continuar?",
-      textoConfirmar: "Excluir",
-      textoCancelar: "Cancelar"
-    });
 
-    if (!confirmou) return;
+    // ================================================
+    // CONFIRMAÇÃO
+    // ================================================
+    const atividade =
+      String(
+        item.servico ||
+        item.idAtividade ||
+        item.atividade ||
+        item.eap ||
+        "Item do Diário"
+      ).trim();
 
-    await removerRegistroSIGO_(
-      "TB_DIARIO_ITENS",
-      idItem
-    );
+    const confirmou =
+      await SIGOUI.feedback.confirm({
+        tipo:
+          "danger",
 
-    // TODO UX.07.14
-    // Registrar DELETE na TB_SYNC_QUEUE
+        icone:
+          "🗑️",
 
-    if (String(idItemDiarioEdicao) === String(idItem)) {
-      idItemDiarioEdicao = null;
-      atualizarModoEdicaoItemDiario_();
+        titulo:
+          "Excluir item",
 
-      if (typeof limparFormularioItemDiario === "function") {
-        limparFormularioItemDiario();
+        mensagem:
+          atividade +
+          "\n\n" +
+          "O item será removido deste dispositivo. " +
+          "Se já tiver sido sincronizado, a exclusão " +
+          "será enviada ao SIGO na próxima sincronização.",
+
+        textoConfirmar:
+          "Excluir",
+
+        textoCancelar:
+          "Cancelar"
+      });
+
+    if (!confirmou) {
+      return;
+    }
+
+
+    // ================================================
+    // EXCLUSÃO ATÔMICA
+    // ================================================
+    const resultado =
+      await excluirItemDiarioComFilaAtomicaSIGO_(
+        item
+      );
+
+
+    // ================================================
+    // INVALIDAR CACHES
+    // ================================================
+    if (
+      window.SIGODataCache
+    ) {
+
+      SIGODataCache.invalidate(
+        "TB_DIARIO_ITENS"
+      );
+
+      SIGODataCache.invalidate(
+        "TB_SYNC_QUEUE"
+      );
+    }
+
+    if (
+      typeof invalidarCacheObraSIGO_ ===
+      "function"
+    ) {
+
+      invalidarCacheObraSIGO_(
+        "TB_DIARIO_ITENS",
+        obraAtiva
+      );
+
+      invalidarCacheObraSIGO_(
+        "TB_SYNC_QUEUE",
+        obraAtiva
+      );
+    }
+
+
+    // ================================================
+    // NOTIFICAR DATABINDING
+    // ================================================
+    if (
+      window.SIGODataBinding &&
+      typeof SIGODataBinding.notify ===
+        "function"
+    ) {
+
+      await SIGODataBinding.notify(
+        "TB_DIARIO_ITENS",
+        {
+          acao:
+            "DELETE",
+
+          store:
+            "TB_DIARIO_ITENS",
+
+          chave:
+            idItemNormalizado,
+
+          idObra:
+            obraAtiva,
+
+          idDiario:
+            idDiarioAtivo
+        }
+      );
+
+      await SIGODataBinding.notify(
+        "TB_SYNC_QUEUE",
+        {
+          acao:
+            "UPDATE",
+
+          store:
+            "TB_SYNC_QUEUE",
+
+          idObra:
+            obraAtiva,
+
+          idRegistro:
+            idItemNormalizado
+        }
+      );
+    }
+
+
+    // ================================================
+    // ENCERRAR EDIÇÃO DO ITEM, SEM ENCERRAR O DIÁRIO
+    // ================================================
+    if (
+      typeof idItemDiarioEdicao !==
+        "undefined" &&
+      idItemDiarioEdicao &&
+      String(
+        idItemDiarioEdicao
+      ) ===
+        idItemNormalizado
+    ) {
+
+      if (
+        typeof limparFormularioItemDiario ===
+        "function"
+      ) {
+        await limparFormularioItemDiario();
+
+      } else {
+
+        idItemDiarioEdicao =
+          null;
+
+        atualizarModoEdicaoItemDiario_();
       }
     }
 
-    await listarItensDiarioOffline_();
+
+    // ================================================
+    // ATUALIZAR A TELA UNIFICADA
+    // ================================================
+    await listarItensDiarioOffline_(
+      idDiarioAtivo
+    );
+
+    if (
+      typeof atualizarContextoDiarioAtivoUX19_ ===
+        "function"
+    ) {
+      await atualizarContextoDiarioAtivoUX19_();
+    }
+
+    if (
+      typeof atualizarIndicadoresMobile_ ===
+        "function"
+    ) {
+      await atualizarIndicadoresMobile_();
+    }
+
+
+    // ================================================
+    // RETORNO VISUAL
+    // ================================================
+    const mensagem =
+      resultado.jaSincronizado
+        ? (
+            "Item removido. A exclusão ficou pendente " +
+            "para ser enviada ao SIGO."
+          )
+        : (
+            "Item local removido. Como ainda não havia " +
+            "sido sincronizado, nenhum DELETE será enviado."
+          );
 
     SIGOUI.feedback.success(
       "Item excluído",
-      "Registro removido com sucesso."
+      mensagem
     );
 
+    console.log(
+      "Exclusão do item concluída:",
+      resultado
+    );
+
+    return resultado;
+
   } catch (erro) {
-    console.error("Erro ao excluir item:", erro);
+
+    console.error(
+      "Erro ao excluir item:",
+      erro
+    );
 
     SIGOUI.feedback.error(
       "Erro ao excluir",
-      erro.message || "Não foi possível excluir o item."
+      erro?.message ||
+      "Não foi possível excluir o item."
     );
+
+    return null;
   }
 }
 
