@@ -2039,212 +2039,579 @@ async function sincronizarSIGO() {
 
   try {
 
-    const fila = await listarRegistrosSIGO("TB_SYNC_QUEUE");
+    const obraAtiva =
+      String(
+        localStorage.getItem(
+          "obraAtiva"
+        ) ||
+        "OBR002"
+      ).trim();
 
-    const pendentes = fila.filter(
-      item => item.statusSync === "PENDENTE"
-    );
-
-    if (pendentes.length === 0) {
-
-        SIGOUI.feedback.info(
-            "Tudo sincronizado",
-            "Não há registros pendentes para envio."
-        );
-    
-        return;
-    
-    }
-
-    const diarios = await listarRegistrosSIGO("TB_DIARIOS");
-
-    const diariosPendentes = diarios.filter(diario =>
-      pendentes.some(item => item.idRegistro === diario.idDiario)
-    );
-
-    const medicoes = await listarRegistrosSIGO("TB_MEDICOES");
-
-    const medicoesPendentes = medicoes.filter(medicao =>
-      pendentes.some(item => item.idRegistro === medicao.idMedicao)
-    );
-
-    const lotesMedicao =
-      await listarRegistrosSIGO("TB_LOTES_MEDICAO");
-    
-    const lotesMedicaoPendentes =
-      lotesMedicao.filter(lote =>
-        pendentes.some(item =>
-          item.idRegistro === lote.idLoteMedicao
-        )
+    const fila =
+      await listarRegistrosSIGO(
+        "TB_SYNC_QUEUE"
       );
 
-    const evidencias = await listarRegistrosSIGO("TB_EVIDENCIAS");
+    // =================================================
+    // SOMENTE PENDÊNCIAS DA OBRA ATIVA
+    // =================================================
+    const pendentesObra =
+      fila.filter(item => {
 
-    const evidenciasPendentes = evidencias.filter(evidencia =>
-      pendentes.some(item => item.idRegistro === evidencia.idEvidencia)
-    );
+        return (
+          String(
+            item.statusSync || ""
+          )
+            .trim()
+            .toUpperCase() ===
+            "PENDENTE" &&
 
-    const climas = await listarRegistrosSIGO("TB_CLIMA");
-
-    const climasPendentes = climas.filter(clima =>
-      pendentes.some(item => item.idRegistro === clima.idClima)
-    );
-
-    const ocorrencias = await listarRegistrosSIGO("TB_OCORRENCIAS");
-
-    const ocorrenciasPendentes = ocorrencias.filter(ocorrencia =>
-      pendentes.some(item => item.idRegistro === ocorrencia.idOcorrencia)
-    );
-
-    const diarioItens = await listarRegistrosSIGO("TB_DIARIO_ITENS");
-
-    const diarioItensPendentes =
-      diarioItens.filter(itemDiario => {
-    
-        const idItem =
-          itemDiario.idItem ||
-          itemDiario.idItemDiario;
-    
-        return pendentes.some(item =>
-          String(item.idRegistro) ===
-          String(idItem)
+          String(
+            item.idObra || ""
+          ).trim() ===
+            obraAtiva
         );
       });
 
-    const obraAtiva =
-      localStorage.getItem("obraAtiva") || "OBR002";
+    if (
+      pendentesObra.length === 0
+    ) {
 
-    const payload = {
-      token: SIGO_TOKEN_OFFLINE,
-      idDispositivo: "WEB-MOBILE-001",
-      idUsuario: "USUARIO_APP",
-      idObra: obraAtiva,
-      dataEnvio: new Date().toISOString(),
-   pacote: {
-      diarios: diariosPendentes,
-      diarioItens: diarioItensPendentes,
-      lotesMedicao: lotesMedicaoPendentes,
-      medicoes: medicoesPendentes,
-      ocorrencias: ocorrenciasPendentes,
-      clima: climasPendentes,
-      evidencias: evidenciasPendentes
+      SIGOUI.feedback.info(
+        "Tudo sincronizado",
+        "Não há registros pendentes para esta obra."
+      );
+
+      return;
     }
+
+    const exclusoesPendentes =
+      pendentesObra.filter(
+        ehPendenciaDeleteSIGO_
+      );
+
+    const lotesNaoSuportados =
+      pendentesObra.filter(item => {
+
+        return (
+          !ehPendenciaDeleteSIGO_(
+            item
+          ) &&
+
+          String(
+            item.storeOrigem || ""
+          ) ===
+            "TB_LOTES_MEDICAO"
+        );
+      });
+
+    const pendenciasRegistros =
+      pendentesObra.filter(item => {
+
+        return (
+          !ehPendenciaDeleteSIGO_(
+            item
+          ) &&
+
+          String(
+            item.storeOrigem || ""
+          ) !==
+            "TB_LOTES_MEDICAO"
+        );
+      });
+
+
+    // =================================================
+    // VERIFICAR SE EXISTE PENDÊNCIA DO REGISTRO
+    // =================================================
+    const possuiPendencia =
+      (
+        storeOrigem,
+        idRegistro
+      ) => {
+
+        return pendenciasRegistros
+          .some(pendencia => {
+
+            return (
+              String(
+                pendencia.storeOrigem ||
+                ""
+              ) ===
+                String(
+                  storeOrigem ||
+                  ""
+                ) &&
+
+              String(
+                pendencia.idRegistro ||
+                ""
+              ) ===
+                String(
+                  idRegistro ||
+                  ""
+                )
+            );
+          });
+      };
+
+
+    // =================================================
+    // CARREGAR STORES OPERACIONAIS
+    // =================================================
+    const diarios =
+      await listarRegistrosSIGO(
+        "TB_DIARIOS"
+      );
+
+    const medicoes =
+      await listarRegistrosSIGO(
+        "TB_MEDICOES"
+      );
+
+    const evidencias =
+      await listarRegistrosSIGO(
+        "TB_EVIDENCIAS"
+      );
+
+    const climas =
+      await listarRegistrosSIGO(
+        "TB_CLIMA"
+      );
+
+    const ocorrencias =
+      await listarRegistrosSIGO(
+        "TB_OCORRENCIAS"
+      );
+
+    const diarioItens =
+      await listarRegistrosSIGO(
+        "TB_DIARIO_ITENS"
+      );
+
+
+    // =================================================
+    // REGISTROS A ENVIAR
+    // =================================================
+    const diariosPendentes =
+      diarios.filter(diario => {
+
+        return possuiPendencia(
+          "TB_DIARIOS",
+          diario.idDiario
+        );
+      });
+
+    const medicoesPendentes =
+      medicoes.filter(medicao => {
+
+        return possuiPendencia(
+          "TB_MEDICOES",
+          medicao.idMedicao
+        );
+      });
+
+    const evidenciasPendentes =
+      evidencias.filter(evidencia => {
+
+        return possuiPendencia(
+          "TB_EVIDENCIAS",
+          evidencia.idEvidencia
+        );
+      });
+
+    const climasPendentes =
+      climas.filter(clima => {
+
+        return possuiPendencia(
+          "TB_CLIMA",
+          clima.idClima
+        );
+      });
+
+    const ocorrenciasPendentes =
+      ocorrencias.filter(
+        ocorrencia => {
+
+          return possuiPendencia(
+            "TB_OCORRENCIAS",
+            ocorrencia.idOcorrencia
+          );
+        }
+      );
+
+    const diarioItensPendentes =
+      diarioItens.filter(
+        itemDiario => {
+
+          const idItem =
+            itemDiario.idItemDiario ||
+            itemDiario.idItem;
+
+          return possuiPendencia(
+            "TB_DIARIO_ITENS",
+            idItem
+          );
+        }
+      );
+
+
+    // =================================================
+    // TOMBSTONES
+    // =================================================
+    const exclusoes =
+      exclusoesPendentes.map(
+        montarTombstoneFilaSIGO_
+      );
+
+    exclusoes.forEach(
+      exclusao => {
+
+        if (
+          exclusao.storeOrigem !==
+          "TB_DIARIO_ITENS"
+        ) {
+          throw new Error(
+            "Exclusão ainda não suportada para a store " +
+            exclusao.storeOrigem +
+            "."
+          );
+        }
+
+        if (
+          !exclusao.idRegistro ||
+          !exclusao.idObra
+        ) {
+          throw new Error(
+            "Tombstone de exclusão incompleto."
+          );
+        }
+      }
+    );
+
+
+    // =================================================
+    // IDENTIFICAR QUAIS PENDÊNCIAS ENTRARAM NO PACOTE
+    // =================================================
+    const chavesEnviadas =
+      new Set();
+
+    diariosPendentes.forEach(
+      registro => {
+
+        chavesEnviadas.add(
+          criarChavePendenciaSyncSIGO_(
+            "TB_DIARIOS",
+            registro.idDiario
+          )
+        );
+      }
+    );
+
+    diarioItensPendentes.forEach(
+      registro => {
+
+        chavesEnviadas.add(
+          criarChavePendenciaSyncSIGO_(
+            "TB_DIARIO_ITENS",
+            registro.idItemDiario ||
+            registro.idItem
+          )
+        );
+      }
+    );
+
+    medicoesPendentes.forEach(
+      registro => {
+
+        chavesEnviadas.add(
+          criarChavePendenciaSyncSIGO_(
+            "TB_MEDICOES",
+            registro.idMedicao
+          )
+        );
+      }
+    );
+
+    ocorrenciasPendentes.forEach(
+      registro => {
+
+        chavesEnviadas.add(
+          criarChavePendenciaSyncSIGO_(
+            "TB_OCORRENCIAS",
+            registro.idOcorrencia
+          )
+        );
+      }
+    );
+
+    climasPendentes.forEach(
+      registro => {
+
+        chavesEnviadas.add(
+          criarChavePendenciaSyncSIGO_(
+            "TB_CLIMA",
+            registro.idClima
+          )
+        );
+      }
+    );
+
+    evidenciasPendentes.forEach(
+      registro => {
+
+        chavesEnviadas.add(
+          criarChavePendenciaSyncSIGO_(
+            "TB_EVIDENCIAS",
+            registro.idEvidencia
+          )
+        );
+      }
+    );
+
+    const pendenciasRegistrosEnviadas =
+      pendenciasRegistros.filter(
+        pendencia => {
+
+          return chavesEnviadas.has(
+            criarChavePendenciaSyncSIGO_(
+              pendencia.storeOrigem,
+              pendencia.idRegistro
+            )
+          );
+        }
+      );
+
+    const pendenciasEnviadas = [
+      ...pendenciasRegistrosEnviadas,
+      ...exclusoesPendentes
+    ];
+
+
+    if (
+      pendenciasEnviadas.length === 0
+    ) {
+
+      SIGOUI.feedback.warning(
+        "Nada enviado",
+        "As pendências não possuem registros de origem elegíveis."
+      );
+
+      return;
+    }
+
+
+    // =================================================
+    // PACOTE DA API
+    // =================================================
+    const payload = {
+      token:
+        SIGO_TOKEN_OFFLINE,
+
+      idDispositivo:
+        "WEB-MOBILE-001",
+
+      idUsuario:
+        "USUARIO_APP",
+
+      idObra:
+        obraAtiva,
+
+      dataEnvio:
+        new Date().toISOString(),
+
+      pacote: {
+        diarios:
+          diariosPendentes,
+
+        diarioItens:
+          diarioItensPendentes,
+
+        lotesMedicao: [],
+
+        medicoes:
+          medicoesPendentes,
+
+        ocorrencias:
+          ocorrenciasPendentes,
+
+        clima:
+          climasPendentes,
+
+        evidencias:
+          evidenciasPendentes,
+
+        exclusoes
+      }
     };
 
-    console.log("Enviando para API SIGO:", payload);
+    console.log(
+      "Enviando para API SIGO:",
+      payload
+    );
 
-    const resposta = await fetch(SIGO_API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "text/plain;charset=utf-8"
-      },
-      body: JSON.stringify(payload)
-    });
+    const resposta =
+      await fetch(
+        SIGO_API_URL,
+        {
+          method:
+            "POST",
 
-    const resultado = await resposta.json();
+          headers: {
+            "Content-Type":
+              "text/plain;charset=utf-8"
+          },
 
-    console.log("Resposta API SIGO:", resultado);
+          body:
+            JSON.stringify(
+              payload
+            )
+        }
+      );
 
-    if (resultado.status !== "OK") {
-      throw new Error(resultado.mensagem || "Erro na API SIGO.");
-    }
+    const resultado =
+      await resposta.json();
 
-    for (const item of pendentes) {
-      item.statusSync = "SINCRONIZADO";
-      item.dataSync = new Date().toISOString();
+    console.log(
+      "Resposta API SIGO:",
+      resultado
+    );
 
-      await atualizarRegistroSIGO(
-        "TB_SYNC_QUEUE",
-        item
+    if (
+      resultado.status !== "OK"
+    ) {
+      throw new Error(
+        resultado.mensagem ||
+        "Erro na API SIGO."
       );
     }
 
-    for (const diario of diariosPendentes) {
-      diario.statusSync = "SINCRONIZADO";
-      diario.dataSync = new Date().toISOString();
+
+    // =================================================
+    // MARCAR SOMENTE O QUE FOI ENVIADO
+    // =================================================
+    const dataSync =
+      new Date().toISOString();
+
+    for (
+      const pendencia of
+      pendenciasEnviadas
+    ) {
+
+      pendencia.statusSync =
+        "SINCRONIZADO";
+
+      pendencia.dataSync =
+        dataSync;
 
       await atualizarRegistroSIGO(
+        "TB_SYNC_QUEUE",
+        pendencia
+      );
+    }
+
+
+    const marcarRegistroSincronizado =
+      async (
+        store,
+        registro
+      ) => {
+
+        registro.statusSync =
+          "SINCRONIZADO";
+
+        registro.dataSync =
+          dataSync;
+
+        await atualizarRegistroSIGO(
+          store,
+          registro
+        );
+      };
+
+
+    for (
+      const diario of
+      diariosPendentes
+    ) {
+      await marcarRegistroSincronizado(
         "TB_DIARIOS",
         diario
       );
     }
 
-    for (const medicao of medicoesPendentes) {
-        medicao.statusSync = "SINCRONIZADO";
-        medicao.dataSync = new Date().toISOString();
-      
-        await atualizarRegistroSIGO(
-          "TB_MEDICOES",
-          medicao
-        );
-      }
+    for (
+      const medicao of
+      medicoesPendentes
+    ) {
+      await marcarRegistroSincronizado(
+        "TB_MEDICOES",
+        medicao
+      );
+    }
 
-    for (const lote of lotesMedicaoPendentes) {
-        lote.statusSync = "SINCRONIZADO";
-        lote.dataSync = new Date().toISOString();
-      
-        await atualizarRegistroSIGO(
-          "TB_LOTES_MEDICAO",
-          lote
-        );
-      }
+    for (
+      const evidencia of
+      evidenciasPendentes
+    ) {
+      await marcarRegistroSincronizado(
+        "TB_EVIDENCIAS",
+        evidencia
+      );
+    }
 
-    for (const evidencia of evidenciasPendentes) {
-        evidencia.statusSync = "SINCRONIZADO";
-        evidencia.dataSync = new Date().toISOString();
-      
-        await atualizarRegistroSIGO(
-          "TB_EVIDENCIAS",
-          evidencia
-        );
-      }
+    for (
+      const clima of
+      climasPendentes
+    ) {
+      await marcarRegistroSincronizado(
+        "TB_CLIMA",
+        clima
+      );
+    }
 
-     for (const clima of climasPendentes) {
-        clima.statusSync = "SINCRONIZADO";
-        clima.dataSync = new Date().toISOString();
-      
-        await atualizarRegistroSIGO(
-          "TB_CLIMA",
-          clima
-        );
-      }
+    for (
+      const ocorrencia of
+      ocorrenciasPendentes
+    ) {
+      await marcarRegistroSincronizado(
+        "TB_OCORRENCIAS",
+        ocorrencia
+      );
+    }
 
-    for (const ocorrencia of ocorrenciasPendentes) {
-        ocorrencia.statusSync = "SINCRONIZADO";
-        ocorrencia.dataSync = new Date().toISOString();
-      
-        await atualizarRegistroSIGO(
-          "TB_OCORRENCIAS",
-          ocorrencia
-        );
-      }
+    for (
+      const itemDiario of
+      diarioItensPendentes
+    ) {
 
-    for (const itemDiario of diarioItensPendentes) {
-
-      itemDiario.statusSync =
-        "SINCRONIZADO";
-    
-      itemDiario.dataSync =
-        new Date().toISOString();
-    
-      await atualizarRegistroSIGO(
+      await marcarRegistroSincronizado(
         "TB_DIARIO_ITENS",
         itemDiario
       );
-    
+
       const idItem =
-        itemDiario.idItem ||
-        itemDiario.idItemDiario;
-    
+        itemDiario.idItemDiario ||
+        itemDiario.idItem;
+
       if (
-        typeof idItemDiarioEdicao !== "undefined" &&
+        typeof idItemDiarioEdicao !==
+          "undefined" &&
         idItemDiarioEdicao &&
-        String(idItemDiarioEdicao) ===
-        String(idItem)
+        String(
+          idItemDiarioEdicao
+        ) ===
+          String(idItem)
       ) {
+
         encerrarModoEdicaoItemDiario_();
       }
     }
+
+
+    // =================================================
+    // ATUALIZAR INTERFACE
+    // =================================================
     await atualizarIndicadoresMobile_();
     await carregarListaDiariosOffline();
     await listarMedicoesOffline_();
@@ -2254,120 +2621,189 @@ async function sincronizarSIGO() {
     await listarItensDiarioOffline_();
 
     if (
-      typeof navegarPara === "function" &&
-      document.getElementById("listaMedicoesOffline")
+      typeof atualizarContextoDiarioAtivoUX19_ ===
+      "function"
     ) {
-      navegarPara("medicoes");
+      await atualizarContextoDiarioAtivoUX19_();
+    }
+
+    if (
+      typeof navegarPara ===
+        "function" &&
+      document.getElementById(
+        "listaMedicoesOffline"
+      )
+    ) {
+      navegarPara(
+        "medicoes"
+      );
     }
 
     localStorage.setItem(
       "SIGO_ULTIMA_SYNC",
-      new Date().toLocaleString("pt-BR")
+      new Date()
+        .toLocaleString("pt-BR")
     );
-   await atualizarPainelSaudeSync_();
 
-    // =====================================================
-    // RESUMO DA SINCRONIZAÇÃO
-    // =====================================================
+    await atualizarPainelSaudeSync_();
+
+
+    // =================================================
+    // RESUMO
+    // =================================================
     const resumoSync = {
-      total: pendentes.length,
-      diarios: diariosPendentes.length,
-      itensDiario: diarioItensPendentes.length,
-      lotesMedicao: lotesMedicaoPendentes.length,
-      medicoes: medicoesPendentes.length,
-      ocorrencias: ocorrenciasPendentes.length,
-      climas: climasPendentes.length,
-      evidencias: evidenciasPendentes.length
+      total:
+        pendenciasEnviadas.length,
+
+      diarios:
+        diariosPendentes.length,
+
+      itensDiario:
+        diarioItensPendentes.length,
+
+      exclusoes:
+        exclusoes.length,
+
+      lotesMedicao: 0,
+
+      medicoes:
+        medicoesPendentes.length,
+
+      ocorrencias:
+        ocorrenciasPendentes.length,
+
+      climas:
+        climasPendentes.length,
+
+      evidencias:
+        evidenciasPendentes.length,
+
+      naoEnviadas:
+        pendentesObra.length -
+        pendenciasEnviadas.length
     };
-    
+
     const detalhesSync = [
       resumoSync.diarios
         ? `${resumoSync.diarios} diário(s)`
         : "",
-    
+
       resumoSync.itensDiario
         ? `${resumoSync.itensDiario} item(ns) do diário`
         : "",
-    
-      resumoSync.lotesMedicao
-        ? `${resumoSync.lotesMedicao} lote(s) de medição`
+
+      resumoSync.exclusoes
+        ? `${resumoSync.exclusoes} exclusão(ões)`
         : "",
-    
+
       resumoSync.medicoes
         ? `${resumoSync.medicoes} medição(ões)`
         : "",
-    
+
       resumoSync.ocorrencias
         ? `${resumoSync.ocorrencias} ocorrência(s)`
         : "",
-    
+
       resumoSync.climas
         ? `${resumoSync.climas} registro(s) climático(s)`
         : "",
-    
+
       resumoSync.evidencias
         ? `${resumoSync.evidencias} evidência(s)`
         : ""
     ]
       .filter(Boolean)
       .join(", ");
-    
-    // =====================================================
-    // NOTIFICAÇÃO — SINCRONIZAÇÃO CONCLUÍDA
-    // =====================================================
-    if (typeof registrarEventoSIGO_ === "function") {
+
+    if (
+      typeof registrarEventoSIGO_ ===
+      "function"
+    ) {
+
       await registrarEventoSIGO_({
-        evento: "SYNC_CONCLUIDO",
-    
+        evento:
+          "SYNC_CONCLUIDO",
+
         dados: {
           ...resumoSync,
-    
+
           mensagem:
             `${resumoSync.total} registro(s) ` +
             `sincronizado(s) com sucesso` +
-            (detalhesSync
-              ? `: ${detalhesSync}.`
-              : ".")
+            (
+              detalhesSync
+                ? `: ${detalhesSync}.`
+                : "."
+            )
         }
       });
     }
-    
+
     SIGOUI.feedback.success(
       "Sincronização concluída",
       `${resumoSync.total} registro(s) enviado(s) ao SIGO.`
     );
 
- } catch (erro) {
+    if (
+      lotesNaoSuportados.length > 0
+    ) {
+
+      console.warn(
+        lotesNaoSuportados.length +
+        " lote(s) de medição permaneceram pendentes."
+      );
+    }
+
+    return {
+      status: "OK",
+      resumo: resumoSync,
+      detalhes:
+        resultado.detalhes || {}
+    };
+
+  } catch (erro) {
 
     console.error(
       "Erro ao sincronizar com API SIGO:",
       erro
     );
-  
+
     const mensagemErro =
       erro?.message ||
       "Não foi possível sincronizar com o SIGO.";
-  
-    // =====================================================
-    // NOTIFICAÇÃO — ERRO DE SINCRONIZAÇÃO
-    // =====================================================
-    if (typeof registrarEventoSIGO_ === "function") {
+
+    if (
+      typeof registrarEventoSIGO_ ===
+      "function"
+    ) {
+
       await registrarEventoSIGO_({
-        evento: "SYNC_ERRO",
-  
+        evento:
+          "SYNC_ERRO",
+
         dados: {
-          mensagem: mensagemErro,
-          message: mensagemErro,
+          mensagem:
+            mensagemErro,
+
+          message:
+            mensagemErro,
+
           ocorridoEm:
-            new Date().toISOString()
+            new Date()
+              .toISOString()
         }
       });
     }
-  
+
     SIGOUI.feedback.error(
       "Erro de sincronização",
       mensagemErro
     );
+
+    return {
+      status: "ERRO",
+      mensagem: mensagemErro
+    };
   }
 }
 
