@@ -1654,17 +1654,37 @@ async function editarDiarioOffline_(
 
 function atualizarModoEdicaoDiario_() {
 
+  // Localiza especificamente o botão do
+  // cabeçalho do Diário, sem confundi-lo
+  // com o botão "Adicionar Item".
   const botao =
-    document.querySelector(
-      ".is-success"
-    );
+    [...document.querySelectorAll(
+      "button"
+    )].find(elemento => {
+
+      const acao =
+        String(
+          elemento.getAttribute(
+            "onclick"
+          ) || ""
+        )
+          .replace(/\s+/g, "");
+
+      return (
+        acao ===
+          "salvarDiarioPremium()" ||
+
+        acao ===
+          "atualizarDiarioOffline_()"
+      );
+    });
 
   if (!botao) return;
 
   if (idDiarioEdicao) {
 
     botao.innerHTML =
-      "💾 Atualizar";
+      "💾 Atualizar Diário";
 
     botao.setAttribute(
       "onclick",
@@ -1674,98 +1694,259 @@ function atualizarModoEdicaoDiario_() {
   } else {
 
     botao.innerHTML =
-      "💾 Salvar";
+      "💾 Salvar Diário";
 
     botao.setAttribute(
       "onclick",
       "salvarDiarioPremium()"
     );
-
   }
-
 }
 
 async function atualizarDiarioOffline_() {
+
   try {
+
+    // ==========================================
+    // 1. VALIDAR O MODO DE EDIÇÃO
+    // ==========================================
+
     if (!idDiarioEdicao) {
-      throw new Error("Nenhum diário em edição.");
+      throw new Error(
+        "Nenhum Diário está em edição."
+      );
     }
 
-    const diarios = await listarRegistrosSIGO("TB_DIARIOS");
+    const idObraAtiva =
+      String(
+        obterObraAtivaMobile_() || ""
+      ).trim();
 
-    const diarioAtual = diarios.find(item =>
-      String(item.idDiario) === String(idDiarioEdicao)
-    );
+    if (!idObraAtiva) {
+      throw new Error(
+        "Nenhuma obra ativa foi identificada."
+      );
+    }
+
+    // ==========================================
+    // 2. LOCALIZAR O REGISTRO EXISTENTE
+    // ==========================================
+
+    const diarios =
+      await listarRegistrosSIGO(
+        "TB_DIARIOS"
+      );
+
+    const diarioAtual =
+      diarios.find(item =>
+        String(item.idDiario) ===
+          String(idDiarioEdicao) &&
+
+        String(item.idObra) ===
+          String(idObraAtiva)
+      ) || null;
 
     if (!diarioAtual) {
-      throw new Error("Diário não encontrado.");
+      throw new Error(
+        "O Diário em edição não foi localizado na obra ativa."
+      );
     }
+
+    // ==========================================
+    // 3. LER OS DADOS ATUALIZADOS
+    // ==========================================
+
+    const dadosAtualizados = {
+      data:
+        document.getElementById(
+          "diarioData"
+        )?.value || "",
+
+      responsavel:
+        document.getElementById(
+          "diarioResponsavel"
+        )?.value || "",
+
+      equipe:
+        document.getElementById(
+          "diarioEquipe"
+        )?.value || "",
+
+      horasDia:
+        Number(
+          document.getElementById(
+            "diarioHoras"
+          )?.value || 0
+        ),
+
+      clima:
+        document.getElementById(
+          "diarioClima"
+        )?.value || "",
+
+      ocorrencias:
+        document.getElementById(
+          "diarioOcorrencias"
+        )?.value || "",
+
+      observacoes:
+        document.getElementById(
+          "diarioObservacoes"
+        )?.value || ""
+    };
+
+    // ==========================================
+    // 4. REUTILIZAR A VALIDAÇÃO OFICIAL
+    // ==========================================
+
+    if (
+      typeof SIGOEntities?.diario
+        ?.validate === "function"
+    ) {
+      await SIGOEntities.diario.validate({
+        ...dadosAtualizados
+      });
+    }
+
+    // ==========================================
+    // 5. PRESERVAR O MESMO ID
+    // ==========================================
 
     const diarioAtualizado = {
       ...diarioAtual,
+      ...dadosAtualizados,
 
-      data: document.getElementById("diarioData").value,
-      responsavel: document.getElementById("diarioResponsavel").value,
-      equipe: document.getElementById("diarioEquipe").value,
-      horasDia: Number(document.getElementById("diarioHoras").value || 0),
-      clima: document.getElementById("diarioClima").value,
-      ocorrencias: document.getElementById("diarioOcorrencias").value,
-      observacoes: document.getElementById("diarioObservacoes").value,
+      idDiario:
+        diarioAtual.idDiario,
 
-      atualizadoEm: new Date().toISOString(),
-      statusSync: "PENDENTE"
+      idObra:
+        diarioAtual.idObra,
+
+      atualizadoEm:
+        new Date().toISOString(),
+
+      statusSync:
+        "PENDENTE"
     };
 
-   await salvarRegistroSIGO(
+    // ==========================================
+    // 6. ATUALIZAR O INDEXEDDB
+    // ==========================================
+
+    await salvarRegistroSIGO(
       "TB_DIARIOS",
       diarioAtualizado
     );
-    
-    // =====================================================
-    // SINCRONIZAÇÃO — UPDATE DO DIÁRIO
-    // =====================================================
+
+    // ==========================================
+    // 7. REGISTRAR UPDATE NA FILA OFICIAL
+    // ==========================================
+
     await adicionarNaFilaSyncSIGO({
       tipo: "UPDATE",
       storeOrigem: "TB_DIARIOS",
-      idRegistro: diarioAtualizado.idDiario,
-      idObra: diarioAtualizado.idObra
+      idRegistro:
+        diarioAtualizado.idDiario,
+      idObra:
+        diarioAtualizado.idObra
     });
 
-    // TODO UX.07.14
-    // Registrar UPDATE na TB_SYNC_QUEUE
+    // ==========================================
+    // 8. MANTER O DIÁRIO ABERTO E ATIVO
+    // ==========================================
 
-    idDiarioEdicao = null;
-    
-    atualizarModoEdicaoDiario_();
+    idDiarioEdicao =
+      diarioAtualizado.idDiario;
 
-    if (typeof limparFormularioDiario === "function") {
-      limparFormularioDiario();
+    if (
+      typeof definirDiarioAtivoSIGO_ ===
+        "function"
+    ) {
+      definirDiarioAtivoSIGO_(
+        diarioAtualizado.idDiario,
+        diarioAtualizado.idObra
+      );
     }
 
-    await carregarListaDiariosOffline();
+    if (
+      typeof atualizarModoEdicaoDiario_ ===
+        "function"
+    ) {
+      atualizarModoEdicaoDiario_();
+    }
 
-    // =====================================================
-    // NOTIFICAÇÃO — DIÁRIO ATUALIZADO
-    // =====================================================
-    if (typeof registrarEventoSIGO_ === "function") {
+    // ==========================================
+    // 9. ATUALIZAR A INTERFACE UNIFICADA
+    // ==========================================
+
+    if (
+      typeof listarItensDiarioOffline_ ===
+        "function"
+    ) {
+      await listarItensDiarioOffline_(
+        diarioAtualizado.idDiario
+      );
+    }
+
+    if (
+      typeof atualizarContextoDiarioAtivoUX19_ ===
+        "function"
+    ) {
+      await atualizarContextoDiarioAtivoUX19_();
+    }
+
+    if (
+      typeof carregarListaDiariosOffline ===
+        "function"
+    ) {
+      await carregarListaDiariosOffline();
+    }
+
+    if (
+      typeof atualizarIndicadoresMobile_ ===
+        "function"
+    ) {
+      await atualizarIndicadoresMobile_();
+    }
+
+    // ==========================================
+    // 10. NOTIFICAÇÃO
+    // ==========================================
+
+    if (
+      typeof registrarEventoSIGO_ ===
+        "function"
+    ) {
       await registrarEventoSIGO_({
-        evento: "DIARIO_ATUALIZADO",
-        dados: diarioAtualizado
+        evento:
+          "DIARIO_ATUALIZADO",
+
+        dados:
+          diarioAtualizado
       });
     }
-    
+
     SIGOUI.feedback.success(
       "Diário atualizado",
-      "Registro atualizado com sucesso."
+      "As alterações foram salvas no mesmo Diário."
     );
 
+    return diarioAtualizado;
+
   } catch (erro) {
-    console.error("Erro ao atualizar diário:", erro);
+
+    console.error(
+      "Erro ao atualizar Diário:",
+      erro
+    );
 
     SIGOUI.feedback.error(
       "Erro ao atualizar",
-      erro.message || "Não foi possível atualizar o diário."
+      erro.message ||
+      "Não foi possível atualizar o Diário."
     );
+
+    return null;
   }
 }
 
@@ -5706,9 +5887,6 @@ async function atualizarOcorrenciaOffline_() {
       idRegistro: ocorrenciaAtualizada.idOcorrencia,
       idObra: ocorrenciaAtualizada.idObra
     });
-
-    // TODO UX.07.14.SYNC
-    // Registrar UPDATE na TB_SYNC_QUEUE
 
     idOcorrenciaEdicao = null;
 
