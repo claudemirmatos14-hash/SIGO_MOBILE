@@ -672,12 +672,12 @@ function montarTelaDiarioObra() {
       "Modo offline",
 
     actions: [
-      {
+     {
         icone: "➕",
         texto: "Novo Diário",
         tipo: "is-primary",
         acao:
-          "limparFormularioDiario()"
+          "iniciarNovoDiarioUnificadoUX19_()"
       },
       {
         icone: "💾",
