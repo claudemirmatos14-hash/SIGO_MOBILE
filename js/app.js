@@ -94,14 +94,55 @@ localStorage.setItem("telaAtualMobile", tela);
       }
     },
 
-    diario: {
-      montar: montarTelaDiarioObra,
-      depois: async function () {
-        if (typeof carregarListaDiariosOffline === "function") {
-          await carregarListaDiariosOffline();
-        }
+   diario: {
+    montar: montarTelaDiarioObra,
+  
+    depois: async function () {
+  
+      // ==========================================
+      // 1. CARREGAR ATIVIDADES DISPONÍVEIS
+      // ==========================================
+  
+      if (
+        document.getElementById(
+          "itemDiarioAtividade"
+        ) &&
+        typeof
+          carregarAtividadesItemDiarioOffline_ ===
+          "function"
+      ) {
+        await carregarAtividadesItemDiarioOffline_();
       }
-    },
+  
+      // ==========================================
+      // 2. CARREGAR ITENS DO DIÁRIO ATIVO
+      // ==========================================
+  
+      if (
+        document.getElementById(
+          "listaItensDiarioOffline"
+        ) &&
+        typeof listarItensDiarioOffline_ ===
+          "function"
+      ) {
+        await listarItensDiarioOffline_();
+      }
+  
+      // ==========================================
+      // 3. CARREGAR HISTÓRICO DOS DIÁRIOS
+      // ==========================================
+  
+      if (
+        document.getElementById(
+          "listaDiariosOffline"
+        ) &&
+        typeof carregarListaDiariosOffline ===
+          "function"
+      ) {
+        await carregarListaDiariosOffline();
+      }
+    }
+  },
 
     diarioItens: {
       montar: montarTelaItensDiario,
