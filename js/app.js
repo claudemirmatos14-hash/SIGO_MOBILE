@@ -365,6 +365,22 @@ async function iniciarNovoDiarioUnificadoUX19_() {
       return false;
     }
 
+     // Encerrar qualquer edição anterior.
+    
+    if (
+      typeof idDiarioEdicao !==
+        "undefined"
+    ) {
+      idDiarioEdicao = null;
+    }
+    
+    if (
+      typeof atualizarModoEdicaoDiario_ ===
+        "function"
+    ) {
+      atualizarModoEdicaoDiario_();
+    }
+    
     // ==========================================
     // 2. ENCERRAR O CONTEXTO DO DIÁRIO ANTERIOR
     // ==========================================
