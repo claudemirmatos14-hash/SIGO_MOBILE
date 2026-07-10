@@ -952,7 +952,23 @@ function montarTelaItensDiario() {
   });
 }
 
-function limparFormularioItemDiario() {
+async function limparFormularioItemDiario() {
+
+  // ==========================================
+  // 1. ENCERRAR A EDIÇÃO DO ITEM ANTERIOR
+  // ==========================================
+
+  if (
+    typeof idItemDiarioEdicao !==
+      "undefined"
+  ) {
+    idItemDiarioEdicao = null;
+  }
+
+  // ==========================================
+  // 2. LIMPAR OS CAMPOS DO ITEM
+  // ==========================================
+
   [
     "itemDiarioData",
     "itemDiarioAtividade",
@@ -965,12 +981,52 @@ function limparFormularioItemDiario() {
     "itemDiarioHoras",
     "itemDiarioObservacao"
   ].forEach(id => {
-    const campo = document.getElementById(id);
-    if (campo) campo.value = "";
+
+    const campo =
+      document.getElementById(id);
+
+    if (campo) {
+      campo.value = "";
+    }
   });
 
-  const data = document.getElementById("itemDiarioData");
-  if (data) data.value = new Date().toISOString().split("T")[0];
+  // ==========================================
+  // 3. PROTEGER A DATA DO ITEM
+  // ==========================================
+
+  const campoData =
+    document.getElementById(
+      "itemDiarioData"
+    );
+
+  if (campoData) {
+    campoData.value = "";
+    campoData.readOnly = true;
+  }
+
+  // ==========================================
+  // 4. VOLTAR O BOTÃO PARA ADICIONAR ITEM
+  // ==========================================
+
+  if (
+    typeof atualizarModoEdicaoItemDiario_ ===
+      "function"
+  ) {
+    atualizarModoEdicaoItemDiario_();
+  }
+
+  // ==========================================
+  // 5. REAPLICAR A DATA DO DIÁRIO ATIVO
+  // ==========================================
+
+  if (
+    typeof atualizarContextoDiarioAtivoUX19_ ===
+      "function"
+  ) {
+    await atualizarContextoDiarioAtivoUX19_();
+  }
+
+  return true;
 }
 
 async function salvarDiarioPremium() {
