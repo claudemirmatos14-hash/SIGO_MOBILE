@@ -2430,12 +2430,7 @@ async function sincronizarSIGO() {
         }
       }
     );
-          throw new Error(
-            "Tombstone de exclusão incompleto."
-          );
-        }
-      }
-    );
+         
 
 
     // =================================================
