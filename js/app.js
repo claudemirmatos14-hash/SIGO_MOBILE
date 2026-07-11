@@ -20236,19 +20236,40 @@ function renderizarSimulacaoUX1958_(
     );
 
   const recebidos =
-    resultado.diarios.recebidos +
-    resultado.diarioItens.recebidos;
+    numeroSeguroReidratacaoUX1967_(
+      resultado.diarios.recebidos
+    ) +
+    numeroSeguroReidratacaoUX1967_(
+      resultado.diarioItens.recebidos
+    ) +
+    numeroSeguroReidratacaoUX1967_(
+      resultado.ocorrencias.recebidos
+    );
 
   const inseridos =
-    resultado.diarios.inseridos +
-    resultado.diarioItens.inseridos;
+    numeroSeguroReidratacaoUX1967_(
+      resultado.diarios.inseridos
+    ) +
+    numeroSeguroReidratacaoUX1967_(
+      resultado.diarioItens.inseridos
+    ) +
+    numeroSeguroReidratacaoUX1967_(
+      resultado.ocorrencias.inseridos
+    );
 
   const atualizados =
-    resultado.diarios.atualizados +
-    resultado.diarioItens.atualizados;
+    numeroSeguroReidratacaoUX1967_(
+      resultado.diarios.atualizados
+    ) +
+    numeroSeguroReidratacaoUX1967_(
+      resultado.diarioItens.atualizados
+    ) +
+    numeroSeguroReidratacaoUX1967_(
+      resultado.ocorrencias.atualizados
+    );
 
   const preservados =
-    totalPreservadosUX1958_(
+    totalPreservadosConsolidadosUX1967_(
       resultado
     );
 
@@ -20287,11 +20308,19 @@ function renderizarSimulacaoUX1958_(
         <strong>${resultado.diarioItens.recebidos}</strong>
         <span>Itens recuperados</span>
       </div>
+
+      <div class="sigo-reidratacao-kpi">
+        <strong>${resultado.ocorrencias.recebidos}</strong>
+        <span>Ocorrências recuperadas</span>
+      </div>
+
+      <div class="sigo-reidratacao-kpi">
+        <strong>${resultado.totalConflitosEvitados}</strong>
+        <span>Conflitos evitados</span>
+      </div>
     </div>
 
     <p class="sigo-reidratacao-observacao">
-      Conflitos evitados:
-      <strong>${resultado.totalConflitosEvitados}</strong>.
       A fila de sincronização possui
       <strong>${resultado.fila.totalRegistros}</strong>
       registros e não será alterada.
@@ -20316,15 +20345,29 @@ function renderizarResultadoReidratacaoUX1958_(
     );
 
   const inseridos =
-    resultado.diarios.inseridos +
-    resultado.diarioItens.inseridos;
+    numeroSeguroReidratacaoUX1967_(
+      resultado.diarios.inseridos
+    ) +
+    numeroSeguroReidratacaoUX1967_(
+      resultado.diarioItens.inseridos
+    ) +
+    numeroSeguroReidratacaoUX1967_(
+      resultado.ocorrencias.inseridos
+    );
 
   const atualizados =
-    resultado.diarios.atualizados +
-    resultado.diarioItens.atualizados;
+    numeroSeguroReidratacaoUX1967_(
+      resultado.diarios.atualizados
+    ) +
+    numeroSeguroReidratacaoUX1967_(
+      resultado.diarioItens.atualizados
+    ) +
+    numeroSeguroReidratacaoUX1967_(
+      resultado.ocorrencias.atualizados
+    );
 
   const preservados =
-    totalPreservadosUX1958_(
+    totalPreservadosConsolidadosUX1967_(
       resultado
     );
 
@@ -20342,6 +20385,11 @@ function renderizarResultadoReidratacaoUX1958_(
       <div class="sigo-reidratacao-kpi">
         <strong>${resultado.diarioItens.recebidos}</strong>
         <span>Itens recuperados</span>
+      </div>
+
+      <div class="sigo-reidratacao-kpi">
+        <strong>${resultado.ocorrencias.recebidos}</strong>
+        <span>Ocorrências recuperadas</span>
       </div>
 
       <div class="sigo-reidratacao-kpi">
@@ -20363,6 +20411,11 @@ function renderizarResultadoReidratacaoUX1958_(
         <strong>${resultado.totalConflitosEvitados}</strong>
         <span>Conflitos evitados</span>
       </div>
+
+      <div class="sigo-reidratacao-kpi">
+        <strong>${resultado.fila.totalRegistros}</strong>
+        <span>Registros na fila preservada</span>
+      </div>
     </div>
 
     <p class="sigo-reidratacao-observacao">
@@ -20383,6 +20436,618 @@ function renderizarResultadoReidratacaoUX1958_(
   );
 }
 
+/**
+ * ============================================================
+ * UX.19.6.7 — TESTE DA INTEGRAÇÃO VISUAL
+ * ============================================================
+ *
+ * Executa apenas:
+ *
+ * - consultas às APIs;
+ * - simulações readonly;
+ * - renderização da prévia.
+ *
+ * Não grava no IndexedDB.
+ */
+async function testarIntegracaoVisualReidratacaoUX1967_() {
+  await abrirReidratacaoUX1958_();
+
+  await prepararReidratacaoInterfaceUX1958_();
+
+  const estado =
+    window.SIGO_REIDRATACAO_UX1958;
+
+  const resultado =
+    estado.simulacao || {};
+
+  const diarios =
+    resultado.diarios || {};
+
+  const itens =
+    resultado.diarioItens || {};
+
+  const ocorrencias =
+    resultado.ocorrencias || {};
+
+  const totalRecebidos =
+    numeroSeguroReidratacaoUX1967_(
+      diarios.recebidos
+    ) +
+    numeroSeguroReidratacaoUX1967_(
+      itens.recebidos
+    ) +
+    numeroSeguroReidratacaoUX1967_(
+      ocorrencias.recebidos
+    );
+
+  const totalInseridos =
+    numeroSeguroReidratacaoUX1967_(
+      diarios.inseridos
+    ) +
+    numeroSeguroReidratacaoUX1967_(
+      itens.inseridos
+    ) +
+    numeroSeguroReidratacaoUX1967_(
+      ocorrencias.inseridos
+    );
+
+  const totalAtualizados =
+    numeroSeguroReidratacaoUX1967_(
+      diarios.atualizados
+    ) +
+    numeroSeguroReidratacaoUX1967_(
+      itens.atualizados
+    ) +
+    numeroSeguroReidratacaoUX1967_(
+      ocorrencias.atualizados
+    );
+
+  const confirmar =
+    document.getElementById(
+      "confirmarReidratacaoUX1958"
+    );
+
+  const resumoHtml =
+    document.getElementById(
+      "resumoReidratacaoUX1958"
+    ).innerHTML;
+
+  const validacoes = {
+    possuiPacoteDadosOperacionais:
+      Boolean(
+        estado.pacote &&
+        estado.pacote
+          .dadosOperacionais
+      ),
+
+    possuiPacoteOcorrencias:
+      Boolean(
+        estado.pacote &&
+        estado.pacote.ocorrencias
+      ),
+
+    simulacaoConsolidada:
+      resultado.operacao ===
+      "REIDRATACAO_VISUAL_CONSOLIDADA",
+
+    modoSimulacao:
+      resultado.modo ===
+      "SIMULACAO",
+
+    recebeu36Diarios:
+      diarios.recebidos === 36,
+
+    recebeu6Itens:
+      itens.recebidos === 6,
+
+    recebeu14Ocorrencias:
+      ocorrencias.recebidos === 14,
+
+    recebeu56Registros:
+      totalRecebidos === 56,
+
+    inseririaZero:
+      totalInseridos === 0,
+
+    atualizaria56:
+      totalAtualizados === 56,
+
+    nenhumProtegido:
+      totalPreservadosConsolidadosUX1967_(
+        resultado
+      ) === 0,
+
+    nenhumConflito:
+      resultado.totalConflitosEvitados ===
+      0,
+
+    filaPossui45:
+      resultado.fila &&
+      resultado.fila.totalRegistros ===
+      45,
+
+    filaPreservada:
+      resultado.fila &&
+      resultado.fila
+        .preservadaIntegralmente ===
+      true,
+
+    confirmacaoHabilitada:
+      Boolean(
+        confirmar &&
+        confirmar.disabled === false
+      ),
+
+    resumoMostraOcorrencias:
+      resumoHtml.includes(
+        "Ocorrências recuperadas"
+      )
+  };
+
+  const aprovado =
+    Object.values(
+      validacoes
+    ).every(
+      valor => valor === true
+    );
+
+  const auditoria = {
+    etapa:
+      "UX.19.6.7",
+
+    teste:
+      "INTEGRACAO_VISUAL_OCORRENCIAS",
+
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+
+    idObra:
+      resultado.idObra || "",
+
+    periodoDias:
+      resultado.periodoDias || 0,
+
+    totais: {
+      diarios:
+        numeroSeguroReidratacaoUX1967_(
+          diarios.recebidos
+        ),
+
+      itens:
+        numeroSeguroReidratacaoUX1967_(
+          itens.recebidos
+        ),
+
+      ocorrencias:
+        numeroSeguroReidratacaoUX1967_(
+          ocorrencias.recebidos
+        ),
+
+      recebidos:
+        totalRecebidos,
+
+      inseridos:
+        totalInseridos,
+
+      atualizados:
+        totalAtualizados,
+
+      preservados:
+        totalPreservadosConsolidadosUX1967_(
+          resultado
+        ),
+
+      conflitos:
+        numeroSeguroReidratacaoUX1967_(
+          resultado
+            .totalConflitosEvitados
+        )
+    },
+
+    fila: {
+      totalRegistros:
+        resultado.fila
+          ? resultado.fila.totalRegistros
+          : 0,
+
+      preservada:
+        resultado.fila
+          ? resultado.fila
+              .preservadaIntegralmente
+          : false
+    },
+
+    validacoes,
+
+    aprovado
+  };
+
+  console.log(
+    JSON.stringify(
+      auditoria,
+      null,
+      2
+    )
+  );
+
+  if (!aprovado) {
+    throw new Error(
+      "UX.19.6.7 REPROVADA. Consulte as validações no console."
+    );
+  }
+
+  console.log(
+    "UX.19.6.7 — INTEGRAÇÃO VISUAL DE OCORRÊNCIAS APROVADA."
+  );
+
+  return auditoria;
+}
+
+/**
+ * ============================================================
+ * UX.19.6.7 — INTEGRAÇÃO VISUAL DAS OCORRÊNCIAS
+ * ============================================================
+ */
+
+
+/**
+ * Converte contadores para número seguro.
+ */
+function numeroSeguroReidratacaoUX1967_(
+  valor
+) {
+  const numero =
+    Number(valor || 0);
+
+  return Number.isFinite(numero)
+    ? numero
+    : 0;
+}
+
+
+/**
+ * Normaliza o resumo retornado pela mesclagem
+ * de ocorrências.
+ *
+ * A mesclagem de ocorrências utiliza:
+ *
+ * recebidas
+ * inseridas
+ * atualizadas
+ *
+ * A interface consolidada utiliza:
+ *
+ * recebidos
+ * inseridos
+ * atualizados
+ */
+function normalizarResumoOcorrenciasUX1967_(
+  resultadoOcorrencias
+) {
+  const origem =
+    resultadoOcorrencias &&
+    resultadoOcorrencias.ocorrencias
+      ? resultadoOcorrencias.ocorrencias
+      : {};
+
+  const recebidos =
+    numeroSeguroReidratacaoUX1967_(
+      origem.recebidos !== undefined
+        ? origem.recebidos
+        : origem.recebidas
+    );
+
+  const inseridos =
+    numeroSeguroReidratacaoUX1967_(
+      origem.inseridos !== undefined
+        ? origem.inseridos
+        : origem.inseridas
+    );
+
+  const atualizados =
+    numeroSeguroReidratacaoUX1967_(
+      origem.atualizados !== undefined
+        ? origem.atualizados
+        : origem.atualizadas
+    );
+
+  const preservadosPorUpsertPendente =
+    numeroSeguroReidratacaoUX1967_(
+      origem
+        .preservadasPorUpsertPendente
+    );
+
+  const bloqueadosPorDeletePendente =
+    numeroSeguroReidratacaoUX1967_(
+      origem
+        .bloqueadasPorDeletePendente
+    );
+
+  const preservadosPorPendenciaDesconhecida =
+    numeroSeguroReidratacaoUX1967_(
+      origem
+        .preservadasPorPendenciaDesconhecida
+    );
+
+  const preservados =
+    preservadosPorUpsertPendente +
+    bloqueadosPorDeletePendente +
+    preservadosPorPendenciaDesconhecida;
+
+  return {
+    ...origem,
+
+    recebidos,
+    inseridos,
+    atualizados,
+
+    preservadosPorUpsertPendente,
+    bloqueadosPorDeletePendente,
+    preservadosPorPendenciaDesconhecida,
+
+    preservados
+  };
+}
+
+
+/**
+ * Soma os registros protegidos de:
+ *
+ * - Diários;
+ * - Itens do Diário;
+ * - Ocorrências.
+ */
+function totalPreservadosConsolidadosUX1967_(
+  resultado
+) {
+  const preservadosDadosOperacionais =
+    typeof totalPreservadosUX1958_ ===
+      "function"
+      ? numeroSeguroReidratacaoUX1967_(
+          totalPreservadosUX1958_(
+            resultado
+          )
+        )
+      : 0;
+
+  const preservadosOcorrencias =
+    numeroSeguroReidratacaoUX1967_(
+      resultado &&
+      resultado.ocorrencias
+        ? resultado.ocorrencias
+            .preservados
+        : 0
+    );
+
+  return (
+    preservadosDadosOperacionais +
+    preservadosOcorrencias
+  );
+}
+
+
+/**
+ * Consolida os resultados das duas mesclagens:
+ *
+ * 1. DIÁRIOS + ITENS;
+ * 2. OCORRÊNCIAS.
+ *
+ * Também valida se ambas trabalharam:
+ *
+ * - na mesma obra;
+ * - no mesmo período;
+ * - no mesmo modo;
+ * - sobre a mesma fila;
+ * - sem alterar TB_SYNC_QUEUE.
+ */
+function consolidarResultadosReidratacaoUX1967_(
+  resultadoDados,
+  resultadoOcorrencias
+) {
+  if (
+    !resultadoDados ||
+    !resultadoOcorrencias
+  ) {
+    throw new Error(
+      "Os resultados da reidratação estão incompletos."
+    );
+  }
+
+  const idObraDados =
+    String(
+      resultadoDados.idObra || ""
+    ).trim();
+
+  const idObraOcorrencias =
+    String(
+      resultadoOcorrencias.idObra || ""
+    ).trim();
+
+  if (
+    !idObraDados ||
+    idObraDados !==
+      idObraOcorrencias
+  ) {
+    throw new Error(
+      "As mesclagens retornaram obras diferentes."
+    );
+  }
+
+  const periodoDados =
+    Number(
+      resultadoDados.periodoDias || 0
+    );
+
+  const periodoOcorrencias =
+    Number(
+      resultadoOcorrencias
+        .periodoDias || 0
+    );
+
+  if (
+    periodoDados !==
+    periodoOcorrencias
+  ) {
+    throw new Error(
+      "As mesclagens retornaram períodos diferentes."
+    );
+  }
+
+  const modoDados =
+    String(
+      resultadoDados.modo || ""
+    );
+
+  const modoOcorrencias =
+    String(
+      resultadoOcorrencias.modo || ""
+    );
+
+  if (
+    modoDados !==
+    modoOcorrencias
+  ) {
+    throw new Error(
+      "As mesclagens foram executadas em modos diferentes."
+    );
+  }
+
+  const filaDados =
+    resultadoDados.fila || {};
+
+  const filaOcorrencias =
+    resultadoOcorrencias.fila || {};
+
+  const totalFilaDados =
+    numeroSeguroReidratacaoUX1967_(
+      filaDados.totalRegistros
+    );
+
+  const totalFilaOcorrencias =
+    numeroSeguroReidratacaoUX1967_(
+      filaOcorrencias.totalRegistros
+    );
+
+  if (
+    totalFilaDados !==
+    totalFilaOcorrencias
+  ) {
+    throw new Error(
+      "As mesclagens encontraram quantidades diferentes na fila."
+    );
+  }
+
+  const alteracoesFila =
+    numeroSeguroReidratacaoUX1967_(
+      filaDados.alteracoesRealizadas
+    ) +
+    numeroSeguroReidratacaoUX1967_(
+      filaOcorrencias
+        .alteracoesRealizadas
+    );
+
+  const filaPreservada =
+    filaDados.preservadaIntegralmente ===
+      true &&
+    filaOcorrencias
+      .preservadaIntegralmente ===
+      true &&
+    alteracoesFila === 0;
+
+  if (!filaPreservada) {
+    throw new Error(
+      "A TB_SYNC_QUEUE não foi preservada integralmente."
+    );
+  }
+
+  const ocorrencias =
+    normalizarResumoOcorrenciasUX1967_(
+      resultadoOcorrencias
+    );
+
+  const datasExecucao = [
+    resultadoDados.executadoEm,
+    resultadoOcorrencias.executadoEm
+  ]
+    .filter(Boolean)
+    .sort();
+
+  const executadoEm =
+    datasExecucao.length
+      ? datasExecucao[
+          datasExecucao.length - 1
+        ]
+      : new Date().toISOString();
+
+  return {
+    etapa:
+      "UX.19.6.7",
+
+    operacao:
+      "REIDRATACAO_VISUAL_CONSOLIDADA",
+
+    modo:
+      modoDados,
+
+    idObra:
+      idObraDados,
+
+    periodoDias:
+      periodoDados,
+
+    dataInicio:
+      resultadoDados.dataInicio ||
+      resultadoOcorrencias.dataInicio ||
+      "",
+
+    dataFim:
+      resultadoDados.dataFim ||
+      resultadoOcorrencias.dataFim ||
+      "",
+
+    diarios:
+      resultadoDados.diarios || {},
+
+    diarioItens:
+      resultadoDados.diarioItens || {},
+
+    ocorrencias:
+      ocorrencias,
+
+    fila: {
+      totalRegistros:
+        totalFilaDados,
+
+      preservadaIntegralmente:
+        true,
+
+      alteracoesRealizadas:
+        0
+    },
+
+    totalConflitosEvitados:
+      numeroSeguroReidratacaoUX1967_(
+        resultadoDados
+          .totalConflitosEvitados
+      ) +
+      numeroSeguroReidratacaoUX1967_(
+        resultadoOcorrencias
+          .totalConflitosEvitados
+      ),
+
+    executadoEm,
+
+    resultadosOriginais: {
+      dadosOperacionais:
+        resultadoDados,
+
+      ocorrencias:
+        resultadoOcorrencias
+    }
+  };
+}
 
 /**
  * Abre a interface.
@@ -20405,6 +21070,7 @@ async function abrirReidratacaoUX1958_() {
     );
 
   resumo.innerHTML = "";
+
   resumo.classList.remove(
     "is-visible"
   );
@@ -20443,7 +21109,7 @@ async function abrirReidratacaoUX1958_() {
       obra.idObra;
 
     definirStatusReidratacaoUX1958_(
-      "Escolha o período e faça a pré-visualização.",
+      "Escolha o período para recuperar Diários, itens e ocorrências.",
       "success"
     );
 
@@ -20503,6 +21169,10 @@ async function prepararReidratacaoInterfaceUX1958_() {
   try {
     estado.emAndamento = true;
 
+    estado.pacote = null;
+    estado.simulacao = null;
+    estado.criadoEm = 0;
+
     bloquearInterfaceReidratacaoUX1958_(
       true
     );
@@ -20510,11 +21180,12 @@ async function prepararReidratacaoInterfaceUX1958_() {
     const obraAtual =
       await resolverObraAtivaUX1958_();
 
-    const periodo = Number(
-      document.getElementById(
-        "periodoReidratacaoUX1958"
-      ).value
-    );
+    const periodo =
+      Number(
+        document.getElementById(
+          "periodoReidratacaoUX1958"
+        ).value
+      );
 
     estado.idObra =
       obraAtual.idObra;
@@ -20526,35 +21197,78 @@ async function prepararReidratacaoInterfaceUX1958_() {
       periodo;
 
     definirStatusReidratacaoUX1958_(
-      "Consultando o servidor e analisando os registros locais...",
+      "Consultando Diários, itens e ocorrências no servidor...",
       "loading"
     );
 
-    const pacote =
-      await obterDadosOperacionaisObraMobile_(
+    /*
+     * As duas APIs são independentes e podem ser
+     * consultadas simultaneamente.
+     */
+    const [
+      pacoteDadosOperacionais,
+      pacoteOcorrencias
+    ] = await Promise.all([
+      obterDadosOperacionaisObraMobile_(
         estado.idObra,
         periodo
-      );
+      ),
 
-    const simulacao =
-      await mesclarDadosOperacionaisReidratacaoSIGO_(
-        pacote,
+      obterOcorrenciasOperacionaisObraMobile_(
+        estado.idObra,
+        periodo
+      )
+    ]);
+
+    definirStatusReidratacaoUX1958_(
+      "Analisando os registros locais e protegendo pendências...",
+      "loading"
+    );
+
+    /*
+     * As duas simulações são somente leitura.
+     */
+    const [
+      simulacaoDadosOperacionais,
+      simulacaoOcorrencias
+    ] = await Promise.all([
+      mesclarDadosOperacionaisReidratacaoSIGO_(
+        pacoteDadosOperacionais,
         {
           simular: true
         }
+      ),
+
+      mesclarOcorrenciasReidratacaoSIGO_(
+        pacoteOcorrencias,
+        {
+          simular: true
+        }
+      )
+    ]);
+
+    const simulacaoConsolidada =
+      consolidarResultadosReidratacaoUX1967_(
+        simulacaoDadosOperacionais,
+        simulacaoOcorrencias
       );
 
-    estado.pacote =
-      pacote;
+    estado.pacote = {
+      dadosOperacionais:
+        pacoteDadosOperacionais,
+
+      ocorrencias:
+        pacoteOcorrencias
+    };
 
     estado.simulacao =
-      simulacao;
+      simulacaoConsolidada;
 
     estado.criadoEm =
       Date.now();
 
     renderizarSimulacaoUX1958_(
-      simulacao
+      simulacaoConsolidada
     );
 
     definirStatusReidratacaoUX1958_(
@@ -20567,8 +21281,14 @@ async function prepararReidratacaoInterfaceUX1958_() {
     ).disabled = false;
 
   } catch (erro) {
+    console.error(
+      "[UX.19.6.7] Falha na pré-visualização:",
+      erro
+    );
+
     estado.pacote = null;
     estado.simulacao = null;
+    estado.criadoEm = 0;
 
     definirStatusReidratacaoUX1958_(
       erro.message ||
@@ -20583,10 +21303,18 @@ async function prepararReidratacaoInterfaceUX1958_() {
       false
     );
 
+    const pacoteValido =
+      Boolean(
+        estado.pacote &&
+        estado.pacote
+          .dadosOperacionais &&
+        estado.pacote.ocorrencias
+      );
+
     document.getElementById(
       "confirmarReidratacaoUX1958"
     ).disabled =
-      !estado.pacote;
+      !pacoteValido;
   }
 }
 
@@ -20599,9 +21327,17 @@ async function confirmarReidratacaoInterfaceUX1958_() {
   const estado =
     window.SIGO_REIDRATACAO_UX1958;
 
+  const pacoteValido =
+    Boolean(
+      estado.pacote &&
+      estado.pacote
+        .dadosOperacionais &&
+      estado.pacote.ocorrencias
+    );
+
   if (
     estado.emAndamento ||
-    !estado.pacote
+    !pacoteValido
   ) {
     return;
   }
@@ -20637,17 +21373,96 @@ async function confirmarReidratacaoInterfaceUX1958_() {
       );
     }
 
+    const periodoAtual =
+      Number(
+        document.getElementById(
+          "periodoReidratacaoUX1958"
+        ).value
+      );
+
+    if (
+      periodoAtual !==
+      estado.periodoDias
+    ) {
+      throw new Error(
+        "O período foi alterado. Faça uma nova pré-visualização."
+      );
+    }
+
     definirStatusReidratacaoUX1958_(
-      "Gravando os dados com proteção de pendências locais...",
+      "Gravando Diários e itens com proteção de pendências...",
       "loading"
     );
 
-    const resultado =
+    /*
+     * A primeira mesclagem grava Diários e itens.
+     */
+    const resultadoDadosOperacionais =
       await mesclarDadosOperacionaisReidratacaoSIGO_(
-        estado.pacote,
+        estado.pacote
+          .dadosOperacionais,
         {
           simular: false
         }
+      );
+
+    definirStatusReidratacaoUX1958_(
+      "Gravando ocorrências com proteção de pendências...",
+      "loading"
+    );
+
+    /*
+     * A segunda mesclagem grava ocorrências.
+     *
+     * Ambas são idempotentes. Caso haja uma interrupção,
+     * uma nova pré-visualização poderá ser executada com
+     * segurança.
+     */
+    const resultadoOcorrencias =
+      await mesclarOcorrenciasReidratacaoSIGO_(
+        estado.pacote.ocorrencias,
+        {
+          simular: false
+        }
+      );
+
+    const resultado =
+      consolidarResultadosReidratacaoUX1967_(
+        resultadoDadosOperacionais,
+        resultadoOcorrencias
+      );
+
+    const totalInseridos =
+      numeroSeguroReidratacaoUX1967_(
+        resultado.diarios.inseridos
+      ) +
+      numeroSeguroReidratacaoUX1967_(
+        resultado.diarioItens.inseridos
+      ) +
+      numeroSeguroReidratacaoUX1967_(
+        resultado.ocorrencias.inseridos
+      );
+
+    const totalAtualizados =
+      numeroSeguroReidratacaoUX1967_(
+        resultado.diarios.atualizados
+      ) +
+      numeroSeguroReidratacaoUX1967_(
+        resultado.diarioItens.atualizados
+      ) +
+      numeroSeguroReidratacaoUX1967_(
+        resultado.ocorrencias.atualizados
+      );
+
+    const totalRecebidos =
+      numeroSeguroReidratacaoUX1967_(
+        resultado.diarios.recebidos
+      ) +
+      numeroSeguroReidratacaoUX1967_(
+        resultado.diarioItens.recebidos
+      ) +
+      numeroSeguroReidratacaoUX1967_(
+        resultado.ocorrencias.recebidos
       );
 
     const meta = {
@@ -20666,16 +21481,20 @@ async function confirmarReidratacaoInterfaceUX1958_() {
       diarioItens:
         resultado.diarioItens.recebidos,
 
+      ocorrencias:
+        resultado.ocorrencias.recebidos,
+
+      registrosRecebidos:
+        totalRecebidos,
+
       inseridos:
-        resultado.diarios.inseridos +
-        resultado.diarioItens.inseridos,
+        totalInseridos,
 
       atualizados:
-        resultado.diarios.atualizados +
-        resultado.diarioItens.atualizados,
+        totalAtualizados,
 
       preservados:
-        totalPreservadosUX1958_(
+        totalPreservadosConsolidadosUX1967_(
           resultado
         ),
 
@@ -20697,32 +21516,37 @@ async function confirmarReidratacaoInterfaceUX1958_() {
     );
 
     definirStatusReidratacaoUX1958_(
-      "Dados operacionais atualizados com sucesso.",
+      "Diários, itens e ocorrências atualizados com sucesso.",
       "success"
     );
 
-    /*
-     * Notificação interna já existente no SIGO.
-     */
     if (
       typeof criarNotificacaoSIGO_ ===
       "function"
     ) {
       try {
         await criarNotificacaoSIGO_({
-          tipo: "REIDRATACAO",
-          titulo: "Obra atualizada",
+          tipo:
+            "REIDRATACAO",
+
+          titulo:
+            "Obra atualizada",
+
           mensagem:
             resultado.diarios.recebidos +
-            " Diários e " +
+            " Diários, " +
             resultado.diarioItens.recebidos +
-            " itens recuperados.",
-          icone: "🔄"
+            " itens e " +
+            resultado.ocorrencias.recebidos +
+            " ocorrências recuperados.",
+
+          icone:
+            "🔄"
         });
 
       } catch (erroNotificacao) {
         console.warn(
-          "[UX.19.5.8] Notificação não criada:",
+          "[UX.19.6.7] Notificação não criada:",
           erroNotificacao
         );
       }
@@ -20731,10 +21555,17 @@ async function confirmarReidratacaoInterfaceUX1958_() {
     await atualizarCardReidratacaoUX1958_();
 
     /*
-     * Atualizações visuais opcionais.
+     * Atualizações visuais.
+     *
+     * As funções retornam sem erro quando a respectiva
+     * tela não está aberta.
      */
     const funcoesAtualizacao = [
+      "carregarListaDiariosOffline",
       "listarDiariosOffline_",
+      "listarItensDiarioOffline_",
+      "listarOcorrenciasOffline_",
+      "atualizarIndicadoresMobile_",
       "atualizarHomeMobile_",
       "atualizarPainelSaudeSync_",
       "atualizarBadgeNotificacoes_"
@@ -20752,7 +21583,7 @@ async function confirmarReidratacaoInterfaceUX1958_() {
 
         } catch (erroAtualizacao) {
           console.warn(
-            "[UX.19.5.8] Atualização visual ignorada:",
+            "[UX.19.6.7] Atualização visual ignorada:",
             nomeFuncao,
             erroAtualizacao
           );
@@ -20762,8 +21593,14 @@ async function confirmarReidratacaoInterfaceUX1958_() {
 
     estado.pacote = null;
     estado.simulacao = null;
+    estado.criadoEm = 0;
 
   } catch (erro) {
+    console.error(
+      "[UX.19.6.7] Falha na confirmação:",
+      erro
+    );
+
     definirStatusReidratacaoUX1958_(
       erro.message ||
       "A reidratação não pôde ser concluída.",
@@ -20866,8 +21703,8 @@ async function instalarAcaoReidratacaoUX1958_() {
         </h3>
 
         <p class="sigo-reidratacao-card__texto">
-          Recupere Diários e itens sincronizados em outro
-          dispositivo.
+          Recupere Diários, itens e ocorrências sincronizados
+          em outro dispositivo.
         </p>
 
         <span
