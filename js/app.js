@@ -1966,72 +1966,1211 @@ async function atualizarDiarioOffline_() {
   }
 }
 
-async function excluirDiarioOffline_(idDiario) {
+// =====================================================
+// EXCLUIR DIÁRIO, ITENS E FILA EM UMA ÚNICA TRANSAÇÃO
+//
+// Item nunca sincronizado:
+// - cancela UPSERT pendente;
+// - remove localmente;
+// - não cria DELETE.
+//
+// Item sincronizado:
+// - preserva histórico;
+// - cria tombstone DIARIO_ITEM;
+// - remove localmente.
+//
+// Diário nunca sincronizado:
+// - cancela UPSERT pendente;
+// - remove localmente;
+// - não cria DELETE.
+//
+// Diário sincronizado:
+// - cria tombstone DIARIO;
+// - remove localmente.
+//
+// A transação é atômica entre:
+// - TB_DIARIOS
+// - TB_DIARIO_ITENS
+// - TB_SYNC_QUEUE
+// =====================================================
+async function excluirDiarioComItensFilaAtomicaSIGO_(
+  diario
+) {
+
+  if (
+    !diario ||
+    typeof diario !== "object"
+  ) {
+    throw new Error(
+      "Diário não informado."
+    );
+  }
+
+  const idDiario =
+    String(
+      diario.idDiario || ""
+    ).trim();
+
+  const idObra =
+    String(
+      diario.idObra || ""
+    ).trim();
+
+  if (!idDiario) {
+    throw new Error(
+      "ID do Diário não informado."
+    );
+  }
+
+  if (!idObra) {
+    throw new Error(
+      "O Diário não está vinculado a uma obra."
+    );
+  }
+
+  const db =
+    (
+      typeof SIGO_DB !==
+        "undefined" &&
+      SIGO_DB
+    )
+      ? SIGO_DB
+      : await abrirBancoLocalSIGO();
+
+  return new Promise(
+    (
+      resolve,
+      reject
+    ) => {
+
+      const transaction =
+        db.transaction(
+          [
+            "TB_DIARIOS",
+            "TB_DIARIO_ITENS",
+            "TB_SYNC_QUEUE"
+          ],
+          "readwrite"
+        );
+
+      const storeDiarios =
+        transaction.objectStore(
+          "TB_DIARIOS"
+        );
+
+      const storeItens =
+        transaction.objectStore(
+          "TB_DIARIO_ITENS"
+        );
+
+      const storeFila =
+        transaction.objectStore(
+          "TB_SYNC_QUEUE"
+        );
+
+      const resultado = {
+        idDiario,
+        idObra,
+
+        totalItensVinculados:
+          0,
+
+        itensRemovidos:
+          0,
+
+        diarioRemovido:
+          false,
+
+        upsertsItensCancelados:
+          0,
+
+        upsertDiarioCancelado:
+          0,
+
+        tombstonesItensCriados:
+          0,
+
+        tombstonesItensReutilizados:
+          0,
+
+        tombstoneDiarioCriado:
+          false,
+
+        tombstoneDiarioReutilizado:
+          false,
+
+        itensSincronizados:
+          0,
+
+        diarioSincronizado:
+          false
+      };
+
+      let itensCarregados =
+        null;
+
+      let filaCarregada =
+        null;
+
+      let processamentoIniciado =
+        false;
+
+      let erroOperacao =
+        null;
+
+
+      const abortar =
+        erro => {
+
+          erroOperacao =
+            erro instanceof Error
+              ? erro
+              : new Error(
+                  String(erro)
+                );
+
+          try {
+            transaction.abort();
+          } catch (erroAbortar) {
+            console.error(
+              "Erro ao abortar transação:",
+              erroAbortar
+            );
+          }
+        };
+
+
+      const normalizar =
+        valor =>
+          String(
+            valor || ""
+          ).trim();
+
+
+      const statusNormalizado =
+        registro =>
+          normalizar(
+            registro?.statusSync
+          ).toUpperCase();
+
+
+      const gerarIdSyncDelete =
+        tipo => {
+
+          return (
+            "SYNC-LOCAL-" +
+            Date.now() +
+            "-DEL-" +
+            tipo +
+            "-" +
+            Math.random()
+              .toString(36)
+              .slice(2, 8)
+          );
+        };
+
+
+      const obterPendenciasRelacionadas =
+        (
+          storeOrigem,
+          idRegistro
+        ) => {
+
+          return filaCarregada.filter(
+            pendencia => {
+
+              return (
+                normalizar(
+                  pendencia.storeOrigem
+                ) ===
+                  storeOrigem &&
+
+                normalizar(
+                  pendencia.idRegistro
+                ) ===
+                  idRegistro &&
+
+                normalizar(
+                  pendencia.idObra
+                ) ===
+                  idObra
+              );
+            }
+          );
+        };
+
+
+      const cancelarUpsertsPendentes =
+        (
+          relacionadas,
+          motivo
+        ) => {
+
+          let canceladas =
+            0;
+
+          relacionadas
+            .filter(
+              pendencia => {
+
+                return (
+                  statusNormalizado(
+                    pendencia
+                  ) ===
+                    "PENDENTE" &&
+
+                  !ehPendenciaDeleteSIGO_(
+                    pendencia
+                  )
+                );
+              }
+            )
+            .forEach(
+              pendencia => {
+
+                pendencia.statusSync =
+                  "CANCELADO";
+
+                pendencia.canceladoEm =
+                  new Date()
+                    .toISOString();
+
+                pendencia
+                  .motivoCancelamento =
+                  motivo;
+
+                storeFila.put(
+                  pendencia
+                );
+
+                canceladas++;
+              }
+            );
+
+          return canceladas;
+        };
+
+
+      const possuiHistoricoSincronizado =
+        (
+          registro,
+          relacionadas
+        ) => {
+
+          const registroSincronizado =
+            statusNormalizado(
+              registro
+            ) ===
+              "SINCRONIZADO" ||
+
+            Boolean(
+              normalizar(
+                registro?.dataSync
+              )
+            );
+
+          const filaSincronizada =
+            relacionadas.some(
+              pendencia => {
+
+                return (
+                  statusNormalizado(
+                    pendencia
+                  ) ===
+                    "SINCRONIZADO" &&
+
+                  !ehPendenciaDeleteSIGO_(
+                    pendencia
+                  )
+                );
+              }
+            );
+
+          return (
+            registroSincronizado ||
+            filaSincronizada
+          );
+        };
+
+
+      const localizarDeletePendente =
+        relacionadas => {
+
+          return relacionadas.find(
+            pendencia => {
+
+              return (
+                statusNormalizado(
+                  pendencia
+                ) ===
+                  "PENDENTE" &&
+
+                ehPendenciaDeleteSIGO_(
+                  pendencia
+                )
+              );
+            }
+          ) || null;
+        };
+
+
+      const criarTombstoneItem =
+        item => {
+
+          const idItem =
+            normalizar(
+              item.idItemDiario ||
+              item.idItem
+            );
+
+          const idSyncLocal =
+            gerarIdSyncDelete(
+              "ITEM"
+            );
+
+          const agora =
+            new Date()
+              .toISOString();
+
+          const tombstone = {
+            idSyncLocal,
+
+            tipo:
+              "DELETE",
+
+            operacao:
+              "DELETE",
+
+            entidade:
+              "DIARIO_ITEM",
+
+            storeOrigem:
+              "TB_DIARIO_ITENS",
+
+            idRegistro:
+              idItem,
+
+            idObra,
+
+            idDiario,
+
+            payloadExclusao: {
+              entidade:
+                "DIARIO_ITEM",
+
+              storeOrigem:
+                "TB_DIARIO_ITENS",
+
+              idRegistro:
+                idItem,
+
+              idItemDiario:
+                idItem,
+
+              idDiario,
+
+              idObra
+            },
+
+            statusSync:
+              "PENDENTE",
+
+            tentativas:
+              0,
+
+            criadoEm:
+              agora
+          };
+
+          storeFila.put(
+            tombstone
+          );
+
+          return tombstone;
+        };
+
+
+      const criarTombstoneDiario =
+        () => {
+
+          const idSyncLocal =
+            gerarIdSyncDelete(
+              "DIARIO"
+            );
+
+          const agora =
+            new Date()
+              .toISOString();
+
+          const tombstone = {
+            idSyncLocal,
+
+            tipo:
+              "DELETE",
+
+            operacao:
+              "DELETE",
+
+            entidade:
+              "DIARIO",
+
+            storeOrigem:
+              "TB_DIARIOS",
+
+            idRegistro:
+              idDiario,
+
+            idObra,
+
+            idDiario,
+
+            payloadExclusao: {
+              entidade:
+                "DIARIO",
+
+              storeOrigem:
+                "TB_DIARIOS",
+
+              idRegistro:
+                idDiario,
+
+              idDiario,
+
+              idObra
+            },
+
+            statusSync:
+              "PENDENTE",
+
+            tentativas:
+              0,
+
+            criadoEm:
+              agora
+          };
+
+          storeFila.put(
+            tombstone
+          );
+
+          return tombstone;
+        };
+
+
+      const processar =
+        () => {
+
+          if (
+            processamentoIniciado ||
+            !Array.isArray(
+              itensCarregados
+            ) ||
+            !Array.isArray(
+              filaCarregada
+            )
+          ) {
+            return;
+          }
+
+          processamentoIniciado =
+            true;
+
+          try {
+
+            // ==========================================
+            // ITENS VINCULADOS AO DIÁRIO
+            // ==========================================
+
+            const itensDoDiario =
+              itensCarregados.filter(
+                item => {
+
+                  return (
+                    normalizar(
+                      item.idDiario
+                    ) ===
+                      idDiario &&
+
+                    normalizar(
+                      item.idObra
+                    ) ===
+                      idObra
+                  );
+                }
+              );
+
+            resultado
+              .totalItensVinculados =
+              itensDoDiario.length;
+
+
+            itensDoDiario.forEach(
+              item => {
+
+                const idItem =
+                  normalizar(
+                    item.idItemDiario ||
+                    item.idItem
+                  );
+
+                if (!idItem) {
+                  throw new Error(
+                    "Foi encontrado um item sem ID " +
+                    "vinculado ao Diário."
+                  );
+                }
+
+                const relacionadas =
+                  obterPendenciasRelacionadas(
+                    "TB_DIARIO_ITENS",
+                    idItem
+                  );
+
+                resultado
+                  .upsertsItensCancelados +=
+                  cancelarUpsertsPendentes(
+                    relacionadas,
+                    "DIARIO_EXCLUIDO_LOCALMENTE"
+                  );
+
+                const jaSincronizado =
+                  possuiHistoricoSincronizado(
+                    item,
+                    relacionadas
+                  );
+
+                if (jaSincronizado) {
+
+                  resultado
+                    .itensSincronizados++;
+
+                  const deletePendente =
+                    localizarDeletePendente(
+                      relacionadas
+                    );
+
+                  if (deletePendente) {
+
+                    resultado
+                      .tombstonesItensReutilizados++;
+
+                  } else {
+
+                    criarTombstoneItem(
+                      item
+                    );
+
+                    resultado
+                      .tombstonesItensCriados++;
+                  }
+                }
+
+                storeItens.delete(
+                  idItem
+                );
+
+                resultado
+                  .itensRemovidos++;
+              }
+            );
+
+
+            // ==========================================
+            // CABEÇALHO DO DIÁRIO
+            // ==========================================
+
+            const filaDiario =
+              obterPendenciasRelacionadas(
+                "TB_DIARIOS",
+                idDiario
+              );
+
+            resultado
+              .upsertDiarioCancelado =
+              cancelarUpsertsPendentes(
+                filaDiario,
+                "DIARIO_EXCLUIDO_LOCALMENTE"
+              );
+
+            resultado
+              .diarioSincronizado =
+              possuiHistoricoSincronizado(
+                diario,
+                filaDiario
+              );
+
+            if (
+              resultado.diarioSincronizado
+            ) {
+
+              const deletePendente =
+                localizarDeletePendente(
+                  filaDiario
+                );
+
+              if (deletePendente) {
+
+                resultado
+                  .tombstoneDiarioReutilizado =
+                  true;
+
+              } else {
+
+                criarTombstoneDiario();
+
+                resultado
+                  .tombstoneDiarioCriado =
+                  true;
+              }
+            }
+
+            storeDiarios.delete(
+              idDiario
+            );
+
+            resultado.diarioRemovido =
+              true;
+
+          } catch (erro) {
+            abortar(erro);
+          }
+        };
+
+
+      const requestItens =
+        storeItens.getAll();
+
+      const requestFila =
+        storeFila.getAll();
+
+
+      requestItens.onsuccess =
+        () => {
+
+          itensCarregados =
+            Array.isArray(
+              requestItens.result
+            )
+              ? requestItens.result
+              : [];
+
+          processar();
+        };
+
+      requestItens.onerror =
+        () => {
+
+          abortar(
+            requestItens.error ||
+            new Error(
+              "Não foi possível carregar os itens do Diário."
+            )
+          );
+        };
+
+
+      requestFila.onsuccess =
+        () => {
+
+          filaCarregada =
+            Array.isArray(
+              requestFila.result
+            )
+              ? requestFila.result
+              : [];
+
+          processar();
+        };
+
+      requestFila.onerror =
+        () => {
+
+          abortar(
+            requestFila.error ||
+            new Error(
+              "Não foi possível carregar a fila."
+            )
+          );
+        };
+
+
+      transaction.oncomplete =
+        () => {
+
+          resolve(
+            resultado
+          );
+        };
+
+      transaction.onerror =
+        () => {
+
+          reject(
+            erroOperacao ||
+            transaction.error ||
+            new Error(
+              "Falha na transação de exclusão do Diário."
+            )
+          );
+        };
+
+      transaction.onabort =
+        () => {
+
+          reject(
+            erroOperacao ||
+            transaction.error ||
+            new Error(
+              "A exclusão do Diário foi cancelada."
+            )
+          );
+        };
+    }
+  );
+}
+
+// =====================================================
+// EXCLUIR DIÁRIO OFFLINE — UX.19
+// =====================================================
+async function excluirDiarioOffline_(
+  idDiario
+) {
+
   try {
-    if (!idDiario) {
-      throw new Error("ID do diário não informado.");
+
+    const idDiarioNormalizado =
+      String(
+        idDiario || ""
+      ).trim();
+
+    if (!idDiarioNormalizado) {
+      throw new Error(
+        "ID do Diário não informado."
+      );
     }
 
-    const diarios =
-      await listarRegistrosSIGO("TB_DIARIOS");
+
+    // ================================================
+    // OBRA ATIVA
+    // ================================================
+
+    const obraAtiva =
+      String(
+        await obterObraAtivaMobile_() ||
+        localStorage.getItem(
+          "obraAtiva"
+        ) ||
+        ""
+      ).trim();
+
+    if (!obraAtiva) {
+      throw new Error(
+        "Nenhuma obra ativa encontrada."
+      );
+    }
+
+
+    // ================================================
+    // LOCALIZAR DIÁRIO E ITENS
+    // ================================================
+
+    const [
+      diarios,
+      itens
+    ] = await Promise.all([
+      listarRegistrosSIGO(
+        "TB_DIARIOS"
+      ),
+
+      listarRegistrosSIGO(
+        "TB_DIARIO_ITENS"
+      )
+    ]);
 
     const diario =
-      diarios.find(item =>
-        String(item.idDiario) === String(idDiario)
-      );
+      diarios.find(item => {
+
+        return (
+          String(
+            item.idDiario || ""
+          ).trim() ===
+            idDiarioNormalizado &&
+
+          String(
+            item.idObra || ""
+          ).trim() ===
+            obraAtiva
+        );
+      }) || null;
 
     if (!diario) {
+
       SIGOUI.feedback.warning(
         "Diário não encontrado",
-        "O registro não foi localizado no banco offline."
+        "O registro não pertence à obra ativa ou já foi removido."
       );
-      return;
+
+      return null;
     }
 
-    const confirmou = await SIGOUI.feedback.confirm({
-      tipo: "danger",
-      icone: "🗑️",
-      titulo: "Excluir diário",
-      mensagem:
-        "Este diário será removido deste dispositivo.\n\n" +
-        "Deseja realmente continuar?",
-      textoConfirmar: "Excluir",
-      textoCancelar: "Cancelar"
-    });
+    const itensDoDiario =
+      itens.filter(item => {
 
-    if (!confirmou) return;
+        return (
+          String(
+            item.idDiario || ""
+          ).trim() ===
+            idDiarioNormalizado &&
 
-    await removerRegistroSIGO_(
+          String(
+            item.idObra || ""
+          ).trim() ===
+            obraAtiva
+        );
+      });
+
+
+    // ================================================
+    // CONFIRMAÇÃO
+    // ================================================
+
+    const dataDiario =
+      diario.data ||
+      diario.dataDiario ||
+      "sem data";
+
+    const totalItens =
+      itensDoDiario.length;
+
+    const confirmou =
+      await SIGOUI.feedback.confirm({
+        tipo:
+          "danger",
+
+        icone:
+          "🗑️",
+
+        titulo:
+          "Excluir Diário",
+
+        mensagem:
+          "Diário: " +
+          dataDiario +
+          "\n" +
+          "Itens vinculados: " +
+          totalItens +
+          "\n\n" +
+          "O Diário e todos os itens vinculados serão " +
+          "removidos deste dispositivo.\n\n" +
+          "Os registros que já foram sincronizados serão " +
+          "excluídos do SIGO na próxima sincronização.",
+
+        textoConfirmar:
+          "Excluir Diário",
+
+        textoCancelar:
+          "Cancelar"
+      });
+
+    if (!confirmou) {
+      return null;
+    }
+
+
+    // ================================================
+    // EXCLUSÃO ATÔMICA
+    // ================================================
+
+    const resultado =
+      await excluirDiarioComItensFilaAtomicaSIGO_(
+        diario
+      );
+
+
+    // ================================================
+    // INVALIDAR CACHES
+    // ================================================
+
+    const storesAlteradas = [
       "TB_DIARIOS",
-      idDiario
+      "TB_DIARIO_ITENS",
+      "TB_SYNC_QUEUE"
+    ];
+
+    storesAlteradas.forEach(
+      storeName => {
+
+        if (
+          window.SIGODataCache
+        ) {
+          SIGODataCache.invalidate(
+            storeName
+          );
+        }
+
+        if (
+          typeof invalidarCacheObraSIGO_ ===
+          "function"
+        ) {
+          invalidarCacheObraSIGO_(
+            storeName,
+            obraAtiva
+          );
+        }
+      }
     );
 
-    // TODO UX.07.14
-    // Registrar DELETE na TB_SYNC_QUEUE
 
-    if (String(idDiarioEdicao) === String(idDiario)) {
-      idDiarioEdicao = null;
-      atualizarModoEdicaoDiario_();
+    // ================================================
+    // ENCERRAR CONTEXTOS DE EDIÇÃO
+    // ================================================
 
-      if (typeof limparFormularioDiario === "function") {
-        limparFormularioDiario();
-      }
+    if (
+      typeof idItemDiarioEdicao !==
+        "undefined"
+    ) {
+      idItemDiarioEdicao =
+        null;
     }
 
-    await carregarListaDiariosOffline();
+    if (
+      typeof idDiarioEdicao !==
+        "undefined" &&
+      String(
+        idDiarioEdicao || ""
+      ) ===
+        idDiarioNormalizado
+    ) {
+      idDiarioEdicao =
+        null;
+    }
+
+    if (
+      typeof atualizarModoEdicaoItemDiario_ ===
+      "function"
+    ) {
+      atualizarModoEdicaoItemDiario_();
+    }
+
+    if (
+      typeof atualizarModoEdicaoDiario_ ===
+      "function"
+    ) {
+      atualizarModoEdicaoDiario_();
+    }
+
+
+    // ================================================
+    // LIMPAR DIÁRIO ATIVO
+    // ================================================
+
+    if (
+      typeof obterDiarioAtivoSIGO_ ===
+        "function" &&
+      String(
+        obterDiarioAtivoSIGO_(
+          obraAtiva
+        ) || ""
+      ) ===
+        idDiarioNormalizado &&
+      typeof limparDiarioAtivoSIGO_ ===
+        "function"
+    ) {
+      limparDiarioAtivoSIGO_(
+        obraAtiva
+      );
+    }
+
+
+    // ================================================
+    // LIMPAR FORMULÁRIOS
+    // ================================================
+
+    if (
+      typeof limparFormularioItemDiario ===
+        "function"
+    ) {
+      await limparFormularioItemDiario();
+    }
+
+    if (
+      typeof limparFormularioDiario ===
+        "function"
+    ) {
+      await limparFormularioDiario();
+    }
+
+
+    // ================================================
+    // NOTIFICAR DATABINDING
+    // ================================================
+
+    if (
+      window.SIGODataBinding &&
+      typeof SIGODataBinding.notify ===
+        "function"
+    ) {
+
+      await SIGODataBinding.notify(
+        "TB_DIARIO_ITENS",
+        {
+          acao:
+            "DELETE",
+
+          store:
+            "TB_DIARIO_ITENS",
+
+          idObra:
+            obraAtiva,
+
+          idDiario:
+            idDiarioNormalizado
+        }
+      );
+
+      await SIGODataBinding.notify(
+        "TB_DIARIOS",
+        {
+          acao:
+            "DELETE",
+
+          store:
+            "TB_DIARIOS",
+
+          chave:
+            idDiarioNormalizado,
+
+          idObra:
+            obraAtiva
+        }
+      );
+
+      await SIGODataBinding.notify(
+        "TB_SYNC_QUEUE",
+        {
+          acao:
+            "UPDATE",
+
+          store:
+            "TB_SYNC_QUEUE",
+
+          idObra:
+            obraAtiva,
+
+          idDiario:
+            idDiarioNormalizado
+        }
+      );
+    }
+
+
+    // ================================================
+    // ATUALIZAR INTERFACE
+    // ================================================
+
+    if (
+      typeof carregarListaDiariosOffline ===
+        "function"
+    ) {
+      await carregarListaDiariosOffline();
+    }
+
+    if (
+      typeof listarItensDiarioOffline_ ===
+        "function"
+    ) {
+      await listarItensDiarioOffline_();
+    }
+
+    if (
+      typeof atualizarContextoDiarioAtivoUX19_ ===
+        "function"
+    ) {
+      await atualizarContextoDiarioAtivoUX19_();
+    }
+
+    if (
+      typeof atualizarIndicadoresMobile_ ===
+        "function"
+    ) {
+      await atualizarIndicadoresMobile_();
+    }
+
+    if (
+      typeof atualizarHeroObraAtivaMobile_ ===
+        "function"
+    ) {
+      await atualizarHeroObraAtivaMobile_();
+    }
+
+
+    // ================================================
+    // RETORNO VISUAL
+    // ================================================
+
+    const totalTombstones =
+      resultado
+        .tombstonesItensCriados +
+
+      resultado
+        .tombstonesItensReutilizados +
+
+      (
+        resultado
+          .tombstoneDiarioCriado
+          ? 1
+          : 0
+      ) +
+
+      (
+        resultado
+          .tombstoneDiarioReutilizado
+          ? 1
+          : 0
+      );
+
+    const mensagem =
+      totalTombstones > 0
+        ? (
+            "Diário e " +
+            resultado.itensRemovidos +
+            " item(ns) removidos. " +
+            totalTombstones +
+            " exclusão(ões) aguardam sincronização."
+          )
+        : (
+            "Diário e " +
+            resultado.itensRemovidos +
+            " item(ns) locais removidos. " +
+            "Nenhum DELETE precisou ser enviado."
+          );
 
     SIGOUI.feedback.success(
       "Diário excluído",
-      "Registro removido com sucesso."
+      mensagem
     );
 
+    console.log(
+      "Exclusão atômica do Diário concluída:",
+      resultado
+    );
+
+    return resultado;
+
   } catch (erro) {
-    console.error("Erro ao excluir diário:", erro);
+
+    console.error(
+      "Erro ao excluir Diário:",
+      erro
+    );
 
     SIGOUI.feedback.error(
       "Erro ao excluir",
-      erro.message || "Não foi possível excluir o diário."
+      erro?.message ||
+      "Não foi possível excluir o Diário."
     );
+
+    return null;
   }
 }
 
