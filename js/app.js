@@ -17402,3 +17402,1123 @@ async function executarMesclagemRealUX1956_() {
 
   return resultado;
 }
+
+/**
+ * ============================================================
+ * UX.19.5.7 — AUDITORIA DA MESCLAGEM PROTEGIDA
+ * ============================================================
+ *
+ * Auditoria somente leitura.
+ *
+ * Não executa:
+ * - put();
+ * - add();
+ * - delete();
+ * - clear();
+ *
+ * A simulação de idempotência também não grava registros.
+ */
+
+
+/**
+ * Serializa objetos mantendo as propriedades em ordem estável.
+ *
+ * Utilizado para comparar a TB_SYNC_QUEUE antes e depois
+ * da auditoria, independentemente da ordem das propriedades.
+ */
+function serializarEstavelUX1957_(valor) {
+  if (
+    valor === null ||
+    valor === undefined
+  ) {
+    return JSON.stringify(valor);
+  }
+
+  if (Array.isArray(valor)) {
+    return (
+      "[" +
+      valor
+        .map(serializarEstavelUX1957_)
+        .join(",") +
+      "]"
+    );
+  }
+
+  if (typeof valor === "object") {
+    const chaves =
+      Object.keys(valor).sort();
+
+    return (
+      "{" +
+      chaves
+        .map(function (chave) {
+          return (
+            JSON.stringify(chave) +
+            ":" +
+            serializarEstavelUX1957_(
+              valor[chave]
+            )
+          );
+        })
+        .join(",") +
+      "}"
+    );
+  }
+
+  return JSON.stringify(valor);
+}
+
+
+/**
+ * Gera uma assinatura independente da ordem dos registros.
+ */
+function gerarAssinaturaListaUX1957_(
+  registros
+) {
+  const assinaturas =
+    (registros || [])
+      .map(serializarEstavelUX1957_)
+      .sort();
+
+  return JSON.stringify(
+    assinaturas
+  );
+}
+
+
+/**
+ * Lê simultaneamente as três stores auditadas.
+ */
+async function lerSnapshotReidratacaoUX1957_() {
+  if (
+    typeof abrirBancoLocalSIGO !==
+    "function"
+  ) {
+    throw new Error(
+      "A função abrirBancoLocalSIGO() não foi encontrada."
+    );
+  }
+
+  const db =
+    await abrirBancoLocalSIGO();
+
+  const storesObrigatorias = [
+    "TB_DIARIOS",
+    "TB_DIARIO_ITENS",
+    "TB_SYNC_QUEUE"
+  ];
+
+  for (
+    const nomeStore of storesObrigatorias
+  ) {
+    if (
+      !db.objectStoreNames.contains(
+        nomeStore
+      )
+    ) {
+      throw new Error(
+        "Store não encontrada: " +
+        nomeStore
+      );
+    }
+  }
+
+  return new Promise(
+    function (resolve, reject) {
+      const tx = db.transaction(
+        storesObrigatorias,
+        "readonly"
+      );
+
+      const reqDiarios =
+        tx.objectStore(
+          "TB_DIARIOS"
+        ).getAll();
+
+      const reqItens =
+        tx.objectStore(
+          "TB_DIARIO_ITENS"
+        ).getAll();
+
+      const reqFila =
+        tx.objectStore(
+          "TB_SYNC_QUEUE"
+        ).getAll();
+
+      tx.oncomplete =
+        function () {
+          resolve({
+            diarios:
+              Array.isArray(
+                reqDiarios.result
+              )
+                ? reqDiarios.result
+                : [],
+
+            diarioItens:
+              Array.isArray(
+                reqItens.result
+              )
+                ? reqItens.result
+                : [],
+
+            fila:
+              Array.isArray(
+                reqFila.result
+              )
+                ? reqFila.result
+                : []
+          });
+        };
+
+      tx.onerror =
+        function () {
+          reject(
+            new Error(
+              "Falha ao ler o IndexedDB para auditoria. " +
+              (
+                tx.error &&
+                tx.error.message
+                  ? tx.error.message
+                  : ""
+              )
+            )
+          );
+        };
+
+      tx.onabort =
+        function () {
+          reject(
+            new Error(
+              "A leitura de auditoria foi cancelada."
+            )
+          );
+        };
+    }
+  );
+}
+
+
+/**
+ * Cria índice por ID e identifica duplicidades.
+ */
+function criarIndiceAuditoriaUX1957_(
+  registros,
+  extrairId
+) {
+  const mapa = new Map();
+  const duplicados = [];
+  const invalidos = [];
+
+  for (
+    const registro of registros || []
+  ) {
+    const id = String(
+      extrairId(registro) || ""
+    ).trim();
+
+    if (!id) {
+      invalidos.push(registro);
+      continue;
+    }
+
+    if (mapa.has(id)) {
+      duplicados.push(id);
+      continue;
+    }
+
+    mapa.set(
+      id,
+      registro
+    );
+  }
+
+  return {
+    mapa,
+    duplicados,
+    invalidos
+  };
+}
+
+
+/**
+ * Adiciona um problema, limitando o tamanho do log.
+ */
+function adicionarProblemaAuditoriaUX1957_(
+  problemas,
+  problema
+) {
+  if (problemas.length < 100) {
+    problemas.push(problema);
+  }
+}
+
+
+/**
+ * ============================================================
+ * AUDITORIA PRINCIPAL
+ * ============================================================
+ */
+async function auditarMesclagemReidratacaoUX1957_() {
+  console.log(
+    "[UX.19.5.7] Iniciando auditoria da mesclagem..."
+  );
+
+  const idObraEsperado =
+    "OBR002";
+
+  const periodoEsperado =
+    30;
+
+  const totalFilaEsperado =
+    45;
+
+  const idDiarioExcluido =
+    "DIA-1783729435514";
+
+  const idItemExcluido =
+    "DIT-1783729499226";
+
+
+  /*
+   * ==========================================================
+   * 1. CONSULTAR NOVAMENTE A API
+   * ==========================================================
+   */
+
+  const respostaApi =
+    await obterDadosOperacionaisObraMobile_(
+      idObraEsperado,
+      periodoEsperado
+    );
+
+
+  /*
+   * ==========================================================
+   * 2. SNAPSHOT ANTES DA SIMULAÇÃO
+   * ==========================================================
+   */
+
+  const snapshotAntes =
+    await lerSnapshotReidratacaoUX1957_();
+
+  const assinaturaFilaAntes =
+    gerarAssinaturaListaUX1957_(
+      snapshotAntes.fila
+    );
+
+
+  /*
+   * ==========================================================
+   * 3. SIMULAR NOVAMENTE PARA TESTAR IDEMPOTÊNCIA
+   * ==========================================================
+   *
+   * Como os registros já foram reidratados, uma nova
+   * execução deve resultar em:
+   *
+   * - zero inserções;
+   * - 36 atualizações possíveis de Diários;
+   * - 6 atualizações possíveis de itens;
+   * - nenhuma duplicação;
+   * - nenhuma mudança na fila.
+   */
+
+  const simulacaoIdempotencia =
+    await mesclarDadosOperacionaisReidratacaoSIGO_(
+      respostaApi,
+      {
+        simular: true
+      }
+    );
+
+
+  /*
+   * ==========================================================
+   * 4. SNAPSHOT DEPOIS DA SIMULAÇÃO
+   * ==========================================================
+   */
+
+  const snapshotDepois =
+    await lerSnapshotReidratacaoUX1957_();
+
+  const assinaturaFilaDepois =
+    gerarAssinaturaListaUX1957_(
+      snapshotDepois.fila
+    );
+
+
+  /*
+   * ==========================================================
+   * 5. CRIAR ÍNDICES
+   * ==========================================================
+   */
+
+  const indiceDiariosServidor =
+    criarIndiceAuditoriaUX1957_(
+      respostaApi.diarios,
+      function (registro) {
+        return registro.idDiario;
+      }
+    );
+
+  const indiceItensServidor =
+    criarIndiceAuditoriaUX1957_(
+      respostaApi.diarioItens,
+      function (registro) {
+        return (
+          registro.idItemDiario ||
+          registro.idDiarioItem ||
+          registro.idItem
+        );
+      }
+    );
+
+  const indiceDiariosLocais =
+    criarIndiceAuditoriaUX1957_(
+      snapshotDepois.diarios,
+      function (registro) {
+        return obterIdDiarioUX1956_(
+          registro
+        );
+      }
+    );
+
+  const indiceItensLocais =
+    criarIndiceAuditoriaUX1957_(
+      snapshotDepois.diarioItens,
+      function (registro) {
+        return obterIdItemDiarioUX1956_(
+          registro
+        );
+      }
+    );
+
+
+  /*
+   * ==========================================================
+   * 6. COMPARAR DIÁRIOS DA API COM O INDEXEDDB
+   * ==========================================================
+   */
+
+  const problemas = [];
+
+  let diariosLocalizados = 0;
+  let diariosStatusCorreto = 0;
+  let diariosOrigemCorreta = 0;
+  let diariosObraCorreta = 0;
+  let diariosDataSyncPresente = 0;
+
+  for (
+    const [
+      idDiario,
+      diarioServidor
+    ] of indiceDiariosServidor.mapa.entries()
+  ) {
+    const diarioLocal =
+      indiceDiariosLocais.mapa.get(
+        idDiario
+      );
+
+    if (!diarioLocal) {
+      adicionarProblemaAuditoriaUX1957_(
+        problemas,
+        {
+          entidade: "DIARIO",
+          idRegistro: idDiario,
+          problema:
+            "NAO_ENCONTRADO_NO_INDEXEDDB"
+        }
+      );
+
+      continue;
+    }
+
+    diariosLocalizados++;
+
+    if (
+      normalizarMaiusculoUX1956_(
+        diarioLocal.statusSync
+      ) === "SINCRONIZADO"
+    ) {
+      diariosStatusCorreto++;
+
+    } else {
+      adicionarProblemaAuditoriaUX1957_(
+        problemas,
+        {
+          entidade: "DIARIO",
+          idRegistro: idDiario,
+          problema:
+            "STATUS_SYNC_INCORRETO",
+          valor:
+            diarioLocal.statusSync
+        }
+      );
+    }
+
+    if (
+      normalizarMaiusculoUX1956_(
+        diarioLocal.origemReidratacao
+      ) === "SERVIDOR"
+    ) {
+      diariosOrigemCorreta++;
+
+    } else {
+      adicionarProblemaAuditoriaUX1957_(
+        problemas,
+        {
+          entidade: "DIARIO",
+          idRegistro: idDiario,
+          problema:
+            "ORIGEM_REIDRATACAO_INCORRETA",
+          valor:
+            diarioLocal.origemReidratacao
+        }
+      );
+    }
+
+    if (
+      normalizarTextoUX1956_(
+        diarioLocal.idObra
+      ) === idObraEsperado
+    ) {
+      diariosObraCorreta++;
+
+    } else {
+      adicionarProblemaAuditoriaUX1957_(
+        problemas,
+        {
+          entidade: "DIARIO",
+          idRegistro: idDiario,
+          problema:
+            "ID_OBRA_INCORRETO",
+          valor:
+            diarioLocal.idObra
+        }
+      );
+    }
+
+    if (
+      normalizarTextoUX1956_(
+        diarioLocal.dataSync
+      )
+    ) {
+      diariosDataSyncPresente++;
+
+    } else {
+      adicionarProblemaAuditoriaUX1957_(
+        problemas,
+        {
+          entidade: "DIARIO",
+          idRegistro: idDiario,
+          problema:
+            "DATA_SYNC_AUSENTE"
+        }
+      );
+    }
+  }
+
+
+  /*
+   * ==========================================================
+   * 7. COMPARAR ITENS DA API COM O INDEXEDDB
+   * ==========================================================
+   */
+
+  let itensLocalizados = 0;
+  let itensStatusCorreto = 0;
+  let itensOrigemCorreta = 0;
+  let itensObraCorreta = 0;
+  let itensDataSyncPresente = 0;
+  let itensComPaiLocal = 0;
+  let itensComPaiNoPacote = 0;
+
+  for (
+    const [
+      idItem,
+      itemServidor
+    ] of indiceItensServidor.mapa.entries()
+  ) {
+    const itemLocal =
+      indiceItensLocais.mapa.get(
+        idItem
+      );
+
+    if (!itemLocal) {
+      adicionarProblemaAuditoriaUX1957_(
+        problemas,
+        {
+          entidade: "DIARIO_ITEM",
+          idRegistro: idItem,
+          problema:
+            "NAO_ENCONTRADO_NO_INDEXEDDB"
+        }
+      );
+
+      continue;
+    }
+
+    itensLocalizados++;
+
+    if (
+      normalizarMaiusculoUX1956_(
+        itemLocal.statusSync
+      ) === "SINCRONIZADO"
+    ) {
+      itensStatusCorreto++;
+
+    } else {
+      adicionarProblemaAuditoriaUX1957_(
+        problemas,
+        {
+          entidade: "DIARIO_ITEM",
+          idRegistro: idItem,
+          problema:
+            "STATUS_SYNC_INCORRETO",
+          valor:
+            itemLocal.statusSync
+        }
+      );
+    }
+
+    if (
+      normalizarMaiusculoUX1956_(
+        itemLocal.origemReidratacao
+      ) === "SERVIDOR"
+    ) {
+      itensOrigemCorreta++;
+
+    } else {
+      adicionarProblemaAuditoriaUX1957_(
+        problemas,
+        {
+          entidade: "DIARIO_ITEM",
+          idRegistro: idItem,
+          problema:
+            "ORIGEM_REIDRATACAO_INCORRETA",
+          valor:
+            itemLocal.origemReidratacao
+        }
+      );
+    }
+
+    if (
+      normalizarTextoUX1956_(
+        itemLocal.idObra
+      ) === idObraEsperado
+    ) {
+      itensObraCorreta++;
+
+    } else {
+      adicionarProblemaAuditoriaUX1957_(
+        problemas,
+        {
+          entidade: "DIARIO_ITEM",
+          idRegistro: idItem,
+          problema:
+            "ID_OBRA_INCORRETO",
+          valor:
+            itemLocal.idObra
+        }
+      );
+    }
+
+    if (
+      normalizarTextoUX1956_(
+        itemLocal.dataSync
+      )
+    ) {
+      itensDataSyncPresente++;
+
+    } else {
+      adicionarProblemaAuditoriaUX1957_(
+        problemas,
+        {
+          entidade: "DIARIO_ITEM",
+          idRegistro: idItem,
+          problema:
+            "DATA_SYNC_AUSENTE"
+        }
+      );
+    }
+
+    const idDiarioPai =
+      normalizarTextoUX1956_(
+        itemLocal.idDiario
+      );
+
+    if (
+      indiceDiariosLocais.mapa.has(
+        idDiarioPai
+      )
+    ) {
+      itensComPaiLocal++;
+
+    } else {
+      adicionarProblemaAuditoriaUX1957_(
+        problemas,
+        {
+          entidade: "DIARIO_ITEM",
+          idRegistro: idItem,
+          idDiario: idDiarioPai,
+          problema:
+            "ITEM_ORFAO_NO_INDEXEDDB"
+        }
+      );
+    }
+
+    if (
+      indiceDiariosServidor.mapa.has(
+        idDiarioPai
+      )
+    ) {
+      itensComPaiNoPacote++;
+
+    } else {
+      adicionarProblemaAuditoriaUX1957_(
+        problemas,
+        {
+          entidade: "DIARIO_ITEM",
+          idRegistro: idItem,
+          idDiario: idDiarioPai,
+          problema:
+            "DIARIO_PAI_NAO_VEIO_NO_PACOTE"
+        }
+      );
+    }
+  }
+
+
+  /*
+   * ==========================================================
+   * 8. PROCURAR ÓRFÃOS LOCAIS DA OBRA
+   * ==========================================================
+   */
+
+  const orfaosLocaisObra = [];
+
+  for (
+    const itemLocal of snapshotDepois.diarioItens
+  ) {
+    if (
+      normalizarTextoUX1956_(
+        itemLocal.idObra
+      ) !== idObraEsperado
+    ) {
+      continue;
+    }
+
+    const idItem =
+      obterIdItemDiarioUX1956_(
+        itemLocal
+      );
+
+    const idDiarioPai =
+      normalizarTextoUX1956_(
+        itemLocal.idDiario
+      );
+
+    if (
+      !indiceDiariosLocais.mapa.has(
+        idDiarioPai
+      )
+    ) {
+      orfaosLocaisObra.push({
+        idItem,
+        idDiario: idDiarioPai
+      });
+
+      adicionarProblemaAuditoriaUX1957_(
+        problemas,
+        {
+          entidade: "DIARIO_ITEM",
+          idRegistro: idItem,
+          idDiario: idDiarioPai,
+          problema:
+            "ORFAO_LOCAL_DA_OBRA"
+        }
+      );
+    }
+  }
+
+
+  /*
+   * ==========================================================
+   * 9. VALIDAR REGISTROS EXCLUÍDOS
+   * ==========================================================
+   */
+
+  const diarioExcluidoNoLocal =
+    indiceDiariosLocais.mapa.has(
+      idDiarioExcluido
+    );
+
+  const itemExcluidoNoLocal =
+    indiceItensLocais.mapa.has(
+      idItemExcluido
+    );
+
+  const diarioExcluidoNoServidor =
+    indiceDiariosServidor.mapa.has(
+      idDiarioExcluido
+    );
+
+  const itemExcluidoNoServidor =
+    indiceItensServidor.mapa.has(
+      idItemExcluido
+    );
+
+
+  /*
+   * ==========================================================
+   * 10. VALIDAR A FILA
+   * ==========================================================
+   */
+
+  const filaQuantidadeAntes =
+    snapshotAntes.fila.length;
+
+  const filaQuantidadeDepois =
+    snapshotDepois.fila.length;
+
+  const filaConteudoPreservado =
+    assinaturaFilaAntes ===
+    assinaturaFilaDepois;
+
+
+  /*
+   * ==========================================================
+   * 11. VALIDAÇÕES FINAIS
+   * ==========================================================
+   */
+
+  const totalDiariosServidor =
+    respostaApi.diarios.length;
+
+  const totalItensServidor =
+    respostaApi.diarioItens.length;
+
+  const validacoes = {
+    apiStatusOK:
+      respostaApi.status === "OK",
+
+    contratoVersao1:
+      respostaApi.versaoContrato === "1.0",
+
+    obraCorreta:
+      respostaApi.idObra ===
+      idObraEsperado,
+
+    periodoCorreto:
+      respostaApi.periodoDias ===
+      periodoEsperado,
+
+    servidorRetornou36Diarios:
+      totalDiariosServidor === 36,
+
+    servidorRetornou6Itens:
+      totalItensServidor === 6,
+
+    todosDiariosLocalizados:
+      diariosLocalizados ===
+      totalDiariosServidor,
+
+    todosDiariosSincronizados:
+      diariosStatusCorreto ===
+      totalDiariosServidor,
+
+    todosDiariosOrigemServidor:
+      diariosOrigemCorreta ===
+      totalDiariosServidor,
+
+    todosDiariosDaObraCorreta:
+      diariosObraCorreta ===
+      totalDiariosServidor,
+
+    todosDiariosComDataSync:
+      diariosDataSyncPresente ===
+      totalDiariosServidor,
+
+    todosItensLocalizados:
+      itensLocalizados ===
+      totalItensServidor,
+
+    todosItensSincronizados:
+      itensStatusCorreto ===
+      totalItensServidor,
+
+    todosItensOrigemServidor:
+      itensOrigemCorreta ===
+      totalItensServidor,
+
+    todosItensDaObraCorreta:
+      itensObraCorreta ===
+      totalItensServidor,
+
+    todosItensComDataSync:
+      itensDataSyncPresente ===
+      totalItensServidor,
+
+    todosItensComPaiLocal:
+      itensComPaiLocal ===
+      totalItensServidor,
+
+    todosItensComPaiNoPacote:
+      itensComPaiNoPacote ===
+      totalItensServidor,
+
+    nenhumOrfaoLocalNaObra:
+      orfaosLocaisObra.length === 0,
+
+    nenhumDiarioDuplicadoServidor:
+      indiceDiariosServidor
+        .duplicados.length === 0,
+
+    nenhumItemDuplicadoServidor:
+      indiceItensServidor
+        .duplicados.length === 0,
+
+    nenhumDiarioDuplicadoLocal:
+      indiceDiariosLocais
+        .duplicados.length === 0,
+
+    nenhumItemDuplicadoLocal:
+      indiceItensLocais
+        .duplicados.length === 0,
+
+    diarioExcluidoNaoRetornouServidor:
+      diarioExcluidoNoServidor === false,
+
+    itemExcluidoNaoRetornouServidor:
+      itemExcluidoNoServidor === false,
+
+    diarioExcluidoNaoFoiRestaurado:
+      diarioExcluidoNoLocal === false,
+
+    itemExcluidoNaoFoiRestaurado:
+      itemExcluidoNoLocal === false,
+
+    filaMantem45Registros:
+      filaQuantidadeDepois ===
+      totalFilaEsperado,
+
+    filaQuantidadePreservada:
+      filaQuantidadeAntes ===
+      filaQuantidadeDepois,
+
+    filaConteudoPreservado:
+      filaConteudoPreservado === true,
+
+    idempotenciaSemNovosDiarios:
+      simulacaoIdempotencia
+        .diarios.inseridos === 0,
+
+    idempotenciaTodosDiariosExistentes:
+      simulacaoIdempotencia
+        .diarios.atualizados ===
+      totalDiariosServidor,
+
+    idempotenciaSemNovosItens:
+      simulacaoIdempotencia
+        .diarioItens.inseridos === 0,
+
+    idempotenciaTodosItensExistentes:
+      simulacaoIdempotencia
+        .diarioItens.atualizados ===
+      totalItensServidor,
+
+    idempotenciaSemConflitos:
+      simulacaoIdempotencia
+        .totalConflitosEvitados === 0,
+
+    simulacaoNaoAlterouFila:
+      simulacaoIdempotencia
+        .fila.alteracoesRealizadas === 0
+  };
+
+  const aprovado =
+    Object.values(
+      validacoes
+    ).every(function (valor) {
+      return valor === true;
+    });
+
+
+  /*
+   * ==========================================================
+   * 12. RESULTADO
+   * ==========================================================
+   */
+
+  const resultado = {
+    etapa: "UX.19.5.7",
+    auditoria:
+      "MESCLAGEM_PROTEGIDA_INDEXEDDB",
+
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+
+    idObra:
+      idObraEsperado,
+
+    periodoDias:
+      periodoEsperado,
+
+    api: {
+      codigoHttp:
+        respostaApi.codigoHttp,
+
+      status:
+        respostaApi.status,
+
+      versaoContrato:
+        respostaApi.versaoContrato,
+
+      diarios:
+        totalDiariosServidor,
+
+      diarioItens:
+        totalItensServidor
+    },
+
+    indexedDB: {
+      diariosRecebidosLocalizados:
+        diariosLocalizados,
+
+      itensRecebidosLocalizados:
+        itensLocalizados,
+
+      diariosSincronizados:
+        diariosStatusCorreto,
+
+      itensSincronizados:
+        itensStatusCorreto,
+
+      diariosOrigemServidor:
+        diariosOrigemCorreta,
+
+      itensOrigemServidor:
+        itensOrigemCorreta,
+
+      orfaosLocaisObra:
+        orfaosLocaisObra.length
+    },
+
+    excluidos: {
+      idDiario:
+        idDiarioExcluido,
+
+      diarioPresenteLocalmente:
+        diarioExcluidoNoLocal,
+
+      diarioPresenteServidor:
+        diarioExcluidoNoServidor,
+
+      idItem:
+        idItemExcluido,
+
+      itemPresenteLocalmente:
+        itemExcluidoNoLocal,
+
+      itemPresenteServidor:
+        itemExcluidoNoServidor
+    },
+
+    fila: {
+      antes:
+        filaQuantidadeAntes,
+
+      depois:
+        filaQuantidadeDepois,
+
+      quantidadePreservada:
+        filaQuantidadeAntes ===
+        filaQuantidadeDepois,
+
+      conteudoPreservado:
+        filaConteudoPreservado
+    },
+
+    idempotencia: {
+      modo:
+        simulacaoIdempotencia.modo,
+
+      diariosInseridos:
+        simulacaoIdempotencia
+          .diarios.inseridos,
+
+      diariosAtualizados:
+        simulacaoIdempotencia
+          .diarios.atualizados,
+
+      itensInseridos:
+        simulacaoIdempotencia
+          .diarioItens.inseridos,
+
+      itensAtualizados:
+        simulacaoIdempotencia
+          .diarioItens.atualizados,
+
+      conflitos:
+        simulacaoIdempotencia
+          .totalConflitosEvitados,
+
+      alteracoesFila:
+        simulacaoIdempotencia
+          .fila.alteracoesRealizadas
+    },
+
+    duplicidades: {
+      diariosServidor:
+        indiceDiariosServidor
+          .duplicados,
+
+      itensServidor:
+        indiceItensServidor
+          .duplicados,
+
+      diariosLocais:
+        indiceDiariosLocais
+          .duplicados,
+
+      itensLocais:
+        indiceItensLocais
+          .duplicados
+    },
+
+    problemas:
+      problemas,
+
+    validacoes:
+      validacoes,
+
+    aprovado:
+      aprovado,
+
+    auditadoEm:
+      new Date().toISOString()
+  };
+
+  console.log(
+    JSON.stringify(
+      resultado,
+      null,
+      2
+    )
+  );
+
+  if (!aprovado) {
+    throw new Error(
+      "UX.19.5.7 REPROVADA. " +
+      "Consulte as validações e os problemas no console."
+    );
+  }
+
+  console.log(
+    "UX.19.5.7 — AUDITORIA DA MESCLAGEM APROVADA."
+  );
+
+  return resultado;
+}
