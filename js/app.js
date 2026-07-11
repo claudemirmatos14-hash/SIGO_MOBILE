@@ -20995,3 +20995,668 @@ async function auditarInterfaceReidratacaoUX1958_() {
 
   return resultado;
 }
+
+/**
+ * ============================================================
+ * UX.19.6.4 — CLIENTE MOBILE DA API DE OCORRÊNCIAS
+ * ============================================================
+ *
+ * Responsabilidades:
+ *
+ * - chamar OBTER_OCORRENCIAS_OPERACIONAIS_OBRA;
+ * - reconhecer o envelope "detalhes";
+ * - validar contrato, obra, período e totais;
+ * - devolver a lista de ocorrências;
+ * - não gravar no IndexedDB;
+ * - não alterar TB_OCORRENCIAS;
+ * - não alterar TB_SYNC_QUEUE.
+ */
+
+
+/**
+ * Normaliza a resposta recebida da API publicada.
+ *
+ * Envelope atual:
+ *
+ * {
+ *   status: "OK",
+ *   mensagem: "...",
+ *   dataResposta: "...",
+ *   detalhes: {
+ *     versaoContrato: "1.0",
+ *     idObra: "OBR002",
+ *     periodoDias: 30,
+ *     dataInicio: "2026-06-12",
+ *     dataFim: "2026-07-11",
+ *     dataSync: "...",
+ *     totais: {
+ *       ocorrencias: 14
+ *     },
+ *     ocorrencias: []
+ *   }
+ * }
+ */
+function normalizarRespostaOcorrenciasMobileUX1964_(
+  respostaJson
+) {
+  if (
+    !respostaJson ||
+    typeof respostaJson !== "object"
+  ) {
+    throw new Error(
+      "A API de ocorrências retornou uma resposta vazia ou inválida."
+    );
+  }
+
+  const statusResposta = String(
+    respostaJson.status || ""
+  )
+    .trim()
+    .toUpperCase();
+
+  if (statusResposta !== "OK") {
+    throw new Error(
+      respostaJson.mensagem ||
+      respostaJson.erro ||
+      "A API não aprovou a consulta de ocorrências."
+    );
+  }
+
+  /*
+   * Compatibilidade com:
+   *
+   * - respostaJson.detalhes;
+   * - respostaJson.dados;
+   * - contrato diretamente na raiz.
+   */
+  const detalhes =
+    respostaJson.detalhes &&
+    typeof respostaJson.detalhes === "object"
+      ? respostaJson.detalhes
+      : respostaJson.dados &&
+        typeof respostaJson.dados === "object"
+        ? respostaJson.dados
+        : respostaJson;
+
+  const ocorrencias =
+    Array.isArray(detalhes.ocorrencias)
+      ? detalhes.ocorrencias
+      : [];
+
+  const totaisRecebidos =
+    detalhes.totais &&
+    typeof detalhes.totais === "object"
+      ? detalhes.totais
+      : {};
+
+  const totalOcorrencias = Number(
+    totaisRecebidos.ocorrencias !== undefined
+      ? totaisRecebidos.ocorrencias
+      : ocorrencias.length
+  );
+
+  if (!Number.isFinite(totalOcorrencias)) {
+    throw new Error(
+      "O total de ocorrências informado pela API é inválido."
+    );
+  }
+
+  if (
+    totalOcorrencias !==
+    ocorrencias.length
+  ) {
+    throw new Error(
+      "O total de ocorrências informado pela API não corresponde " +
+      "à quantidade de registros recebidos."
+    );
+  }
+
+  return {
+    status:
+      statusResposta,
+
+    mensagem:
+      String(
+        respostaJson.mensagem || ""
+      ),
+
+    dataResposta:
+      String(
+        respostaJson.dataResposta || ""
+      ),
+
+    versaoContrato:
+      String(
+        detalhes.versaoContrato || ""
+      ),
+
+    idObra:
+      String(
+        detalhes.idObra || ""
+      ).trim(),
+
+    periodoDias:
+      Number(
+        detalhes.periodoDias || 0
+      ),
+
+    dataInicio:
+      String(
+        detalhes.dataInicio || ""
+      ),
+
+    dataFim:
+      String(
+        detalhes.dataFim || ""
+      ),
+
+    dataSync:
+      String(
+        detalhes.dataSync || ""
+      ),
+
+    totais: {
+      ocorrencias:
+        totalOcorrencias
+    },
+
+    ocorrencias:
+      ocorrencias
+  };
+}
+
+
+/**
+ * Consulta as ocorrências operacionais da obra.
+ *
+ * IMPORTANTE:
+ *
+ * Esta função somente consulta, valida e devolve os dados.
+ * Ela não grava nada no IndexedDB.
+ */
+async function obterOcorrenciasOperacionaisObraMobile_(
+  idObra,
+  diasHistorico
+) {
+  const obraNormalizada =
+    String(idObra || "").trim();
+
+  const periodoNormalizado =
+    Number(diasHistorico || 30);
+
+  const periodosPermitidos =
+    [15, 30, 60, 90];
+
+  if (!obraNormalizada) {
+    throw new Error(
+      "Informe o ID da obra para consultar as ocorrências."
+    );
+  }
+
+  if (
+    !periodosPermitidos.includes(
+      periodoNormalizado
+    )
+  ) {
+    throw new Error(
+      "Período inválido. Utilize 15, 30, 60 ou 90 dias."
+    );
+  }
+
+  /*
+   * Os auxiliares abaixo foram criados e aprovados
+   * na UX.19.5.5.
+   */
+  if (
+    typeof obterTokenReidratacaoMobileUX1955_ !==
+    "function"
+  ) {
+    throw new Error(
+      "O auxiliar de token da UX.19.5.5 não foi encontrado."
+    );
+  }
+
+  if (
+    typeof obterIdDispositivoReidratacaoUX1955_ !==
+    "function"
+  ) {
+    throw new Error(
+      "O auxiliar de dispositivo da UX.19.5.5 não foi encontrado."
+    );
+  }
+
+  if (
+    typeof obterIdUsuarioReidratacaoUX1955_ !==
+    "function"
+  ) {
+    throw new Error(
+      "O auxiliar de usuário da UX.19.5.5 não foi encontrado."
+    );
+  }
+
+  const urlApi =
+    "https://script.google.com/macros/s/AKfycbzVE7tdTSwHvKgLkrdcaQtGAm_muqNPo6n0wQZBDpmRwtAJuySfWyh6gdef0R6g_drKRw/exec";
+
+  const payload = {
+    token:
+      obterTokenReidratacaoMobileUX1955_(),
+
+    acao:
+      "OBTER_OCORRENCIAS_OPERACIONAIS_OBRA",
+
+    idDispositivo:
+      obterIdDispositivoReidratacaoUX1955_(),
+
+    idUsuario:
+      obterIdUsuarioReidratacaoUX1955_(),
+
+    idObra:
+      obraNormalizada,
+
+    diasHistorico:
+      periodoNormalizado
+  };
+
+  console.log(
+    "[UX.19.6.4] Solicitando ocorrências operacionais:",
+    {
+      acao:
+        payload.acao,
+
+      idDispositivo:
+        payload.idDispositivo,
+
+      idUsuario:
+        payload.idUsuario,
+
+      idObra:
+        payload.idObra,
+
+      diasHistorico:
+        payload.diasHistorico
+    }
+  );
+
+  let respostaHttp;
+
+  try {
+    respostaHttp = await fetch(
+      urlApi,
+      {
+        method:
+          "POST",
+
+        headers: {
+          "Content-Type":
+            "text/plain;charset=UTF-8"
+        },
+
+        body:
+          JSON.stringify(payload),
+
+        redirect:
+          "follow",
+
+        cache:
+          "no-store"
+      }
+    );
+
+  } catch (erroRede) {
+    throw new Error(
+      "Não foi possível acessar a API de ocorrências. " +
+      (
+        erroRede &&
+        erroRede.message
+          ? erroRede.message
+          : String(erroRede)
+      )
+    );
+  }
+
+  const codigoHttp =
+    respostaHttp.status;
+
+  const textoResposta =
+    await respostaHttp.text();
+
+  let respostaJson;
+
+  try {
+    respostaJson =
+      JSON.parse(textoResposta);
+
+  } catch (erroJson) {
+    console.error(
+      "[UX.19.6.4] Resposta não JSON:",
+      textoResposta
+    );
+
+    throw new Error(
+      "A API de ocorrências não retornou JSON válido. " +
+      "HTTP: " +
+      codigoHttp
+    );
+  }
+
+  if (!respostaHttp.ok) {
+    throw new Error(
+      respostaJson.mensagem ||
+      respostaJson.erro ||
+      (
+        "Falha HTTP ao consultar ocorrências: " +
+        codigoHttp
+      )
+    );
+  }
+
+  const dadosNormalizados =
+    normalizarRespostaOcorrenciasMobileUX1964_(
+      respostaJson
+    );
+
+  if (
+    dadosNormalizados.idObra !==
+    obraNormalizada
+  ) {
+    throw new Error(
+      "A API retornou ocorrências de outra obra. " +
+      "Solicitada: " +
+      obraNormalizada +
+      ". Recebida: " +
+      dadosNormalizados.idObra +
+      "."
+    );
+  }
+
+  if (
+    dadosNormalizados.periodoDias !==
+    periodoNormalizado
+  ) {
+    throw new Error(
+      "A API retornou um período diferente do solicitado."
+    );
+  }
+
+  return {
+    codigoHttp:
+      codigoHttp,
+
+    ...dadosNormalizados
+  };
+}
+
+
+/**
+ * ============================================================
+ * TESTE ISOLADO DO CLIENTE MOBILE
+ * ============================================================
+ *
+ * Não grava em:
+ *
+ * - TB_OCORRENCIAS;
+ * - TB_SYNC_QUEUE;
+ * - qualquer outra store.
+ */
+async function testarClienteOcorrenciasMobileUX1964_() {
+  console.log(
+    "[UX.19.6.4] Iniciando teste do cliente Mobile de ocorrências..."
+  );
+
+  const resposta =
+    await obterOcorrenciasOperacionaisObraMobile_(
+      "OBR002",
+      30
+    );
+
+  const idsVistos =
+    new Set();
+
+  const duplicados =
+    [];
+
+  const invalidos =
+    [];
+
+  const outraObra =
+    [];
+
+  const statusSyncIncorreto =
+    [];
+
+  const origemIncorreta =
+    [];
+
+  resposta.ocorrencias.forEach(
+    function (ocorrencia) {
+      const idOcorrencia =
+        String(
+          ocorrencia.idOcorrencia || ""
+        ).trim();
+
+      const idObra =
+        String(
+          ocorrencia.idObra || ""
+        ).trim();
+
+      const data =
+        String(
+          ocorrencia.data || ""
+        ).trim();
+
+      if (
+        !idOcorrencia ||
+        !idObra ||
+        !data
+      ) {
+        invalidos.push({
+          idOcorrencia:
+            idOcorrencia || "SEM_ID",
+
+          motivo:
+            "CAMPO_OBRIGATORIO_AUSENTE"
+        });
+      }
+
+      if (
+        idsVistos.has(
+          idOcorrencia
+        )
+      ) {
+        duplicados.push(
+          idOcorrencia
+        );
+
+      } else {
+        idsVistos.add(
+          idOcorrencia
+        );
+      }
+
+      if (
+        idObra !== "OBR002"
+      ) {
+        outraObra.push({
+          idOcorrencia:
+            idOcorrencia,
+
+          idObra:
+            idObra
+        });
+      }
+
+      if (
+        ocorrencia.statusSync !==
+        "SINCRONIZADO"
+      ) {
+        statusSyncIncorreto.push(
+          idOcorrencia
+        );
+      }
+
+      if (
+        ocorrencia.origemReidratacao !==
+        "SERVIDOR"
+      ) {
+        origemIncorreta.push(
+          idOcorrencia
+        );
+      }
+    }
+  );
+
+  const validacoes = {
+    codigoHttp200:
+      resposta.codigoHttp === 200,
+
+    statusOK:
+      resposta.status === "OK",
+
+    contratoVersao1:
+      resposta.versaoContrato ===
+      "1.0",
+
+    obraCorreta:
+      resposta.idObra ===
+      "OBR002",
+
+    periodoCorreto:
+      resposta.periodoDias ===
+      30,
+
+    listaOcorrenciasValida:
+      Array.isArray(
+        resposta.ocorrencias
+      ),
+
+    retornou14Ocorrencias:
+      resposta.ocorrencias.length ===
+      14,
+
+    totalCoerente:
+      resposta.totais.ocorrencias ===
+      resposta.ocorrencias.length,
+
+    nenhumaDuplicidade:
+      duplicados.length === 0,
+
+    nenhumaOcorrenciaInvalida:
+      invalidos.length === 0,
+
+    nenhumaMisturaDeObras:
+      outraObra.length === 0,
+
+    todosStatusSyncCorretos:
+      statusSyncIncorreto.length ===
+      0,
+
+    todasOrigensCorretas:
+      origemIncorreta.length === 0
+  };
+
+  const aprovado =
+    Object.values(
+      validacoes
+    ).every(function (resultado) {
+      return resultado === true;
+    });
+
+  const resultadoAuditoria = {
+    etapa:
+      "UX.19.6.4",
+
+    teste:
+      "CLIENTE_MOBILE_OCORRENCIAS",
+
+    codigoHttp:
+      resposta.codigoHttp,
+
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+
+    respostaStatus:
+      resposta.status,
+
+    versaoContrato:
+      resposta.versaoContrato,
+
+    idObra:
+      resposta.idObra,
+
+    periodoDias:
+      resposta.periodoDias,
+
+    dataInicio:
+      resposta.dataInicio,
+
+    dataFim:
+      resposta.dataFim,
+
+    dataSync:
+      resposta.dataSync,
+
+    ocorrencias:
+      resposta.totais.ocorrencias,
+
+    problemas: {
+      duplicados:
+        duplicados,
+
+      invalidos:
+        invalidos,
+
+      outraObra:
+        outraObra,
+
+      statusSyncIncorreto:
+        statusSyncIncorreto,
+
+      origemIncorreta:
+        origemIncorreta
+    },
+
+    validacoes:
+      validacoes,
+
+    primeiraOcorrencia:
+      resposta.ocorrencias.length
+        ? resposta.ocorrencias[0]
+        : null,
+
+    aprovado:
+      aprovado
+  };
+
+  console.log(
+    JSON.stringify(
+      resultadoAuditoria,
+      null,
+      2
+    )
+  );
+
+  if (!aprovado) {
+    throw new Error(
+      "UX.19.6.4 REPROVADA. " +
+      "Consulte as validações no console."
+    );
+  }
+
+  console.log(
+    "UX.19.6.4 — CLIENTE MOBILE DE OCORRÊNCIAS APROVADO."
+  );
+
+  /*
+   * O retorno completo permanece disponível para inspeção,
+   * mas a lista inteira não é impressa no console.
+   */
+  return {
+    auditoria:
+      resultadoAuditoria,
+
+    dados:
+      resposta
+  };
+}
