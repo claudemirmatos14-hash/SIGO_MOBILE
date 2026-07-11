@@ -21660,3 +21660,1447 @@ async function testarClienteOcorrenciasMobileUX1964_() {
       resposta
   };
 }
+
+/**
+ * ============================================================
+ * UX.19.6.5 — MESCLAGEM PROTEGIDA DE OCORRÊNCIAS
+ * ============================================================
+ *
+ * Stores:
+ * - TB_OCORRENCIAS
+ * - TB_SYNC_QUEUE
+ *
+ * A fila é somente consultada.
+ * Nenhum registro da fila é removido ou atualizado.
+ */
+
+
+/**
+ * Converte possíveis JSONs armazenados como texto.
+ */
+function converterObjetoFilaOcorrenciasUX1965_(valor) {
+  if (!valor) {
+    return {};
+  }
+
+  if (typeof valor === "object") {
+    return valor;
+  }
+
+  if (typeof valor === "string") {
+    try {
+      const objeto = JSON.parse(valor);
+
+      return (
+        objeto &&
+        typeof objeto === "object"
+      )
+        ? objeto
+        : {};
+
+    } catch (erro) {
+      return {};
+    }
+  }
+
+  return {};
+}
+
+
+/**
+ * Obtém o payload armazenado em diferentes versões da fila.
+ */
+function obterPayloadFilaOcorrenciasUX1965_(
+  registroFila
+) {
+  const candidatos = [
+    registroFila && registroFila.payload,
+    registroFila && registroFila.dados,
+    registroFila && registroFila.registro,
+    registroFila && registroFila.objeto,
+    registroFila && registroFila.body,
+    registroFila && registroFila.pacote,
+    registroFila && registroFila.dadosRegistro,
+    registroFila && registroFila.registroPayload,
+    registroFila && registroFila.conteudo
+  ];
+
+  for (const candidato of candidatos) {
+    const objeto =
+      converterObjetoFilaOcorrenciasUX1965_(
+        candidato
+      );
+
+    if (
+      objeto &&
+      Object.keys(objeto).length
+    ) {
+      return objeto;
+    }
+  }
+
+  return {};
+}
+
+
+/**
+ * Normaliza texto para comparação.
+ */
+function normalizarTextoOcorrenciasUX1965_(
+  valor
+) {
+  return String(
+    valor === undefined ||
+    valor === null
+      ? ""
+      : valor
+  ).trim();
+}
+
+
+/**
+ * Normaliza texto em caixa alta e sem acentos.
+ */
+function normalizarMaiusculoOcorrenciasUX1965_(
+  valor
+) {
+  return normalizarTextoOcorrenciasUX1965_(
+    valor
+  )
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+}
+
+
+/**
+ * Extrai o ID de uma ocorrência local ou do servidor.
+ */
+function obterIdOcorrenciaUX1965_(
+  registro
+) {
+  return normalizarTextoOcorrenciasUX1965_(
+    registro && (
+      registro.idOcorrencia ||
+      registro.ID_OCORRENCIA ||
+      registro.idRegistro ||
+      registro.registroId ||
+      registro.id ||
+      registro.chave
+    )
+  );
+}
+
+
+/**
+ * Identifica se um registro da fila pertence a ocorrências.
+ */
+function filaPertenceOcorrenciaUX1965_(
+  registroFila
+) {
+  const payload =
+    obterPayloadFilaOcorrenciasUX1965_(
+      registroFila
+    );
+
+  const registroInterno =
+    converterObjetoFilaOcorrenciasUX1965_(
+      payload.registro ||
+      payload.dados ||
+      payload.dadosRegistro ||
+      {}
+    );
+
+  const textoEntidade = [
+    registroFila && registroFila.entidade,
+    registroFila && registroFila.tipoEntidade,
+    registroFila && registroFila.tipoRegistro,
+    registroFila && registroFila.tabela,
+    registroFila && registroFila.store,
+    registroFila && registroFila.origemTabela,
+    registroFila && registroFila.tipo,
+
+    payload.entidade,
+    payload.tipoEntidade,
+    payload.tipoRegistro,
+    payload.tabela,
+    payload.store,
+    payload.origemTabela,
+    payload.tipo,
+
+    registroInterno.entidade,
+    registroInterno.tipoEntidade,
+    registroInterno.tabela,
+    registroInterno.store
+  ]
+    .map(
+      normalizarMaiusculoOcorrenciasUX1965_
+    )
+    .filter(Boolean)
+    .join("|");
+
+  if (
+    textoEntidade.includes(
+      "TB_OCORRENCIAS"
+    ) ||
+    textoEntidade.includes(
+      "OCORRENCIA"
+    )
+  ) {
+    return true;
+  }
+
+  /*
+   * Compatibilidade com filas antigas que não gravaram
+   * explicitamente o nome da entidade.
+   */
+  const possuiIdOcorrencia =
+    Boolean(
+      registroFila &&
+      registroFila.idOcorrencia
+    ) ||
+    Boolean(
+      payload.idOcorrencia
+    ) ||
+    Boolean(
+      registroInterno.idOcorrencia
+    );
+
+  return possuiIdOcorrencia;
+}
+
+
+/**
+ * Extrai o ID da ocorrência referenciada pela fila.
+ */
+function obterIdOcorrenciaFilaUX1965_(
+  registroFila
+) {
+  const payload =
+    obterPayloadFilaOcorrenciasUX1965_(
+      registroFila
+    );
+
+  const registroInterno =
+    converterObjetoFilaOcorrenciasUX1965_(
+      payload.registro ||
+      payload.dados ||
+      payload.dadosRegistro ||
+      {}
+    );
+
+  const candidatos = [
+    registroFila && registroFila.idOcorrencia,
+    payload.idOcorrencia,
+    registroInterno.idOcorrencia,
+
+    registroFila && registroFila.idRegistro,
+    registroFila && registroFila.registroId,
+    registroFila && registroFila.idEntidade,
+    registroFila && registroFila.idAlvo,
+    registroFila && registroFila.chaveRegistro,
+
+    payload.idRegistro,
+    payload.registroId,
+    payload.idEntidade,
+    payload.idAlvo,
+    payload.chaveRegistro,
+
+    registroInterno.idRegistro,
+    registroInterno.registroId,
+    registroInterno.idEntidade,
+    registroInterno.idAlvo
+  ];
+
+  for (const candidato of candidatos) {
+    const id =
+      normalizarTextoOcorrenciasUX1965_(
+        candidato
+      );
+
+    if (id) {
+      return id;
+    }
+  }
+
+  return "";
+}
+
+
+/**
+ * Identifica se a fila ainda representa uma pendência ativa.
+ */
+function filaOcorrenciaEstaPendenteUX1965_(
+  registroFila
+) {
+  /*
+   * Reutiliza o auxiliar já aprovado na UX.19.5.6.
+   */
+  if (
+    typeof filaEstaPendenteUX1956_ ===
+    "function"
+  ) {
+    return filaEstaPendenteUX1956_(
+      registroFila
+    );
+  }
+
+  const payload =
+    obterPayloadFilaOcorrenciasUX1965_(
+      registroFila
+    );
+
+  const status =
+    normalizarMaiusculoOcorrenciasUX1965_(
+      registroFila && (
+        registroFila.statusSync ||
+        registroFila.status ||
+        registroFila.situacao
+      ) ||
+      payload.statusSync ||
+      payload.status ||
+      payload.situacao
+    );
+
+  const statusFinalizados = new Set([
+    "SINCRONIZADO",
+    "CONCLUIDO",
+    "FINALIZADO",
+    "CANCELADO",
+    "CANCELADA",
+    "IGNORADO",
+    "IGNORADA"
+  ]);
+
+  return !statusFinalizados.has(
+    status
+  );
+}
+
+
+/**
+ * Identifica a operação da fila.
+ */
+function obterOperacaoFilaOcorrenciasUX1965_(
+  registroFila
+) {
+  /*
+   * Reutiliza o auxiliar já aprovado na UX.19.5.6.
+   */
+  if (
+    typeof obterOperacaoFilaUX1956_ ===
+    "function"
+  ) {
+    return obterOperacaoFilaUX1956_(
+      registroFila
+    );
+  }
+
+  const payload =
+    obterPayloadFilaOcorrenciasUX1965_(
+      registroFila
+    );
+
+  const texto = [
+    registroFila && registroFila.operacao,
+    registroFila && registroFila.acao,
+    registroFila && registroFila.tipoOperacao,
+    registroFila && registroFila.metodo,
+
+    payload.operacao,
+    payload.acao,
+    payload.tipoOperacao,
+    payload.metodo
+  ]
+    .map(
+      normalizarMaiusculoOcorrenciasUX1965_
+    )
+    .filter(Boolean)
+    .join("|");
+
+  if (
+    texto.includes("DELETE") ||
+    texto.includes("EXCLUIR") ||
+    texto.includes("EXCLUSAO") ||
+    texto.includes("REMOVER")
+  ) {
+    return "DELETE";
+  }
+
+  if (
+    texto.includes("UPSERT") ||
+    texto.includes("INSERT") ||
+    texto.includes("UPDATE") ||
+    texto.includes("SALVAR") ||
+    texto.includes("CRIAR")
+  ) {
+    return "UPSERT";
+  }
+
+  if (
+    registroFila &&
+    registroFila.tombstone === true
+  ) {
+    return "DELETE";
+  }
+
+  if (
+    payload &&
+    payload.tombstone === true
+  ) {
+    return "DELETE";
+  }
+
+  /*
+   * Qualquer pendência desconhecida protege o registro local.
+   */
+  return "PENDENCIA";
+}
+
+
+/**
+ * Cria um mapa das pendências ativas das ocorrências.
+ *
+ * Chave:
+ * ID_OCORRENCIA
+ */
+function criarMapaPendenciasOcorrenciasUX1965_(
+  registrosFila
+) {
+  const mapa =
+    new Map();
+
+  let pendenciasAtivasReconhecidas =
+    0;
+
+  for (
+    const registroFila of registrosFila || []
+  ) {
+    if (
+      !filaPertenceOcorrenciaUX1965_(
+        registroFila
+      )
+    ) {
+      continue;
+    }
+
+    if (
+      !filaOcorrenciaEstaPendenteUX1965_(
+        registroFila
+      )
+    ) {
+      continue;
+    }
+
+    const idOcorrencia =
+      obterIdOcorrenciaFilaUX1965_(
+        registroFila
+      );
+
+    if (!idOcorrencia) {
+      continue;
+    }
+
+    const operacao =
+      obterOperacaoFilaOcorrenciasUX1965_(
+        registroFila
+      );
+
+    pendenciasAtivasReconhecidas++;
+
+    const anterior =
+      mapa.get(idOcorrencia);
+
+    if (!anterior) {
+      mapa.set(
+        idOcorrencia,
+        {
+          idOcorrencia,
+          operacao,
+          registroFila
+        }
+      );
+
+      continue;
+    }
+
+    /*
+     * DELETE sempre possui precedência.
+     */
+    if (
+      operacao === "DELETE" &&
+      anterior.operacao !== "DELETE"
+    ) {
+      mapa.set(
+        idOcorrencia,
+        {
+          idOcorrencia,
+          operacao,
+          registroFila
+        }
+      );
+    }
+  }
+
+  return {
+    mapa,
+    pendenciasAtivasReconhecidas
+  };
+}
+
+
+/**
+ * Prepara uma ocorrência para a estrutura local.
+ *
+ * Mantém também aliases de compatibilidade com versões
+ * anteriores da tela de ocorrências.
+ */
+function prepararOcorrenciaStoreUX1965_(
+  storeOcorrencias,
+  ocorrenciaServidor,
+  ocorrenciaLocal
+) {
+  const idOcorrencia =
+    obterIdOcorrenciaUX1965_(
+      ocorrenciaServidor
+    );
+
+  const idObra =
+    normalizarTextoOcorrenciasUX1965_(
+      ocorrenciaServidor.idObra
+    );
+
+  const tipoOcorrencia =
+    normalizarTextoOcorrenciasUX1965_(
+      ocorrenciaServidor.tipoOcorrencia ||
+      ocorrenciaServidor.tipo ||
+      (
+        ocorrenciaLocal &&
+        (
+          ocorrenciaLocal.tipoOcorrencia ||
+          ocorrenciaLocal.tipo
+        )
+      )
+    );
+
+  const statusOcorrencia =
+    normalizarTextoOcorrenciasUX1965_(
+      ocorrenciaServidor.statusOcorrencia ||
+      ocorrenciaServidor.status ||
+      (
+        ocorrenciaLocal &&
+        (
+          ocorrenciaLocal.statusOcorrencia ||
+          ocorrenciaLocal.status
+        )
+      )
+    );
+
+  const preparado = {
+    ...(ocorrenciaLocal || {}),
+    ...ocorrenciaServidor,
+
+    idOcorrencia,
+    idObra,
+
+    tipoOcorrencia,
+    statusOcorrencia,
+
+    /*
+     * Aliases mantidos para compatibilidade da interface.
+     */
+    tipo:
+      ocorrenciaServidor.tipo !== undefined
+        ? ocorrenciaServidor.tipo
+        : tipoOcorrencia,
+
+    status:
+      ocorrenciaServidor.status !== undefined
+        ? ocorrenciaServidor.status
+        : statusOcorrencia,
+
+    statusSync:
+      "SINCRONIZADO",
+
+    origemReidratacao:
+      "SERVIDOR"
+  };
+
+  const keyPath =
+    storeOcorrencias.keyPath;
+
+  if (
+    typeof keyPath === "string" &&
+    keyPath &&
+    (
+      preparado[keyPath] === undefined ||
+      preparado[keyPath] === null ||
+      preparado[keyPath] === ""
+    )
+  ) {
+    preparado[keyPath] =
+      idOcorrencia;
+  }
+
+  return preparado;
+}
+
+
+/**
+ * Cria a estrutura de contagem da mesclagem.
+ */
+function criarResumoOcorrenciasUX1965_(
+  recebidas
+) {
+  return {
+    recebidas,
+
+    inseridas: 0,
+    atualizadas: 0,
+
+    preservadasPorUpsertPendente: 0,
+    bloqueadasPorDeletePendente: 0,
+    preservadasPorPendenciaDesconhecida: 0,
+
+    rejeitadasOutraObra: 0,
+    rejeitadasInvalidas: 0,
+
+    duplicadasNoServidor: 0,
+    duplicadasLocalmente: 0
+  };
+}
+
+
+/**
+ * Adiciona um conflito protegido ao resultado.
+ */
+function adicionarConflitoOcorrenciasUX1965_(
+  resultado,
+  conflito
+) {
+  resultado.totalConflitosEvitados++;
+
+  if (
+    resultado.conflitos.length < 100
+  ) {
+    resultado.conflitos.push(
+      conflito
+    );
+  }
+}
+
+
+/**
+ * ============================================================
+ * NÚCLEO DA MESCLAGEM
+ * ============================================================
+ *
+ * @param {Object} pacote
+ * Resposta normalizada de
+ * obterOcorrenciasOperacionaisObraMobile_().
+ *
+ * @param {Object} opcoes
+ * {
+ *   simular: true | false
+ * }
+ */
+async function mesclarOcorrenciasReidratacaoSIGO_(
+  pacote,
+  opcoes = {}
+) {
+  if (
+    !pacote ||
+    typeof pacote !== "object"
+  ) {
+    throw new Error(
+      "Pacote de ocorrências inválido."
+    );
+  }
+
+  const idObra =
+    normalizarTextoOcorrenciasUX1965_(
+      pacote.idObra
+    );
+
+  const ocorrenciasServidor =
+    Array.isArray(
+      pacote.ocorrencias
+    )
+      ? pacote.ocorrencias
+      : [];
+
+  const simular =
+    opcoes.simular === true;
+
+  if (!idObra) {
+    throw new Error(
+      "O pacote de ocorrências não possui idObra."
+    );
+  }
+
+  if (
+    typeof abrirBancoLocalSIGO !==
+    "function"
+  ) {
+    throw new Error(
+      "A função abrirBancoLocalSIGO() não foi encontrada."
+    );
+  }
+
+  const db =
+    await abrirBancoLocalSIGO();
+
+  const storesObrigatorias = [
+    "TB_OCORRENCIAS",
+    "TB_SYNC_QUEUE"
+  ];
+
+  for (
+    const nomeStore of storesObrigatorias
+  ) {
+    if (
+      !db.objectStoreNames.contains(
+        nomeStore
+      )
+    ) {
+      throw new Error(
+        "Store obrigatória não encontrada: " +
+        nomeStore
+      );
+    }
+  }
+
+  return new Promise(
+    function (resolve, reject) {
+      const tx = db.transaction(
+        storesObrigatorias,
+        simular
+          ? "readonly"
+          : "readwrite"
+      );
+
+      const storeOcorrencias =
+        tx.objectStore(
+          "TB_OCORRENCIAS"
+        );
+
+      const storeFila =
+        tx.objectStore(
+          "TB_SYNC_QUEUE"
+        );
+
+      const reqOcorrencias =
+        storeOcorrencias.getAll();
+
+      const reqFila =
+        storeFila.getAll();
+
+      let ocorrenciasLocais = null;
+      let registrosFila = null;
+
+      let processamentoIniciado =
+        false;
+
+      let resultadoFinal =
+        null;
+
+      let erroControlado =
+        null;
+
+
+      function falhar(
+        mensagem,
+        erroOriginal
+      ) {
+        const detalhe =
+          erroOriginal &&
+          erroOriginal.message
+            ? erroOriginal.message
+            : normalizarTextoOcorrenciasUX1965_(
+                erroOriginal
+              );
+
+        erroControlado =
+          new Error(
+            detalhe
+              ? mensagem + " " + detalhe
+              : mensagem
+          );
+
+        try {
+          tx.abort();
+
+        } catch (erroAbort) {
+          reject(erroControlado);
+        }
+      }
+
+
+      function tentarProcessar() {
+        if (processamentoIniciado) {
+          return;
+        }
+
+        if (
+          ocorrenciasLocais === null ||
+          registrosFila === null
+        ) {
+          return;
+        }
+
+        processamentoIniciado =
+          true;
+
+        try {
+          const pendencias =
+            criarMapaPendenciasOcorrenciasUX1965_(
+              registrosFila
+            );
+
+          const mapaPendencias =
+            pendencias.mapa;
+
+          const mapaLocais =
+            new Map();
+
+          const idsDuplicadosLocais =
+            new Set();
+
+          let registrosLocaisSemId = 0;
+
+
+          /*
+           * Indexar as ocorrências locais.
+           */
+          for (
+            const ocorrenciaLocal of ocorrenciasLocais
+          ) {
+            const idOcorrencia =
+              obterIdOcorrenciaUX1965_(
+                ocorrenciaLocal
+              );
+
+            if (!idOcorrencia) {
+              registrosLocaisSemId++;
+              continue;
+            }
+
+            if (
+              mapaLocais.has(
+                idOcorrencia
+              )
+            ) {
+              idsDuplicadosLocais.add(
+                idOcorrencia
+              );
+
+              continue;
+            }
+
+            mapaLocais.set(
+              idOcorrencia,
+              ocorrenciaLocal
+            );
+          }
+
+
+          const resultado = {
+            etapa:
+              "UX.19.6.5",
+
+            operacao:
+              "MESCLAGEM_PROTEGIDA_OCORRENCIAS",
+
+            modo:
+              simular
+                ? "SIMULACAO"
+                : "GRAVACAO_REAL",
+
+            idObra,
+
+            periodoDias:
+              Number(
+                pacote.periodoDias || 0
+              ),
+
+            dataInicio:
+              normalizarTextoOcorrenciasUX1965_(
+                pacote.dataInicio
+              ),
+
+            dataFim:
+              normalizarTextoOcorrenciasUX1965_(
+                pacote.dataFim
+              ),
+
+            dataSyncServidor:
+              normalizarTextoOcorrenciasUX1965_(
+                pacote.dataSync
+              ),
+
+            ocorrencias:
+              criarResumoOcorrenciasUX1965_(
+                ocorrenciasServidor.length
+              ),
+
+            indexedDB: {
+              totalOcorrenciasAntes:
+                ocorrenciasLocais.length,
+
+              registrosLocaisSemId,
+
+              idsDuplicadosLocais:
+                Array.from(
+                  idsDuplicadosLocais
+                )
+            },
+
+            fila: {
+              totalRegistros:
+                registrosFila.length,
+
+              pendenciasAtivasReconhecidas:
+                pendencias
+                  .pendenciasAtivasReconhecidas,
+
+              preservadaIntegralmente:
+                true,
+
+              alteracoesRealizadas:
+                0
+            },
+
+            totalConflitosEvitados:
+              0,
+
+            conflitos:
+              [],
+
+            executadoEm:
+              new Date().toISOString()
+          };
+
+
+          const idsServidorVistos =
+            new Set();
+
+
+          /*
+           * ==================================================
+           * PROCESSAMENTO DAS OCORRÊNCIAS
+           * ==================================================
+           */
+
+          for (
+            const ocorrenciaServidor
+            of ocorrenciasServidor
+          ) {
+            const idOcorrencia =
+              obterIdOcorrenciaUX1965_(
+                ocorrenciaServidor
+              );
+
+            const idObraServidor =
+              normalizarTextoOcorrenciasUX1965_(
+                ocorrenciaServidor.idObra
+              );
+
+
+            /*
+             * Registro sem ID.
+             */
+            if (!idOcorrencia) {
+              resultado.ocorrencias
+                .rejeitadasInvalidas++;
+
+              adicionarConflitoOcorrenciasUX1965_(
+                resultado,
+                {
+                  entidade:
+                    "OCORRENCIA",
+
+                  idRegistro:
+                    "",
+
+                  motivo:
+                    "ID_OCORRENCIA_AUSENTE"
+                }
+              );
+
+              continue;
+            }
+
+
+            /*
+             * Duplicidade no pacote recebido.
+             */
+            if (
+              idsServidorVistos.has(
+                idOcorrencia
+              )
+            ) {
+              resultado.ocorrencias
+                .duplicadasNoServidor++;
+
+              adicionarConflitoOcorrenciasUX1965_(
+                resultado,
+                {
+                  entidade:
+                    "OCORRENCIA",
+
+                  idRegistro:
+                    idOcorrencia,
+
+                  motivo:
+                    "DUPLICADA_NO_PACOTE_SERVIDOR"
+                }
+              );
+
+              continue;
+            }
+
+            idsServidorVistos.add(
+              idOcorrencia
+            );
+
+
+            /*
+             * Registro de outra obra.
+             */
+            if (
+              idObraServidor !==
+              idObra
+            ) {
+              resultado.ocorrencias
+                .rejeitadasOutraObra++;
+
+              adicionarConflitoOcorrenciasUX1965_(
+                resultado,
+                {
+                  entidade:
+                    "OCORRENCIA",
+
+                  idRegistro:
+                    idOcorrencia,
+
+                  motivo:
+                    "REGISTRO_DE_OUTRA_OBRA",
+
+                  idObraRecebida:
+                    idObraServidor
+                }
+              );
+
+              continue;
+            }
+
+
+            /*
+             * Mesmo ID duplicado localmente.
+             *
+             * A mesclagem é bloqueada para evitar sobrescrever
+             * um estado local ambíguo.
+             */
+            if (
+              idsDuplicadosLocais.has(
+                idOcorrencia
+              )
+            ) {
+              resultado.ocorrencias
+                .duplicadasLocalmente++;
+
+              adicionarConflitoOcorrenciasUX1965_(
+                resultado,
+                {
+                  entidade:
+                    "OCORRENCIA",
+
+                  idRegistro:
+                    idOcorrencia,
+
+                  motivo:
+                    "ID_DUPLICADO_LOCALMENTE"
+                }
+              );
+
+              continue;
+            }
+
+
+            const ocorrenciaLocal =
+              mapaLocais.get(
+                idOcorrencia
+              );
+
+
+            /*
+             * Mesmo ID já utilizado localmente por outra obra.
+             */
+            if (
+              ocorrenciaLocal &&
+              normalizarTextoOcorrenciasUX1965_(
+                ocorrenciaLocal.idObra
+              ) &&
+              normalizarTextoOcorrenciasUX1965_(
+                ocorrenciaLocal.idObra
+              ) !== idObra
+            ) {
+              resultado.ocorrencias
+                .rejeitadasOutraObra++;
+
+              adicionarConflitoOcorrenciasUX1965_(
+                resultado,
+                {
+                  entidade:
+                    "OCORRENCIA",
+
+                  idRegistro:
+                    idOcorrencia,
+
+                  motivo:
+                    "ID_JA_EXISTE_LOCALMENTE_EM_OUTRA_OBRA"
+                }
+              );
+
+              continue;
+            }
+
+
+            const pendencia =
+              mapaPendencias.get(
+                idOcorrencia
+              );
+
+
+            /*
+             * DELETE pendente:
+             * nunca restaurar a ocorrência.
+             */
+            if (
+              pendencia &&
+              pendencia.operacao ===
+                "DELETE"
+            ) {
+              resultado.ocorrencias
+                .bloqueadasPorDeletePendente++;
+
+              adicionarConflitoOcorrenciasUX1965_(
+                resultado,
+                {
+                  entidade:
+                    "OCORRENCIA",
+
+                  idRegistro:
+                    idOcorrencia,
+
+                  motivo:
+                    "DELETE_PENDENTE_NAO_RESTAURAR"
+                }
+              );
+
+              continue;
+            }
+
+
+            /*
+             * UPSERT pendente:
+             * preservar integralmente a versão local.
+             */
+            if (
+              pendencia &&
+              pendencia.operacao ===
+                "UPSERT"
+            ) {
+              resultado.ocorrencias
+                .preservadasPorUpsertPendente++;
+
+              adicionarConflitoOcorrenciasUX1965_(
+                resultado,
+                {
+                  entidade:
+                    "OCORRENCIA",
+
+                  idRegistro:
+                    idOcorrencia,
+
+                  motivo:
+                    ocorrenciaLocal
+                      ? "UPSERT_PENDENTE_LOCAL_PRESERVADO"
+                      : "UPSERT_PENDENTE_SEM_REGISTRO_LOCAL"
+                }
+              );
+
+              continue;
+            }
+
+
+            /*
+             * Pendência ativa de tipo desconhecido:
+             * também protege o estado local.
+             */
+            if (pendencia) {
+              resultado.ocorrencias
+                .preservadasPorPendenciaDesconhecida++;
+
+              adicionarConflitoOcorrenciasUX1965_(
+                resultado,
+                {
+                  entidade:
+                    "OCORRENCIA",
+
+                  idRegistro:
+                    idOcorrencia,
+
+                  motivo:
+                    "PENDENCIA_ATIVA_DESCONHECIDA_PRESERVADA"
+                }
+              );
+
+              continue;
+            }
+
+
+            /*
+             * Registro seguro para inserção ou atualização.
+             */
+            const ocorrenciaMesclada =
+              prepararOcorrenciaStoreUX1965_(
+                storeOcorrencias,
+                ocorrenciaServidor,
+                ocorrenciaLocal
+              );
+
+
+            if (ocorrenciaLocal) {
+              resultado.ocorrencias
+                .atualizadas++;
+
+            } else {
+              resultado.ocorrencias
+                .inseridas++;
+            }
+
+
+            mapaLocais.set(
+              idOcorrencia,
+              ocorrenciaMesclada
+            );
+
+
+            if (!simular) {
+              storeOcorrencias.put(
+                ocorrenciaMesclada
+              );
+            }
+          }
+
+
+          /*
+           * TB_SYNC_QUEUE não recebe put, delete ou clear.
+           */
+          resultadoFinal =
+            resultado;
+
+        } catch (erroProcessamento) {
+          falhar(
+            "Falha durante a mesclagem protegida de ocorrências.",
+            erroProcessamento
+          );
+        }
+      }
+
+
+      reqOcorrencias.onsuccess =
+        function () {
+          ocorrenciasLocais =
+            Array.isArray(
+              reqOcorrencias.result
+            )
+              ? reqOcorrencias.result
+              : [];
+
+          tentarProcessar();
+        };
+
+
+      reqFila.onsuccess =
+        function () {
+          registrosFila =
+            Array.isArray(
+              reqFila.result
+            )
+              ? reqFila.result
+              : [];
+
+          tentarProcessar();
+        };
+
+
+      reqOcorrencias.onerror =
+        function () {
+          falhar(
+            "Não foi possível ler TB_OCORRENCIAS.",
+            reqOcorrencias.error
+          );
+        };
+
+
+      reqFila.onerror =
+        function () {
+          falhar(
+            "Não foi possível ler TB_SYNC_QUEUE.",
+            reqFila.error
+          );
+        };
+
+
+      tx.oncomplete =
+        function () {
+          if (!resultadoFinal) {
+            reject(
+              new Error(
+                "A transação terminou sem produzir resultado."
+              )
+            );
+
+            return;
+          }
+
+          resolve(
+            resultadoFinal
+          );
+        };
+
+
+      tx.onerror =
+        function () {
+          if (!erroControlado) {
+            reject(
+              new Error(
+                "A transação de ocorrências falhou. " +
+                (
+                  tx.error &&
+                  tx.error.message
+                    ? tx.error.message
+                    : ""
+                )
+              )
+            );
+          }
+        };
+
+
+      tx.onabort =
+        function () {
+          reject(
+            erroControlado ||
+            new Error(
+              "A transação de ocorrências foi cancelada."
+            )
+          );
+        };
+    }
+  );
+}
+
+
+/**
+ * ============================================================
+ * FLUXO API → MESCLAGEM PROTEGIDA
+ * ============================================================
+ */
+async function reidratarOcorrenciasObraMobile_(
+  idObra,
+  diasHistorico,
+  opcoes = {}
+) {
+  const respostaApi =
+    await obterOcorrenciasOperacionaisObraMobile_(
+      idObra,
+      diasHistorico
+    );
+
+  return mesclarOcorrenciasReidratacaoSIGO_(
+    respostaApi,
+    opcoes
+  );
+}
+
+
+/**
+ * ============================================================
+ * SIMULAÇÃO SEGURA
+ * ============================================================
+ *
+ * Não grava em:
+ *
+ * - TB_OCORRENCIAS;
+ * - TB_SYNC_QUEUE.
+ */
+async function testarMesclagemProtegidaOcorrenciasUX1965_() {
+  console.log(
+    "[UX.19.6.5] Iniciando simulação da mesclagem de ocorrências..."
+  );
+
+  const resultado =
+    await reidratarOcorrenciasObraMobile_(
+      "OBR002",
+      30,
+      {
+        simular: true
+      }
+    );
+
+  console.log(
+    JSON.stringify(
+      resultado,
+      null,
+      2
+    )
+  );
+
+  console.log(
+    "[UX.19.6.5] Simulação concluída. " +
+    "Nenhum registro foi gravado."
+  );
+
+  return resultado;
+}
+
+
+/**
+ * ============================================================
+ * GRAVAÇÃO REAL
+ * ============================================================
+ *
+ * Não executar antes da aprovação da simulação.
+ */
+async function executarMesclagemRealOcorrenciasUX1965_() {
+  console.log(
+    "[UX.19.6.5] Iniciando mesclagem real de ocorrências..."
+  );
+
+  const resultado =
+    await reidratarOcorrenciasObraMobile_(
+      "OBR002",
+      30,
+      {
+        simular: false
+      }
+    );
+
+  console.log(
+    JSON.stringify(
+      resultado,
+      null,
+      2
+    )
+  );
+
+  console.log(
+    "[UX.19.6.5] Mesclagem real concluída. " +
+    "A TB_SYNC_QUEUE foi preservada."
+  );
+
+  return resultado;
+}
