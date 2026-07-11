@@ -18522,3 +18522,346 @@ async function auditarMesclagemReidratacaoUX1957_() {
 
   return resultado;
 }
+
+/**
+ * ============================================================
+ * UX.19.5.7.A — AUDITORIA ISOLADA DO ITEM ÓRFÃO
+ * ============================================================
+ *
+ * Somente leitura.
+ *
+ * Não altera:
+ * - TB_DIARIO_ITENS;
+ * - TB_DIARIOS;
+ * - TB_SYNC_QUEUE.
+ */
+async function auditarItemOrfaoUX1957_() {
+  const idItemAuditado =
+    "DIT-1782754957031";
+
+  const idObraEsperado =
+    "OBR002";
+
+  if (
+    typeof abrirBancoLocalSIGO !==
+    "function"
+  ) {
+    throw new Error(
+      "A função abrirBancoLocalSIGO() não foi encontrada."
+    );
+  }
+
+  const db =
+    await abrirBancoLocalSIGO();
+
+  const snapshot =
+    await new Promise(
+      function (resolve, reject) {
+        const tx = db.transaction(
+          [
+            "TB_DIARIO_ITENS",
+            "TB_SYNC_QUEUE"
+          ],
+          "readonly"
+        );
+
+        const reqItens =
+          tx.objectStore(
+            "TB_DIARIO_ITENS"
+          ).getAll();
+
+        const reqFila =
+          tx.objectStore(
+            "TB_SYNC_QUEUE"
+          ).getAll();
+
+        tx.oncomplete =
+          function () {
+            resolve({
+              itens:
+                Array.isArray(reqItens.result)
+                  ? reqItens.result
+                  : [],
+
+              fila:
+                Array.isArray(reqFila.result)
+                  ? reqFila.result
+                  : []
+            });
+          };
+
+        tx.onerror =
+          function () {
+            reject(
+              new Error(
+                "Falha ao ler o item órfão no IndexedDB."
+              )
+            );
+          };
+
+        tx.onabort =
+          function () {
+            reject(
+              new Error(
+                "A auditoria do item órfão foi cancelada."
+              )
+            );
+          };
+      }
+    );
+
+  const itemLocal =
+    snapshot.itens.find(
+      function (registro) {
+        return (
+          obterIdItemDiarioUX1956_(
+            registro
+          ) === idItemAuditado
+        );
+      }
+    ) || null;
+
+  /*
+   * Localizar qualquer registro da fila que faça
+   * referência ao item.
+   */
+  const registrosFilaRelacionados =
+    snapshot.fila.filter(
+      function (registroFila) {
+        const entidade =
+          obterEntidadeFilaUX1956_(
+            registroFila
+          );
+
+        const idAlvo =
+          obterIdAlvoFilaUX1956_(
+            registroFila,
+            entidade ||
+              "DIARIO_ITEM"
+          );
+
+        if (
+          entidade === "DIARIO_ITEM" &&
+          idAlvo === idItemAuditado
+        ) {
+          return true;
+        }
+
+        /*
+         * Busca complementar para versões antigas da fila.
+         */
+        try {
+          return JSON
+            .stringify(registroFila)
+            .includes(idItemAuditado);
+
+        } catch (erro) {
+          return false;
+        }
+      }
+    );
+
+  const filaRelacionada =
+    registrosFilaRelacionados.map(
+      function (registroFila) {
+        const entidade =
+          obterEntidadeFilaUX1956_(
+            registroFila
+          );
+
+        return {
+          entidade:
+            entidade,
+
+          idAlvo:
+            obterIdAlvoFilaUX1956_(
+              registroFila,
+              entidade ||
+                "DIARIO_ITEM"
+            ),
+
+          operacao:
+            obterOperacaoFilaUX1956_(
+              registroFila
+            ),
+
+          pendente:
+            filaEstaPendenteUX1956_(
+              registroFila
+            ),
+
+          statusSync:
+            registroFila.statusSync ||
+            registroFila.status ||
+            registroFila.situacao ||
+            "",
+
+          idFila:
+            registroFila.idFila ||
+            registroFila.idSync ||
+            registroFila.id ||
+            ""
+        };
+      }
+    );
+
+  /*
+   * Confirmar se o servidor ainda devolve esse item.
+   */
+  const respostaApi =
+    await obterDadosOperacionaisObraMobile_(
+      idObraEsperado,
+      30
+    );
+
+  const itemServidor =
+    respostaApi.diarioItens.find(
+      function (registro) {
+        return (
+          obterIdItemDiarioUX1956_(
+            registro
+          ) === idItemAuditado
+        );
+      }
+    ) || null;
+
+  const possuiPendenciaAtiva =
+    filaRelacionada.some(
+      function (registroFila) {
+        return (
+          registroFila.pendente === true
+        );
+      }
+    );
+
+  let classificacao =
+    "NAO_CLASSIFICADO";
+
+  if (!itemLocal) {
+    classificacao =
+      "ITEM_NAO_ENCONTRADO_LOCALMENTE";
+
+  } else if (
+    normalizarTextoUX1956_(
+      itemLocal.idDiario
+    )
+  ) {
+    classificacao =
+      "ITEM_NAO_E_MAIS_ORFAO";
+
+  } else if (itemServidor) {
+    classificacao =
+      "INCONSISTENCIA_ENTRE_SERVIDOR_E_CLIENTE";
+
+  } else if (possuiPendenciaAtiva) {
+    classificacao =
+      "ORFAO_LOCAL_COM_PENDENCIA_ATIVA_PRESERVAR";
+
+  } else {
+    classificacao =
+      "ORFAO_LOCAL_LEGADO_SEM_PENDENCIA";
+  }
+
+  const resultado = {
+    etapa:
+      "UX.19.5.7.A",
+
+    auditoria:
+      "ITEM_ORFAO_LOCAL",
+
+    idItem:
+      idItemAuditado,
+
+    itemEncontradoLocalmente:
+      Boolean(itemLocal),
+
+    itemRetornadoPeloServidor:
+      Boolean(itemServidor),
+
+    idObraLocal:
+      itemLocal
+        ? normalizarTextoUX1956_(
+            itemLocal.idObra
+          )
+        : "",
+
+    idDiarioLocal:
+      itemLocal
+        ? normalizarTextoUX1956_(
+            itemLocal.idDiario
+          )
+        : "",
+
+    statusSyncLocal:
+      itemLocal
+        ? normalizarTextoUX1956_(
+            itemLocal.statusSync
+          )
+        : "",
+
+    origemReidratacao:
+      itemLocal
+        ? normalizarTextoUX1956_(
+            itemLocal.origemReidratacao
+          )
+        : "",
+
+    idAtividade:
+      itemLocal
+        ? normalizarTextoUX1956_(
+            itemLocal.idAtividade
+          )
+        : "",
+
+    eap:
+      itemLocal
+        ? normalizarTextoUX1956_(
+            itemLocal.eap
+          )
+        : "",
+
+    servico:
+      itemLocal
+        ? normalizarTextoUX1956_(
+            itemLocal.servico
+          )
+        : "",
+
+    data:
+      itemLocal
+        ? normalizarTextoUX1956_(
+            itemLocal.data
+          )
+        : "",
+
+    quantidadeFilaRelacionada:
+      filaRelacionada.length,
+
+    possuiPendenciaAtiva:
+      possuiPendenciaAtiva,
+
+    filaRelacionada:
+      filaRelacionada,
+
+    classificacao:
+      classificacao,
+
+    registroLocal:
+      itemLocal
+  };
+
+  console.log(
+    JSON.stringify(
+      resultado,
+      null,
+      2
+    )
+  );
+
+  console.log(
+    "[UX.19.5.7.A] Auditoria isolada concluída. " +
+    "Nenhum registro foi alterado."
+  );
+
+  return resultado;
+}
