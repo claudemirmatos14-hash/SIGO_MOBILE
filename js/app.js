@@ -499,18 +499,32 @@ localStorage.setItem("telaAtualMobile", tela);
   const area = document.getElementById("telaApp");
 
   const telasPremium = {
-   home: {
-      montar: montarHomePremium,
-      depois: async function () {
-        if (typeof carregarIndicadoresHomePremium === "function") {
-          await carregarIndicadoresHomePremium();
-        }
-    
-        if (typeof atualizarIndicadoresMobile_ === "function") {
-          await atualizarIndicadoresMobile_();
-        }
+  home: {
+    montar: montarHomePremium,
+  
+    depois: async function () {
+      if (
+        typeof carregarIndicadoresHomePremium ===
+        "function"
+      ) {
+        await carregarIndicadoresHomePremium();
       }
-    },
+  
+      if (
+        typeof atualizarIndicadoresMobile_ ===
+        "function"
+      ) {
+        await atualizarIndicadoresMobile_();
+      }
+  
+      if (
+        typeof instalarAcaoReidratacaoUX1958_ ===
+        "function"
+      ) {
+        await instalarAcaoReidratacaoUX1958_();
+      }
+    }
+  },
     
     obras: {
       montar: montarTelaObrasOffline,
@@ -19573,6 +19587,1410 @@ async function executarCorrecaoItemOrfaoUX1957_() {
   console.log(
     "[UX.19.5.7.B] Item órfão legado removido. " +
     "A TB_SYNC_QUEUE foi preservada."
+  );
+
+  return resultado;
+}
+
+/**
+ * ============================================================
+ * UX.19.5.8 — REIDRATAÇÃO CONTROLADA PELA INTERFACE
+ * ============================================================
+ */
+
+window.SIGO_REIDRATACAO_UX1958 =
+  window.SIGO_REIDRATACAO_UX1958 || {
+    idObra: "",
+    nomeObra: "",
+    periodoDias: 30,
+    pacote: null,
+    simulacao: null,
+    criadoEm: 0,
+    emAndamento: false
+  };
+
+
+/**
+ * Escapa valores exibidos no HTML.
+ */
+function escaparHtmlUX1958_(valor) {
+  return String(
+    valor === undefined || valor === null
+      ? ""
+      : valor
+  )
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+
+/**
+ * Normaliza um possível objeto de obra ativa.
+ */
+function normalizarObraAtivaUX1958_(valor) {
+  if (!valor) {
+    return null;
+  }
+
+  if (typeof valor === "string") {
+    const texto = valor.trim();
+
+    if (!texto) {
+      return null;
+    }
+
+    try {
+      const objeto = JSON.parse(texto);
+
+      return normalizarObraAtivaUX1958_(
+        objeto
+      );
+
+    } catch (erro) {
+      return {
+        idObra: texto,
+        nomeObra: texto
+      };
+    }
+  }
+
+  if (typeof valor !== "object") {
+    return null;
+  }
+
+  const idObra = String(
+    valor.idObra ||
+    valor.ID_OBRA ||
+    valor.codigoObra ||
+    valor.codigo ||
+    valor.id ||
+    ""
+  ).trim();
+
+  if (!idObra) {
+    return null;
+  }
+
+  return {
+    idObra,
+
+    nomeObra: String(
+      valor.nomeObra ||
+      valor.NOME_OBRA ||
+      valor.nome ||
+      valor.descricao ||
+      idObra
+    ).trim()
+  };
+}
+
+
+/**
+ * Lê uma store inteira do IndexedDB.
+ */
+async function listarStoreUX1958_(
+  nomeStore
+) {
+  const db =
+    await abrirBancoLocalSIGO();
+
+  if (
+    !db.objectStoreNames.contains(
+      nomeStore
+    )
+  ) {
+    return [];
+  }
+
+  return new Promise(
+    function (resolve, reject) {
+      const tx = db.transaction(
+        [nomeStore],
+        "readonly"
+      );
+
+      const req = tx
+        .objectStore(nomeStore)
+        .getAll();
+
+      req.onsuccess = function () {
+        resolve(
+          Array.isArray(req.result)
+            ? req.result
+            : []
+        );
+      };
+
+      req.onerror = function () {
+        reject(
+          new Error(
+            "Não foi possível ler " +
+            nomeStore +
+            "."
+          )
+        );
+      };
+    }
+  );
+}
+
+
+/**
+ * Identifica a obra ativa utilizando as fontes
+ * já existentes no aplicativo.
+ */
+async function resolverObraAtivaUX1958_() {
+  const funcoesCandidatas = [
+    "obterObraAtivaMobile_",
+    "obterObraAtivaMobile",
+    "obterObraAtiva_"
+  ];
+
+  for (
+    const nomeFuncao of funcoesCandidatas
+  ) {
+    if (
+      typeof window[nomeFuncao] ===
+      "function"
+    ) {
+      try {
+        const valor =
+          await window[nomeFuncao]();
+
+        const obra =
+          normalizarObraAtivaUX1958_(
+            valor
+          );
+
+        if (obra) {
+          return obra;
+        }
+
+      } catch (erro) {
+        console.warn(
+          "[UX.19.5.8] Fonte de obra ativa ignorada:",
+          nomeFuncao,
+          erro
+        );
+      }
+    }
+  }
+
+  const globais = [
+    window.obraAtivaMobile,
+    window.obraAtiva,
+    window.OBRA_ATIVA,
+    window.idObraAtiva,
+    window.SIGO_OBRA_ATIVA
+  ];
+
+  for (const valor of globais) {
+    const obra =
+      normalizarObraAtivaUX1958_(
+        valor
+      );
+
+    if (obra) {
+      return obra;
+    }
+  }
+
+  const chavesStorage = [
+    "SIGO_OBRA_ATIVA",
+    "SIGO_OBRA_ATIVA_ID",
+    "OBRA_ATIVA",
+    "obraAtiva",
+    "idObraAtiva"
+  ];
+
+  for (
+    const chave of chavesStorage
+  ) {
+    const valor =
+      localStorage.getItem(chave);
+
+    const obra =
+      normalizarObraAtivaUX1958_(
+        valor
+      );
+
+    if (obra) {
+      /*
+       * Tenta completar o nome usando a TB_OBRAS.
+       */
+      try {
+        const obras =
+          await listarStoreUX1958_(
+            "TB_OBRAS"
+          );
+
+        const registro =
+          obras.find(function (item) {
+            return String(
+              item.idObra ||
+              item.ID_OBRA ||
+              item.id ||
+              ""
+            ).trim() === obra.idObra;
+          });
+
+        return (
+          normalizarObraAtivaUX1958_(
+            registro
+          ) || obra
+        );
+
+      } catch (erro) {
+        return obra;
+      }
+    }
+  }
+
+  const obras =
+    await listarStoreUX1958_(
+      "TB_OBRAS"
+    );
+
+  const registroAtivo =
+    obras.find(function (obra) {
+      const status = String(
+        obra.statusAtiva ||
+        obra.statusObra ||
+        obra.status ||
+        ""
+      )
+        .trim()
+        .toUpperCase();
+
+      return (
+        obra.ativa === true ||
+        obra.obraAtiva === true ||
+        obra.selecionada === true ||
+        status === "ATIVA" ||
+        status === "SIM"
+      );
+    });
+
+  const obraNormalizada =
+    normalizarObraAtivaUX1958_(
+      registroAtivo
+    );
+
+  if (obraNormalizada) {
+    return obraNormalizada;
+  }
+
+  throw new Error(
+    "Nenhuma obra ativa foi identificada. " +
+    "Selecione uma obra antes de reidratar."
+  );
+}
+
+
+/**
+ * Chave de controle da última atualização por obra.
+ */
+function chaveMetaReidratacaoUX1958_(
+  idObra
+) {
+  return (
+    "SIGO_REIDRATACAO_META_" +
+    String(idObra || "").trim()
+  );
+}
+
+
+/**
+ * Salva somente o resumo operacional.
+ *
+ * Não salva os Diários no localStorage.
+ */
+function salvarMetaReidratacaoUX1958_(
+  idObra,
+  dados
+) {
+  localStorage.setItem(
+    chaveMetaReidratacaoUX1958_(
+      idObra
+    ),
+    JSON.stringify(dados)
+  );
+}
+
+
+/**
+ * Lê o resumo da última reidratação.
+ */
+function lerMetaReidratacaoUX1958_(
+  idObra
+) {
+  try {
+    return JSON.parse(
+      localStorage.getItem(
+        chaveMetaReidratacaoUX1958_(
+          idObra
+        )
+      ) || "null"
+    );
+
+  } catch (erro) {
+    return null;
+  }
+}
+
+
+/**
+ * Formata data e hora para exibição.
+ */
+function formatarDataHoraUX1958_(
+  valor
+) {
+  if (!valor) {
+    return "Nunca atualizada";
+  }
+
+  const data = new Date(valor);
+
+  if (
+    Number.isNaN(data.getTime())
+  ) {
+    return String(valor);
+  }
+
+  return data.toLocaleString(
+    "pt-BR",
+    {
+      dateStyle: "short",
+      timeStyle: "short"
+    }
+  );
+}
+
+
+/**
+ * Injeta o modal no documento uma única vez.
+ */
+function garantirModalReidratacaoUX1958_() {
+  let overlay =
+    document.getElementById(
+      "overlayReidratacaoUX1958"
+    );
+
+  if (overlay) {
+    return overlay;
+  }
+
+  overlay =
+    document.createElement("div");
+
+  overlay.id =
+    "overlayReidratacaoUX1958";
+
+  overlay.className =
+    "sigo-reidratacao-overlay";
+
+  overlay.innerHTML = `
+    <section
+      class="sigo-reidratacao-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="tituloReidratacaoUX1958"
+    >
+      <header class="sigo-reidratacao-modal__header">
+        <div>
+          <h2 id="tituloReidratacaoUX1958">
+            Atualizar dados da obra
+          </h2>
+
+          <p id="obraReidratacaoUX1958">
+            Identificando obra ativa...
+          </p>
+        </div>
+
+        <button
+          id="fecharReidratacaoUX1958"
+          class="sigo-reidratacao-modal__fechar"
+          type="button"
+          aria-label="Fechar"
+        >
+          ×
+        </button>
+      </header>
+
+      <div class="sigo-reidratacao-modal__body">
+        <div class="sigo-reidratacao-box">
+          <label
+            class="sigo-reidratacao-label"
+            for="periodoReidratacaoUX1958"
+          >
+            Histórico operacional
+          </label>
+
+          <select
+            id="periodoReidratacaoUX1958"
+            class="sigo-reidratacao-select"
+          >
+            <option value="15">
+              Últimos 15 dias
+            </option>
+
+            <option value="30" selected>
+              Últimos 30 dias
+            </option>
+
+            <option value="60">
+              Últimos 60 dias
+            </option>
+
+            <option value="90">
+              Últimos 90 dias
+            </option>
+          </select>
+
+          <p class="sigo-reidratacao-observacao">
+            Antes de gravar, o SIGO fará uma simulação e
+            protegerá registros locais com UPSERT ou DELETE
+            pendente.
+          </p>
+        </div>
+
+        <div
+          id="statusReidratacaoUX1958"
+          class="sigo-reidratacao-status"
+        ></div>
+
+        <div
+          id="resumoReidratacaoUX1958"
+          class="sigo-reidratacao-resumo"
+        ></div>
+
+        <div class="sigo-reidratacao-acoes">
+          <button
+            id="visualizarReidratacaoUX1958"
+            class="sigo-reidratacao-btn sigo-reidratacao-btn--primario"
+            type="button"
+          >
+            Pré-visualizar atualização
+          </button>
+
+          <button
+            id="confirmarReidratacaoUX1958"
+            class="sigo-reidratacao-btn sigo-reidratacao-btn--confirmar"
+            type="button"
+            disabled
+          >
+            Confirmar reidratação
+          </button>
+        </div>
+      </div>
+    </section>
+  `;
+
+  document.body.appendChild(
+    overlay
+  );
+
+  document
+    .getElementById(
+      "fecharReidratacaoUX1958"
+    )
+    .addEventListener(
+      "click",
+      fecharReidratacaoUX1958_
+    );
+
+  document
+    .getElementById(
+      "visualizarReidratacaoUX1958"
+    )
+    .addEventListener(
+      "click",
+      prepararReidratacaoInterfaceUX1958_
+    );
+
+  document
+    .getElementById(
+      "confirmarReidratacaoUX1958"
+    )
+    .addEventListener(
+      "click",
+      confirmarReidratacaoInterfaceUX1958_
+    );
+
+  overlay.addEventListener(
+    "click",
+    function (evento) {
+      if (evento.target === overlay) {
+        fecharReidratacaoUX1958_();
+      }
+    }
+  );
+
+  return overlay;
+}
+
+
+/**
+ * Exibe mensagens no modal.
+ */
+function definirStatusReidratacaoUX1958_(
+  mensagem,
+  tipo
+) {
+  const elemento =
+    document.getElementById(
+      "statusReidratacaoUX1958"
+    );
+
+  if (!elemento) {
+    return;
+  }
+
+  elemento.className =
+    "sigo-reidratacao-status is-visible " +
+    (
+      tipo === "success"
+        ? "is-success"
+        : tipo === "error"
+          ? "is-error"
+          : "is-loading"
+    );
+
+  elemento.textContent =
+    mensagem;
+}
+
+
+/**
+ * Bloqueia ou libera os controles.
+ */
+function bloquearInterfaceReidratacaoUX1958_(
+  bloqueada
+) {
+  const seletor =
+    document.getElementById(
+      "periodoReidratacaoUX1958"
+    );
+
+  const visualizar =
+    document.getElementById(
+      "visualizarReidratacaoUX1958"
+    );
+
+  const confirmar =
+    document.getElementById(
+      "confirmarReidratacaoUX1958"
+    );
+
+  if (seletor) {
+    seletor.disabled = bloqueada;
+  }
+
+  if (visualizar) {
+    visualizar.disabled = bloqueada;
+  }
+
+  if (
+    confirmar &&
+    bloqueada
+  ) {
+    confirmar.disabled = true;
+  }
+}
+
+
+/**
+ * Soma registros locais protegidos.
+ */
+function totalPreservadosUX1958_(
+  resultado
+) {
+  return (
+    resultado.diarios
+      .preservadosPorUpsertPendente +
+
+    resultado.diarios
+      .bloqueadosPorDeletePendente +
+
+    resultado.diarioItens
+      .preservadosPorUpsertPendente +
+
+    resultado.diarioItens
+      .bloqueadosPorDeletePendente
+  );
+}
+
+
+/**
+ * Monta o resumo da simulação.
+ */
+function renderizarSimulacaoUX1958_(
+  resultado
+) {
+  const elemento =
+    document.getElementById(
+      "resumoReidratacaoUX1958"
+    );
+
+  const recebidos =
+    resultado.diarios.recebidos +
+    resultado.diarioItens.recebidos;
+
+  const inseridos =
+    resultado.diarios.inseridos +
+    resultado.diarioItens.inseridos;
+
+  const atualizados =
+    resultado.diarios.atualizados +
+    resultado.diarioItens.atualizados;
+
+  const preservados =
+    totalPreservadosUX1958_(
+      resultado
+    );
+
+  elemento.innerHTML = `
+    <h3 class="sigo-reidratacao-resumo__titulo">
+      Pré-visualização segura
+    </h3>
+
+    <div class="sigo-reidratacao-grid">
+      <div class="sigo-reidratacao-kpi">
+        <strong>${recebidos}</strong>
+        <span>Registros recebidos</span>
+      </div>
+
+      <div class="sigo-reidratacao-kpi">
+        <strong>${inseridos}</strong>
+        <span>Novos registros</span>
+      </div>
+
+      <div class="sigo-reidratacao-kpi">
+        <strong>${atualizados}</strong>
+        <span>Registros atualizados</span>
+      </div>
+
+      <div class="sigo-reidratacao-kpi">
+        <strong>${preservados}</strong>
+        <span>Registros locais protegidos</span>
+      </div>
+
+      <div class="sigo-reidratacao-kpi">
+        <strong>${resultado.diarios.recebidos}</strong>
+        <span>Diários recuperados</span>
+      </div>
+
+      <div class="sigo-reidratacao-kpi">
+        <strong>${resultado.diarioItens.recebidos}</strong>
+        <span>Itens recuperados</span>
+      </div>
+    </div>
+
+    <p class="sigo-reidratacao-observacao">
+      Conflitos evitados:
+      <strong>${resultado.totalConflitosEvitados}</strong>.
+      A fila de sincronização possui
+      <strong>${resultado.fila.totalRegistros}</strong>
+      registros e não será alterada.
+    </p>
+  `;
+
+  elemento.classList.add(
+    "is-visible"
+  );
+}
+
+
+/**
+ * Monta o resultado da gravação real.
+ */
+function renderizarResultadoReidratacaoUX1958_(
+  resultado
+) {
+  const elemento =
+    document.getElementById(
+      "resumoReidratacaoUX1958"
+    );
+
+  const inseridos =
+    resultado.diarios.inseridos +
+    resultado.diarioItens.inseridos;
+
+  const atualizados =
+    resultado.diarios.atualizados +
+    resultado.diarioItens.atualizados;
+
+  const preservados =
+    totalPreservadosUX1958_(
+      resultado
+    );
+
+  elemento.innerHTML = `
+    <h3 class="sigo-reidratacao-resumo__titulo">
+      Atualização concluída
+    </h3>
+
+    <div class="sigo-reidratacao-grid">
+      <div class="sigo-reidratacao-kpi">
+        <strong>${resultado.diarios.recebidos}</strong>
+        <span>Diários recuperados</span>
+      </div>
+
+      <div class="sigo-reidratacao-kpi">
+        <strong>${resultado.diarioItens.recebidos}</strong>
+        <span>Itens recuperados</span>
+      </div>
+
+      <div class="sigo-reidratacao-kpi">
+        <strong>${inseridos}</strong>
+        <span>Novos registros</span>
+      </div>
+
+      <div class="sigo-reidratacao-kpi">
+        <strong>${atualizados}</strong>
+        <span>Registros atualizados</span>
+      </div>
+
+      <div class="sigo-reidratacao-kpi">
+        <strong>${preservados}</strong>
+        <span>Registros preservados</span>
+      </div>
+
+      <div class="sigo-reidratacao-kpi">
+        <strong>${resultado.totalConflitosEvitados}</strong>
+        <span>Conflitos evitados</span>
+      </div>
+    </div>
+
+    <p class="sigo-reidratacao-observacao">
+      Atualizado em
+      <strong>
+        ${escaparHtmlUX1958_(
+          formatarDataHoraUX1958_(
+            resultado.executadoEm
+          )
+        )}
+      </strong>.
+      A TB_SYNC_QUEUE foi preservada integralmente.
+    </p>
+  `;
+
+  elemento.classList.add(
+    "is-visible"
+  );
+}
+
+
+/**
+ * Abre a interface.
+ */
+async function abrirReidratacaoUX1958_() {
+  const overlay =
+    garantirModalReidratacaoUX1958_();
+
+  const estado =
+    window.SIGO_REIDRATACAO_UX1958;
+
+  estado.pacote = null;
+  estado.simulacao = null;
+  estado.criadoEm = 0;
+  estado.emAndamento = false;
+
+  const resumo =
+    document.getElementById(
+      "resumoReidratacaoUX1958"
+    );
+
+  resumo.innerHTML = "";
+  resumo.classList.remove(
+    "is-visible"
+  );
+
+  const confirmar =
+    document.getElementById(
+      "confirmarReidratacaoUX1958"
+    );
+
+  confirmar.disabled = true;
+
+  overlay.classList.add(
+    "is-open"
+  );
+
+  definirStatusReidratacaoUX1958_(
+    "Identificando a obra ativa...",
+    "loading"
+  );
+
+  try {
+    const obra =
+      await resolverObraAtivaUX1958_();
+
+    estado.idObra =
+      obra.idObra;
+
+    estado.nomeObra =
+      obra.nomeObra;
+
+    document.getElementById(
+      "obraReidratacaoUX1958"
+    ).textContent =
+      obra.nomeObra +
+      " · " +
+      obra.idObra;
+
+    definirStatusReidratacaoUX1958_(
+      "Escolha o período e faça a pré-visualização.",
+      "success"
+    );
+
+  } catch (erro) {
+    definirStatusReidratacaoUX1958_(
+      erro.message,
+      "error"
+    );
+  }
+}
+
+
+/**
+ * Fecha o painel.
+ */
+function fecharReidratacaoUX1958_() {
+  const estado =
+    window.SIGO_REIDRATACAO_UX1958;
+
+  if (estado.emAndamento) {
+    return;
+  }
+
+  const overlay =
+    document.getElementById(
+      "overlayReidratacaoUX1958"
+    );
+
+  if (overlay) {
+    overlay.classList.remove(
+      "is-open"
+    );
+  }
+}
+
+
+/**
+ * Executa a consulta e a simulação protegida.
+ */
+async function prepararReidratacaoInterfaceUX1958_() {
+  const estado =
+    window.SIGO_REIDRATACAO_UX1958;
+
+  if (estado.emAndamento) {
+    return;
+  }
+
+  if (!navigator.onLine) {
+    definirStatusReidratacaoUX1958_(
+      "A reidratação precisa de conexão com a internet.",
+      "error"
+    );
+
+    return;
+  }
+
+  try {
+    estado.emAndamento = true;
+
+    bloquearInterfaceReidratacaoUX1958_(
+      true
+    );
+
+    const obraAtual =
+      await resolverObraAtivaUX1958_();
+
+    const periodo = Number(
+      document.getElementById(
+        "periodoReidratacaoUX1958"
+      ).value
+    );
+
+    estado.idObra =
+      obraAtual.idObra;
+
+    estado.nomeObra =
+      obraAtual.nomeObra;
+
+    estado.periodoDias =
+      periodo;
+
+    definirStatusReidratacaoUX1958_(
+      "Consultando o servidor e analisando os registros locais...",
+      "loading"
+    );
+
+    const pacote =
+      await obterDadosOperacionaisObraMobile_(
+        estado.idObra,
+        periodo
+      );
+
+    const simulacao =
+      await mesclarDadosOperacionaisReidratacaoSIGO_(
+        pacote,
+        {
+          simular: true
+        }
+      );
+
+    estado.pacote =
+      pacote;
+
+    estado.simulacao =
+      simulacao;
+
+    estado.criadoEm =
+      Date.now();
+
+    renderizarSimulacaoUX1958_(
+      simulacao
+    );
+
+    definirStatusReidratacaoUX1958_(
+      "Pré-visualização concluída. Confirme para gravar no dispositivo.",
+      "success"
+    );
+
+    document.getElementById(
+      "confirmarReidratacaoUX1958"
+    ).disabled = false;
+
+  } catch (erro) {
+    estado.pacote = null;
+    estado.simulacao = null;
+
+    definirStatusReidratacaoUX1958_(
+      erro.message ||
+      "Não foi possível preparar a reidratação.",
+      "error"
+    );
+
+  } finally {
+    estado.emAndamento = false;
+
+    bloquearInterfaceReidratacaoUX1958_(
+      false
+    );
+
+    document.getElementById(
+      "confirmarReidratacaoUX1958"
+    ).disabled =
+      !estado.pacote;
+  }
+}
+
+
+/**
+ * Executa a gravação usando exatamente o pacote
+ * que foi previamente simulado.
+ */
+async function confirmarReidratacaoInterfaceUX1958_() {
+  const estado =
+    window.SIGO_REIDRATACAO_UX1958;
+
+  if (
+    estado.emAndamento ||
+    !estado.pacote
+  ) {
+    return;
+  }
+
+  try {
+    estado.emAndamento = true;
+
+    bloquearInterfaceReidratacaoUX1958_(
+      true
+    );
+
+    /*
+     * A pré-visualização expira após cinco minutos.
+     */
+    if (
+      Date.now() - estado.criadoEm >
+      5 * 60 * 1000
+    ) {
+      throw new Error(
+        "A pré-visualização expirou. Faça uma nova consulta."
+      );
+    }
+
+    const obraAtual =
+      await resolverObraAtivaUX1958_();
+
+    if (
+      obraAtual.idObra !==
+      estado.idObra
+    ) {
+      throw new Error(
+        "A obra ativa foi alterada. Faça uma nova pré-visualização."
+      );
+    }
+
+    definirStatusReidratacaoUX1958_(
+      "Gravando os dados com proteção de pendências locais...",
+      "loading"
+    );
+
+    const resultado =
+      await mesclarDadosOperacionaisReidratacaoSIGO_(
+        estado.pacote,
+        {
+          simular: false
+        }
+      );
+
+    const meta = {
+      idObra:
+        estado.idObra,
+
+      nomeObra:
+        estado.nomeObra,
+
+      periodoDias:
+        estado.periodoDias,
+
+      diarios:
+        resultado.diarios.recebidos,
+
+      diarioItens:
+        resultado.diarioItens.recebidos,
+
+      inseridos:
+        resultado.diarios.inseridos +
+        resultado.diarioItens.inseridos,
+
+      atualizados:
+        resultado.diarios.atualizados +
+        resultado.diarioItens.atualizados,
+
+      preservados:
+        totalPreservadosUX1958_(
+          resultado
+        ),
+
+      conflitosEvitados:
+        resultado.totalConflitosEvitados,
+
+      dataAtualizacao:
+        resultado.executadoEm ||
+        new Date().toISOString()
+    };
+
+    salvarMetaReidratacaoUX1958_(
+      estado.idObra,
+      meta
+    );
+
+    renderizarResultadoReidratacaoUX1958_(
+      resultado
+    );
+
+    definirStatusReidratacaoUX1958_(
+      "Dados operacionais atualizados com sucesso.",
+      "success"
+    );
+
+    /*
+     * Notificação interna já existente no SIGO.
+     */
+    if (
+      typeof criarNotificacaoSIGO_ ===
+      "function"
+    ) {
+      try {
+        await criarNotificacaoSIGO_({
+          tipo: "REIDRATACAO",
+          titulo: "Obra atualizada",
+          mensagem:
+            resultado.diarios.recebidos +
+            " Diários e " +
+            resultado.diarioItens.recebidos +
+            " itens recuperados.",
+          icone: "🔄"
+        });
+
+      } catch (erroNotificacao) {
+        console.warn(
+          "[UX.19.5.8] Notificação não criada:",
+          erroNotificacao
+        );
+      }
+    }
+
+    await atualizarCardReidratacaoUX1958_();
+
+    /*
+     * Atualizações visuais opcionais.
+     */
+    const funcoesAtualizacao = [
+      "listarDiariosOffline_",
+      "atualizarHomeMobile_",
+      "atualizarPainelSaudeSync_",
+      "atualizarBadgeNotificacoes_"
+    ];
+
+    for (
+      const nomeFuncao of funcoesAtualizacao
+    ) {
+      if (
+        typeof window[nomeFuncao] ===
+        "function"
+      ) {
+        try {
+          await window[nomeFuncao]();
+
+        } catch (erroAtualizacao) {
+          console.warn(
+            "[UX.19.5.8] Atualização visual ignorada:",
+            nomeFuncao,
+            erroAtualizacao
+          );
+        }
+      }
+    }
+
+    estado.pacote = null;
+    estado.simulacao = null;
+
+  } catch (erro) {
+    definirStatusReidratacaoUX1958_(
+      erro.message ||
+      "A reidratação não pôde ser concluída.",
+      "error"
+    );
+
+  } finally {
+    estado.emAndamento = false;
+
+    bloquearInterfaceReidratacaoUX1958_(
+      false
+    );
+
+    document.getElementById(
+      "confirmarReidratacaoUX1958"
+    ).disabled = true;
+  }
+}
+
+
+/**
+ * Atualiza a informação exibida no card da Home.
+ */
+async function atualizarCardReidratacaoUX1958_() {
+  const metaElemento =
+    document.getElementById(
+      "metaReidratacaoUX1958"
+    );
+
+  if (!metaElemento) {
+    return;
+  }
+
+  try {
+    const obra =
+      await resolverObraAtivaUX1958_();
+
+    const meta =
+      lerMetaReidratacaoUX1958_(
+        obra.idObra
+      );
+
+    if (!meta) {
+      metaElemento.textContent =
+        "Histórico operacional ainda não atualizado neste dispositivo.";
+
+      return;
+    }
+
+    metaElemento.textContent =
+      "Última atualização: " +
+      formatarDataHoraUX1958_(
+        meta.dataAtualizacao
+      ) +
+      " · " +
+      meta.periodoDias +
+      " dias";
+
+  } catch (erro) {
+    metaElemento.textContent =
+      "Selecione uma obra para atualizar o histórico.";
+  }
+}
+
+
+/**
+ * Instala o card na tela Home.
+ */
+async function instalarAcaoReidratacaoUX1958_() {
+  const area =
+    document.getElementById(
+      "telaApp"
+    );
+
+  if (!area) {
+    return;
+  }
+
+  let card =
+    document.getElementById(
+      "cardReidratacaoUX1958"
+    );
+
+  if (!card) {
+    card =
+      document.createElement(
+        "section"
+      );
+
+    card.id =
+      "cardReidratacaoUX1958";
+
+    card.className =
+      "sigo-reidratacao-card";
+
+    card.innerHTML = `
+      <div class="sigo-reidratacao-card__conteudo">
+        <h3 class="sigo-reidratacao-card__titulo">
+          Atualizar histórico da obra
+        </h3>
+
+        <p class="sigo-reidratacao-card__texto">
+          Recupere Diários e itens sincronizados em outro
+          dispositivo.
+        </p>
+
+        <span
+          id="metaReidratacaoUX1958"
+          class="sigo-reidratacao-card__meta"
+        >
+          Verificando última atualização...
+        </span>
+      </div>
+
+      <button
+        class="sigo-reidratacao-card__botao"
+        type="button"
+        onclick="abrirReidratacaoUX1958_()"
+      >
+        Atualizar dados
+      </button>
+    `;
+
+    area.appendChild(card);
+  }
+
+  garantirModalReidratacaoUX1958_();
+
+  await atualizarCardReidratacaoUX1958_();
+}
+
+
+/**
+ * Auditoria estrutural da interface.
+ */
+async function auditarInterfaceReidratacaoUX1958_() {
+  await instalarAcaoReidratacaoUX1958_();
+
+  const obra =
+    await resolverObraAtivaUX1958_();
+
+  const select =
+    document.getElementById(
+      "periodoReidratacaoUX1958"
+    );
+
+  const periodos =
+    Array.from(
+      select.options
+    ).map(function (option) {
+      return Number(option.value);
+    });
+
+  const validacoes = {
+    cardCriado:
+      Boolean(
+        document.getElementById(
+          "cardReidratacaoUX1958"
+        )
+      ),
+
+    modalCriado:
+      Boolean(
+        document.getElementById(
+          "overlayReidratacaoUX1958"
+        )
+      ),
+
+    obraAtivaIdentificada:
+      Boolean(obra.idObra),
+
+    possuiPeriodo15:
+      periodos.includes(15),
+
+    possuiPeriodo30:
+      periodos.includes(30),
+
+    possuiPeriodo60:
+      periodos.includes(60),
+
+    possuiPeriodo90:
+      periodos.includes(90),
+
+    botaoVisualizacaoExiste:
+      Boolean(
+        document.getElementById(
+          "visualizarReidratacaoUX1958"
+        )
+      ),
+
+    botaoConfirmacaoExiste:
+      Boolean(
+        document.getElementById(
+          "confirmarReidratacaoUX1958"
+        )
+      )
+  };
+
+  const aprovado =
+    Object.values(validacoes)
+      .every(function (valor) {
+        return valor === true;
+      });
+
+  const resultado = {
+    etapa: "UX.19.5.8",
+    auditoria:
+      "INTERFACE_REIDRATACAO",
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+    idObra:
+      obra.idObra,
+    nomeObra:
+      obra.nomeObra,
+    periodos,
+    validacoes,
+    aprovado
+  };
+
+  console.log(
+    JSON.stringify(
+      resultado,
+      null,
+      2
+    )
   );
 
   return resultado;
