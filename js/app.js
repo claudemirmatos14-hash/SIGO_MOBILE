@@ -15108,3 +15108,546 @@ window.addEventListener(
   "load",
   registrarServiceWorkerSIGO_
 );
+
+/**
+ * ============================================================
+ * UX.19.5.5 — CLIENTE MOBILE DA API DE REIDRATAÇÃO
+ * ============================================================
+ *
+ * Responsabilidades:
+ * - chamar OBTER_DADOS_OPERACIONAIS_OBRA;
+ * - receber Diários e itens;
+ * - normalizar o envelope da API;
+ * - validar contrato, obra e período;
+ * - não alterar o IndexedDB;
+ * - não alterar a TB_SYNC_QUEUE.
+ */
+
+
+/**
+ * Retorna o token já configurado no aplicativo Mobile.
+ */
+function obterTokenReidratacaoMobileUX1955_() {
+  let token = "";
+
+  /*
+   * Primeira opção:
+   * constante global já utilizada pela sincronização do SIGO.
+   */
+  if (
+    typeof SIGO_TOKEN_OFFLINE !== "undefined" &&
+    SIGO_TOKEN_OFFLINE
+  ) {
+    token = String(SIGO_TOKEN_OFFLINE).trim();
+  }
+
+  /*
+   * Alternativa:
+   * token armazenado no localStorage.
+   */
+  if (!token) {
+    token = String(
+      localStorage.getItem("SIGO_TOKEN_OFFLINE") || ""
+    ).trim();
+  }
+
+  if (!token) {
+    throw new Error(
+      "Token offline do SIGO não foi encontrado no aplicativo."
+    );
+  }
+
+  return token;
+}
+
+
+/**
+ * Obtém ou cria um identificador persistente para o dispositivo.
+ *
+ * Caso o aplicativo já possua uma função oficial para isso,
+ * ela será utilizada.
+ */
+function obterIdDispositivoReidratacaoUX1955_() {
+  if (
+    typeof obterIdDispositivoSIGO_ === "function"
+  ) {
+    const idExistente =
+      obterIdDispositivoSIGO_();
+
+    if (idExistente) {
+      return String(idExistente);
+    }
+  }
+
+  const chaveLocalStorage =
+    "SIGO_ID_DISPOSITIVO";
+
+  let idDispositivo = String(
+    localStorage.getItem(chaveLocalStorage) || ""
+  ).trim();
+
+  if (!idDispositivo) {
+    const identificador =
+      typeof crypto !== "undefined" &&
+      typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : (
+          Date.now() +
+          "-" +
+          Math.random().toString(36).slice(2)
+        );
+
+    idDispositivo =
+      "DISP-MOBILE-" + identificador;
+
+    localStorage.setItem(
+      chaveLocalStorage,
+      idDispositivo
+    );
+  }
+
+  return idDispositivo;
+}
+
+
+/**
+ * Obtém o identificador do usuário atual.
+ *
+ * Nesta fase, enquanto a autenticação individual ainda não
+ * estiver implantada, utiliza o identificador disponível no app.
+ */
+function obterIdUsuarioReidratacaoUX1955_() {
+  if (
+    typeof obterIdUsuarioSIGO_ === "function"
+  ) {
+    const idUsuarioExistente =
+      obterIdUsuarioSIGO_();
+
+    if (idUsuarioExistente) {
+      return String(idUsuarioExistente);
+    }
+  }
+
+  return String(
+    localStorage.getItem("SIGO_ID_USUARIO") ||
+    localStorage.getItem("SIGO_USUARIO") ||
+    "USUARIO_MOBILE"
+  ).trim();
+}
+
+
+/**
+ * Normaliza a resposta publicada.
+ *
+ * A API atual devolve:
+ *
+ * {
+ *   status: "OK",
+ *   mensagem: "...",
+ *   dataResposta: "...",
+ *   detalhes: {
+ *     versaoContrato,
+ *     idObra,
+ *     periodoDias,
+ *     totais,
+ *     diarios,
+ *     diarioItens
+ *   }
+ * }
+ */
+function normalizarRespostaReidratacaoMobileUX1955_(
+  respostaJson
+) {
+  if (
+    !respostaJson ||
+    typeof respostaJson !== "object"
+  ) {
+    throw new Error(
+      "A API retornou uma resposta vazia ou inválida."
+    );
+  }
+
+  const statusResposta = String(
+    respostaJson.status || ""
+  ).trim().toUpperCase();
+
+  if (statusResposta !== "OK") {
+    throw new Error(
+      respostaJson.mensagem ||
+      respostaJson.erro ||
+      "A API não aprovou a solicitação de reidratação."
+    );
+  }
+
+  /*
+   * Compatibilidade com:
+   * - detalhes;
+   * - dados;
+   * - contrato direto na raiz.
+   */
+  const detalhes =
+    respostaJson.detalhes &&
+    typeof respostaJson.detalhes === "object"
+      ? respostaJson.detalhes
+      : respostaJson.dados &&
+        typeof respostaJson.dados === "object"
+        ? respostaJson.dados
+        : respostaJson;
+
+  const diarios =
+    Array.isArray(detalhes.diarios)
+      ? detalhes.diarios
+      : [];
+
+  const diarioItens =
+    Array.isArray(detalhes.diarioItens)
+      ? detalhes.diarioItens
+      : [];
+
+  const totaisRecebidos =
+    detalhes.totais &&
+    typeof detalhes.totais === "object"
+      ? detalhes.totais
+      : {};
+
+  const totalDiarios = Number(
+    totaisRecebidos.diarios !== undefined
+      ? totaisRecebidos.diarios
+      : diarios.length
+  );
+
+  const totalDiarioItens = Number(
+    totaisRecebidos.diarioItens !== undefined
+      ? totaisRecebidos.diarioItens
+      : diarioItens.length
+  );
+
+  if (totalDiarios !== diarios.length) {
+    throw new Error(
+      "O total de Diários informado pela API não corresponde " +
+      "à quantidade recebida."
+    );
+  }
+
+  if (totalDiarioItens !== diarioItens.length) {
+    throw new Error(
+      "O total de itens informado pela API não corresponde " +
+      "à quantidade recebida."
+    );
+  }
+
+  return {
+    status: statusResposta,
+    mensagem: String(
+      respostaJson.mensagem || ""
+    ),
+
+    dataResposta: String(
+      respostaJson.dataResposta || ""
+    ),
+
+    versaoContrato: String(
+      detalhes.versaoContrato || ""
+    ),
+
+    idObra: String(
+      detalhes.idObra || ""
+    ),
+
+    periodoDias: Number(
+      detalhes.periodoDias || 0
+    ),
+
+    dataInicio: String(
+      detalhes.dataInicio || ""
+    ),
+
+    dataFim: String(
+      detalhes.dataFim || ""
+    ),
+
+    dataSync: String(
+      detalhes.dataSync || ""
+    ),
+
+    totais: {
+      diarios: totalDiarios,
+      diarioItens: totalDiarioItens
+    },
+
+    diarios: diarios,
+    diarioItens: diarioItens
+  };
+}
+
+
+/**
+ * Consulta os dados operacionais da obra no servidor.
+ *
+ * IMPORTANTE:
+ * Esta função somente consulta e devolve os dados.
+ * Ela não grava no IndexedDB.
+ */
+async function obterDadosOperacionaisObraMobile_(
+  idObra,
+  diasHistorico
+) {
+  const obraNormalizada =
+    String(idObra || "").trim();
+
+  const periodoNormalizado =
+    Number(diasHistorico || 30);
+
+  if (!obraNormalizada) {
+    throw new Error(
+      "Informe o ID da obra para realizar a reidratação."
+    );
+  }
+
+  const periodosPermitidos =
+    [15, 30, 60, 90];
+
+  if (
+    !periodosPermitidos.includes(
+      periodoNormalizado
+    )
+  ) {
+    throw new Error(
+      "Período inválido. Utilize 15, 30, 60 ou 90 dias."
+    );
+  }
+
+  const urlApi =
+    "https://script.google.com/macros/s/AKfycbzVE7tdTSwHvKgLkrdcaQtGAm_muqNPo6n0wQZBDpmRwtAJuySfWyh6gdef0R6g_drKRw/exec";
+
+  const payload = {
+    token:
+      obterTokenReidratacaoMobileUX1955_(),
+
+    acao:
+      "OBTER_DADOS_OPERACIONAIS_OBRA",
+
+    idDispositivo:
+      obterIdDispositivoReidratacaoUX1955_(),
+
+    idUsuario:
+      obterIdUsuarioReidratacaoUX1955_(),
+
+    idObra:
+      obraNormalizada,
+
+    diasHistorico:
+      periodoNormalizado
+  };
+
+  console.log(
+    "[UX.19.5.5] Solicitando dados operacionais:",
+    {
+      acao: payload.acao,
+      idDispositivo: payload.idDispositivo,
+      idUsuario: payload.idUsuario,
+      idObra: payload.idObra,
+      diasHistorico: payload.diasHistorico
+    }
+  );
+
+  let respostaHttp;
+
+  try {
+    respostaHttp = await fetch(
+      urlApi,
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type":
+            "text/plain;charset=UTF-8"
+        },
+
+        body: JSON.stringify(payload),
+
+        redirect: "follow",
+
+        cache: "no-store"
+      }
+    );
+
+  } catch (erroRede) {
+    throw new Error(
+      "Não foi possível acessar a API de reidratação. " +
+      (
+        erroRede &&
+        erroRede.message
+          ? erroRede.message
+          : String(erroRede)
+      )
+    );
+  }
+
+  const codigoHttp =
+    respostaHttp.status;
+
+  const textoResposta =
+    await respostaHttp.text();
+
+  let respostaJson;
+
+  try {
+    respostaJson =
+      JSON.parse(textoResposta);
+
+  } catch (erroJson) {
+    throw new Error(
+      "A API não retornou um JSON válido. " +
+      "HTTP: " + codigoHttp
+    );
+  }
+
+  if (!respostaHttp.ok) {
+    throw new Error(
+      respostaJson.mensagem ||
+      respostaJson.erro ||
+      (
+        "Falha HTTP ao consultar a API: " +
+        codigoHttp
+      )
+    );
+  }
+
+  const dadosNormalizados =
+    normalizarRespostaReidratacaoMobileUX1955_(
+      respostaJson
+    );
+
+  if (
+    dadosNormalizados.idObra !==
+    obraNormalizada
+  ) {
+    throw new Error(
+      "A API retornou dados de outra obra. " +
+      "Solicitada: " +
+      obraNormalizada +
+      ". Recebida: " +
+      dadosNormalizados.idObra
+    );
+  }
+
+  if (
+    dadosNormalizados.periodoDias !==
+    periodoNormalizado
+  ) {
+    throw new Error(
+      "A API retornou um período diferente do solicitado."
+    );
+  }
+
+  return {
+    codigoHttp: codigoHttp,
+    ...dadosNormalizados
+  };
+}
+
+
+/**
+ * ============================================================
+ * TESTE ISOLADO DO CLIENTE MOBILE
+ * ============================================================
+ *
+ * Não grava dados no banco local.
+ */
+async function testarClienteReidratacaoMobileUX1955_() {
+  console.log(
+    "[UX.19.5.5] Iniciando teste do cliente Mobile..."
+  );
+
+  const resposta =
+    await obterDadosOperacionaisObraMobile_(
+      "OBR002",
+      30
+    );
+
+  const validacoes = {
+    codigoHttp200:
+      resposta.codigoHttp === 200,
+
+    statusOK:
+      resposta.status === "OK",
+
+    contratoVersao1:
+      resposta.versaoContrato === "1.0",
+
+    obraCorreta:
+      resposta.idObra === "OBR002",
+
+    periodoCorreto:
+      resposta.periodoDias === 30,
+
+    listaDiariosValida:
+      Array.isArray(resposta.diarios),
+
+    listaItensValida:
+      Array.isArray(resposta.diarioItens),
+
+    totalDiariosCoerente:
+      resposta.totais.diarios ===
+      resposta.diarios.length,
+
+    totalItensCoerente:
+      resposta.totais.diarioItens ===
+      resposta.diarioItens.length
+  };
+
+  const aprovado = Object
+    .values(validacoes)
+    .every(function (resultado) {
+      return resultado === true;
+    });
+
+  const resultadoAuditoria = {
+    etapa: "UX.19.5.5",
+    teste: "Cliente Mobile da reidratação",
+    codigoHttp: resposta.codigoHttp,
+    status: aprovado
+      ? "APROVADO"
+      : "REPROVADO",
+    respostaStatus: resposta.status,
+    versaoContrato: resposta.versaoContrato,
+    idObra: resposta.idObra,
+    periodoDias: resposta.periodoDias,
+    dataInicio: resposta.dataInicio,
+    dataFim: resposta.dataFim,
+    dataSync: resposta.dataSync,
+    diarios: resposta.totais.diarios,
+    diarioItens: resposta.totais.diarioItens,
+    validacoes: validacoes,
+    aprovado: aprovado
+  };
+
+  console.log(
+    JSON.stringify(
+      resultadoAuditoria,
+      null,
+      2
+    )
+  );
+
+  if (!aprovado) {
+    throw new Error(
+      "UX.19.5.5 REPROVADA. " +
+      "Consulte as validações no console."
+    );
+  }
+
+  console.log(
+    "UX.19.5.5 — CLIENTE MOBILE APROVADO."
+  );
+
+  /*
+   * Mantém o retorno completo disponível para inspeção,
+   * mas não imprime os 36 Diários no console.
+   */
+  return {
+    auditoria: resultadoAuditoria,
+    dados: resposta
+  };
+}
