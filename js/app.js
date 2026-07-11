@@ -23104,3 +23104,1073 @@ async function executarMesclagemRealOcorrenciasUX1965_() {
 
   return resultado;
 }
+
+/**
+ * ============================================================
+ * UX.19.6.6 — AUDITORIA DA MESCLAGEM DE OCORRÊNCIAS
+ * ============================================================
+ *
+ * Auditoria somente leitura.
+ *
+ * Stores:
+ * - TB_OCORRENCIAS
+ * - TB_SYNC_QUEUE
+ *
+ * Nenhum registro é inserido, atualizado ou excluído.
+ */
+
+
+/**
+ * Lê as stores necessárias em uma única transação readonly.
+ */
+async function lerEstadoOcorrenciasUX1966_() {
+  if (
+    typeof abrirBancoLocalSIGO !==
+    "function"
+  ) {
+    throw new Error(
+      "A função abrirBancoLocalSIGO() não foi encontrada."
+    );
+  }
+
+  const db =
+    await abrirBancoLocalSIGO();
+
+  const storesObrigatorias = [
+    "TB_OCORRENCIAS",
+    "TB_SYNC_QUEUE"
+  ];
+
+  for (
+    const nomeStore of storesObrigatorias
+  ) {
+    if (
+      !db.objectStoreNames.contains(
+        nomeStore
+      )
+    ) {
+      throw new Error(
+        "Store obrigatória não encontrada: " +
+        nomeStore
+      );
+    }
+  }
+
+  return new Promise(
+    function (resolve, reject) {
+      const tx =
+        db.transaction(
+          storesObrigatorias,
+          "readonly"
+        );
+
+      const storeOcorrencias =
+        tx.objectStore(
+          "TB_OCORRENCIAS"
+        );
+
+      const storeFila =
+        tx.objectStore(
+          "TB_SYNC_QUEUE"
+        );
+
+      const reqOcorrencias =
+        storeOcorrencias.getAll();
+
+      const reqFila =
+        storeFila.getAll();
+
+      let ocorrencias = [];
+      let fila = [];
+
+      reqOcorrencias.onsuccess =
+        function () {
+          ocorrencias =
+            Array.isArray(
+              reqOcorrencias.result
+            )
+              ? reqOcorrencias.result
+              : [];
+        };
+
+      reqFila.onsuccess =
+        function () {
+          fila =
+            Array.isArray(
+              reqFila.result
+            )
+              ? reqFila.result
+              : [];
+        };
+
+      reqOcorrencias.onerror =
+        function () {
+          reject(
+            new Error(
+              "Não foi possível ler TB_OCORRENCIAS. " +
+              (
+                reqOcorrencias.error &&
+                reqOcorrencias.error.message
+                  ? reqOcorrencias.error.message
+                  : ""
+              )
+            )
+          );
+        };
+
+      reqFila.onerror =
+        function () {
+          reject(
+            new Error(
+              "Não foi possível ler TB_SYNC_QUEUE. " +
+              (
+                reqFila.error &&
+                reqFila.error.message
+                  ? reqFila.error.message
+                  : ""
+              )
+            )
+          );
+        };
+
+      tx.oncomplete =
+        function () {
+          resolve({
+            ocorrencias,
+            fila
+          });
+        };
+
+      tx.onerror =
+        function () {
+          reject(
+            new Error(
+              "Falha ao ler as stores da auditoria. " +
+              (
+                tx.error &&
+                tx.error.message
+                  ? tx.error.message
+                  : ""
+              )
+            )
+          );
+        };
+
+      tx.onabort =
+        function () {
+          reject(
+            new Error(
+              "A transação de auditoria foi cancelada."
+            )
+          );
+        };
+    }
+  );
+}
+
+
+/**
+ * Serialização estável usada para comparar a fila
+ * antes e depois da simulação.
+ */
+function serializarEstavelUX1966_(
+  valor
+) {
+  if (valor === undefined) {
+    return '"__UNDEFINED__"';
+  }
+
+  if (valor === null) {
+    return "null";
+  }
+
+  if (Array.isArray(valor)) {
+    return (
+      "[" +
+      valor
+        .map(
+          serializarEstavelUX1966_
+        )
+        .join(",") +
+      "]"
+    );
+  }
+
+  if (
+    typeof valor === "object"
+  ) {
+    const chaves =
+      Object.keys(valor).sort();
+
+    return (
+      "{" +
+      chaves
+        .map(
+          function (chave) {
+            return (
+              JSON.stringify(chave) +
+              ":" +
+              serializarEstavelUX1966_(
+                valor[chave]
+              )
+            );
+          }
+        )
+        .join(",") +
+      "}"
+    );
+  }
+
+  return JSON.stringify(valor);
+}
+
+
+/**
+ * Gera uma assinatura da fila sem depender
+ * da ordem dos registros.
+ */
+function criarAssinaturaFilaUX1966_(
+  registrosFila
+) {
+  const registrosSerializados =
+    (registrosFila || [])
+      .map(
+        serializarEstavelUX1966_
+      )
+      .sort();
+
+  return serializarEstavelUX1966_(
+    registrosSerializados
+  );
+}
+
+
+/**
+ * Normaliza um valor para comparação de campos.
+ */
+function normalizarCampoAuditoriaUX1966_(
+  valor
+) {
+  return String(
+    valor === undefined ||
+    valor === null
+      ? ""
+      : valor
+  ).trim();
+}
+
+
+/**
+ * Obtém um campo que pode possuir alias local.
+ */
+function obterCampoOcorrenciaLocalUX1966_(
+  ocorrencia,
+  campo
+) {
+  if (!ocorrencia) {
+    return "";
+  }
+
+  if (
+    campo === "tipoOcorrencia"
+  ) {
+    return normalizarCampoAuditoriaUX1966_(
+      ocorrencia.tipoOcorrencia ||
+      ocorrencia.tipo
+    );
+  }
+
+  if (
+    campo === "statusOcorrencia"
+  ) {
+    return normalizarCampoAuditoriaUX1966_(
+      ocorrencia.statusOcorrencia ||
+      ocorrencia.status
+    );
+  }
+
+  return normalizarCampoAuditoriaUX1966_(
+    ocorrencia[campo]
+  );
+}
+
+
+/**
+ * Compara os campos funcionais de uma ocorrência
+ * do servidor com a ocorrência gravada localmente.
+ *
+ * dataSync não é comparada porque uma nova consulta
+ * ao servidor gera um novo horário de sincronização.
+ */
+function compararOcorrenciaServidorLocalUX1966_(
+  servidor,
+  local
+) {
+  const campos = [
+    "idOcorrencia",
+    "data",
+    "idObra",
+    "idAtividade",
+    "tipoOcorrencia",
+    "descricao",
+    "impacto",
+    "responsavel",
+    "acaoCorretiva",
+    "statusOcorrencia",
+    "dataFechamento"
+  ];
+
+  const divergencias = [];
+
+  for (
+    const campo of campos
+  ) {
+    const valorServidor =
+      normalizarCampoAuditoriaUX1966_(
+        servidor[campo]
+      );
+
+    const valorLocal =
+      obterCampoOcorrenciaLocalUX1966_(
+        local,
+        campo
+      );
+
+    if (
+      valorServidor !== valorLocal
+    ) {
+      divergencias.push({
+        campo,
+        servidor:
+          valorServidor,
+        local:
+          valorLocal
+      });
+    }
+  }
+
+  return divergencias;
+}
+
+
+/**
+ * ============================================================
+ * AUDITORIA PRINCIPAL
+ * ============================================================
+ */
+async function auditarMesclagemOcorrenciasUX1966_() {
+  console.log(
+    "[UX.19.6.6] Iniciando auditoria da mesclagem de ocorrências..."
+  );
+
+  const idObraEsperado =
+    "OBR002";
+
+  const periodoEsperado =
+    30;
+
+  const totalEsperado =
+    14;
+
+  const totalFilaEsperado =
+    45;
+
+
+  /*
+   * ==========================================================
+   * 1. CONSULTAR O SERVIDOR
+   * ==========================================================
+   */
+
+  const respostaServidor =
+    await obterOcorrenciasOperacionaisObraMobile_(
+      idObraEsperado,
+      periodoEsperado
+    );
+
+  const ocorrenciasServidor =
+    Array.isArray(
+      respostaServidor.ocorrencias
+    )
+      ? respostaServidor.ocorrencias
+      : [];
+
+
+  /*
+   * ==========================================================
+   * 2. LER O INDEXEDDB ANTES DA SIMULAÇÃO
+   * ==========================================================
+   */
+
+  const estadoAntes =
+    await lerEstadoOcorrenciasUX1966_();
+
+  const ocorrenciasLocais =
+    estadoAntes.ocorrencias;
+
+  const filaAntes =
+    estadoAntes.fila;
+
+  const assinaturaFilaAntes =
+    criarAssinaturaFilaUX1966_(
+      filaAntes
+    );
+
+
+  /*
+   * ==========================================================
+   * 3. INDEXAR OCORRÊNCIAS LOCAIS
+   * ==========================================================
+   */
+
+  const mapaLocais =
+    new Map();
+
+  const registrosLocaisSemId =
+    [];
+
+  const duplicadosLocais =
+    [];
+
+  for (
+    const ocorrenciaLocal of ocorrenciasLocais
+  ) {
+    const idOcorrencia =
+      obterIdOcorrenciaUX1965_(
+        ocorrenciaLocal
+      );
+
+    if (!idOcorrencia) {
+      registrosLocaisSemId.push(
+        ocorrenciaLocal
+      );
+
+      continue;
+    }
+
+    if (
+      !mapaLocais.has(
+        idOcorrencia
+      )
+    ) {
+      mapaLocais.set(
+        idOcorrencia,
+        []
+      );
+    }
+
+    mapaLocais
+      .get(idOcorrencia)
+      .push(
+        ocorrenciaLocal
+      );
+  }
+
+  for (
+    const [
+      idOcorrencia,
+      registros
+    ] of mapaLocais.entries()
+  ) {
+    if (
+      registros.length > 1
+    ) {
+      duplicadosLocais.push({
+        idOcorrencia,
+        quantidade:
+          registros.length
+      });
+    }
+  }
+
+
+  /*
+   * ==========================================================
+   * 4. ANALISAR PENDÊNCIAS DE OCORRÊNCIAS
+   * ==========================================================
+   */
+
+  const informacoesPendencias =
+    criarMapaPendenciasOcorrenciasUX1965_(
+      filaAntes
+    );
+
+  const mapaPendencias =
+    informacoesPendencias.mapa;
+
+
+  /*
+   * ==========================================================
+   * 5. COMPARAR SERVIDOR × INDEXEDDB
+   * ==========================================================
+   */
+
+  const idsServidor =
+    new Set();
+
+  const ausentesLocalmente =
+    [];
+
+  const misturaDeObras =
+    [];
+
+  const statusSyncIncorreto =
+    [];
+
+  const origemIncorreta =
+    [];
+
+  const dataSyncAusente =
+    [];
+
+  const divergenciasCampos =
+    [];
+
+  const idsServidorDuplicados =
+    [];
+
+  for (
+    const ocorrenciaServidor
+    of ocorrenciasServidor
+  ) {
+    const idOcorrencia =
+      obterIdOcorrenciaUX1965_(
+        ocorrenciaServidor
+      );
+
+    if (
+      idsServidor.has(
+        idOcorrencia
+      )
+    ) {
+      idsServidorDuplicados.push(
+        idOcorrencia
+      );
+
+      continue;
+    }
+
+    idsServidor.add(
+      idOcorrencia
+    );
+
+    const registrosLocais =
+      mapaLocais.get(
+        idOcorrencia
+      ) || [];
+
+    if (!registrosLocais.length) {
+      ausentesLocalmente.push(
+        idOcorrencia
+      );
+
+      continue;
+    }
+
+    const ocorrenciaLocal =
+      registrosLocais[0];
+
+    const idObraLocal =
+      normalizarCampoAuditoriaUX1966_(
+        ocorrenciaLocal.idObra
+      );
+
+    if (
+      idObraLocal !==
+      idObraEsperado
+    ) {
+      misturaDeObras.push({
+        idOcorrencia,
+        idObraLocal
+      });
+    }
+
+    const statusSync =
+      normalizarMaiusculoOcorrenciasUX1965_(
+        ocorrenciaLocal.statusSync
+      );
+
+    if (
+      statusSync !==
+      "SINCRONIZADO"
+    ) {
+      statusSyncIncorreto.push({
+        idOcorrencia,
+        statusSync:
+          ocorrenciaLocal.statusSync
+      });
+    }
+
+    const origemReidratacao =
+      normalizarMaiusculoOcorrenciasUX1965_(
+        ocorrenciaLocal.origemReidratacao
+      );
+
+    if (
+      origemReidratacao !==
+      "SERVIDOR"
+    ) {
+      origemIncorreta.push({
+        idOcorrencia,
+        origemReidratacao:
+          ocorrenciaLocal.origemReidratacao
+      });
+    }
+
+    if (
+      !normalizarCampoAuditoriaUX1966_(
+        ocorrenciaLocal.dataSync
+      )
+    ) {
+      dataSyncAusente.push(
+        idOcorrencia
+      );
+    }
+
+    const divergencias =
+      compararOcorrenciaServidorLocalUX1966_(
+        ocorrenciaServidor,
+        ocorrenciaLocal
+      );
+
+    if (
+      divergencias.length
+    ) {
+      divergenciasCampos.push({
+        idOcorrencia,
+        divergencias
+      });
+    }
+  }
+
+
+  /*
+   * ==========================================================
+   * 6. IDENTIFICAR REGISTROS EXTRAS DA OBRA
+   * ==========================================================
+   */
+
+  const ocorrenciasDaObra =
+    ocorrenciasLocais.filter(
+      function (ocorrencia) {
+        return (
+          normalizarCampoAuditoriaUX1966_(
+            ocorrencia.idObra
+          ) === idObraEsperado
+        );
+      }
+    );
+
+  const extrasSemPendencia =
+    [];
+
+  const extrasComPendencia =
+    [];
+
+  for (
+    const ocorrenciaLocal
+    of ocorrenciasDaObra
+  ) {
+    const idOcorrencia =
+      obterIdOcorrenciaUX1965_(
+        ocorrenciaLocal
+      );
+
+    if (
+      !idOcorrencia ||
+      idsServidor.has(
+        idOcorrencia
+      )
+    ) {
+      continue;
+    }
+
+    if (
+      mapaPendencias.has(
+        idOcorrencia
+      )
+    ) {
+      extrasComPendencia.push(
+        idOcorrencia
+      );
+
+    } else {
+      extrasSemPendencia.push(
+        idOcorrencia
+      );
+    }
+  }
+
+
+  /*
+   * ==========================================================
+   * 7. TESTE DE IDEMPOTÊNCIA EM MODO SIMULAÇÃO
+   * ==========================================================
+   *
+   * Não realiza gravação.
+   */
+
+  const resultadoIdempotencia =
+    await mesclarOcorrenciasReidratacaoSIGO_(
+      respostaServidor,
+      {
+        simular: true
+      }
+    );
+
+
+  /*
+   * ==========================================================
+   * 8. LER INDEXEDDB DEPOIS DA SIMULAÇÃO
+   * ==========================================================
+   */
+
+  const estadoDepois =
+    await lerEstadoOcorrenciasUX1966_();
+
+  const assinaturaFilaDepois =
+    criarAssinaturaFilaUX1966_(
+      estadoDepois.fila
+    );
+
+  const ocorrenciasDepoisDaObra =
+    estadoDepois.ocorrencias.filter(
+      function (ocorrencia) {
+        return (
+          normalizarCampoAuditoriaUX1966_(
+            ocorrencia.idObra
+          ) === idObraEsperado
+        );
+      }
+    );
+
+
+  /*
+   * ==========================================================
+   * 9. VALIDAÇÕES FINAIS
+   * ==========================================================
+   */
+
+  const resumoIdempotencia =
+    resultadoIdempotencia.ocorrencias ||
+    {};
+
+  const filaIdempotencia =
+    resultadoIdempotencia.fila ||
+    {};
+
+  const validacoes = {
+    servidorHttp200:
+      respostaServidor.codigoHttp === 200,
+
+    servidorStatusOK:
+      respostaServidor.status === "OK",
+
+    contratoVersao1:
+      respostaServidor.versaoContrato ===
+      "1.0",
+
+    servidorRetornou14:
+      ocorrenciasServidor.length ===
+      totalEsperado,
+
+    servidorSemDuplicidades:
+      idsServidorDuplicados.length === 0,
+
+    indexedDBPossui14DaObra:
+      ocorrenciasDaObra.length ===
+      totalEsperado,
+
+    nenhumRegistroLocalSemId:
+      registrosLocaisSemId.length === 0,
+
+    nenhumaDuplicidadeLocal:
+      duplicadosLocais.length === 0,
+
+    nenhumaOcorrenciaAusente:
+      ausentesLocalmente.length === 0,
+
+    nenhumaMisturaDeObras:
+      misturaDeObras.length === 0,
+
+    todosStatusSyncCorretos:
+      statusSyncIncorreto.length === 0,
+
+    todasOrigensCorretas:
+      origemIncorreta.length === 0,
+
+    todasPossuemDataSync:
+      dataSyncAusente.length === 0,
+
+    camposServidorLocalCoerentes:
+      divergenciasCampos.length === 0,
+
+    nenhumaOcorrenciaExtraSemPendencia:
+      extrasSemPendencia.length === 0,
+
+    nenhumaPendenciaAtivaOcorrencias:
+      informacoesPendencias
+        .pendenciasAtivasReconhecidas ===
+      0,
+
+    filaPossui45Registros:
+      filaAntes.length ===
+      totalFilaEsperado,
+
+    filaPermaneceuCom45Registros:
+      estadoDepois.fila.length ===
+      totalFilaEsperado,
+
+    filaNaoFoiAlterada:
+      assinaturaFilaAntes ===
+      assinaturaFilaDepois,
+
+    idempotenciaRecebeu14:
+      resumoIdempotencia.recebidas ===
+      totalEsperado,
+
+    idempotenciaInseriuZero:
+      resumoIdempotencia.inseridas ===
+      0,
+
+    idempotenciaAtualizaria14:
+      resumoIdempotencia.atualizadas ===
+      totalEsperado,
+
+    idempotenciaSemUpsertProtegido:
+      resumoIdempotencia
+        .preservadasPorUpsertPendente ===
+      0,
+
+    idempotenciaSemDeleteBloqueado:
+      resumoIdempotencia
+        .bloqueadasPorDeletePendente ===
+      0,
+
+    idempotenciaSemPendenciaDesconhecida:
+      resumoIdempotencia
+        .preservadasPorPendenciaDesconhecida ===
+      0,
+
+    idempotenciaSemRegistroInvalido:
+      resumoIdempotencia
+        .rejeitadasInvalidas ===
+      0,
+
+    idempotenciaSemOutraObra:
+      resumoIdempotencia
+        .rejeitadasOutraObra ===
+      0,
+
+    idempotenciaSemDuplicidadeServidor:
+      resumoIdempotencia
+        .duplicadasNoServidor ===
+      0,
+
+    idempotenciaSemDuplicidadeLocal:
+      resumoIdempotencia
+        .duplicadasLocalmente ===
+      0,
+
+    idempotenciaSemConflitos:
+      resultadoIdempotencia
+        .totalConflitosEvitados ===
+      0,
+
+    idempotenciaPreservouFila:
+      filaIdempotencia
+        .preservadaIntegralmente ===
+      true,
+
+    idempotenciaNaoAlterouFila:
+      filaIdempotencia
+        .alteracoesRealizadas ===
+      0,
+
+    simulacaoNaoAlterouQuantidadeLocal:
+      ocorrenciasDepoisDaObra.length ===
+      ocorrenciasDaObra.length
+  };
+
+  const aprovado =
+    Object.values(
+      validacoes
+    ).every(
+      function (valor) {
+        return valor === true;
+      }
+    );
+
+
+  /*
+   * ==========================================================
+   * 10. RESULTADO
+   * ==========================================================
+   */
+
+  const resultado = {
+    etapa:
+      "UX.19.6.6",
+
+    auditoria:
+      "MESCLAGEM_OCORRENCIAS_INDEXEDDB",
+
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+
+    idObra:
+      idObraEsperado,
+
+    periodoDias:
+      periodoEsperado,
+
+    servidor: {
+      ocorrencias:
+        ocorrenciasServidor.length,
+
+      duplicados:
+        idsServidorDuplicados.length
+    },
+
+    indexedDB: {
+      totalGeralAntes:
+        ocorrenciasLocais.length,
+
+      ocorrenciasDaObraAntes:
+        ocorrenciasDaObra.length,
+
+      ocorrenciasDaObraDepois:
+        ocorrenciasDepoisDaObra.length,
+
+      registrosSemId:
+        registrosLocaisSemId.length,
+
+      duplicados:
+        duplicadosLocais.length,
+
+      ausentes:
+        ausentesLocalmente.length,
+
+      misturaDeObras:
+        misturaDeObras.length,
+
+      statusSyncIncorreto:
+        statusSyncIncorreto.length,
+
+      origemIncorreta:
+        origemIncorreta.length,
+
+      dataSyncAusente:
+        dataSyncAusente.length,
+
+      divergenciasCampos:
+        divergenciasCampos.length,
+
+      extrasSemPendencia:
+        extrasSemPendencia.length,
+
+      extrasComPendencia:
+        extrasComPendencia.length
+    },
+
+    fila: {
+      registrosAntes:
+        filaAntes.length,
+
+      registrosDepois:
+        estadoDepois.fila.length,
+
+      pendenciasAtivasOcorrencias:
+        informacoesPendencias
+          .pendenciasAtivasReconhecidas,
+
+      assinaturaPreservada:
+        assinaturaFilaAntes ===
+        assinaturaFilaDepois
+    },
+
+    idempotencia: {
+      modo:
+        resultadoIdempotencia.modo,
+
+      recebidas:
+        resumoIdempotencia.recebidas,
+
+      inseridas:
+        resumoIdempotencia.inseridas,
+
+      atualizadas:
+        resumoIdempotencia.atualizadas,
+
+      preservadasPorUpsertPendente:
+        resumoIdempotencia
+          .preservadasPorUpsertPendente,
+
+      bloqueadasPorDeletePendente:
+        resumoIdempotencia
+          .bloqueadasPorDeletePendente,
+
+      preservadasPorPendenciaDesconhecida:
+        resumoIdempotencia
+          .preservadasPorPendenciaDesconhecida,
+
+      conflitos:
+        resultadoIdempotencia
+          .totalConflitosEvitados,
+
+      filaPreservada:
+        filaIdempotencia
+          .preservadaIntegralmente,
+
+      alteracoesNaFila:
+        filaIdempotencia
+          .alteracoesRealizadas
+    },
+
+    problemas: {
+      idsServidorDuplicados,
+      registrosLocaisSemId,
+      duplicadosLocais,
+      ausentesLocalmente,
+      misturaDeObras,
+      statusSyncIncorreto,
+      origemIncorreta,
+      dataSyncAusente,
+      divergenciasCampos,
+      extrasSemPendencia,
+      extrasComPendencia
+    },
+
+    validacoes,
+
+    primeiraOcorrenciaLocal:
+      ocorrenciasDaObra.length
+        ? ocorrenciasDaObra[0]
+        : null,
+
+    aprovado
+  };
+
+  console.log(
+    JSON.stringify(
+      resultado,
+      null,
+      2
+    )
+  );
+
+  if (!aprovado) {
+    throw new Error(
+      "UX.19.6.6 REPROVADA. " +
+      "Consulte as validações e os problemas no console."
+    );
+  }
+
+  console.log(
+    "UX.19.6.6 — AUDITORIA DA MESCLAGEM DE OCORRÊNCIAS APROVADA."
+  );
+
+  return resultado;
+}
