@@ -18865,3 +18865,715 @@ async function auditarItemOrfaoUX1957_() {
 
   return resultado;
 }
+
+/**
+ * ============================================================
+ * UX.19.5.7.B — CORREÇÃO SEGURA DE ITEM ÓRFÃO LEGADO
+ * ============================================================
+ *
+ * Remove somente:
+ *
+ * DIT-1782754957031
+ *
+ * Proteções obrigatórias:
+ *
+ * - o item precisa existir localmente;
+ * - precisa pertencer à OBR002;
+ * - precisa estar sem idDiario;
+ * - precisa estar SINCRONIZADO;
+ * - não pode existir no servidor;
+ * - não pode possuir pendência ativa;
+ * - a TB_SYNC_QUEUE não pode ser modificada;
+ * - nenhuma outra entidade pode ser alterada.
+ */
+
+
+/**
+ * Núcleo protegido da correção.
+ *
+ * Por segurança, o modo padrão é simulação.
+ */
+async function corrigirItemOrfaoLegadoUX1957_(
+  opcoes = {}
+) {
+  const simular =
+    opcoes.simular !== false;
+
+  const idItemAuditado =
+    "DIT-1782754957031";
+
+  const idObraEsperado =
+    "OBR002";
+
+
+  /*
+   * ==========================================================
+   * 1. CONFIRMAR QUE O SERVIDOR NÃO DEVOLVE O ITEM
+   * ==========================================================
+   */
+
+  const respostaApi =
+    await obterDadosOperacionaisObraMobile_(
+      idObraEsperado,
+      30
+    );
+
+  const itemServidor =
+    respostaApi.diarioItens.find(
+      function (registro) {
+        return (
+          obterIdItemDiarioUX1956_(
+            registro
+          ) === idItemAuditado
+        );
+      }
+    ) || null;
+
+  if (itemServidor) {
+    throw new Error(
+      "Correção bloqueada: o item ainda existe no servidor."
+    );
+  }
+
+
+  /*
+   * ==========================================================
+   * 2. ABRIR O INDEXEDDB
+   * ==========================================================
+   */
+
+  if (
+    typeof abrirBancoLocalSIGO !==
+    "function"
+  ) {
+    throw new Error(
+      "A função abrirBancoLocalSIGO() não foi encontrada."
+    );
+  }
+
+  const db =
+    await abrirBancoLocalSIGO();
+
+  if (
+    !db.objectStoreNames.contains(
+      "TB_DIARIO_ITENS"
+    )
+  ) {
+    throw new Error(
+      "A store TB_DIARIO_ITENS não foi encontrada."
+    );
+  }
+
+  if (
+    !db.objectStoreNames.contains(
+      "TB_SYNC_QUEUE"
+    )
+  ) {
+    throw new Error(
+      "A store TB_SYNC_QUEUE não foi encontrada."
+    );
+  }
+
+
+  /*
+   * ==========================================================
+   * 3. EXECUTAR VALIDAÇÃO E CORREÇÃO ATÔMICA
+   * ==========================================================
+   */
+
+  const resultadoTransacao =
+    await new Promise(
+      function (resolve, reject) {
+        const tx = db.transaction(
+          [
+            "TB_DIARIO_ITENS",
+            "TB_SYNC_QUEUE"
+          ],
+          simular
+            ? "readonly"
+            : "readwrite"
+        );
+
+        const storeItens =
+          tx.objectStore(
+            "TB_DIARIO_ITENS"
+          );
+
+        const storeFila =
+          tx.objectStore(
+            "TB_SYNC_QUEUE"
+          );
+
+        const reqItens =
+          storeItens.getAll();
+
+        const reqFila =
+          storeFila.getAll();
+
+        let itensLocais = null;
+        let registrosFila = null;
+
+        let processamentoIniciado =
+          false;
+
+        let resultadoParcial =
+          null;
+
+        let erroControlado =
+          null;
+
+
+        /**
+         * Cancela a transação de forma controlada.
+         */
+        function cancelarTransacao(
+          mensagem
+        ) {
+          erroControlado =
+            new Error(mensagem);
+
+          try {
+            tx.abort();
+
+          } catch (erroAbort) {
+            reject(erroControlado);
+          }
+        }
+
+
+        /**
+         * Processa somente depois de ler as duas stores.
+         */
+        function tentarProcessar() {
+          if (processamentoIniciado) {
+            return;
+          }
+
+          if (
+            itensLocais === null ||
+            registrosFila === null
+          ) {
+            return;
+          }
+
+          processamentoIniciado =
+            true;
+
+          const itemLocal =
+            itensLocais.find(
+              function (registro) {
+                return (
+                  obterIdItemDiarioUX1956_(
+                    registro
+                  ) === idItemAuditado
+                );
+              }
+            ) || null;
+
+
+          /*
+           * O item precisa existir.
+           */
+          if (!itemLocal) {
+            cancelarTransacao(
+              "Correção bloqueada: o item órfão não foi encontrado."
+            );
+
+            return;
+          }
+
+
+          /*
+           * Precisa pertencer à obra esperada.
+           */
+          const idObraLocal =
+            normalizarTextoUX1956_(
+              itemLocal.idObra
+            );
+
+          if (
+            idObraLocal !==
+            idObraEsperado
+          ) {
+            cancelarTransacao(
+              "Correção bloqueada: o item pertence a outra obra."
+            );
+
+            return;
+          }
+
+
+          /*
+           * O vínculo com o Diário precisa estar vazio.
+           */
+          const idDiarioLocal =
+            normalizarTextoUX1956_(
+              itemLocal.idDiario
+            );
+
+          if (idDiarioLocal) {
+            cancelarTransacao(
+              "Correção bloqueada: o item já possui Diário pai."
+            );
+
+            return;
+          }
+
+
+          /*
+           * O item precisa estar sincronizado.
+           */
+          const statusSyncLocal =
+            normalizarMaiusculoUX1956_(
+              itemLocal.statusSync
+            );
+
+          if (
+            statusSyncLocal !==
+            "SINCRONIZADO"
+          ) {
+            cancelarTransacao(
+              "Correção bloqueada: o item não está sincronizado."
+            );
+
+            return;
+          }
+
+
+          /*
+           * Localizar registros históricos ou pendentes
+           * relacionados ao item.
+           */
+          const filaRelacionada =
+            registrosFila.filter(
+              function (registroFila) {
+                try {
+                  return JSON
+                    .stringify(
+                      registroFila
+                    )
+                    .includes(
+                      idItemAuditado
+                    );
+
+                } catch (erro) {
+                  return false;
+                }
+              }
+            );
+
+          const pendenciasAtivas =
+            filaRelacionada.filter(
+              function (registroFila) {
+                return (
+                  filaEstaPendenteUX1956_(
+                    registroFila
+                  ) === true
+                );
+              }
+            );
+
+
+          /*
+           * Qualquer pendência ativa bloqueia a remoção.
+           */
+          if (
+            pendenciasAtivas.length > 0
+          ) {
+            cancelarTransacao(
+              "Correção bloqueada: o item possui pendência ativa."
+            );
+
+            return;
+          }
+
+
+          /*
+           * A store precisa possuir uma keyPath simples.
+           */
+          const keyPath =
+            storeItens.keyPath;
+
+          if (
+            typeof keyPath !== "string" ||
+            !keyPath
+          ) {
+            cancelarTransacao(
+              "Correção bloqueada: keyPath da TB_DIARIO_ITENS inválida."
+            );
+
+            return;
+          }
+
+          const chavePrimaria =
+            itemLocal[keyPath];
+
+          if (
+            chavePrimaria === undefined ||
+            chavePrimaria === null ||
+            chavePrimaria === ""
+          ) {
+            cancelarTransacao(
+              "Correção bloqueada: chave primária do item não encontrada."
+            );
+
+            return;
+          }
+
+
+          const assinaturaFilaAntes =
+            gerarAssinaturaListaUX1957_(
+              registrosFila
+            );
+
+
+          resultadoParcial = {
+            etapa:
+              "UX.19.5.7.B",
+
+            operacao:
+              "CORRECAO_ITEM_ORFAO_LEGADO",
+
+            modo:
+              simular
+                ? "SIMULACAO"
+                : "CORRECAO_REAL",
+
+            idItem:
+              idItemAuditado,
+
+            idObra:
+              idObraLocal,
+
+            idDiario:
+              idDiarioLocal,
+
+            statusSync:
+              itemLocal.statusSync,
+
+            itemRetornadoServidor:
+              false,
+
+            registrosFilaRelacionados:
+              filaRelacionada.length,
+
+            pendenciasAtivas:
+              pendenciasAtivas.length,
+
+            filaTotalAntes:
+              registrosFila.length,
+
+            assinaturaFilaAntes:
+              assinaturaFilaAntes,
+
+            chavePrimaria:
+              chavePrimaria,
+
+            keyPath:
+              keyPath,
+
+            acao:
+              simular
+                ? "NENHUMA_ALTERACAO"
+                : "REMOVER_SOMENTE_TB_DIARIO_ITENS",
+
+            aprovadoParaCorrecao:
+              true
+          };
+
+
+          /*
+           * Na simulação não ocorre nenhuma exclusão.
+           */
+          if (simular) {
+            return;
+          }
+
+
+          /*
+           * Remover somente o registro inválido.
+           *
+           * Não executamos:
+           *
+           * - clear();
+           * - alteração na fila;
+           * - criação de tombstone;
+           * - exclusão de Diário.
+           */
+          const reqExcluir =
+            storeItens.delete(
+              chavePrimaria
+            );
+
+          reqExcluir.onerror =
+            function () {
+              cancelarTransacao(
+                "Não foi possível remover o item órfão legado."
+              );
+            };
+        }
+
+
+        reqItens.onsuccess =
+          function () {
+            itensLocais =
+              Array.isArray(
+                reqItens.result
+              )
+                ? reqItens.result
+                : [];
+
+            tentarProcessar();
+          };
+
+
+        reqFila.onsuccess =
+          function () {
+            registrosFila =
+              Array.isArray(
+                reqFila.result
+              )
+                ? reqFila.result
+                : [];
+
+            tentarProcessar();
+          };
+
+
+        reqItens.onerror =
+          function () {
+            cancelarTransacao(
+              "Falha ao ler TB_DIARIO_ITENS."
+            );
+          };
+
+
+        reqFila.onerror =
+          function () {
+            cancelarTransacao(
+              "Falha ao ler TB_SYNC_QUEUE."
+            );
+          };
+
+
+        tx.oncomplete =
+          function () {
+            if (!resultadoParcial) {
+              reject(
+                new Error(
+                  "A transação terminou sem resultado."
+                )
+              );
+
+              return;
+            }
+
+            resolve(
+              resultadoParcial
+            );
+          };
+
+
+        tx.onabort =
+          function () {
+            reject(
+              erroControlado ||
+              new Error(
+                "A transação de correção foi cancelada."
+              )
+            );
+          };
+
+
+        tx.onerror =
+          function () {
+            if (!erroControlado) {
+              reject(
+                new Error(
+                  "Falha na transação de correção. " +
+                  (
+                    tx.error &&
+                    tx.error.message
+                      ? tx.error.message
+                      : ""
+                  )
+                )
+              );
+            }
+          };
+      }
+    );
+
+
+  /*
+   * ==========================================================
+   * 4. VERIFICAÇÃO POSTERIOR
+   * ==========================================================
+   */
+
+  const snapshotDepois =
+    await lerSnapshotReidratacaoUX1957_();
+
+  const itemAindaPresente =
+    snapshotDepois.diarioItens.some(
+      function (registro) {
+        return (
+          obterIdItemDiarioUX1956_(
+            registro
+          ) === idItemAuditado
+        );
+      }
+    );
+
+  const assinaturaFilaDepois =
+    gerarAssinaturaListaUX1957_(
+      snapshotDepois.fila
+    );
+
+  const filaPreservada =
+    resultadoTransacao
+      .assinaturaFilaAntes ===
+    assinaturaFilaDepois;
+
+  const resultadoFinal = {
+    etapa:
+      resultadoTransacao.etapa,
+
+    operacao:
+      resultadoTransacao.operacao,
+
+    modo:
+      resultadoTransacao.modo,
+
+    status:
+      (
+        resultadoTransacao
+          .aprovadoParaCorrecao &&
+        filaPreservada &&
+        (
+          simular
+            ? itemAindaPresente === true
+            : itemAindaPresente === false
+        )
+      )
+        ? "APROVADO"
+        : "REPROVADO",
+
+    idItem:
+      resultadoTransacao.idItem,
+
+    idObra:
+      resultadoTransacao.idObra,
+
+    idDiario:
+      resultadoTransacao.idDiario,
+
+    statusSync:
+      resultadoTransacao.statusSync,
+
+    itemRetornadoServidor:
+      resultadoTransacao
+        .itemRetornadoServidor,
+
+    registrosFilaRelacionados:
+      resultadoTransacao
+        .registrosFilaRelacionados,
+
+    pendenciasAtivas:
+      resultadoTransacao
+        .pendenciasAtivas,
+
+    filaAntes:
+      resultadoTransacao
+        .filaTotalAntes,
+
+    filaDepois:
+      snapshotDepois.fila.length,
+
+    filaPreservada:
+      filaPreservada,
+
+    itemPresenteDepois:
+      itemAindaPresente,
+
+    acao:
+      resultadoTransacao.acao,
+
+    aprovado:
+      (
+        resultadoTransacao
+          .aprovadoParaCorrecao &&
+        filaPreservada &&
+        (
+          simular
+            ? itemAindaPresente === true
+            : itemAindaPresente === false
+        )
+      )
+  };
+
+  console.log(
+    JSON.stringify(
+      resultadoFinal,
+      null,
+      2
+    )
+  );
+
+  if (!resultadoFinal.aprovado) {
+    throw new Error(
+      "UX.19.5.7.B REPROVADA. " +
+      "Consulte o resultado da correção."
+    );
+  }
+
+  return resultadoFinal;
+}
+
+
+/**
+ * ============================================================
+ * SIMULAÇÃO SEGURA
+ * ============================================================
+ */
+async function simularCorrecaoItemOrfaoUX1957_() {
+  console.log(
+    "[UX.19.5.7.B] Iniciando simulação da correção..."
+  );
+
+  const resultado =
+    await corrigirItemOrfaoLegadoUX1957_({
+      simular: true
+    });
+
+  console.log(
+    "[UX.19.5.7.B] Simulação concluída. " +
+    "Nenhum registro foi alterado."
+  );
+
+  return resultado;
+}
+
+
+/**
+ * ============================================================
+ * CORREÇÃO REAL
+ * ============================================================
+ */
+async function executarCorrecaoItemOrfaoUX1957_() {
+  console.log(
+    "[UX.19.5.7.B] Iniciando correção real..."
+  );
+
+  const resultado =
+    await corrigirItemOrfaoLegadoUX1957_({
+      simular: false
+    });
+
+  console.log(
+    "[UX.19.5.7.B] Item órfão legado removido. " +
+    "A TB_SYNC_QUEUE foi preservada."
+  );
+
+  return resultado;
+}
