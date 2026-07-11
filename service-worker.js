@@ -4,7 +4,7 @@
 // =====================================================
 
 const SIGO_CACHE_VERSION =
-  "sigo-mobile-v28";
+  "sigo-mobile-v29";
 
 const SIGO_BASE_URL =
   new URL("./", self.location.href);
