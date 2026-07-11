@@ -1188,7 +1188,7 @@ function criarCardDiarioOffline_(diario) {
         ? "danger"
         : "warning";
 
-  const bloqueado =
+  const bloqueioEdicao =
     status !== "PENDENTE";
 
   return `
@@ -1244,14 +1244,13 @@ function criarCardDiarioOffline_(diario) {
 
         <button
           type="button"
-          ${bloqueado ? "disabled" : ""}
+          ${bloqueioEdicao ? "disabled" : ""}
           onclick="editarDiarioOffline_('${diario.idDiario}')">
           ✏ Editar
         </button>
 
         <button
           type="button"
-          ${bloqueado ? "disabled" : ""}
           onclick="excluirDiarioOffline_('${diario.idDiario}')">
           🗑 Excluir
         </button>
