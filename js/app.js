@@ -15651,3 +15651,1754 @@ async function testarClienteReidratacaoMobileUX1955_() {
     dados: resposta
   };
 }
+
+/**
+ * ============================================================
+ * UX.19.5.6 — MESCLAGEM PROTEGIDA NO INDEXEDDB
+ * ============================================================
+ *
+ * Regras:
+ *
+ * 1. Registro inexistente localmente:
+ *    inserir como SINCRONIZADO.
+ *
+ * 2. Registro existente sem pendência:
+ *    atualizar com a versão do servidor.
+ *
+ * 3. Registro com UPSERT pendente:
+ *    preservar integralmente a versão local.
+ *
+ * 4. Registro com DELETE pendente:
+ *    não restaurar.
+ *
+ * 5. Registro pertencente a outra obra:
+ *    rejeitar.
+ *
+ * 6. Item sem Diário válido:
+ *    rejeitar como órfão.
+ *
+ * 7. TB_SYNC_QUEUE:
+ *    não limpar;
+ *    não atualizar;
+ *    não remover histórico.
+ */
+
+
+/**
+ * Normaliza um valor como texto.
+ */
+function normalizarTextoUX1956_(valor) {
+  return String(
+    valor === undefined || valor === null
+      ? ""
+      : valor
+  ).trim();
+}
+
+
+/**
+ * Normaliza um valor para comparação.
+ */
+function normalizarMaiusculoUX1956_(valor) {
+  return normalizarTextoUX1956_(valor)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+}
+
+
+/**
+ * Converte um valor para objeto.
+ *
+ * Aceita:
+ * - objeto JavaScript;
+ * - JSON em formato de texto;
+ * - valor vazio.
+ */
+function converterObjetoUX1956_(valor) {
+  if (!valor) {
+    return {};
+  }
+
+  if (typeof valor === "object") {
+    return valor;
+  }
+
+  if (typeof valor === "string") {
+    try {
+      const convertido = JSON.parse(valor);
+
+      return (
+        convertido &&
+        typeof convertido === "object"
+      )
+        ? convertido
+        : {};
+
+    } catch (erro) {
+      return {};
+    }
+  }
+
+  return {};
+}
+
+
+/**
+ * Procura o payload dentro de um registro da fila.
+ *
+ * Foram incluídos nomes alternativos para preservar
+ * compatibilidade com diferentes versões da fila.
+ */
+function obterPayloadFilaUX1956_(registroFila) {
+  const candidatos = [
+    registroFila && registroFila.payload,
+    registroFila && registroFila.dados,
+    registroFila && registroFila.registro,
+    registroFila && registroFila.objeto,
+    registroFila && registroFila.body,
+    registroFila && registroFila.pacote,
+    registroFila && registroFila.dadosRegistro,
+    registroFila && registroFila.registroPayload,
+    registroFila && registroFila.conteudo
+  ];
+
+  for (const candidato of candidatos) {
+    const objeto =
+      converterObjetoUX1956_(candidato);
+
+    if (
+      objeto &&
+      Object.keys(objeto).length
+    ) {
+      return objeto;
+    }
+  }
+
+  return {};
+}
+
+
+/**
+ * Identifica se uma pendência pertence a:
+ *
+ * - DIARIO
+ * - DIARIO_ITEM
+ */
+function obterEntidadeFilaUX1956_(registroFila) {
+  const payload =
+    obterPayloadFilaUX1956_(registroFila);
+
+  const texto = [
+    registroFila && registroFila.entidade,
+    registroFila && registroFila.tipoEntidade,
+    registroFila && registroFila.tipoRegistro,
+    registroFila && registroFila.tabela,
+    registroFila && registroFila.store,
+    registroFila && registroFila.origemTabela,
+    registroFila && registroFila.tipo,
+
+    payload.entidade,
+    payload.tipoEntidade,
+    payload.tipoRegistro,
+    payload.tabela,
+    payload.store,
+    payload.tipo
+  ]
+    .map(normalizarMaiusculoUX1956_)
+    .filter(Boolean)
+    .join("|");
+
+  /*
+   * O item deve ser verificado primeiro, pois seu nome
+   * também contém a palavra DIARIO.
+   */
+  if (
+    texto.includes("TB_DIARIO_ITENS") ||
+    texto.includes("DIARIO_ITEM") ||
+    texto.includes("DIARIOITENS") ||
+    texto.includes("ITEM_DIARIO")
+  ) {
+    return "DIARIO_ITEM";
+  }
+
+  if (
+    texto.includes("TB_DIARIOS") ||
+    texto.includes("DIARIO_OBRA") ||
+    texto.includes("DIARIO")
+  ) {
+    return "DIARIO";
+  }
+
+  return "";
+}
+
+
+/**
+ * Identifica a operação registrada na fila.
+ */
+function obterOperacaoFilaUX1956_(registroFila) {
+  const payload =
+    obterPayloadFilaUX1956_(registroFila);
+
+  const texto = [
+    registroFila && registroFila.operacao,
+    registroFila && registroFila.acao,
+    registroFila && registroFila.tipoOperacao,
+    registroFila && registroFila.metodo,
+
+    payload.operacao,
+    payload.acao,
+    payload.tipoOperacao,
+    payload.metodo
+  ]
+    .map(normalizarMaiusculoUX1956_)
+    .filter(Boolean)
+    .join("|");
+
+  if (
+    texto.includes("DELETE") ||
+    texto.includes("EXCLUIR") ||
+    texto.includes("EXCLUSAO") ||
+    texto.includes("REMOVER")
+  ) {
+    return "DELETE";
+  }
+
+  if (
+    texto.includes("UPSERT") ||
+    texto.includes("INSERT") ||
+    texto.includes("UPDATE") ||
+    texto.includes("SALVAR") ||
+    texto.includes("CRIAR")
+  ) {
+    return "UPSERT";
+  }
+
+  if (
+    (
+      registroFila &&
+      registroFila.tombstone === true
+    ) ||
+    (
+      payload &&
+      payload.tombstone === true
+    ) ||
+    (
+      registroFila &&
+      registroFila.excluido === true
+    ) ||
+    (
+      payload &&
+      payload.excluido === true
+    )
+  ) {
+    return "DELETE";
+  }
+
+  /*
+   * Uma pendência ativa desconhecida também deve proteger
+   * o registro local contra sobrescrita.
+   */
+  return "PENDENCIA";
+}
+
+
+/**
+ * Verifica se o registro da fila ainda representa
+ * uma pendência ativa.
+ */
+function filaEstaPendenteUX1956_(registroFila) {
+  const payload =
+    obterPayloadFilaUX1956_(registroFila);
+
+  const status = normalizarMaiusculoUX1956_(
+    registroFila && (
+      registroFila.statusSync ||
+      registroFila.status ||
+      registroFila.situacao
+    ) ||
+    payload.statusSync ||
+    payload.status ||
+    payload.situacao
+  );
+
+  const statusFinalizados = new Set([
+    "SINCRONIZADO",
+    "CONCLUIDO",
+    "FINALIZADO",
+    "CANCELADO",
+    "CANCELADA",
+    "IGNORADO",
+    "IGNORADA"
+  ]);
+
+  return !statusFinalizados.has(status);
+}
+
+
+/**
+ * Extrai o ID do registro atingido pela pendência.
+ */
+function obterIdAlvoFilaUX1956_(
+  registroFila,
+  entidade
+) {
+  const payload =
+    obterPayloadFilaUX1956_(registroFila);
+
+  const registroInterno =
+    converterObjetoUX1956_(
+      payload.registro ||
+      payload.dados ||
+      payload.dadosRegistro ||
+      {}
+    );
+
+  const candidatosComuns = [
+    registroFila && registroFila.idRegistro,
+    registroFila && registroFila.registroId,
+    registroFila && registroFila.idEntidade,
+    registroFila && registroFila.idAlvo,
+    registroFila && registroFila.chave,
+    registroFila && registroFila.chaveRegistro,
+
+    payload.idRegistro,
+    payload.registroId,
+    payload.idEntidade,
+    payload.idAlvo,
+    payload.chave,
+    payload.chaveRegistro
+  ];
+
+  const candidatosEntidade =
+    entidade === "DIARIO_ITEM"
+      ? [
+          registroFila &&
+            registroFila.idItemDiario,
+
+          registroFila &&
+            registroFila.idDiarioItem,
+
+          registroFila &&
+            registroFila.idItem,
+
+          payload.idItemDiario,
+          payload.idDiarioItem,
+          payload.idItem,
+
+          registroInterno.idItemDiario,
+          registroInterno.idDiarioItem,
+          registroInterno.idItem
+        ]
+      : [
+          registroFila &&
+            registroFila.idDiario,
+
+          payload.idDiario,
+
+          registroInterno.idDiario
+        ];
+
+  const candidatos =
+    candidatosEntidade.concat(
+      candidatosComuns
+    );
+
+  for (const candidato of candidatos) {
+    const id =
+      normalizarTextoUX1956_(candidato);
+
+    if (id) {
+      return id;
+    }
+  }
+
+  return "";
+}
+
+
+/**
+ * Cria o mapa de pendências ativas.
+ *
+ * A chave utilizada é:
+ *
+ * DIARIO|ID
+ * DIARIO_ITEM|ID
+ */
+function criarMapaPendenciasUX1956_(
+  registrosFila
+) {
+  const mapa = new Map();
+
+  let totalPendenciasAtivas = 0;
+
+  for (
+    const registroFila of registrosFila || []
+  ) {
+    if (
+      !filaEstaPendenteUX1956_(
+        registroFila
+      )
+    ) {
+      continue;
+    }
+
+    const entidade =
+      obterEntidadeFilaUX1956_(
+        registroFila
+      );
+
+    if (!entidade) {
+      continue;
+    }
+
+    const idRegistro =
+      obterIdAlvoFilaUX1956_(
+        registroFila,
+        entidade
+      );
+
+    if (!idRegistro) {
+      continue;
+    }
+
+    const operacao =
+      obterOperacaoFilaUX1956_(
+        registroFila
+      );
+
+    const chave =
+      entidade + "|" + idRegistro;
+
+    const anterior =
+      mapa.get(chave);
+
+    totalPendenciasAtivas++;
+
+    if (!anterior) {
+      mapa.set(
+        chave,
+        {
+          entidade,
+          idRegistro,
+          operacao,
+          registroFila
+        }
+      );
+
+      continue;
+    }
+
+    /*
+     * DELETE sempre tem precedência.
+     *
+     * Isso impede que um registro excluído localmente seja
+     * restaurado pela reidratação.
+     */
+    if (
+      operacao === "DELETE" &&
+      anterior.operacao !== "DELETE"
+    ) {
+      mapa.set(
+        chave,
+        {
+          entidade,
+          idRegistro,
+          operacao,
+          registroFila
+        }
+      );
+    }
+  }
+
+  return {
+    mapa,
+    totalPendenciasAtivas
+  };
+}
+
+
+/**
+ * Garante que o registro contenha a keyPath da store.
+ *
+ * Isso protege contra diferenças entre:
+ *
+ * idDiario
+ * idItemDiario
+ * id
+ * chave
+ */
+function prepararRegistroParaStoreUX1956_(
+  store,
+  registro,
+  idPreferencial
+) {
+  const preparado = {
+    ...registro
+  };
+
+  const keyPath = store.keyPath;
+
+  if (
+    typeof keyPath === "string" &&
+    keyPath &&
+    (
+      preparado[keyPath] === undefined ||
+      preparado[keyPath] === null ||
+      preparado[keyPath] === ""
+    )
+  ) {
+    preparado[keyPath] =
+      idPreferencial;
+  }
+
+  return preparado;
+}
+
+
+/**
+ * Cria o resumo inicial de uma entidade.
+ */
+function criarResumoEntidadeUX1956_(
+  recebidos
+) {
+  return {
+    recebidos,
+    inseridos: 0,
+    atualizados: 0,
+
+    preservadosPorUpsertPendente: 0,
+    bloqueadosPorDeletePendente: 0,
+
+    rejeitadosOutraObra: 0,
+    rejeitadosInvalidos: 0,
+
+    duplicadosNoServidor: 0,
+    orfaosRejeitados: 0
+  };
+}
+
+
+/**
+ * Registra um conflito evitado.
+ *
+ * O log é limitado a 100 registros para impedir
+ * excesso de memória ou console muito grande.
+ */
+function adicionarConflitoUX1956_(
+  resultado,
+  conflito
+) {
+  resultado.totalConflitosEvitados++;
+
+  if (
+    resultado.conflitos.length < 100
+  ) {
+    resultado.conflitos.push(
+      conflito
+    );
+  }
+}
+
+
+/**
+ * Extrai o ID de um Diário.
+ */
+function obterIdDiarioUX1956_(registro) {
+  return normalizarTextoUX1956_(
+    registro && (
+      registro.idDiario ||
+      registro.id ||
+      registro.chave
+    )
+  );
+}
+
+
+/**
+ * Extrai o ID de um item do Diário.
+ */
+function obterIdItemDiarioUX1956_(
+  registro
+) {
+  return normalizarTextoUX1956_(
+    registro && (
+      registro.idItemDiario ||
+      registro.idDiarioItem ||
+      registro.idItem ||
+      registro.id ||
+      registro.chave
+    )
+  );
+}
+
+
+/**
+ * Extrai o ID da obra.
+ */
+function obterIdObraUX1956_(registro) {
+  return normalizarTextoUX1956_(
+    registro &&
+    registro.idObra
+  );
+}
+
+
+/**
+ * ============================================================
+ * NÚCLEO DA MESCLAGEM PROTEGIDA
+ * ============================================================
+ *
+ * @param {Object} pacote
+ * Resposta normalizada da API.
+ *
+ * @param {Object} opcoes
+ * {
+ *   simular: true | false
+ * }
+ */
+async function mesclarDadosOperacionaisReidratacaoSIGO_(
+  pacote,
+  opcoes = {}
+) {
+  if (
+    !pacote ||
+    typeof pacote !== "object"
+  ) {
+    throw new Error(
+      "Pacote de reidratação inválido."
+    );
+  }
+
+  const idObra =
+    normalizarTextoUX1956_(
+      pacote.idObra
+    );
+
+  const diariosServidor =
+    Array.isArray(pacote.diarios)
+      ? pacote.diarios
+      : [];
+
+  const itensServidor =
+    Array.isArray(pacote.diarioItens)
+      ? pacote.diarioItens
+      : [];
+
+  const simular =
+    opcoes.simular === true;
+
+  if (!idObra) {
+    throw new Error(
+      "O pacote de reidratação não possui idObra."
+    );
+  }
+
+  if (
+    typeof abrirBancoLocalSIGO !==
+    "function"
+  ) {
+    throw new Error(
+      "A função abrirBancoLocalSIGO() não foi encontrada."
+    );
+  }
+
+  const db =
+    await abrirBancoLocalSIGO();
+
+  if (
+    !db ||
+    typeof db.transaction !== "function"
+  ) {
+    throw new Error(
+      "Não foi possível abrir o IndexedDB do SIGO."
+    );
+  }
+
+  const storesObrigatorias = [
+    "TB_DIARIOS",
+    "TB_DIARIO_ITENS",
+    "TB_SYNC_QUEUE"
+  ];
+
+  for (
+    const storeName of storesObrigatorias
+  ) {
+    if (
+      !db.objectStoreNames.contains(
+        storeName
+      )
+    ) {
+      throw new Error(
+        "Store obrigatória não encontrada: " +
+        storeName
+      );
+    }
+  }
+
+  /*
+   * A leitura e a gravação ocorrem dentro da mesma
+   * transação IndexedDB.
+   */
+  return new Promise(
+    function (resolve, reject) {
+      const tx = db.transaction(
+        storesObrigatorias,
+        "readwrite"
+      );
+
+      const storeDiarios =
+        tx.objectStore(
+          "TB_DIARIOS"
+        );
+
+      const storeItens =
+        tx.objectStore(
+          "TB_DIARIO_ITENS"
+        );
+
+      const storeFila =
+        tx.objectStore(
+          "TB_SYNC_QUEUE"
+        );
+
+      const reqDiariosLocais =
+        storeDiarios.getAll();
+
+      const reqItensLocais =
+        storeItens.getAll();
+
+      const reqFila =
+        storeFila.getAll();
+
+      let diariosLocais = null;
+      let itensLocais = null;
+      let registrosFila = null;
+
+      let resultadoFinal = null;
+      let processamentoIniciado = false;
+
+      /**
+       * Cancela toda a transação em caso de erro.
+       */
+      function falhar(
+        mensagem,
+        erroOriginal
+      ) {
+        try {
+          tx.abort();
+
+        } catch (erroAbort) {
+          /*
+           * A transação pode já estar encerrada.
+           */
+        }
+
+        const detalhe =
+          erroOriginal &&
+          erroOriginal.message
+            ? erroOriginal.message
+            : normalizarTextoUX1956_(
+                erroOriginal
+              );
+
+        reject(
+          new Error(
+            detalhe
+              ? mensagem + " " + detalhe
+              : mensagem
+          )
+        );
+      }
+
+
+      /**
+       * Executa a mesclagem somente depois de carregar
+       * as três stores.
+       */
+      function tentarProcessar() {
+        if (processamentoIniciado) {
+          return;
+        }
+
+        if (
+          !diariosLocais ||
+          !itensLocais ||
+          !registrosFila
+        ) {
+          return;
+        }
+
+        processamentoIniciado = true;
+
+        try {
+          const pendencias =
+            criarMapaPendenciasUX1956_(
+              registrosFila
+            );
+
+          const mapaPendencias =
+            pendencias.mapa;
+
+          const mapaDiariosLocais =
+            new Map();
+
+          const mapaItensLocais =
+            new Map();
+
+          for (
+            const diarioLocal of diariosLocais
+          ) {
+            const id =
+              obterIdDiarioUX1956_(
+                diarioLocal
+              );
+
+            if (id) {
+              mapaDiariosLocais.set(
+                id,
+                diarioLocal
+              );
+            }
+          }
+
+          for (
+            const itemLocal of itensLocais
+          ) {
+            const id =
+              obterIdItemDiarioUX1956_(
+                itemLocal
+              );
+
+            if (id) {
+              mapaItensLocais.set(
+                id,
+                itemLocal
+              );
+            }
+          }
+
+          const resultado = {
+            etapa: "UX.19.5.6",
+
+            operacao:
+              "MESCLAGEM_PROTEGIDA_INDEXEDDB",
+
+            modo: simular
+              ? "SIMULACAO"
+              : "GRAVACAO_REAL",
+
+            idObra,
+
+            periodoDias: Number(
+              pacote.periodoDias || 0
+            ),
+
+            dataInicio:
+              normalizarTextoUX1956_(
+                pacote.dataInicio
+              ),
+
+            dataFim:
+              normalizarTextoUX1956_(
+                pacote.dataFim
+              ),
+
+            dataSyncServidor:
+              normalizarTextoUX1956_(
+                pacote.dataSync
+              ),
+
+            diarios:
+              criarResumoEntidadeUX1956_(
+                diariosServidor.length
+              ),
+
+            diarioItens:
+              criarResumoEntidadeUX1956_(
+                itensServidor.length
+              ),
+
+            fila: {
+              totalRegistros:
+                registrosFila.length,
+
+              pendenciasAtivasReconhecidas:
+                pendencias
+                  .totalPendenciasAtivas,
+
+              preservadaIntegralmente: true,
+
+              alteracoesRealizadas: 0
+            },
+
+            totalConflitosEvitados: 0,
+
+            conflitos: [],
+
+            executadoEm:
+              new Date().toISOString()
+          };
+
+
+          /*
+           * Conjunto de Diários que podem receber itens.
+           */
+          const idsDiariosDisponiveis =
+            new Set();
+
+
+          /*
+           * Diários locais já existentes podem servir como
+           * pai de itens, desde que:
+           *
+           * - pertençam à obra;
+           * - não tenham DELETE pendente.
+           */
+          for (
+            const [
+              idDiarioLocal,
+              diarioLocal
+            ] of mapaDiariosLocais.entries()
+          ) {
+            const obraLocal =
+              obterIdObraUX1956_(
+                diarioLocal
+              );
+
+            const pendenciaLocal =
+              mapaPendencias.get(
+                "DIARIO|" +
+                idDiarioLocal
+              );
+
+            if (
+              obraLocal === idObra &&
+              (
+                !pendenciaLocal ||
+                pendenciaLocal.operacao !==
+                  "DELETE"
+              )
+            ) {
+              idsDiariosDisponiveis.add(
+                idDiarioLocal
+              );
+            }
+          }
+
+
+          /*
+           * ==================================================
+           * PROCESSAR DIÁRIOS
+           * ==================================================
+           */
+
+          const idsDiariosServidorVistos =
+            new Set();
+
+          for (
+            const diarioServidorOriginal
+            of diariosServidor
+          ) {
+            const idDiario =
+              obterIdDiarioUX1956_(
+                diarioServidorOriginal
+              );
+
+            const obraServidor =
+              obterIdObraUX1956_(
+                diarioServidorOriginal
+              );
+
+
+            /*
+             * Diário sem ID.
+             */
+            if (!idDiario) {
+              resultado.diarios
+                .rejeitadosInvalidos++;
+
+              adicionarConflitoUX1956_(
+                resultado,
+                {
+                  entidade: "DIARIO",
+                  idRegistro: "",
+                  motivo:
+                    "ID_DIARIO_AUSENTE"
+                }
+              );
+
+              continue;
+            }
+
+
+            /*
+             * Duplicidade no pacote recebido.
+             */
+            if (
+              idsDiariosServidorVistos.has(
+                idDiario
+              )
+            ) {
+              resultado.diarios
+                .duplicadosNoServidor++;
+
+              adicionarConflitoUX1956_(
+                resultado,
+                {
+                  entidade: "DIARIO",
+                  idRegistro: idDiario,
+                  motivo:
+                    "DUPLICADO_NO_PACOTE_SERVIDOR"
+                }
+              );
+
+              continue;
+            }
+
+            idsDiariosServidorVistos.add(
+              idDiario
+            );
+
+
+            /*
+             * Registro recebido de outra obra.
+             */
+            if (
+              obraServidor !== idObra
+            ) {
+              resultado.diarios
+                .rejeitadosOutraObra++;
+
+              adicionarConflitoUX1956_(
+                resultado,
+                {
+                  entidade: "DIARIO",
+                  idRegistro: idDiario,
+                  motivo:
+                    "REGISTRO_DE_OUTRA_OBRA",
+                  idObraRecebida:
+                    obraServidor
+                }
+              );
+
+              continue;
+            }
+
+
+            const diarioLocal =
+              mapaDiariosLocais.get(
+                idDiario
+              );
+
+
+            /*
+             * Mesmo ID já utilizado localmente em outra obra.
+             */
+            if (
+              diarioLocal &&
+              obterIdObraUX1956_(
+                diarioLocal
+              ) &&
+              obterIdObraUX1956_(
+                diarioLocal
+              ) !== idObra
+            ) {
+              resultado.diarios
+                .rejeitadosOutraObra++;
+
+              adicionarConflitoUX1956_(
+                resultado,
+                {
+                  entidade: "DIARIO",
+                  idRegistro: idDiario,
+                  motivo:
+                    "ID_JA_EXISTE_LOCALMENTE_EM_OUTRA_OBRA"
+                }
+              );
+
+              continue;
+            }
+
+
+            const pendencia =
+              mapaPendencias.get(
+                "DIARIO|" + idDiario
+              );
+
+
+            /*
+             * DELETE pendente:
+             * nunca restaurar o Diário.
+             */
+            if (
+              pendencia &&
+              pendencia.operacao ===
+                "DELETE"
+            ) {
+              resultado.diarios
+                .bloqueadosPorDeletePendente++;
+
+              idsDiariosDisponiveis.delete(
+                idDiario
+              );
+
+              adicionarConflitoUX1956_(
+                resultado,
+                {
+                  entidade: "DIARIO",
+                  idRegistro: idDiario,
+                  motivo:
+                    "DELETE_PENDENTE_NAO_RESTAURAR"
+                }
+              );
+
+              continue;
+            }
+
+
+            /*
+             * Qualquer outra pendência ativa protege
+             * a versão local contra sobrescrita.
+             */
+            if (pendencia) {
+              resultado.diarios
+                .preservadosPorUpsertPendente++;
+
+              if (diarioLocal) {
+                idsDiariosDisponiveis.add(
+                  idDiario
+                );
+              }
+
+              adicionarConflitoUX1956_(
+                resultado,
+                {
+                  entidade: "DIARIO",
+                  idRegistro: idDiario,
+
+                  motivo:
+                    pendencia.operacao ===
+                    "UPSERT"
+                      ? "UPSERT_PENDENTE_LOCAL_PRESERVADO"
+                      : "PENDENCIA_LOCAL_PRESERVADA"
+                }
+              );
+
+              continue;
+            }
+
+
+            /*
+             * Registro seguro para inserção ou atualização.
+             */
+            const diarioMesclado =
+              prepararRegistroParaStoreUX1956_(
+                storeDiarios,
+                {
+                  ...(diarioLocal || {}),
+                  ...diarioServidorOriginal,
+
+                  idDiario,
+                  idObra,
+
+                  statusSync:
+                    "SINCRONIZADO",
+
+                  origemReidratacao:
+                    "SERVIDOR"
+                },
+                idDiario
+              );
+
+
+            if (diarioLocal) {
+              resultado.diarios
+                .atualizados++;
+
+            } else {
+              resultado.diarios
+                .inseridos++;
+            }
+
+
+            idsDiariosDisponiveis.add(
+              idDiario
+            );
+
+            mapaDiariosLocais.set(
+              idDiario,
+              diarioMesclado
+            );
+
+
+            if (!simular) {
+              storeDiarios.put(
+                diarioMesclado
+              );
+            }
+          }
+
+
+          /*
+           * ==================================================
+           * PROCESSAR ITENS DOS DIÁRIOS
+           * ==================================================
+           */
+
+          const idsItensServidorVistos =
+            new Set();
+
+          for (
+            const itemServidorOriginal
+            of itensServidor
+          ) {
+            const idItem =
+              obterIdItemDiarioUX1956_(
+                itemServidorOriginal
+              );
+
+            const idDiarioPai =
+              normalizarTextoUX1956_(
+                itemServidorOriginal
+                  .idDiario
+              );
+
+            const obraServidor =
+              obterIdObraUX1956_(
+                itemServidorOriginal
+              );
+
+
+            /*
+             * Item sem ID ou sem Diário pai.
+             */
+            if (
+              !idItem ||
+              !idDiarioPai
+            ) {
+              resultado.diarioItens
+                .rejeitadosInvalidos++;
+
+              adicionarConflitoUX1956_(
+                resultado,
+                {
+                  entidade:
+                    "DIARIO_ITEM",
+
+                  idRegistro:
+                    idItem,
+
+                  motivo:
+                    !idItem
+                      ? "ID_ITEM_AUSENTE"
+                      : "ID_DIARIO_PAI_AUSENTE"
+                }
+              );
+
+              continue;
+            }
+
+
+            /*
+             * Item duplicado no pacote.
+             */
+            if (
+              idsItensServidorVistos.has(
+                idItem
+              )
+            ) {
+              resultado.diarioItens
+                .duplicadosNoServidor++;
+
+              adicionarConflitoUX1956_(
+                resultado,
+                {
+                  entidade:
+                    "DIARIO_ITEM",
+
+                  idRegistro:
+                    idItem,
+
+                  motivo:
+                    "DUPLICADO_NO_PACOTE_SERVIDOR"
+                }
+              );
+
+              continue;
+            }
+
+            idsItensServidorVistos.add(
+              idItem
+            );
+
+
+            /*
+             * Item recebido de outra obra.
+             */
+            if (
+              obraServidor !== idObra
+            ) {
+              resultado.diarioItens
+                .rejeitadosOutraObra++;
+
+              adicionarConflitoUX1956_(
+                resultado,
+                {
+                  entidade:
+                    "DIARIO_ITEM",
+
+                  idRegistro:
+                    idItem,
+
+                  motivo:
+                    "REGISTRO_DE_OUTRA_OBRA",
+
+                  idObraRecebida:
+                    obraServidor
+                }
+              );
+
+              continue;
+            }
+
+
+            /*
+             * O Diário pai precisa existir e não pode
+             * estar bloqueado por DELETE.
+             */
+            if (
+              !idsDiariosDisponiveis.has(
+                idDiarioPai
+              )
+            ) {
+              resultado.diarioItens
+                .orfaosRejeitados++;
+
+              adicionarConflitoUX1956_(
+                resultado,
+                {
+                  entidade:
+                    "DIARIO_ITEM",
+
+                  idRegistro:
+                    idItem,
+
+                  idDiario:
+                    idDiarioPai,
+
+                  motivo:
+                    "ITEM_ORFAO_OU_DIARIO_BLOQUEADO"
+                }
+              );
+
+              continue;
+            }
+
+
+            const itemLocal =
+              mapaItensLocais.get(
+                idItem
+              );
+
+
+            /*
+             * Mesmo ID já existente em outra obra.
+             */
+            if (
+              itemLocal &&
+              obterIdObraUX1956_(
+                itemLocal
+              ) &&
+              obterIdObraUX1956_(
+                itemLocal
+              ) !== idObra
+            ) {
+              resultado.diarioItens
+                .rejeitadosOutraObra++;
+
+              adicionarConflitoUX1956_(
+                resultado,
+                {
+                  entidade:
+                    "DIARIO_ITEM",
+
+                  idRegistro:
+                    idItem,
+
+                  motivo:
+                    "ID_JA_EXISTE_LOCALMENTE_EM_OUTRA_OBRA"
+                }
+              );
+
+              continue;
+            }
+
+
+            const pendencia =
+              mapaPendencias.get(
+                "DIARIO_ITEM|" +
+                idItem
+              );
+
+
+            /*
+             * DELETE pendente:
+             * não restaurar o item.
+             */
+            if (
+              pendencia &&
+              pendencia.operacao ===
+                "DELETE"
+            ) {
+              resultado.diarioItens
+                .bloqueadosPorDeletePendente++;
+
+              adicionarConflitoUX1956_(
+                resultado,
+                {
+                  entidade:
+                    "DIARIO_ITEM",
+
+                  idRegistro:
+                    idItem,
+
+                  motivo:
+                    "DELETE_PENDENTE_NAO_RESTAURAR"
+                }
+              );
+
+              continue;
+            }
+
+
+            /*
+             * UPSERT ou outra pendência:
+             * preservar a versão local.
+             */
+            if (pendencia) {
+              resultado.diarioItens
+                .preservadosPorUpsertPendente++;
+
+              adicionarConflitoUX1956_(
+                resultado,
+                {
+                  entidade:
+                    "DIARIO_ITEM",
+
+                  idRegistro:
+                    idItem,
+
+                  motivo:
+                    pendencia.operacao ===
+                    "UPSERT"
+                      ? "UPSERT_PENDENTE_LOCAL_PRESERVADO"
+                      : "PENDENCIA_LOCAL_PRESERVADA"
+                }
+              );
+
+              continue;
+            }
+
+
+            /*
+             * Registro seguro para inserção ou atualização.
+             */
+            const itemMesclado =
+              prepararRegistroParaStoreUX1956_(
+                storeItens,
+                {
+                  ...(itemLocal || {}),
+                  ...itemServidorOriginal,
+
+                  idItemDiario:
+                    idItem,
+
+                  idDiario:
+                    idDiarioPai,
+
+                  idObra,
+
+                  statusSync:
+                    "SINCRONIZADO",
+
+                  origemReidratacao:
+                    "SERVIDOR"
+                },
+                idItem
+              );
+
+
+            if (itemLocal) {
+              resultado.diarioItens
+                .atualizados++;
+
+            } else {
+              resultado.diarioItens
+                .inseridos++;
+            }
+
+
+            mapaItensLocais.set(
+              idItem,
+              itemMesclado
+            );
+
+
+            if (!simular) {
+              storeItens.put(
+                itemMesclado
+              );
+            }
+          }
+
+
+          /*
+           * A TB_SYNC_QUEUE foi apenas consultada.
+           *
+           * Nenhum put, delete ou clear foi executado nela.
+           */
+          resultadoFinal = resultado;
+
+        } catch (erroProcessamento) {
+          falhar(
+            "Falha durante a mesclagem protegida.",
+            erroProcessamento
+          );
+        }
+      }
+
+
+      /*
+       * Leitura dos Diários locais.
+       */
+      reqDiariosLocais.onsuccess =
+        function () {
+          diariosLocais =
+            Array.isArray(
+              reqDiariosLocais.result
+            )
+              ? reqDiariosLocais.result
+              : [];
+
+          tentarProcessar();
+        };
+
+
+      /*
+       * Leitura dos itens locais.
+       */
+      reqItensLocais.onsuccess =
+        function () {
+          itensLocais =
+            Array.isArray(
+              reqItensLocais.result
+            )
+              ? reqItensLocais.result
+              : [];
+
+          tentarProcessar();
+        };
+
+
+      /*
+       * Leitura da fila.
+       */
+      reqFila.onsuccess =
+        function () {
+          registrosFila =
+            Array.isArray(
+              reqFila.result
+            )
+              ? reqFila.result
+              : [];
+
+          tentarProcessar();
+        };
+
+
+      reqDiariosLocais.onerror =
+        function () {
+          falhar(
+            "Não foi possível ler TB_DIARIOS.",
+            reqDiariosLocais.error
+          );
+        };
+
+
+      reqItensLocais.onerror =
+        function () {
+          falhar(
+            "Não foi possível ler TB_DIARIO_ITENS.",
+            reqItensLocais.error
+          );
+        };
+
+
+      reqFila.onerror =
+        function () {
+          falhar(
+            "Não foi possível ler TB_SYNC_QUEUE.",
+            reqFila.error
+          );
+        };
+
+
+      /*
+       * A resolução ocorre somente depois do commit completo.
+       */
+      tx.oncomplete =
+        function () {
+          if (!resultadoFinal) {
+            reject(
+              new Error(
+                "A transação terminou sem produzir resultado."
+              )
+            );
+
+            return;
+          }
+
+          resolve(resultadoFinal);
+        };
+
+
+      tx.onerror =
+        function () {
+          reject(
+            new Error(
+              "A transação de mesclagem falhou. " +
+              (
+                tx.error &&
+                tx.error.message
+                  ? tx.error.message
+                  : ""
+              )
+            )
+          );
+        };
+
+
+      tx.onabort =
+        function () {
+          reject(
+            new Error(
+              "A transação de mesclagem foi cancelada. " +
+              (
+                tx.error &&
+                tx.error.message
+                  ? tx.error.message
+                  : ""
+              )
+            )
+          );
+        };
+    }
+  );
+}
+
+
+/**
+ * ============================================================
+ * FLUXO OFICIAL
+ * API → MESCLAGEM PROTEGIDA
+ * ============================================================
+ */
+async function reidratarDadosOperacionaisObraMobile_(
+  idObra,
+  diasHistorico,
+  opcoes = {}
+) {
+  const respostaApi =
+    await obterDadosOperacionaisObraMobile_(
+      idObra,
+      diasHistorico
+    );
+
+  return mesclarDadosOperacionaisReidratacaoSIGO_(
+    respostaApi,
+    opcoes
+  );
+}
+
+
+/**
+ * ============================================================
+ * TESTE SEGURO DA UX.19.5.6
+ * ============================================================
+ *
+ * Apenas simula todas as decisões.
+ *
+ * Não grava:
+ * - TB_DIARIOS;
+ * - TB_DIARIO_ITENS;
+ * - TB_SYNC_QUEUE.
+ */
+async function testarMesclagemProtegidaUX1956_() {
+  console.log(
+    "[UX.19.5.6] Iniciando simulação da mesclagem protegida..."
+  );
+
+  const resultado =
+    await reidratarDadosOperacionaisObraMobile_(
+      "OBR002",
+      30,
+      {
+        simular: true
+      }
+    );
+
+  console.log(
+    JSON.stringify(
+      resultado,
+      null,
+      2
+    )
+  );
+
+  console.log(
+    "[UX.19.5.6] Simulação concluída. " +
+    "Nenhum registro foi gravado."
+  );
+
+  return resultado;
+}
+
+
+/**
+ * ============================================================
+ * EXECUÇÃO REAL DA UX.19.5.6
+ * ============================================================
+ *
+ * Não executar antes da aprovação da simulação.
+ */
+async function executarMesclagemRealUX1956_() {
+  console.log(
+    "[UX.19.5.6] Iniciando mesclagem real no IndexedDB..."
+  );
+
+  const resultado =
+    await reidratarDadosOperacionaisObraMobile_(
+      "OBR002",
+      30,
+      {
+        simular: false
+      }
+    );
+
+  console.log(
+    JSON.stringify(
+      resultado,
+      null,
+      2
+    )
+  );
+
+  console.log(
+    "[UX.19.5.6] Mesclagem real concluída. " +
+    "A TB_SYNC_QUEUE foi preservada."
+  );
+
+  return resultado;
+}
