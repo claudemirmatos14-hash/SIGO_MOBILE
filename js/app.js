@@ -27913,3 +27913,942 @@ async function auditarMesclagemOcorrenciasUX1966_() {
 
   return resultado;
 }
+
+/**
+ * ============================================================
+ * UX.19.7.6 — AUDITORIA DA MESCLAGEM DE CLIMA
+ * ============================================================
+ *
+ * Esta auditoria:
+ *
+ * - consulta novamente o servidor;
+ * - compara o servidor com TB_CLIMA;
+ * - executa uma nova mesclagem apenas em modo SIMULAÇÃO;
+ * - confirma a idempotência;
+ * - confirma que TB_CLIMA não foi modificada;
+ * - confirma que TB_SYNC_QUEUE não foi modificada.
+ */
+
+
+/**
+ * Normaliza valores funcionais para comparação.
+ */
+function normalizarValorAuditoriaClimaUX1976_(
+  valor
+) {
+  return String(
+    valor === undefined ||
+    valor === null
+      ? ""
+      : valor
+  ).trim();
+}
+
+
+/**
+ * Compara os campos funcionais do servidor
+ * com o registro gravado no IndexedDB.
+ */
+function compararRegistroClimaUX1976_(
+  registroServidor,
+  registroLocal
+) {
+  const camposFuncionais = [
+    "idClima",
+    "data",
+    "idObra",
+    "periodo",
+    "condicaoClimatica",
+    "intensidade",
+    "impactoExecucao",
+    "atividadeAfetada",
+    "observacao",
+    "statusClima"
+  ];
+
+  const divergencias = [];
+
+  camposFuncionais.forEach(
+    function (campo) {
+      const valorServidor =
+        normalizarValorAuditoriaClimaUX1976_(
+          registroServidor?.[campo]
+        );
+
+      const valorLocal =
+        normalizarValorAuditoriaClimaUX1976_(
+          registroLocal?.[campo]
+        );
+
+      if (
+        valorServidor !==
+        valorLocal
+      ) {
+        divergencias.push({
+          campo:
+            campo,
+
+          servidor:
+            valorServidor,
+
+          local:
+            valorLocal
+        });
+      }
+    }
+  );
+
+  return divergencias;
+}
+
+
+/**
+ * Detecta IDs repetidos em uma coleção.
+ */
+function localizarDuplicidadesClimaUX1976_(
+  registros
+) {
+  const contagem =
+    new Map();
+
+  const duplicados =
+    [];
+
+  (
+    Array.isArray(registros)
+      ? registros
+      : []
+  ).forEach(
+    function (registro) {
+      const idClima =
+        normalizarValorAuditoriaClimaUX1976_(
+          registro?.idClima
+        );
+
+      if (!idClima) {
+        return;
+      }
+
+      contagem.set(
+        idClima,
+        Number(
+          contagem.get(idClima) || 0
+        ) + 1
+      );
+    }
+  );
+
+  contagem.forEach(
+    function (quantidade, idClima) {
+      if (
+        quantidade > 1
+      ) {
+        duplicados.push({
+          idClima:
+            idClima,
+
+          quantidade:
+            quantidade
+        });
+      }
+    }
+  );
+
+  return duplicados;
+}
+
+
+/**
+ * ============================================================
+ * AUDITORIA PRINCIPAL
+ * ============================================================
+ */
+async function auditarMesclagemClimaUX1976_() {
+  console.log(
+    "[UX.19.7.6] Iniciando auditoria da mesclagem de Clima..."
+  );
+
+  const idObraEsperado =
+    "OBR002";
+
+  const periodoEsperado =
+    30;
+
+  const totalEsperado =
+    8;
+
+  const totalFilaEsperado =
+    45;
+
+
+  /*
+   * ==========================================================
+   * DEPENDÊNCIAS
+   * ==========================================================
+   */
+
+  if (
+    typeof obterClimasOperacionaisObraMobile_ !==
+    "function"
+  ) {
+    throw new Error(
+      "O cliente Mobile de Clima da UX.19.7.4 não foi encontrado."
+    );
+  }
+
+  if (
+    typeof mesclarClimasReidratacaoSIGO_ !==
+    "function"
+  ) {
+    throw new Error(
+      "A mesclagem protegida da UX.19.7.5 não foi encontrada."
+    );
+  }
+
+  if (
+    typeof listarRegistrosSIGO !==
+    "function"
+  ) {
+    throw new Error(
+      "A função listarRegistrosSIGO não foi encontrada."
+    );
+  }
+
+  if (
+    typeof criarAssinaturaColecaoClimaUX1975_ !==
+    "function"
+  ) {
+    throw new Error(
+      "O auxiliar de assinatura da UX.19.7.5 não foi encontrado."
+    );
+  }
+
+
+  /*
+   * ==========================================================
+   * ESTADO ANTES DA AUDITORIA
+   * ==========================================================
+   */
+
+  const climasAntes =
+    await listarRegistrosSIGO(
+      "TB_CLIMA"
+    );
+
+  const filaAntes =
+    await listarRegistrosSIGO(
+      "TB_SYNC_QUEUE"
+    );
+
+  const assinaturaClimasAntes =
+    criarAssinaturaColecaoClimaUX1975_(
+      climasAntes,
+      "idClima"
+    );
+
+  const assinaturaFilaAntes =
+    criarAssinaturaColecaoClimaUX1975_(
+      filaAntes,
+      "idSyncLocal"
+    );
+
+
+  /*
+   * ==========================================================
+   * CONSULTA AO SERVIDOR
+   * ==========================================================
+   */
+
+  const pacoteServidor =
+    await obterClimasOperacionaisObraMobile_(
+      idObraEsperado,
+      periodoEsperado
+    );
+
+  const climasServidor =
+    Array.isArray(
+      pacoteServidor.climas
+    )
+      ? pacoteServidor.climas
+      : [];
+
+  const idsServidor =
+    new Set(
+      climasServidor
+        .map(
+          function (registro) {
+            return normalizarValorAuditoriaClimaUX1976_(
+              registro?.idClima
+            );
+          }
+        )
+        .filter(Boolean)
+    );
+
+
+  /*
+   * ==========================================================
+   * REGISTROS LOCAIS DA OBRA
+   * ==========================================================
+   */
+
+  const climasLocaisObra =
+    climasAntes.filter(
+      function (registro) {
+        return (
+          normalizarValorAuditoriaClimaUX1976_(
+            registro?.idObra
+          ) === idObraEsperado
+        );
+      }
+    );
+
+  const locaisPorId =
+    new Map();
+
+  climasLocaisObra.forEach(
+    function (registro) {
+      const idClima =
+        normalizarValorAuditoriaClimaUX1976_(
+          registro?.idClima
+        );
+
+      if (idClima) {
+        locaisPorId.set(
+          idClima,
+          registro
+        );
+      }
+    }
+  );
+
+
+  /*
+   * ==========================================================
+   * PROBLEMAS ESTRUTURAIS
+   * ==========================================================
+   */
+
+  const duplicadosServidor =
+    localizarDuplicidadesClimaUX1976_(
+      climasServidor
+    );
+
+  const duplicadosLocal =
+    localizarDuplicidadesClimaUX1976_(
+      climasLocaisObra
+    );
+
+  const invalidosLocal =
+    climasLocaisObra
+      .filter(
+        function (registro) {
+          return (
+            !normalizarValorAuditoriaClimaUX1976_(
+              registro?.idClima
+            ) ||
+            !normalizarValorAuditoriaClimaUX1976_(
+              registro?.data
+            ) ||
+            !normalizarValorAuditoriaClimaUX1976_(
+              registro?.idObra
+            )
+          );
+        }
+      )
+      .map(
+        function (registro) {
+          return {
+            idClima:
+              normalizarValorAuditoriaClimaUX1976_(
+                registro?.idClima
+              ) || "SEM_ID",
+
+            data:
+              normalizarValorAuditoriaClimaUX1976_(
+                registro?.data
+              ),
+
+            idObra:
+              normalizarValorAuditoriaClimaUX1976_(
+                registro?.idObra
+              )
+          };
+        }
+      );
+
+
+  /*
+   * ==========================================================
+   * FALTANTES E EXTRAS
+   * ==========================================================
+   */
+
+  const faltantesLocal = [];
+
+  climasServidor.forEach(
+    function (registroServidor) {
+      const idClima =
+        normalizarValorAuditoriaClimaUX1976_(
+          registroServidor?.idClima
+        );
+
+      if (
+        idClima &&
+        !locaisPorId.has(idClima)
+      ) {
+        faltantesLocal.push(
+          idClima
+        );
+      }
+    }
+  );
+
+  const extrasLocal =
+    climasLocaisObra
+      .filter(
+        function (registroLocal) {
+          const idClima =
+            normalizarValorAuditoriaClimaUX1976_(
+              registroLocal?.idClima
+            );
+
+          return (
+            idClima &&
+            !idsServidor.has(idClima)
+          );
+        }
+      )
+      .map(
+        function (registroLocal) {
+          return registroLocal.idClima;
+        }
+      );
+
+
+  /*
+   * ==========================================================
+   * MISTURA DE OBRAS
+   * ==========================================================
+   *
+   * Procuramos IDs do pacote de OBR002 armazenados
+   * localmente com outro idObra.
+   *
+   * Registros independentes de outras obras não são
+   * considerados erro, pois o sistema é multiobras.
+   */
+
+  const misturaDeObras =
+    climasAntes
+      .filter(
+        function (registroLocal) {
+          const idClima =
+            normalizarValorAuditoriaClimaUX1976_(
+              registroLocal?.idClima
+            );
+
+          const idObra =
+            normalizarValorAuditoriaClimaUX1976_(
+              registroLocal?.idObra
+            );
+
+          return (
+            idsServidor.has(idClima) &&
+            idObra !== idObraEsperado
+          );
+        }
+      )
+      .map(
+        function (registroLocal) {
+          return {
+            idClima:
+              registroLocal.idClima,
+
+            idObra:
+              registroLocal.idObra
+          };
+        }
+      );
+
+
+  /*
+   * ==========================================================
+   * COMPARAÇÃO DOS CAMPOS FUNCIONAIS
+   * ==========================================================
+   */
+
+  const divergenciasFuncionais = [];
+
+  climasServidor.forEach(
+    function (registroServidor) {
+      const idClima =
+        normalizarValorAuditoriaClimaUX1976_(
+          registroServidor?.idClima
+        );
+
+      const registroLocal =
+        locaisPorId.get(idClima);
+
+      if (!registroLocal) {
+        return;
+      }
+
+      const divergencias =
+        compararRegistroClimaUX1976_(
+          registroServidor,
+          registroLocal
+        );
+
+      if (
+        divergencias.length
+      ) {
+        divergenciasFuncionais.push({
+          idClima:
+            idClima,
+
+          divergencias:
+            divergencias
+        });
+      }
+    }
+  );
+
+
+  /*
+   * ==========================================================
+   * METADADOS LOCAIS
+   * ==========================================================
+   */
+
+  const statusSyncIncorreto =
+    climasLocaisObra
+      .filter(
+        function (registro) {
+          return (
+            normalizarValorAuditoriaClimaUX1976_(
+              registro?.statusSync
+            ) !== "SINCRONIZADO"
+          );
+        }
+      )
+      .map(
+        function (registro) {
+          return {
+            idClima:
+              registro.idClima,
+
+            statusSync:
+              registro.statusSync
+          };
+        }
+      );
+
+  const origemIncorreta =
+    climasLocaisObra
+      .filter(
+        function (registro) {
+          return (
+            normalizarValorAuditoriaClimaUX1976_(
+              registro?.origemReidratacao
+            ) !== "SERVIDOR"
+          );
+        }
+      )
+      .map(
+        function (registro) {
+          return {
+            idClima:
+              registro.idClima,
+
+            origemReidratacao:
+              registro.origemReidratacao
+          };
+        }
+      );
+
+  const dataSyncAusente =
+    climasLocaisObra
+      .filter(
+        function (registro) {
+          return !normalizarValorAuditoriaClimaUX1976_(
+            registro?.dataSync
+          );
+        }
+      )
+      .map(
+        function (registro) {
+          return registro.idClima;
+        }
+      );
+
+
+  /*
+   * ==========================================================
+   * TESTE DE IDEMPOTÊNCIA
+   * ==========================================================
+   *
+   * A mesma coleção é submetida novamente à mesclagem,
+   * exclusivamente em modo SIMULAÇÃO.
+   */
+
+  const resultadoIdempotencia =
+    await mesclarClimasReidratacaoSIGO_(
+      pacoteServidor,
+      {
+        simular:
+          true
+      }
+    );
+
+
+  /*
+   * ==========================================================
+   * ESTADO DEPOIS DA SIMULAÇÃO
+   * ==========================================================
+   */
+
+  const climasDepois =
+    await listarRegistrosSIGO(
+      "TB_CLIMA"
+    );
+
+  const filaDepois =
+    await listarRegistrosSIGO(
+      "TB_SYNC_QUEUE"
+    );
+
+  const assinaturaClimasDepois =
+    criarAssinaturaColecaoClimaUX1975_(
+      climasDepois,
+      "idClima"
+    );
+
+  const assinaturaFilaDepois =
+    criarAssinaturaColecaoClimaUX1975_(
+      filaDepois,
+      "idSyncLocal"
+    );
+
+
+  /*
+   * ==========================================================
+   * VALIDAÇÕES
+   * ==========================================================
+   */
+
+  const validacoes = {
+    apiHttp200:
+      pacoteServidor.codigoHttp === 200,
+
+    apiStatusOK:
+      pacoteServidor.status === "OK",
+
+    contratoVersao1:
+      pacoteServidor.versaoContrato ===
+      "1.0",
+
+    obraCorreta:
+      pacoteServidor.idObra ===
+      idObraEsperado,
+
+    periodoCorreto:
+      pacoteServidor.periodoDias ===
+      periodoEsperado,
+
+    servidorRetornou8:
+      climasServidor.length ===
+      totalEsperado,
+
+    localPossui8DaObra:
+      climasLocaisObra.length ===
+      totalEsperado,
+
+    nenhumDuplicadoServidor:
+      duplicadosServidor.length === 0,
+
+    nenhumDuplicadoLocal:
+      duplicadosLocal.length === 0,
+
+    nenhumLocalInvalido:
+      invalidosLocal.length === 0,
+
+    nenhumRegistroFaltante:
+      faltantesLocal.length === 0,
+
+    nenhumRegistroExtra:
+      extrasLocal.length === 0,
+
+    nenhumaMisturaDeObras:
+      misturaDeObras.length === 0,
+
+    nenhumCampoFuncionalDivergente:
+      divergenciasFuncionais.length ===
+      0,
+
+    todosStatusSyncCorretos:
+      statusSyncIncorreto.length === 0,
+
+    todasOrigensCorretas:
+      origemIncorreta.length === 0,
+
+    todosPossuemDataSync:
+      dataSyncAusente.length === 0,
+
+    idempotenciaModoSimulacao:
+      resultadoIdempotencia.modo ===
+      "SIMULACAO",
+
+    idempotenciaRecebeu8:
+      resultadoIdempotencia.climas
+        .recebidos === totalEsperado,
+
+    idempotenciaInseririaZero:
+      resultadoIdempotencia.climas
+        .inseridos === 0,
+
+    idempotenciaAtualizaria8:
+      resultadoIdempotencia.climas
+        .atualizados === totalEsperado,
+
+    idempotenciaNenhumPreservado:
+      resultadoIdempotencia.climas
+        .preservados === 0,
+
+    idempotenciaNenhumRejeitado:
+      resultadoIdempotencia.climas
+        .rejeitados === 0,
+
+    idempotenciaNenhumConflito:
+      resultadoIdempotencia
+        .totalConflitosEvitados === 0,
+
+    idempotenciaNenhumaGravacao:
+      resultadoIdempotencia.climas
+        .gravacoesExecutadas === 0,
+
+    tbClimaNaoAlterada:
+      assinaturaClimasAntes ===
+      assinaturaClimasDepois,
+
+    quantidadeTbClimaPreservada:
+      climasAntes.length ===
+      climasDepois.length,
+
+    filaPossui45Antes:
+      filaAntes.length ===
+      totalFilaEsperado,
+
+    filaPossui45Depois:
+      filaDepois.length ===
+      totalFilaEsperado,
+
+    filaQuantidadePreservada:
+      filaAntes.length ===
+      filaDepois.length,
+
+    filaConteudoPreservado:
+      assinaturaFilaAntes ===
+      assinaturaFilaDepois,
+
+    filaConfirmadaPelaMesclagem:
+      resultadoIdempotencia.fila
+        .preservada === true
+  };
+
+  const aprovado =
+    Object.values(
+      validacoes
+    ).every(
+      function (valor) {
+        return valor === true;
+      }
+    );
+
+
+  /*
+   * ==========================================================
+   * RESULTADO DA AUDITORIA
+   * ==========================================================
+   */
+
+  const auditoria = {
+    etapa:
+      "UX.19.7.6",
+
+    auditoria:
+      "MESCLAGEM_CLIMA_E_IDEMPOTENCIA",
+
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+
+    idObra:
+      idObraEsperado,
+
+    periodoDias:
+      periodoEsperado,
+
+    totais: {
+      servidor:
+        climasServidor.length,
+
+      localObra:
+        climasLocaisObra.length,
+
+      localStoreCompleta:
+        climasAntes.length,
+
+      duplicadosServidor:
+        duplicadosServidor.length,
+
+      duplicadosLocal:
+        duplicadosLocal.length,
+
+      invalidosLocal:
+        invalidosLocal.length,
+
+      faltantesLocal:
+        faltantesLocal.length,
+
+      extrasLocal:
+        extrasLocal.length,
+
+      misturaDeObras:
+        misturaDeObras.length,
+
+      divergenciasFuncionais:
+        divergenciasFuncionais.length,
+
+      statusSyncIncorreto:
+        statusSyncIncorreto.length,
+
+      origemIncorreta:
+        origemIncorreta.length,
+
+      dataSyncAusente:
+        dataSyncAusente.length
+    },
+
+    idempotencia: {
+      modo:
+        resultadoIdempotencia.modo,
+
+      recebidos:
+        resultadoIdempotencia.climas
+          .recebidos,
+
+      inseriria:
+        resultadoIdempotencia.climas
+          .inseridos,
+
+      atualizaria:
+        resultadoIdempotencia.climas
+          .atualizados,
+
+      preservaria:
+        resultadoIdempotencia.climas
+          .preservados,
+
+      rejeitaria:
+        resultadoIdempotencia.climas
+          .rejeitados,
+
+      conflitos:
+        resultadoIdempotencia
+          .totalConflitosEvitados,
+
+      gravacoesExecutadas:
+        resultadoIdempotencia.climas
+          .gravacoesExecutadas
+    },
+
+    fila: {
+      totalAntes:
+        filaAntes.length,
+
+      totalDepois:
+        filaDepois.length,
+
+      preservada:
+        assinaturaFilaAntes ===
+        assinaturaFilaDepois,
+
+      confirmadaPelaMesclagem:
+        resultadoIdempotencia.fila
+          .preservada
+    },
+
+    problemas: {
+      duplicadosServidor:
+        duplicadosServidor,
+
+      duplicadosLocal:
+        duplicadosLocal,
+
+      invalidosLocal:
+        invalidosLocal,
+
+      faltantesLocal:
+        faltantesLocal,
+
+      extrasLocal:
+        extrasLocal,
+
+      misturaDeObras:
+        misturaDeObras,
+
+      divergenciasFuncionais:
+        divergenciasFuncionais,
+
+      statusSyncIncorreto:
+        statusSyncIncorreto,
+
+      origemIncorreta:
+        origemIncorreta,
+
+      dataSyncAusente:
+        dataSyncAusente
+    },
+
+    validacoes:
+      validacoes,
+
+    primeiroRegistroLocal:
+      climasLocaisObra.length
+        ? climasLocaisObra[0]
+        : null,
+
+    aprovado:
+      aprovado
+  };
+
+  console.log(
+    JSON.stringify(
+      auditoria,
+      null,
+      2
+    )
+  );
+
+  if (!aprovado) {
+    throw new Error(
+      "UX.19.7.6 REPROVADA. Consulte as validações no console."
+    );
+  }
+
+  console.log(
+    "UX.19.7.6 — AUDITORIA DA MESCLAGEM DE CLIMA APROVADA."
+  );
+
+  return {
+    auditoria:
+      auditoria,
+
+    pacoteServidor:
+      pacoteServidor,
+
+    idempotencia:
+      resultadoIdempotencia
+  };
+}
