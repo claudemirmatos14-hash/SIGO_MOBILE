@@ -48093,3 +48093,1337 @@ async function removerDiarioObsoletoUX1910B_() {
 
   return resultado;
 }
+
+/**
+ * ============================================================
+ * UX.20.1 — CONFIGURAÇÃO PERSISTENTE DO HISTÓRICO OFFLINE
+ * ============================================================
+ *
+ * Períodos permitidos:
+ *
+ * - 15 dias
+ * - 30 dias
+ * - 60 dias
+ * - 90 dias
+ *
+ * A configuração:
+ *
+ * - pertence ao dispositivo/navegador;
+ * - não entra na fila de sincronização;
+ * - não altera nenhuma store do IndexedDB;
+ * - não remove registros antigos;
+ * - é utilizada pelas APIs de reidratação.
+ */
+
+const PERIODOS_HISTORICO_OFFLINE_UX201 =
+  Object.freeze([
+    15,
+    30,
+    60,
+    90
+  ]);
+
+const PERIODO_PADRAO_HISTORICO_UX201 =
+  30;
+
+const CHAVE_HISTORICO_OFFLINE_UX201 =
+  "SIGO_CONFIG_HISTORICO_OFFLINE_DIAS_V1";
+
+const CHAVE_META_HISTORICO_UX201 =
+  "SIGO_CONFIG_HISTORICO_OFFLINE_META_V1";
+
+
+/**
+ * Normaliza um valor apenas quando ele pertence
+ * ao conjunto permitido.
+ */
+function normalizarPeriodoHistoricoUX201_(
+  valor,
+  fallback = null
+) {
+  const numero =
+    Number.parseInt(
+      String(
+        valor === undefined ||
+        valor === null
+          ? ""
+          : valor
+      ).trim(),
+      10
+    );
+
+  if (
+    PERIODOS_HISTORICO_OFFLINE_UX201
+      .includes(numero)
+  ) {
+    return numero;
+  }
+
+  return fallback;
+}
+
+
+/**
+ * Retorna a preferência persistida.
+ *
+ * Caso ainda não exista ou esteja inválida,
+ * registra automaticamente o padrão de 30 dias.
+ */
+function obterPeriodoHistoricoOfflineUX201_() {
+  let valorPersistido = null;
+
+  try {
+    valorPersistido =
+      localStorage.getItem(
+        CHAVE_HISTORICO_OFFLINE_UX201
+      );
+
+  } catch (erro) {
+    console.warn(
+      "[UX.20.1] Não foi possível ler o localStorage:",
+      erro
+    );
+  }
+
+  const periodoValido =
+    normalizarPeriodoHistoricoUX201_(
+      valorPersistido,
+      null
+    );
+
+  if (periodoValido !== null) {
+    return periodoValido;
+  }
+
+  try {
+    localStorage.setItem(
+      CHAVE_HISTORICO_OFFLINE_UX201,
+      String(
+        PERIODO_PADRAO_HISTORICO_UX201
+      )
+    );
+
+    localStorage.setItem(
+      CHAVE_META_HISTORICO_UX201,
+      JSON.stringify({
+        periodoDias:
+          PERIODO_PADRAO_HISTORICO_UX201,
+
+        origem:
+          "PADRAO_DO_SISTEMA",
+
+        atualizadoEm:
+          new Date().toISOString()
+      })
+    );
+
+  } catch (erro) {
+    console.warn(
+      "[UX.20.1] Não foi possível persistir o período padrão:",
+      erro
+    );
+  }
+
+  return PERIODO_PADRAO_HISTORICO_UX201;
+}
+
+
+/**
+ * Salva uma preferência válida.
+ *
+ * Valores diferentes de 15, 30, 60 ou 90
+ * são rejeitados.
+ */
+function salvarPeriodoHistoricoOfflineUX201_(
+  valor,
+  origem = "INTERFACE"
+) {
+  const periodo =
+    normalizarPeriodoHistoricoUX201_(
+      valor,
+      null
+    );
+
+  if (periodo === null) {
+    throw new RangeError(
+      "Período inválido. Utilize somente 15, 30, 60 ou 90 dias."
+    );
+  }
+
+  localStorage.setItem(
+    CHAVE_HISTORICO_OFFLINE_UX201,
+    String(periodo)
+  );
+
+  localStorage.setItem(
+    CHAVE_META_HISTORICO_UX201,
+    JSON.stringify({
+      periodoDias:
+        periodo,
+
+      origem:
+        String(origem || "INTERFACE"),
+
+      atualizadoEm:
+        new Date().toISOString()
+    })
+  );
+
+  aplicarPeriodoHistoricoNaInterfaceUX201_(
+    periodo,
+    false
+  );
+
+  console.log(
+    "[UX.20.1] Histórico offline configurado:",
+    periodo,
+    "dias."
+  );
+
+  return periodo;
+}
+
+
+/**
+ * Resolve o período que será utilizado por uma API.
+ *
+ * Um valor explícito válido tem prioridade.
+ * Caso contrário, usa a preferência do dispositivo.
+ */
+function resolverPeriodoHistoricoOfflineUX201_(
+  valor
+) {
+  const periodoExplicito =
+    normalizarPeriodoHistoricoUX201_(
+      valor,
+      null
+    );
+
+  if (periodoExplicito !== null) {
+    return periodoExplicito;
+  }
+
+  return obterPeriodoHistoricoOfflineUX201_();
+}
+
+
+/**
+ * Localiza o select do período de reidratação.
+ *
+ * Primeiro procura IDs conhecidos.
+ * Depois procura semanticamente dentro da interface.
+ */
+function obterSelectPeriodoHistoricoUX201_() {
+  const idsConhecidos = [
+    "periodoReidratacaoUX1958",
+    "diasHistoricoUX1958",
+    "historicoReidratacaoUX1958",
+    "periodoHistoricoUX1958",
+    "selectPeriodoReidratacaoUX1958",
+    "diasReidratacaoUX1958"
+  ];
+
+  for (const id of idsConhecidos) {
+    const elemento =
+      document.getElementById(id);
+
+    if (
+      elemento &&
+      elemento.tagName === "SELECT"
+    ) {
+      return elemento;
+    }
+  }
+
+  const seletoresSemanticos = [
+    'select[data-periodo-reidratacao]',
+    'select[data-historico-offline]',
+    'select[name*="historico" i]',
+    'select[name*="periodo" i]',
+    'select[id*="historico" i]',
+    'select[id*="periodo" i][id*="reidrat" i]'
+  ];
+
+  for (
+    const seletor of seletoresSemanticos
+  ) {
+    const elemento =
+      document.querySelector(seletor);
+
+    if (elemento) {
+      return elemento;
+    }
+  }
+
+  /*
+   * Último recurso:
+   * procura um select que já contenha as quatro opções.
+   */
+  const selects =
+    Array.from(
+      document.querySelectorAll("select")
+    );
+
+  return (
+    selects.find(
+      function (select) {
+        const valores =
+          Array.from(select.options)
+            .map(
+              function (option) {
+                return Number(
+                  option.value
+                );
+              }
+            );
+
+        return PERIODOS_HISTORICO_OFFLINE_UX201
+          .every(
+            function (periodo) {
+              return valores.includes(
+                periodo
+              );
+            }
+          );
+      }
+    ) || null
+  );
+}
+
+
+/**
+ * Garante que o select possua exclusivamente
+ * as opções oficiais.
+ */
+function garantirOpcoesPeriodoHistoricoUX201_(
+  select
+) {
+  if (!select) {
+    return false;
+  }
+
+  const valoresAtuais =
+    Array.from(select.options)
+      .map(
+        function (option) {
+          return Number(
+            option.value
+          );
+        }
+      )
+      .filter(
+        function (valor) {
+          return Number.isFinite(valor);
+        }
+      );
+
+  const possuiOpcoesCorretas =
+    valoresAtuais.length ===
+      PERIODOS_HISTORICO_OFFLINE_UX201.length &&
+
+    PERIODOS_HISTORICO_OFFLINE_UX201
+      .every(
+        function (periodo) {
+          return valoresAtuais.includes(
+            periodo
+          );
+        }
+      );
+
+  if (!possuiOpcoesCorretas) {
+    select.innerHTML =
+      PERIODOS_HISTORICO_OFFLINE_UX201
+        .map(
+          function (periodo) {
+            return (
+              '<option value="' +
+              periodo +
+              '">' +
+              periodo +
+              " dias</option>"
+            );
+          }
+        )
+        .join("");
+  }
+
+  select.dataset.historicoOffline =
+    "true";
+
+  select.dataset.ux201Instalado =
+    "true";
+
+  return true;
+}
+
+
+/**
+ * Localiza a área visual de “Última atualização”.
+ */
+function obterAreaUltimaAtualizacaoUX201_() {
+  const idsConhecidos = [
+    "ultimaAtualizacaoObraUX1958",
+    "ultimaAtualizacaoReidratacaoUX1958",
+    "textoUltimaAtualizacaoUX1958",
+    "cardUltimaAtualizacaoUX1958",
+    "ultimaAtualizacaoObraMobile"
+  ];
+
+  for (const id of idsConhecidos) {
+    const elemento =
+      document.getElementById(id);
+
+    if (elemento) {
+      return elemento;
+    }
+  }
+
+  const candidatos =
+    Array.from(
+      document.querySelectorAll(
+        '[id*="ultima" i][id*="atual" i], ' +
+        '[class*="ultima" i][class*="atual" i]'
+      )
+    );
+
+  const candidatoPorTexto =
+    candidatos.find(
+      function (elemento) {
+        return /última atualização|ultima atualizacao/i
+          .test(
+            String(
+              elemento.textContent || ""
+            )
+          );
+      }
+    );
+
+  return candidatoPorTexto || null;
+}
+
+
+/**
+ * Atualiza a informação visual do histórico configurado.
+ */
+function atualizarIndicadorHistoricoUX201_(
+  periodo
+) {
+  const area =
+    obterAreaUltimaAtualizacaoUX201_();
+
+  if (!area) {
+    return false;
+  }
+
+  let indicador =
+    document.getElementById(
+      "indicadorHistoricoOfflineUX201"
+    );
+
+  if (!indicador) {
+    indicador =
+      document.createElement("div");
+
+    indicador.id =
+      "indicadorHistoricoOfflineUX201";
+
+    indicador.style.marginTop =
+      "6px";
+
+    indicador.style.fontSize =
+      "12px";
+
+    indicador.style.opacity =
+      "0.78";
+
+    indicador.style.fontWeight =
+      "600";
+
+    const container =
+      area.matches(
+        "input, select, textarea"
+      )
+        ? area.parentElement
+        : area;
+
+    container?.appendChild(
+      indicador
+    );
+  }
+
+  indicador.textContent =
+    "Histórico offline: " +
+    periodo +
+    " dias";
+
+  indicador.dataset.periodoDias =
+    String(periodo);
+
+  return true;
+}
+
+
+/**
+ * Aplica a preferência ao select e ao card.
+ */
+function aplicarPeriodoHistoricoNaInterfaceUX201_(
+  periodo = null,
+  forcarSelect = true
+) {
+  const periodoResolvido =
+    resolverPeriodoHistoricoOfflineUX201_(
+      periodo
+    );
+
+  const select =
+    obterSelectPeriodoHistoricoUX201_();
+
+  if (select) {
+    garantirOpcoesPeriodoHistoricoUX201_(
+      select
+    );
+
+    const valorAtual =
+      normalizarPeriodoHistoricoUX201_(
+        select.value,
+        null
+      );
+
+    if (
+      forcarSelect ||
+      valorAtual === null
+    ) {
+      select.value =
+        String(periodoResolvido);
+    }
+  }
+
+  atualizarIndicadorHistoricoUX201_(
+    periodoResolvido
+  );
+
+  return {
+    periodoDias:
+      periodoResolvido,
+
+    selectEncontrado:
+      Boolean(select),
+
+    valorSelect:
+      select?.value || "",
+
+    indicadorAtualizado:
+      Boolean(
+        document.getElementById(
+          "indicadorHistoricoOfflineUX201"
+        )
+      )
+  };
+}
+
+
+/**
+ * Adapta argumentos de clientes Mobile.
+ */
+function adaptarArgumentosClienteHistoricoUX201_(
+  argumentos
+) {
+  const args =
+    Array.from(argumentos);
+
+  /*
+   * Contrato por payload:
+   *
+   * cliente({
+   *   idObra,
+   *   diasHistorico
+   * })
+   */
+  if (
+    args[0] &&
+    typeof args[0] === "object" &&
+    !Array.isArray(args[0])
+  ) {
+    const payload = {
+      ...args[0]
+    };
+
+    payload.diasHistorico =
+      resolverPeriodoHistoricoOfflineUX201_(
+        payload.diasHistorico ??
+        payload.periodoDias
+      );
+
+    payload.periodoDias =
+      payload.diasHistorico;
+
+    args[0] =
+      payload;
+
+    return args;
+  }
+
+  /*
+   * Contrato tradicional:
+   *
+   * cliente(idObra, periodoDias)
+   */
+  args[1] =
+    resolverPeriodoHistoricoOfflineUX201_(
+      args[1]
+    );
+
+  return args;
+}
+
+
+/**
+ * Protege um cliente Mobile individual.
+ */
+function envolverClienteHistoricoUX201_(
+  nomeFuncao
+) {
+  const funcaoAtual =
+    window[nomeFuncao];
+
+  if (
+    typeof funcaoAtual !== "function"
+  ) {
+    return false;
+  }
+
+  if (
+    funcaoAtual.__ux201Protegida === true
+  ) {
+    return true;
+  }
+
+  async function clienteComHistoricoUX201_(
+    ...argumentos
+  ) {
+    const argumentosResolvidos =
+      adaptarArgumentosClienteHistoricoUX201_(
+        argumentos
+      );
+
+    return funcaoAtual.apply(
+      this,
+      argumentosResolvidos
+    );
+  }
+
+  clienteComHistoricoUX201_
+    .__ux201Protegida = true;
+
+  clienteComHistoricoUX201_
+    .__ux201Original = funcaoAtual;
+
+  window[nomeFuncao] =
+    clienteComHistoricoUX201_;
+
+  return true;
+}
+
+
+/**
+ * Instala a preferência nos clientes de todas
+ * as entidades reidratadas.
+ */
+function instalarClientesHistoricoUX201_() {
+  const clientes = [
+    "obterDadosOperacionaisObraMobile_",
+    "obterOcorrenciasOperacionaisObraMobile_",
+    "obterClimasOperacionaisObraMobile_",
+    "obterEvidenciasOperacionaisObraMobile_",
+    "obterMedicoesOficiaisObraMobile_"
+  ];
+
+  const resultado = {};
+
+  clientes.forEach(
+    function (nomeFuncao) {
+      resultado[nomeFuncao] =
+        envolverClienteHistoricoUX201_(
+          nomeFuncao
+        );
+    }
+  );
+
+  return resultado;
+}
+
+
+/**
+ * Salva a opção selecionada antes de visualizar
+ * ou confirmar uma reidratação.
+ */
+function salvarSelecaoAtualHistoricoUX201_(
+  origem
+) {
+  const select =
+    obterSelectPeriodoHistoricoUX201_();
+
+  if (!select) {
+    return obterPeriodoHistoricoOfflineUX201_();
+  }
+
+  try {
+    return salvarPeriodoHistoricoOfflineUX201_(
+      select.value,
+      origem
+    );
+
+  } catch (erro) {
+    console.error(
+      "[UX.20.1] Seleção rejeitada:",
+      erro
+    );
+
+    const periodoAtual =
+      obterPeriodoHistoricoOfflineUX201_();
+
+    select.value =
+      String(periodoAtual);
+
+    throw erro;
+  }
+}
+
+
+/**
+ * Instala listeners e observação da interface.
+ */
+function instalarConfiguracaoHistoricoOfflineUX201_() {
+  window.SIGO_UX201 =
+    window.SIGO_UX201 || {};
+
+  if (
+    window.SIGO_UX201.instalado === true
+  ) {
+    aplicarPeriodoHistoricoNaInterfaceUX201_();
+
+    return {
+      instalado:
+        true,
+
+      repetido:
+        true,
+
+      periodoDias:
+        obterPeriodoHistoricoOfflineUX201_()
+    };
+  }
+
+  window.SIGO_UX201.instalado =
+    true;
+
+  window.SIGO_UX201.clientes =
+    instalarClientesHistoricoUX201_();
+
+
+  /*
+   * Alteração manual do select.
+   */
+  document.addEventListener(
+    "change",
+    function (evento) {
+      const select =
+        evento.target;
+
+      if (
+        !select ||
+        select.tagName !== "SELECT"
+      ) {
+        return;
+      }
+
+      const selectOficial =
+        obterSelectPeriodoHistoricoUX201_();
+
+      if (
+        select !== selectOficial &&
+        select.dataset
+          ?.historicoOffline !==
+          "true"
+      ) {
+        return;
+      }
+
+      try {
+        salvarPeriodoHistoricoOfflineUX201_(
+          select.value,
+          "ALTERACAO_USUARIO"
+        );
+
+      } catch (erro) {
+        console.error(
+          "[UX.20.1] Período inválido:",
+          erro
+        );
+
+        select.value =
+          String(
+            obterPeriodoHistoricoOfflineUX201_()
+          );
+      }
+    },
+    true
+  );
+
+
+  /*
+   * Captura antes dos handlers anteriores de
+   * visualizar e confirmar.
+   */
+  document.addEventListener(
+    "click",
+    function (evento) {
+      const botao =
+        evento.target?.closest?.(
+          "#visualizarReidratacaoUX1958, " +
+          "#confirmarReidratacaoUX1958"
+        );
+
+      if (!botao) {
+        return;
+      }
+
+      salvarSelecaoAtualHistoricoUX201_(
+        botao.id ===
+          "confirmarReidratacaoUX1958"
+          ? "CONFIRMACAO_REIDRATACAO"
+          : "PRE_VISUALIZACAO_REIDRATACAO"
+      );
+    },
+    true
+  );
+
+
+  /*
+   * Observa interfaces criadas dinamicamente.
+   */
+  let agendamento = null;
+
+  const observer =
+    new MutationObserver(
+      function () {
+        clearTimeout(agendamento);
+
+        agendamento =
+          setTimeout(
+            function () {
+              aplicarPeriodoHistoricoNaInterfaceUX201_(
+                null,
+                false
+              );
+            },
+            50
+          );
+      }
+    );
+
+  observer.observe(
+    document.documentElement,
+    {
+      childList:
+        true,
+
+      subtree:
+        true
+    }
+  );
+
+  window.SIGO_UX201.observer =
+    observer;
+
+  const interfaceInicial =
+    aplicarPeriodoHistoricoNaInterfaceUX201_(
+      obterPeriodoHistoricoOfflineUX201_(),
+      true
+    );
+
+  console.log(
+    "UX.20.1 — Configuração persistente do histórico offline instalada.",
+    interfaceInicial
+  );
+
+  return {
+    instalado:
+      true,
+
+    repetido:
+      false,
+
+    periodoDias:
+      obterPeriodoHistoricoOfflineUX201_(),
+
+    clientes:
+      window.SIGO_UX201.clientes,
+
+    interface:
+      interfaceInicial
+  };
+}
+
+
+/**
+ * Resumo da configuração atual.
+ */
+function obterResumoHistoricoOfflineUX201_() {
+  let metadados = null;
+
+  try {
+    metadados =
+      JSON.parse(
+        localStorage.getItem(
+          CHAVE_META_HISTORICO_UX201
+        ) || "null"
+      );
+
+  } catch (erro) {
+    metadados = null;
+  }
+
+  const select =
+    obterSelectPeriodoHistoricoUX201_();
+
+  return {
+    etapa:
+      "UX.20.1",
+
+    periodoDias:
+      obterPeriodoHistoricoOfflineUX201_(),
+
+    periodosPermitidos:
+      [
+        ...PERIODOS_HISTORICO_OFFLINE_UX201
+      ],
+
+    persistencia:
+      "LOCAL_STORAGE_DISPOSITIVO",
+
+    metadados:
+      metadados,
+
+    interface: {
+      selectEncontrado:
+        Boolean(select),
+
+      valorSelect:
+        select?.value || "",
+
+      indicadorEncontrado:
+        Boolean(
+          document.getElementById(
+            "indicadorHistoricoOfflineUX201"
+          )
+        )
+    },
+
+    limpezaAutomatica:
+      false
+  };
+}
+
+
+/**
+ * Instalação automática.
+ */
+if (
+  document.readyState === "loading"
+) {
+  document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+      instalarConfiguracaoHistoricoOfflineUX201_();
+    },
+    {
+      once:
+        true
+    }
+  );
+
+} else {
+  instalarConfiguracaoHistoricoOfflineUX201_();
+}
+
+/**
+ * ============================================================
+ * UX.20.1 — AUDITORIA DA CONFIGURAÇÃO PERSISTENTE
+ * ============================================================
+ *
+ * Não chama APIs.
+ * Não executa reidratação.
+ * Não altera IndexedDB.
+ */
+async function auditarConfiguracaoHistoricoOfflineUX201_() {
+  console.log(
+    "[UX.20.1] Iniciando auditoria da configuração persistente..."
+  );
+
+  const storesAuditadas = [
+    "TB_DIARIOS",
+    "TB_DIARIO_ITENS",
+    "TB_OCORRENCIAS",
+    "TB_CLIMA",
+    "TB_EVIDENCIAS",
+    "TB_MEDICOES",
+    "TB_LOTES_MEDICAO",
+    "TB_SYNC_QUEUE",
+    "TB_NOTIFICACOES"
+  ];
+
+  async function capturarStores_() {
+    const resultado = {};
+
+    for (const nomeStore of storesAuditadas) {
+      const registros =
+        await lerStoreBrutaUX1997A_(
+          nomeStore
+        );
+
+      resultado[nomeStore] = {
+        quantidade:
+          registros.length,
+
+        assinatura:
+          criarAssinaturaStoreMedicoesUX1994_(
+            registros
+          )
+      };
+    }
+
+    return resultado;
+  }
+
+
+  const storesAntes =
+    await capturarStores_();
+
+  const valorOriginal =
+    obterPeriodoHistoricoOfflineUX201_();
+
+  const metaOriginal =
+    localStorage.getItem(
+      CHAVE_META_HISTORICO_UX201
+    );
+
+  const resultadosPersistencia = {};
+
+  for (
+    const periodo of
+    PERIODOS_HISTORICO_OFFLINE_UX201
+  ) {
+    salvarPeriodoHistoricoOfflineUX201_(
+      periodo,
+      "AUDITORIA_UX201"
+    );
+
+    resultadosPersistencia[periodo] =
+      Number(
+        localStorage.getItem(
+          CHAVE_HISTORICO_OFFLINE_UX201
+        )
+      ) === periodo &&
+      obterPeriodoHistoricoOfflineUX201_() ===
+        periodo;
+  }
+
+
+  let valorInvalidoRejeitado =
+    false;
+
+  try {
+    salvarPeriodoHistoricoOfflineUX201_(
+      45,
+      "AUDITORIA_VALOR_INVALIDO"
+    );
+
+  } catch (erro) {
+    valorInvalidoRejeitado =
+      erro instanceof RangeError;
+  }
+
+
+  /*
+   * Restaura exatamente a preferência anterior.
+   */
+  localStorage.setItem(
+    CHAVE_HISTORICO_OFFLINE_UX201,
+    String(valorOriginal)
+  );
+
+  if (metaOriginal !== null) {
+    localStorage.setItem(
+      CHAVE_META_HISTORICO_UX201,
+      metaOriginal
+    );
+
+  } else {
+    localStorage.removeItem(
+      CHAVE_META_HISTORICO_UX201
+    );
+  }
+
+  aplicarPeriodoHistoricoNaInterfaceUX201_(
+    valorOriginal,
+    true
+  );
+
+
+  const select =
+    obterSelectPeriodoHistoricoUX201_();
+
+  const opcoesSelect =
+    select
+      ? Array.from(select.options)
+          .map(
+            function (option) {
+              return Number(
+                option.value
+              );
+            }
+          )
+      : [];
+
+  const clientes = [
+    "obterDadosOperacionaisObraMobile_",
+    "obterOcorrenciasOperacionaisObraMobile_",
+    "obterClimasOperacionaisObraMobile_",
+    "obterEvidenciasOperacionaisObraMobile_",
+    "obterMedicoesOficiaisObraMobile_"
+  ];
+
+  const clientesProtegidos = {};
+
+  clientes.forEach(
+    function (nomeFuncao) {
+      clientesProtegidos[nomeFuncao] =
+        typeof window[nomeFuncao] ===
+          "function" &&
+        window[nomeFuncao]
+          .__ux201Protegida ===
+          true;
+    }
+  );
+
+
+  const storesDepois =
+    await capturarStores_();
+
+  const storesPreservadas = {};
+
+  storesAuditadas.forEach(
+    function (nomeStore) {
+      storesPreservadas[nomeStore] =
+        storesAntes[nomeStore]
+          .quantidade ===
+          storesDepois[nomeStore]
+            .quantidade &&
+
+        storesAntes[nomeStore]
+          .assinatura ===
+          storesDepois[nomeStore]
+            .assinatura;
+    }
+  );
+
+
+  const validacoes = {
+    periodoPadraoConfigurado:
+      valorOriginal === 15 ||
+      valorOriginal === 30 ||
+      valorOriginal === 60 ||
+      valorOriginal === 90,
+
+    salvou15:
+      resultadosPersistencia[15] ===
+      true,
+
+    salvou30:
+      resultadosPersistencia[30] ===
+      true,
+
+    salvou60:
+      resultadosPersistencia[60] ===
+      true,
+
+    salvou90:
+      resultadosPersistencia[90] ===
+      true,
+
+    rejeitou45:
+      valorInvalidoRejeitado === true,
+
+    preferenciaOriginalRestaurada:
+      obterPeriodoHistoricoOfflineUX201_() ===
+      valorOriginal,
+
+    selectEncontrado:
+      Boolean(select),
+
+    selectPossuiQuatroOpcoes:
+      opcoesSelect.length === 4,
+
+    selectPossui15:
+      opcoesSelect.includes(15),
+
+    selectPossui30:
+      opcoesSelect.includes(30),
+
+    selectPossui60:
+      opcoesSelect.includes(60),
+
+    selectPossui90:
+      opcoesSelect.includes(90),
+
+    selectMostraPreferencia:
+      Number(select?.value) ===
+      valorOriginal,
+
+    indicadorVisualCriado:
+      Boolean(
+        document.getElementById(
+          "indicadorHistoricoOfflineUX201"
+        )
+      ),
+
+    todosClientesProtegidos:
+      Object.values(
+        clientesProtegidos
+      ).every(
+        function (valor) {
+          return valor === true;
+        }
+      ),
+
+    todasStoresPreservadas:
+      Object.values(
+        storesPreservadas
+      ).every(
+        function (valor) {
+          return valor === true;
+        }
+      )
+  };
+
+
+  const aprovado =
+    Object.values(validacoes)
+      .every(
+        function (valor) {
+          return valor === true;
+        }
+      );
+
+
+  const resultado = {
+    etapa:
+      "UX.20.1",
+
+    auditoria:
+      "CONFIGURACAO_PERSISTENTE_HISTORICO_OFFLINE",
+
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+
+    configuracao: {
+      periodoAtual:
+        valorOriginal,
+
+      periodosPermitidos:
+        [
+          ...PERIODOS_HISTORICO_OFFLINE_UX201
+        ],
+
+      periodoPadrao:
+        PERIODO_PADRAO_HISTORICO_UX201,
+
+      chavePersistencia:
+        CHAVE_HISTORICO_OFFLINE_UX201,
+
+      escopo:
+        "DISPOSITIVO_NAVEGADOR",
+
+      limpezaExecutada:
+        false
+    },
+
+    persistenciaTestada:
+      resultadosPersistencia,
+
+    clientesProtegidos:
+      clientesProtegidos,
+
+    interface: {
+      selectEncontrado:
+        Boolean(select),
+
+      valorSelect:
+        select?.value || "",
+
+      opcoes:
+        opcoesSelect,
+
+      indicador:
+        document.getElementById(
+          "indicadorHistoricoOfflineUX201"
+        )?.textContent || ""
+    },
+
+    stores: Object.fromEntries(
+      storesAuditadas.map(
+        function (nomeStore) {
+          return [
+            nomeStore,
+            {
+              antes:
+                storesAntes[nomeStore]
+                  .quantidade,
+
+              depois:
+                storesDepois[nomeStore]
+                  .quantidade,
+
+              preservada:
+                storesPreservadas[
+                  nomeStore
+                ]
+            }
+          ];
+        }
+      )
+    ),
+
+    validacoes:
+      validacoes,
+
+    aprovado:
+      aprovado
+  };
+
+
+  console.log(
+    JSON.stringify(
+      resultado,
+      null,
+      2
+    )
+  );
+
+
+  if (!aprovado) {
+    throw new Error(
+      "UX.20.1 REPROVADA. Consulte as validações no console."
+    );
+  }
+
+
+  console.log(
+    "UX.20.1 — CONFIGURAÇÃO PERSISTENTE DO HISTÓRICO OFFLINE APROVADA."
+  );
+
+  return resultado;
+}
