@@ -61200,3 +61200,2600 @@ async function auditarContratoIdentidadeUX212_() {
 
   return resultado;
 }
+
+/**
+ * ============================================================
+ * UX.21.3 — PERSISTÊNCIA LOCAL OFICIAL DE IDENTIDADE
+ * ============================================================
+ *
+ * Dependências:
+ *
+ * - UX.21.1 — auditoria da identidade atual;
+ * - UX.21.2 — contrato oficial versão 1.0.
+ *
+ * Esta etapa:
+ *
+ * - cria stores oficiais de identidade;
+ * - valida contratos antes da gravação;
+ * - proíbe credenciais secretas;
+ * - mantém somente uma sessão ATIVA por dispositivo;
+ * - registra eventos de auditoria;
+ * - não substitui USUARIO_MOBILE nos fluxos antigos;
+ * - não altera registros operacionais existentes.
+ */
+
+const STORES_IDENTIDADE_UX213 = Object.freeze({
+  usuarios: "TB_USUARIOS",
+  dispositivos: "TB_DISPOSITIVOS",
+  sessao: "TB_SESSAO",
+  auditoria: "TB_AUDITORIA_IDENTIDADE"
+});
+
+
+function textoUX213_(valor) {
+  return String(
+    valor === undefined ||
+    valor === null
+      ? ""
+      : valor
+  ).trim();
+}
+
+
+/**
+ * ============================================================
+ * CRIAÇÃO DAS STORES
+ * ============================================================
+ *
+ * Esta função deve ser chamada exclusivamente dentro do
+ * onupgradeneeded do banco SIGO_OFFLINE_DB.
+ */
+function criarStoresIdentidadeUX213_(
+  db,
+  transacaoUpgrade
+) {
+  const criadas = [];
+  const existentes = [];
+
+
+  function obterOuCriarStore_(
+    nomeStore,
+    opcoes
+  ) {
+    if (
+      !db.objectStoreNames.contains(
+        nomeStore
+      )
+    ) {
+      const store =
+        db.createObjectStore(
+          nomeStore,
+          opcoes
+        );
+
+      criadas.push(
+        nomeStore
+      );
+
+      return store;
+    }
+
+    existentes.push(
+      nomeStore
+    );
+
+    return transacaoUpgrade
+      .objectStore(
+        nomeStore
+      );
+  }
+
+
+  function criarIndice_(
+    store,
+    nomeIndice,
+    keyPath,
+    opcoes = {}
+  ) {
+    if (
+      !store.indexNames.contains(
+        nomeIndice
+      )
+    ) {
+      store.createIndex(
+        nomeIndice,
+        keyPath,
+        opcoes
+      );
+    }
+  }
+
+
+  /*
+   * ========================================================
+   * TB_USUARIOS
+   * ========================================================
+   */
+
+  const usuarios =
+    obterOuCriarStore_(
+      STORES_IDENTIDADE_UX213
+        .usuarios,
+      {
+        keyPath:
+          "idUsuario"
+      }
+    );
+
+  criarIndice_(
+    usuarios,
+    "porEmail",
+    "email",
+    {
+      unique:
+        false
+    }
+  );
+
+  criarIndice_(
+    usuarios,
+    "porStatus",
+    "statusUsuario",
+    {
+      unique:
+        false
+    }
+  );
+
+  criarIndice_(
+    usuarios,
+    "porAtualizacao",
+    "atualizadoEm",
+    {
+      unique:
+        false
+    }
+  );
+
+
+  /*
+   * ========================================================
+   * TB_DISPOSITIVOS
+   * ========================================================
+   */
+
+  const dispositivos =
+    obterOuCriarStore_(
+      STORES_IDENTIDADE_UX213
+        .dispositivos,
+      {
+        keyPath:
+          "idDispositivo"
+      }
+    );
+
+  criarIndice_(
+    dispositivos,
+    "porUsuario",
+    "idUsuarioVinculado",
+    {
+      unique:
+        false
+    }
+  );
+
+  criarIndice_(
+    dispositivos,
+    "porStatus",
+    "statusDispositivo",
+    {
+      unique:
+        false
+    }
+  );
+
+  criarIndice_(
+    dispositivos,
+    "porUltimaConexao",
+    "ultimaConexaoEm",
+    {
+      unique:
+        false
+    }
+  );
+
+  criarIndice_(
+    dispositivos,
+    "porComandoRemoto",
+    "comandoRemoto.tipo",
+    {
+      unique:
+        false
+    }
+  );
+
+
+  /*
+   * ========================================================
+   * TB_SESSAO
+   * ========================================================
+   *
+   * O histórico de sessões é preservado.
+   *
+   * A regra de apenas uma sessão ATIVA por dispositivo
+   * será aplicada antes de cada gravação.
+   */
+
+  const sessoes =
+    obterOuCriarStore_(
+      STORES_IDENTIDADE_UX213
+        .sessao,
+      {
+        keyPath:
+          "idSessao"
+      }
+    );
+
+  criarIndice_(
+    sessoes,
+    "porUsuario",
+    "idUsuario",
+    {
+      unique:
+        false
+    }
+  );
+
+  criarIndice_(
+    sessoes,
+    "porDispositivo",
+    "idDispositivo",
+    {
+      unique:
+        false
+    }
+  );
+
+  criarIndice_(
+    sessoes,
+    "porStatus",
+    "statusSessao",
+    {
+      unique:
+        false
+    }
+  );
+
+  criarIndice_(
+    sessoes,
+    "porValidadeOffline",
+    "validadeOfflineAte",
+    {
+      unique:
+        false
+    }
+  );
+
+  criarIndice_(
+    sessoes,
+    "porAtualizacao",
+    "atualizadoEm",
+    {
+      unique:
+        false
+    }
+  );
+
+
+  /*
+   * ========================================================
+   * TB_AUDITORIA_IDENTIDADE
+   * ========================================================
+   */
+
+  const auditoria =
+    obterOuCriarStore_(
+      STORES_IDENTIDADE_UX213
+        .auditoria,
+      {
+        keyPath:
+          "idEvento"
+      }
+    );
+
+  criarIndice_(
+    auditoria,
+    "porTipoEvento",
+    "tipoEvento",
+    {
+      unique:
+        false
+    }
+  );
+
+  criarIndice_(
+    auditoria,
+    "porEntidade",
+    "tipoEntidade",
+    {
+      unique:
+        false
+    }
+  );
+
+  criarIndice_(
+    auditoria,
+    "porIdEntidade",
+    "idEntidade",
+    {
+      unique:
+        false
+    }
+  );
+
+  criarIndice_(
+    auditoria,
+    "porUsuario",
+    "idUsuario",
+    {
+      unique:
+        false
+    }
+  );
+
+  criarIndice_(
+    auditoria,
+    "porDispositivo",
+    "idDispositivo",
+    {
+      unique:
+        false
+    }
+  );
+
+  criarIndice_(
+    auditoria,
+    "porSessao",
+    "idSessao",
+    {
+      unique:
+        false
+    }
+  );
+
+  criarIndice_(
+    auditoria,
+    "porData",
+    "ocorridoEm",
+    {
+      unique:
+        false
+    }
+  );
+
+
+  console.log(
+    "[UX.21.3] Stores de identidade verificadas.",
+    {
+      criadas:
+        criadas,
+
+      existentes:
+        existentes
+    }
+  );
+
+  return {
+    criadas:
+      criadas,
+
+    existentes:
+      existentes
+  };
+}
+
+
+/**
+ * ============================================================
+ * UTILITÁRIOS
+ * ============================================================
+ */
+
+function textoUX213_(valor) {
+  return String(
+    valor === undefined ||
+    valor === null
+      ? ""
+      : valor
+  ).trim();
+}
+
+
+function clonarUX213_(valor) {
+  return JSON.parse(
+    JSON.stringify(valor)
+  );
+}
+
+
+function gerarUuidUX213_() {
+  if (
+    globalThis.crypto &&
+    typeof globalThis.crypto
+      .randomUUID ===
+      "function"
+  ) {
+    return globalThis.crypto
+      .randomUUID();
+  }
+
+  return (
+    Date.now().toString(36) +
+    "-" +
+    Math.random()
+      .toString(36)
+      .slice(2) +
+    "-" +
+    Math.random()
+      .toString(36)
+      .slice(2)
+  );
+}
+
+
+function gerarIdEventoIdentidadeUX213_() {
+  return (
+    "AUD-ID-" +
+    Date.now() +
+    "-" +
+    gerarUuidUX213_()
+  );
+}
+
+
+function promessaRequisicaoUX213_(
+  requisicao
+) {
+  return new Promise(
+    function (resolve, reject) {
+      requisicao.onsuccess =
+        function () {
+          resolve(
+            requisicao.result
+          );
+        };
+
+      requisicao.onerror =
+        function () {
+          reject(
+            requisicao.error ||
+            new Error(
+              "Falha na operação do IndexedDB."
+            )
+          );
+        };
+    }
+  );
+}
+
+
+function promessaTransacaoUX213_(
+  transacao
+) {
+  return new Promise(
+    function (resolve, reject) {
+      transacao.oncomplete =
+        function () {
+          resolve(true);
+        };
+
+      transacao.onerror =
+        function () {
+          reject(
+            transacao.error ||
+            new Error(
+              "Falha na transação de identidade."
+            )
+          );
+        };
+
+      transacao.onabort =
+        function () {
+          reject(
+            transacao.error ||
+            new Error(
+              "Transação de identidade cancelada."
+            )
+          );
+        };
+    }
+  );
+}
+
+
+/**
+ * Garante que as quatro stores já estejam disponíveis.
+ */
+async function abrirBancoIdentidadeUX213_() {
+  const db =
+    await abrirBancoLocalSIGO();
+
+  const ausentes =
+    Object.values(
+      STORES_IDENTIDADE_UX213
+    ).filter(
+      function (nomeStore) {
+        return (
+          !db.objectStoreNames
+            .contains(
+              nomeStore
+            )
+        );
+      }
+    );
+
+  if (ausentes.length) {
+    try {
+      db.close();
+    } catch (erro) {
+      // Sem ação.
+    }
+
+    throw new Error(
+      "As stores de identidade ainda não foram criadas: " +
+      ausentes.join(", ") +
+      ". Verifique a versão 3 e o onupgradeneeded."
+    );
+  }
+
+  return db;
+}
+
+
+/**
+ * Rejeita contratos que contenham credenciais secretas.
+ */
+function validarAusenciaSegredosUX213_(
+  registro
+) {
+  const campos =
+    localizarCamposSecretosUX212_(
+      registro
+    );
+
+  if (campos.length) {
+    throw new Error(
+      "PERSISTENCIA_BLOQUEADA_CAMPO_SECRETO: " +
+      campos.join(", ")
+    );
+  }
+
+  return true;
+}
+
+
+/**
+ * ============================================================
+ * EVENTO DE AUDITORIA
+ * ============================================================
+ */
+
+function criarEventoAuditoriaIdentidadeUX213_({
+  tipoEvento,
+  tipoEntidade,
+  idEntidade,
+  idUsuario = "",
+  idDispositivo = "",
+  idSessao = "",
+  resultado = "SUCESSO",
+  origem = "APP_MOBILE",
+  detalhes = {}
+} = {}) {
+  const evento = {
+    versaoContrato:
+      VERSAO_CONTRATO_IDENTIDADE_UX212,
+
+    tipoRegistro:
+      "AUDITORIA_IDENTIDADE",
+
+    idEvento:
+      gerarIdEventoIdentidadeUX213_(),
+
+    tipoEvento:
+      textoUX213_(
+        tipoEvento
+      ),
+
+    tipoEntidade:
+      textoUX213_(
+        tipoEntidade
+      ),
+
+    idEntidade:
+      textoUX213_(
+        idEntidade
+      ),
+
+    idUsuario:
+      textoUX213_(
+        idUsuario
+      ),
+
+    idDispositivo:
+      textoUX213_(
+        idDispositivo
+      ),
+
+    idSessao:
+      textoUX213_(
+        idSessao
+      ),
+
+    resultado:
+      textoUX213_(
+        resultado
+      ),
+
+    origem:
+      textoUX213_(
+        origem
+      ),
+
+    ocorridoEm:
+      new Date().toISOString(),
+
+    detalhes:
+      clonarUX213_(
+        detalhes || {}
+      )
+  };
+
+  validarAusenciaSegredosUX213_(
+    evento
+  );
+
+  return evento;
+}
+
+
+/**
+ * ============================================================
+ * LEITURAS
+ * ============================================================
+ */
+
+async function obterRegistroIdentidadeUX213_(
+  nomeStore,
+  chave
+) {
+  const db =
+    await abrirBancoIdentidadeUX213_();
+
+  try {
+    const transacao =
+      db.transaction(
+        [nomeStore],
+        "readonly"
+      );
+
+    const requisicao =
+      transacao
+        .objectStore(nomeStore)
+        .get(chave);
+
+    const registro =
+      await promessaRequisicaoUX213_(
+        requisicao
+      );
+
+    return registro
+      ? clonarUX213_(registro)
+      : null;
+
+  } finally {
+    try {
+      db.close();
+    } catch (erro) {
+      // Sem ação.
+    }
+  }
+}
+
+
+async function listarRegistrosIdentidadeUX213_(
+  nomeStore
+) {
+  const db =
+    await abrirBancoIdentidadeUX213_();
+
+  try {
+    const transacao =
+      db.transaction(
+        [nomeStore],
+        "readonly"
+      );
+
+    const requisicao =
+      transacao
+        .objectStore(nomeStore)
+        .getAll();
+
+    const registros =
+      await promessaRequisicaoUX213_(
+        requisicao
+      );
+
+    return (
+      Array.isArray(registros)
+        ? registros
+        : []
+    ).map(clonarUX213_);
+
+  } finally {
+    try {
+      db.close();
+    } catch (erro) {
+      // Sem ação.
+    }
+  }
+}
+
+
+async function obterUsuarioIdentidadeUX213_(
+  idUsuario
+) {
+  return obterRegistroIdentidadeUX213_(
+    STORES_IDENTIDADE_UX213
+      .usuarios,
+    idUsuario
+  );
+}
+
+
+async function obterDispositivoIdentidadeUX213_(
+  idDispositivo
+) {
+  return obterRegistroIdentidadeUX213_(
+    STORES_IDENTIDADE_UX213
+      .dispositivos,
+    idDispositivo
+  );
+}
+
+
+async function obterSessaoIdentidadeUX213_(
+  idSessao
+) {
+  return obterRegistroIdentidadeUX213_(
+    STORES_IDENTIDADE_UX213
+      .sessao,
+    idSessao
+  );
+}
+
+
+async function listarAuditoriaIdentidadeUX213_() {
+  return listarRegistrosIdentidadeUX213_(
+    STORES_IDENTIDADE_UX213
+      .auditoria
+  );
+}
+
+
+/**
+ * ============================================================
+ * GRAVAÇÃO DE USUÁRIO
+ * ============================================================
+ */
+
+async function salvarUsuarioIdentidadeUX213_(
+  usuario,
+  opcoes = {}
+) {
+  const registro =
+    clonarUX213_(
+      usuario
+    );
+
+  validarAusenciaSegredosUX213_(
+    registro
+  );
+
+  const validacao =
+    validarUsuarioContratoUX212_(
+      registro
+    );
+
+  if (!validacao.valido) {
+    throw new Error(
+      "USUARIO_INVALIDO: " +
+      validacao.erros.join(", ")
+    );
+  }
+
+  const db =
+    await abrirBancoIdentidadeUX213_();
+
+  try {
+    const transacao =
+      db.transaction(
+        [
+          STORES_IDENTIDADE_UX213
+            .usuarios,
+
+          STORES_IDENTIDADE_UX213
+            .auditoria
+        ],
+        "readwrite"
+      );
+
+    const conclusao =
+      promessaTransacaoUX213_(
+        transacao
+      );
+
+    transacao
+      .objectStore(
+        STORES_IDENTIDADE_UX213
+          .usuarios
+      )
+      .put(registro);
+
+    const evento =
+      criarEventoAuditoriaIdentidadeUX213_({
+        tipoEvento:
+          opcoes.tipoEvento ||
+          "USUARIO_PERSISTIDO",
+
+        tipoEntidade:
+          "USUARIO",
+
+        idEntidade:
+          registro.idUsuario,
+
+        idUsuario:
+          registro.idUsuario,
+
+        resultado:
+          "SUCESSO",
+
+        origem:
+          opcoes.origem ||
+          "APP_MOBILE",
+
+        detalhes: {
+          statusUsuario:
+            registro.statusUsuario,
+
+          quantidadeObras:
+            registro
+              .obrasAutorizadas
+              .length
+        }
+      });
+
+    transacao
+      .objectStore(
+        STORES_IDENTIDADE_UX213
+          .auditoria
+      )
+      .add(evento);
+
+    await conclusao;
+
+    return clonarUX213_(
+      registro
+    );
+
+  } finally {
+    try {
+      db.close();
+    } catch (erro) {
+      // Sem ação.
+    }
+  }
+}
+
+
+/**
+ * ============================================================
+ * GRAVAÇÃO DE DISPOSITIVO
+ * ============================================================
+ */
+
+async function salvarDispositivoIdentidadeUX213_(
+  dispositivo,
+  opcoes = {}
+) {
+  const registro =
+    clonarUX213_(
+      dispositivo
+    );
+
+  validarAusenciaSegredosUX213_(
+    registro
+  );
+
+  const validacao =
+    validarDispositivoContratoUX212_(
+      registro
+    );
+
+  if (!validacao.valido) {
+    throw new Error(
+      "DISPOSITIVO_INVALIDO: " +
+      validacao.erros.join(", ")
+    );
+  }
+
+  const usuario =
+    await obterUsuarioIdentidadeUX213_(
+      registro.idUsuarioVinculado
+    );
+
+  if (!usuario) {
+    throw new Error(
+      "USUARIO_VINCULADO_NAO_ENCONTRADO"
+    );
+  }
+
+  const db =
+    await abrirBancoIdentidadeUX213_();
+
+  try {
+    const transacao =
+      db.transaction(
+        [
+          STORES_IDENTIDADE_UX213
+            .dispositivos,
+
+          STORES_IDENTIDADE_UX213
+            .auditoria
+        ],
+        "readwrite"
+      );
+
+    const conclusao =
+      promessaTransacaoUX213_(
+        transacao
+      );
+
+    transacao
+      .objectStore(
+        STORES_IDENTIDADE_UX213
+          .dispositivos
+      )
+      .put(registro);
+
+    const evento =
+      criarEventoAuditoriaIdentidadeUX213_({
+        tipoEvento:
+          opcoes.tipoEvento ||
+          "DISPOSITIVO_PERSISTIDO",
+
+        tipoEntidade:
+          "DISPOSITIVO",
+
+        idEntidade:
+          registro.idDispositivo,
+
+        idUsuario:
+          registro.idUsuarioVinculado,
+
+        idDispositivo:
+          registro.idDispositivo,
+
+        resultado:
+          "SUCESSO",
+
+        origem:
+          opcoes.origem ||
+          "APP_MOBILE",
+
+        detalhes: {
+          statusDispositivo:
+            registro.statusDispositivo,
+
+          comandoRemoto:
+            registro.comandoRemoto
+              ?.tipo || "NENHUM"
+        }
+      });
+
+    transacao
+      .objectStore(
+        STORES_IDENTIDADE_UX213
+          .auditoria
+      )
+      .add(evento);
+
+    await conclusao;
+
+    return clonarUX213_(
+      registro
+    );
+
+  } finally {
+    try {
+      db.close();
+    } catch (erro) {
+      // Sem ação.
+    }
+  }
+}
+
+
+/**
+ * ============================================================
+ * GRAVAÇÃO DE SESSÃO
+ * ============================================================
+ *
+ * Antes de persistir uma nova sessão ATIVA:
+ *
+ * - localiza sessões ATIVAS do mesmo dispositivo;
+ * - encerra as sessões anteriores;
+ * - grava a nova sessão;
+ * - registra tudo na auditoria.
+ */
+async function salvarSessaoIdentidadeUX213_(
+  sessao,
+  opcoes = {}
+) {
+  const registro =
+    clonarUX213_(
+      sessao
+    );
+
+  validarAusenciaSegredosUX213_(
+    registro
+  );
+
+  const validacao =
+    validarSessaoContratoUX212_(
+      registro
+    );
+
+  if (!validacao.valido) {
+    throw new Error(
+      "SESSAO_INVALIDA: " +
+      validacao.erros.join(", ")
+    );
+  }
+
+  const usuario =
+    await obterUsuarioIdentidadeUX213_(
+      registro.idUsuario
+    );
+
+  if (!usuario) {
+    throw new Error(
+      "USUARIO_DA_SESSAO_NAO_ENCONTRADO"
+    );
+  }
+
+  const dispositivo =
+    await obterDispositivoIdentidadeUX213_(
+      registro.idDispositivo
+    );
+
+  if (!dispositivo) {
+    throw new Error(
+      "DISPOSITIVO_DA_SESSAO_NAO_ENCONTRADO"
+    );
+  }
+
+  if (
+    dispositivo.idUsuarioVinculado !==
+    registro.idUsuario
+  ) {
+    throw new Error(
+      "USUARIO_E_DISPOSITIVO_DIVERGENTES"
+    );
+  }
+
+  const elegibilidade =
+    validarElegibilidadeSessaoUX212_(
+      usuario,
+      dispositivo
+    );
+
+  if (!elegibilidade.elegivel) {
+    throw new Error(
+      "SESSAO_NAO_ELEGIVEL: " +
+      elegibilidade.erros.join(", ")
+    );
+  }
+
+  const db =
+    await abrirBancoIdentidadeUX213_();
+
+  return new Promise(
+    function (resolve, reject) {
+      const transacao =
+        db.transaction(
+          [
+            STORES_IDENTIDADE_UX213
+              .sessao,
+
+            STORES_IDENTIDADE_UX213
+              .auditoria
+          ],
+          "readwrite"
+        );
+
+      const storeSessao =
+        transacao.objectStore(
+          STORES_IDENTIDADE_UX213
+            .sessao
+        );
+
+      const storeAuditoria =
+        transacao.objectStore(
+          STORES_IDENTIDADE_UX213
+            .auditoria
+        );
+
+      const indiceDispositivo =
+        storeSessao.index(
+          "porDispositivo"
+        );
+
+      const requisicao =
+        indiceDispositivo.getAll(
+          registro.idDispositivo
+        );
+
+      const encerradas = [];
+
+      requisicao.onsuccess =
+        function () {
+          const existentes =
+            Array.isArray(
+              requisicao.result
+            )
+              ? requisicao.result
+              : [];
+
+          if (
+            registro.statusSessao ===
+            "ATIVA"
+          ) {
+            existentes
+              .filter(
+                function (existente) {
+                  return (
+                    existente.idSessao !==
+                      registro.idSessao &&
+                    existente.statusSessao ===
+                      "ATIVA"
+                  );
+                }
+              )
+              .forEach(
+                function (existente) {
+                  const encerrada = {
+                    ...existente,
+
+                    statusSessao:
+                      "ENCERRADA",
+
+                    motivoEncerramento:
+                      "SUBSTITUIDA_POR_NOVA_SESSAO",
+
+                    atualizadoEm:
+                      new Date()
+                        .toISOString()
+                  };
+
+                  storeSessao.put(
+                    encerrada
+                  );
+
+                  encerradas.push(
+                    encerrada.idSessao
+                  );
+
+                  storeAuditoria.add(
+                    criarEventoAuditoriaIdentidadeUX213_({
+                      tipoEvento:
+                        "SESSAO_ENCERRADA_AUTOMATICAMENTE",
+
+                      tipoEntidade:
+                        "SESSAO",
+
+                      idEntidade:
+                        encerrada.idSessao,
+
+                      idUsuario:
+                        encerrada.idUsuario,
+
+                      idDispositivo:
+                        encerrada.idDispositivo,
+
+                      idSessao:
+                        encerrada.idSessao,
+
+                      origem:
+                        opcoes.origem ||
+                        "APP_MOBILE",
+
+                      detalhes: {
+                        motivo:
+                          "SUBSTITUIDA_POR_NOVA_SESSAO",
+
+                        novaSessao:
+                          registro.idSessao
+                      }
+                    })
+                  );
+                }
+              );
+          }
+
+          storeSessao.put(
+            registro
+          );
+
+          storeAuditoria.add(
+            criarEventoAuditoriaIdentidadeUX213_({
+              tipoEvento:
+                opcoes.tipoEvento ||
+                "SESSAO_PERSISTIDA",
+
+              tipoEntidade:
+                "SESSAO",
+
+              idEntidade:
+                registro.idSessao,
+
+              idUsuario:
+                registro.idUsuario,
+
+              idDispositivo:
+                registro.idDispositivo,
+
+              idSessao:
+                registro.idSessao,
+
+              origem:
+                opcoes.origem ||
+                "APP_MOBILE",
+
+              detalhes: {
+                statusSessao:
+                  registro.statusSessao,
+
+                obrasAutorizadas:
+                  registro
+                    .obrasAutorizadas,
+
+                sessoesEncerradas:
+                  encerradas
+              }
+            })
+          );
+        };
+
+      requisicao.onerror =
+        function () {
+          try {
+            transacao.abort();
+          } catch (erro) {
+            // Sem ação.
+          }
+        };
+
+      transacao.oncomplete =
+        function () {
+          try {
+            db.close();
+          } catch (erro) {
+            // Sem ação.
+          }
+
+          resolve({
+            sessao:
+              clonarUX213_(
+                registro
+              ),
+
+            sessoesEncerradas:
+              [...encerradas]
+          });
+        };
+
+      transacao.onerror =
+        function () {
+          const erro =
+            transacao.error ||
+            requisicao.error ||
+            new Error(
+              "Falha ao persistir a sessão."
+            );
+
+          try {
+            db.close();
+          } catch (erroFechamento) {
+            // Sem ação.
+          }
+
+          reject(erro);
+        };
+
+      transacao.onabort =
+        function () {
+          const erro =
+            transacao.error ||
+            requisicao.error ||
+            new Error(
+              "Persistência da sessão cancelada."
+            );
+
+          try {
+            db.close();
+          } catch (erroFechamento) {
+            // Sem ação.
+          }
+
+          reject(erro);
+        };
+    }
+  );
+}
+
+
+/**
+ * ============================================================
+ * CONSULTAS DE SESSÃO
+ * ============================================================
+ */
+
+async function listarSessoesPorDispositivoUX213_(
+  idDispositivo
+) {
+  const db =
+    await abrirBancoIdentidadeUX213_();
+
+  try {
+    const transacao =
+      db.transaction(
+        [
+          STORES_IDENTIDADE_UX213
+            .sessao
+        ],
+        "readonly"
+      );
+
+    const indice =
+      transacao
+        .objectStore(
+          STORES_IDENTIDADE_UX213
+            .sessao
+        )
+        .index(
+          "porDispositivo"
+        );
+
+    const registros =
+      await promessaRequisicaoUX213_(
+        indice.getAll(
+          idDispositivo
+        )
+      );
+
+    return (
+      Array.isArray(registros)
+        ? registros
+        : []
+    ).map(clonarUX213_);
+
+  } finally {
+    try {
+      db.close();
+    } catch (erro) {
+      // Sem ação.
+    }
+  }
+}
+
+
+async function obterSessaoAtivaDispositivoUX213_(
+  idDispositivo
+) {
+  const sessoes =
+    await listarSessoesPorDispositivoUX213_(
+      idDispositivo
+    );
+
+  const ativas =
+    sessoes.filter(
+      function (sessao) {
+        return (
+          sessao.statusSessao ===
+          "ATIVA"
+        );
+      }
+    );
+
+  if (ativas.length > 1) {
+    throw new Error(
+      "MAIS_DE_UMA_SESSAO_ATIVA_NO_DISPOSITIVO"
+    );
+  }
+
+  return ativas[0] || null;
+}
+
+
+/**
+ * ============================================================
+ * ENCERRAMENTO FORMAL DE SESSÃO
+ * ============================================================
+ */
+
+async function encerrarSessaoIdentidadeUX213_(
+  idSessao,
+  motivo = "ENCERRADA_PELO_USUARIO"
+) {
+  const atual =
+    await obterSessaoIdentidadeUX213_(
+      idSessao
+    );
+
+  if (!atual) {
+    throw new Error(
+      "SESSAO_NAO_ENCONTRADA"
+    );
+  }
+
+  if (
+    atual.statusSessao ===
+      "ENCERRADA" ||
+    atual.statusSessao ===
+      "REVOGADA"
+  ) {
+    return atual;
+  }
+
+  const atualizada = {
+    ...atual,
+
+    statusSessao:
+      "ENCERRADA",
+
+    motivoEncerramento:
+      textoUX213_(motivo),
+
+    atualizadoEm:
+      new Date().toISOString()
+  };
+
+  return salvarSessaoIdentidadeUX213_(
+    atualizada,
+    {
+      tipoEvento:
+        "SESSAO_ENCERRADA",
+
+      origem:
+        "APP_MOBILE"
+    }
+  );
+}
+
+
+/**
+ * ============================================================
+ * INSPEÇÃO DO SCHEMA
+ * ============================================================
+ */
+
+async function auditarSchemaIdentidadeUX213_() {
+  const db =
+    await abrirBancoIdentidadeUX213_();
+
+  try {
+    const resultado = {
+      nomeBanco:
+        db.name,
+
+      versaoBanco:
+        db.version,
+
+      stores: {}
+    };
+
+    for (
+      const nomeStore of
+      Object.values(
+        STORES_IDENTIDADE_UX213
+      )
+    ) {
+      const transacao =
+        db.transaction(
+          [nomeStore],
+          "readonly"
+        );
+
+      const store =
+        transacao.objectStore(
+          nomeStore
+        );
+
+      resultado.stores[
+        nomeStore
+      ] = {
+        keyPath:
+          store.keyPath,
+
+        autoIncrement:
+          store.autoIncrement,
+
+        indices:
+          Array.from(
+            store.indexNames
+          )
+      };
+    }
+
+    return resultado;
+
+  } finally {
+    try {
+      db.close();
+    } catch (erro) {
+      // Sem ação.
+    }
+  }
+}
+
+
+/**
+ * ============================================================
+ * ESTADO E ASSINATURAS DAS STORES DE IDENTIDADE
+ * ============================================================
+ */
+
+async function capturarEstadoStoresIdentidadeUX213_() {
+  const resultado = {};
+
+  for (
+    const nomeStore of
+    Object.values(
+      STORES_IDENTIDADE_UX213
+    )
+  ) {
+    const registros =
+      await listarRegistrosIdentidadeUX213_(
+        nomeStore
+      );
+
+    resultado[nomeStore] = {
+      quantidade:
+        registros.length,
+
+      assinatura:
+        typeof assinarRegistrosIdentidadeUX211_ ===
+          "function"
+          ? assinarRegistrosIdentidadeUX211_(
+              registros
+            )
+          : JSON.stringify(
+              registros
+            ),
+
+      registros:
+        registros
+    };
+  }
+
+  return resultado;
+}
+
+
+/**
+ * ============================================================
+ * LIMPEZA CONTROLADA DE REGISTROS DE TESTE
+ * ============================================================
+ */
+
+async function limparTestePersistenciaUX213_({
+  idUsuario,
+  idDispositivo,
+  idsSessao
+}) {
+  const db =
+    await abrirBancoIdentidadeUX213_();
+
+  return new Promise(
+    function (resolve, reject) {
+      const transacao =
+        db.transaction(
+          Object.values(
+            STORES_IDENTIDADE_UX213
+          ),
+          "readwrite"
+        );
+
+      const usuarios =
+        transacao.objectStore(
+          STORES_IDENTIDADE_UX213
+            .usuarios
+        );
+
+      const dispositivos =
+        transacao.objectStore(
+          STORES_IDENTIDADE_UX213
+            .dispositivos
+        );
+
+      const sessoes =
+        transacao.objectStore(
+          STORES_IDENTIDADE_UX213
+            .sessao
+        );
+
+      const auditoria =
+        transacao.objectStore(
+          STORES_IDENTIDADE_UX213
+            .auditoria
+        );
+
+      usuarios.delete(
+        idUsuario
+      );
+
+      dispositivos.delete(
+        idDispositivo
+      );
+
+      idsSessao.forEach(
+        function (idSessao) {
+          sessoes.delete(
+            idSessao
+          );
+        }
+      );
+
+      const idsTeste =
+        new Set([
+          idUsuario,
+          idDispositivo,
+          ...idsSessao
+        ]);
+
+      const cursor =
+        auditoria.openCursor();
+
+      cursor.onsuccess =
+        function () {
+          const atual =
+            cursor.result;
+
+          if (!atual) {
+            return;
+          }
+
+          const evento =
+            atual.value;
+
+          if (
+            idsTeste.has(
+              evento.idEntidade
+            ) ||
+            idsTeste.has(
+              evento.idUsuario
+            ) ||
+            idsTeste.has(
+              evento.idDispositivo
+            ) ||
+            idsTeste.has(
+              evento.idSessao
+            )
+          ) {
+            atual.delete();
+          }
+
+          atual.continue();
+        };
+
+      transacao.oncomplete =
+        function () {
+          try {
+            db.close();
+          } catch (erro) {
+            // Sem ação.
+          }
+
+          resolve(true);
+        };
+
+      transacao.onerror =
+        function () {
+          const erro =
+            transacao.error ||
+            new Error(
+              "Falha ao limpar registros controlados de teste."
+            );
+
+          try {
+            db.close();
+          } catch (erroFechamento) {
+            // Sem ação.
+          }
+
+          reject(erro);
+        };
+
+      transacao.onabort =
+        transacao.onerror;
+    }
+  );
+}
+
+
+/**
+ * ============================================================
+ * AUDITORIA PRINCIPAL DA UX.21.3
+ * ============================================================
+ *
+ * Fluxo:
+ *
+ * 1. verifica o schema;
+ * 2. captura stores operacionais;
+ * 3. captura stores de identidade;
+ * 4. cria usuário controlado;
+ * 5. cria dispositivo controlado;
+ * 6. cria primeira sessão;
+ * 7. cria segunda sessão no mesmo dispositivo;
+ * 8. verifica encerramento automático da primeira;
+ * 9. verifica bloqueio de credencial secreta;
+ * 10. remove apenas os registros controlados;
+ * 11. confirma preservação integral do sistema.
+ */
+async function auditarPersistenciaIdentidadeUX213_() {
+  console.log(
+    "[UX.21.3] Iniciando auditoria da persistência local..."
+  );
+
+  const schema =
+    await auditarSchemaIdentidadeUX213_();
+
+  const assinaturaStorageAntes =
+    typeof assinarLocalStorageIdentidadeUX211_ ===
+      "function"
+      ? assinarLocalStorageIdentidadeUX211_()
+      : "";
+
+  const storesExistentes =
+    typeof listarStoresIdentidadeUX211_ ===
+      "function"
+      ? await listarStoresIdentidadeUX211_()
+      : [];
+
+  const estadoOperacionalAntes =
+    typeof capturarEstadoIdentidadeUX211_ ===
+      "function"
+      ? await capturarEstadoIdentidadeUX211_(
+          storesExistentes
+        )
+      : {};
+
+  const identidadeAntes =
+    await capturarEstadoStoresIdentidadeUX213_();
+
+
+  const sufixo =
+    (
+      Date.now().toString(36) +
+      gerarUuidUX213_()
+        .replace(
+          /[^a-zA-Z0-9]/g,
+          ""
+        )
+        .slice(0, 8)
+    ).toUpperCase();
+
+  const idUsuario =
+    "USR-UX213-" +
+    sufixo;
+
+  const idDispositivo =
+    "DISP-MOBILE-UX213-" +
+    sufixo;
+
+  const idSessao1 =
+    "SES-UX213-A-" +
+    sufixo;
+
+  const idSessao2 =
+    "SES-UX213-B-" +
+    sufixo;
+
+
+  const agora =
+    new Date();
+
+  const expiracao =
+    new Date(
+      agora.getTime() +
+      24 * 60 * 60 * 1000
+    ).toISOString();
+
+  const validadeOffline =
+    new Date(
+      agora.getTime() +
+      12 * 60 * 60 * 1000
+    ).toISOString();
+
+
+  const usuario =
+    criarUsuarioContratoUX212_({
+      idUsuario:
+        idUsuario,
+
+      nomeUsuario:
+        "Teste Controlado UX 21.3",
+
+      email:
+        (
+          "ux213." +
+          sufixo.toLowerCase() +
+          "@sigo.local"
+        ),
+
+      statusUsuario:
+        "ATIVO",
+
+      obrasAutorizadas: [
+        {
+          idObra:
+            "OBR002",
+
+          perfil:
+            "ENGENHEIRO",
+
+          statusVinculo:
+            "ATIVO",
+
+          autorizadoPor:
+            "AUDITORIA_UX213"
+        }
+      ],
+
+      criadoPor:
+        "AUDITORIA_UX213",
+
+      origemCadastro:
+        "AUDITORIA_UX213"
+    });
+
+
+  const dispositivo =
+    criarDispositivoContratoUX212_({
+      idDispositivo:
+        idDispositivo,
+
+      idUsuarioVinculado:
+        idUsuario,
+
+      nomeDispositivo:
+        "Dispositivo controlado UX 21.3",
+
+      plataforma:
+        "PWA",
+
+      navegador:
+        "AUDITORIA",
+
+      statusDispositivo:
+        "ATIVO",
+
+      autorizadoEm:
+        agora.toISOString(),
+
+      autorizadoPor:
+        "AUDITORIA_UX213",
+
+      ultimaValidacaoEm:
+        agora.toISOString(),
+
+      ultimaConexaoEm:
+        agora.toISOString(),
+
+      comandoRemoto: {
+        tipo:
+          "NENHUM",
+
+        status:
+          "SEM_COMANDO"
+      }
+    });
+
+
+  const sessao1 =
+    criarSessaoContratoUX212_({
+      idSessao:
+        idSessao1,
+
+      usuario:
+        usuario,
+
+      dispositivo:
+        dispositivo,
+
+      statusSessao:
+        "ATIVA",
+
+      iniciadoEm:
+        agora.toISOString(),
+
+      validadoEm:
+        agora.toISOString(),
+
+      expiraEm:
+        expiracao,
+
+      validadeOfflineAte:
+        validadeOffline,
+
+      idAutenticacaoServidor:
+        "AUTH-REF-UX213-A-" +
+        sufixo
+    });
+
+
+  const sessao2 =
+    criarSessaoContratoUX212_({
+      idSessao:
+        idSessao2,
+
+      usuario:
+        usuario,
+
+      dispositivo:
+        dispositivo,
+
+      statusSessao:
+        "ATIVA",
+
+      iniciadoEm:
+        new Date(
+          agora.getTime() + 1000
+        ).toISOString(),
+
+      validadoEm:
+        new Date(
+          agora.getTime() + 1000
+        ).toISOString(),
+
+      expiraEm:
+        expiracao,
+
+      validadeOfflineAte:
+        validadeOffline,
+
+      idAutenticacaoServidor:
+        "AUTH-REF-UX213-B-" +
+        sufixo
+    });
+
+
+  let bloqueioSegredo =
+    false;
+
+  let erroSegredo =
+    "";
+
+
+  try {
+    await salvarUsuarioIdentidadeUX213_(
+      usuario,
+      {
+        origem:
+          "AUDITORIA_UX213"
+      }
+    );
+
+    await salvarDispositivoIdentidadeUX213_(
+      dispositivo,
+      {
+        origem:
+          "AUDITORIA_UX213"
+      }
+    );
+
+    const primeiraGravacao =
+      await salvarSessaoIdentidadeUX213_(
+        sessao1,
+        {
+          origem:
+            "AUDITORIA_UX213"
+        }
+      );
+
+    const segundaGravacao =
+      await salvarSessaoIdentidadeUX213_(
+        sessao2,
+        {
+          origem:
+            "AUDITORIA_UX213"
+        }
+      );
+
+
+    const usuarioPersistido =
+      await obterUsuarioIdentidadeUX213_(
+        idUsuario
+      );
+
+    const dispositivoPersistido =
+      await obterDispositivoIdentidadeUX213_(
+        idDispositivo
+      );
+
+    const sessao1Persistida =
+      await obterSessaoIdentidadeUX213_(
+        idSessao1
+      );
+
+    const sessao2Persistida =
+      await obterSessaoIdentidadeUX213_(
+        idSessao2
+      );
+
+    const sessaoAtiva =
+      await obterSessaoAtivaDispositivoUX213_(
+        idDispositivo
+      );
+
+    const sessoesDispositivo =
+      await listarSessoesPorDispositivoUX213_(
+        idDispositivo
+      );
+
+    const auditoriaCompleta =
+      await listarAuditoriaIdentidadeUX213_();
+
+    const eventosTeste =
+      auditoriaCompleta.filter(
+        function (evento) {
+          return (
+            evento.idUsuario ===
+              idUsuario ||
+            evento.idDispositivo ===
+              idDispositivo ||
+            evento.idSessao ===
+              idSessao1 ||
+            evento.idSessao ===
+              idSessao2 ||
+            evento.idEntidade ===
+              idUsuario ||
+            evento.idEntidade ===
+              idDispositivo ||
+            evento.idEntidade ===
+              idSessao1 ||
+            evento.idEntidade ===
+              idSessao2
+          );
+        }
+      );
+
+
+    const sessaoComSegredo = {
+      ...clonarUX213_(
+        sessao2
+      ),
+
+      accessToken:
+        "SEGREDO_QUE_NAO_PODE_SER_GRAVADO"
+    };
+
+
+    try {
+      await salvarSessaoIdentidadeUX213_(
+        sessaoComSegredo,
+        {
+          origem:
+            "AUDITORIA_UX213"
+        }
+      );
+
+    } catch (erro) {
+      bloqueioSegredo =
+        true;
+
+      erroSegredo =
+        erro?.message || "";
+    }
+
+
+    const duranteTeste = {
+      primeiraGravacao:
+        primeiraGravacao,
+
+      segundaGravacao:
+        segundaGravacao,
+
+      usuarioPersistido:
+        usuarioPersistido,
+
+      dispositivoPersistido:
+        dispositivoPersistido,
+
+      sessao1Persistida:
+        sessao1Persistida,
+
+      sessao2Persistida:
+        sessao2Persistida,
+
+      sessaoAtiva:
+        sessaoAtiva,
+
+      sessoesDispositivo:
+        sessoesDispositivo,
+
+      eventosTeste:
+        eventosTeste
+    };
+
+
+    await limparTestePersistenciaUX213_({
+      idUsuario:
+        idUsuario,
+
+      idDispositivo:
+        idDispositivo,
+
+      idsSessao: [
+        idSessao1,
+        idSessao2
+      ]
+    });
+
+
+    const identidadeDepois =
+      await capturarEstadoStoresIdentidadeUX213_();
+
+    const estadoOperacionalDepois =
+      typeof capturarEstadoIdentidadeUX211_ ===
+        "function"
+        ? await capturarEstadoIdentidadeUX211_(
+            storesExistentes
+          )
+        : {};
+
+    const assinaturaStorageDepois =
+      typeof assinarLocalStorageIdentidadeUX211_ ===
+        "function"
+        ? assinarLocalStorageIdentidadeUX211_()
+        : "";
+
+    const storesOperacionaisAlteradas =
+      typeof compararEstadoIdentidadeUX211_ ===
+        "function"
+        ? compararEstadoIdentidadeUX211_(
+            estadoOperacionalAntes,
+            estadoOperacionalDepois
+          )
+        : [];
+
+
+    const storesIdentidadeDivergentes =
+      Object.values(
+        STORES_IDENTIDADE_UX213
+      ).filter(
+        function (nomeStore) {
+          return (
+            identidadeAntes[
+              nomeStore
+            ].assinatura !==
+            identidadeDepois[
+              nomeStore
+            ].assinatura
+          );
+        }
+      );
+
+
+    const schemaEsperado = {
+      TB_USUARIOS:
+        "idUsuario",
+
+      TB_DISPOSITIVOS:
+        "idDispositivo",
+
+      TB_SESSAO:
+        "idSessao",
+
+      TB_AUDITORIA_IDENTIDADE:
+        "idEvento"
+    };
+
+
+    const validacoes = {
+      bancoVersaoAtualizada:
+        schema.versaoBanco >= 3,
+
+      quatroStoresCriadas:
+        Object.values(
+          STORES_IDENTIDADE_UX213
+        ).every(
+          function (nomeStore) {
+            return Boolean(
+              schema.stores[
+                nomeStore
+              ]
+            );
+          }
+        ),
+
+      keyPathsCorretos:
+        Object.entries(
+          schemaEsperado
+        ).every(
+          function (
+            [nomeStore, keyPath]
+          ) {
+            return (
+              schema.stores[
+                nomeStore
+              ]?.keyPath ===
+              keyPath
+            );
+          }
+        ),
+
+      indicesUsuarioCriados:
+        schema.stores
+          .TB_USUARIOS
+          .indices
+          .includes(
+            "porStatus"
+          ),
+
+      indicesDispositivoCriados:
+        schema.stores
+          .TB_DISPOSITIVOS
+          .indices
+          .includes(
+            "porUsuario"
+          ),
+
+      indicesSessaoCriados:
+        schema.stores
+          .TB_SESSAO
+          .indices
+          .includes(
+            "porDispositivo"
+          ),
+
+      indicesAuditoriaCriados:
+        schema.stores
+          .TB_AUDITORIA_IDENTIDADE
+          .indices
+          .includes(
+            "porData"
+          ),
+
+      usuarioPersistido:
+        usuarioPersistido
+          ?.idUsuario ===
+        idUsuario,
+
+      dispositivoPersistido:
+        dispositivoPersistido
+          ?.idDispositivo ===
+        idDispositivo,
+
+      primeiraSessaoPersistida:
+        Boolean(
+          duranteTeste
+            .primeiraGravacao
+            .sessao
+        ),
+
+      segundaSessaoPersistida:
+        Boolean(
+          duranteTeste
+            .segundaGravacao
+            .sessao
+        ),
+
+      primeiraSessaoEncerrada:
+        sessao1Persistida
+          ?.statusSessao ===
+        "ENCERRADA",
+
+      motivoEncerramentoCorreto:
+        sessao1Persistida
+          ?.motivoEncerramento ===
+        "SUBSTITUIDA_POR_NOVA_SESSAO",
+
+      segundaSessaoAtiva:
+        sessao2Persistida
+          ?.statusSessao ===
+        "ATIVA",
+
+      somenteUmaSessaoAtiva:
+        sessoesDispositivo.filter(
+          function (sessao) {
+            return (
+              sessao.statusSessao ===
+              "ATIVA"
+            );
+          }
+        ).length === 1,
+
+      sessaoAtivaCorreta:
+        sessaoAtiva
+          ?.idSessao ===
+        idSessao2,
+
+      auditoriaGerada:
+        eventosTeste.length >= 4,
+
+      credencialSecretaBloqueada:
+        bloqueioSegredo === true,
+
+      erroSegredoCorreto:
+        /CAMPO_SECRETO/i.test(
+          erroSegredo
+        ),
+
+      registrosTesteRemovidos:
+        storesIdentidadeDivergentes
+          .length === 0,
+
+      storesOperacionaisPreservadas:
+        storesOperacionaisAlteradas
+          .length === 0,
+
+      localStoragePreservado:
+        assinaturaStorageAntes ===
+        assinaturaStorageDepois
+    };
+
+
+    const aprovado =
+      Object.values(
+        validacoes
+      ).every(
+        function (valor) {
+          return valor === true;
+        }
+      );
+
+
+    const resultado = {
+      etapa:
+        "UX.21.3",
+
+      auditoria:
+        "PERSISTENCIA_LOCAL_OFICIAL_IDENTIDADE",
+
+      status:
+        aprovado
+          ? "APROVADO"
+          : "REPROVADO",
+
+      banco: {
+        nome:
+          schema.nomeBanco,
+
+        versao:
+          schema.versaoBanco,
+
+        schema:
+          schema.stores
+      },
+
+      testeControlado: {
+        idUsuario:
+          idUsuario,
+
+        idDispositivo:
+          idDispositivo,
+
+        sessoes: [
+          idSessao1,
+          idSessao2
+        ],
+
+        usuarioPersistido:
+          Boolean(
+            usuarioPersistido
+          ),
+
+        dispositivoPersistido:
+          Boolean(
+            dispositivoPersistido
+          ),
+
+        primeiraSessaoStatus:
+          sessao1Persistida
+            ?.statusSessao || "",
+
+        primeiraSessaoMotivo:
+          sessao1Persistida
+            ?.motivoEncerramento || "",
+
+        segundaSessaoStatus:
+          sessao2Persistida
+            ?.statusSessao || "",
+
+        sessaoAtivaFinal:
+          sessaoAtiva
+            ?.idSessao || "",
+
+        quantidadeSessoesAtivas:
+          sessoesDispositivo.filter(
+            function (sessao) {
+              return (
+                sessao.statusSessao ===
+                "ATIVA"
+              );
+            }
+          ).length,
+
+        eventosAuditoria:
+          eventosTeste.length,
+
+        credencialSecretaBloqueada:
+          bloqueioSegredo,
+
+        erroSegredo:
+          erroSegredo
+      },
+
+      limpezaControlada: {
+        executada:
+          true,
+
+        storesIdentidadeDivergentes:
+          storesIdentidadeDivergentes,
+
+        estadoRestaurado:
+          storesIdentidadeDivergentes
+            .length === 0
+      },
+
+      preservacao: {
+        storesOperacionaisAlteradas:
+          storesOperacionaisAlteradas,
+
+        localStorageAlterado:
+          assinaturaStorageAntes !==
+          assinaturaStorageDepois,
+
+        filaPreservada:
+          !storesOperacionaisAlteradas
+            .some(
+              function (item) {
+                return (
+                  item.store ===
+                  "TB_SYNC_QUEUE"
+                );
+              }
+            ),
+
+        lotesPreservados:
+          !storesOperacionaisAlteradas
+            .some(
+              function (item) {
+                return (
+                  item.store ===
+                  "TB_LOTES_MEDICAO"
+                );
+              }
+            ),
+
+        notificacoesPreservadas:
+          !storesOperacionaisAlteradas
+            .some(
+              function (item) {
+                return (
+                  item.store ===
+                  "TB_NOTIFICACOES"
+                );
+              }
+            )
+      },
+
+      decisoesArquiteturais: {
+        usuarioValidadoAntesDeGravar:
+          true,
+
+        dispositivoValidadoAntesDeGravar:
+          true,
+
+        sessaoValidadaAntesDeGravar:
+          true,
+
+        dispositivoExigeUsuarioExistente:
+          true,
+
+        sessaoExigeUsuarioEDispositivo:
+          true,
+
+        somenteUmaSessaoAtivaPorDispositivo:
+          true,
+
+        historicoDeSessoesPreservado:
+          true,
+
+        auditoriaAppendOnly:
+          true,
+
+        credenciaisSecretasProibidas:
+          true,
+
+        usuarioMobileSubstituido:
+          false,
+
+        registrosLegadosMigrados:
+          false
+      },
+
+      validacoes:
+        validacoes,
+
+      aprovado:
+        aprovado,
+
+      prontoParaUX214:
+        aprovado
+    };
+
+
+    console.log(
+      JSON.stringify(
+        resultado,
+        null,
+        2
+      )
+    );
+
+
+    if (!aprovado) {
+      throw new Error(
+        "UX.21.3 REPROVADA. Consulte as validações da persistência."
+      );
+    }
+
+
+    console.log(
+      "UX.21.3 — PERSISTÊNCIA LOCAL OFICIAL DE IDENTIDADE APROVADA."
+    );
+
+
+    return resultado;
+
+  } catch (erro) {
+    /*
+     * Tentativa final de remover somente os registros
+     * controlados, mesmo quando algum teste falhar.
+     */
+    try {
+      await limparTestePersistenciaUX213_({
+        idUsuario:
+          idUsuario,
+
+        idDispositivo:
+          idDispositivo,
+
+        idsSessao: [
+          idSessao1,
+          idSessao2
+        ]
+      });
+
+    } catch (erroLimpeza) {
+      console.error(
+        "[UX.21.3] Falha na limpeza de contingência:",
+        erroLimpeza
+      );
+    }
+
+    throw erro;
+  }
+}
