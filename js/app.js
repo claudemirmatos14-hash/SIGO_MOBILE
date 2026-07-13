@@ -63797,3 +63797,2058 @@ async function auditarPersistenciaIdentidadeUX213_() {
     throw erro;
   }
 }
+
+/**
+ * ============================================================
+ * UX.21.4 — IDENTIDADE PERSISTENTE DO DISPOSITIVO
+ * E SESSÃO TÉCNICA DE TRANSIÇÃO
+ * ============================================================
+ *
+ * Dependências:
+ *
+ * - UX.21.1 — auditoria da identidade atual;
+ * - UX.21.2 — contratos oficiais;
+ * - UX.21.3 — stores e persistência local.
+ *
+ * Esta etapa:
+ *
+ * - reutiliza o ID real do dispositivo;
+ * - cria um usuário técnico oficial;
+ * - vincula as obras baixadas no aparelho;
+ * - cria ou restaura uma sessão técnica;
+ * - produz contexto oficial de autoria;
+ * - não substitui USUARIO_MOBILE nos fluxos legados;
+ * - não altera registros operacionais.
+ */
+
+const CONFIG_IDENTIDADE_TRANSICAO_UX214 =
+  Object.freeze({
+    idUsuario:
+      "USR-TRANSICAO-MOBILE-V1",
+
+    nomeUsuario:
+      "Usuário Mobile de Transição",
+
+    email:
+      "usuario.mobile.transicao@sigo.local",
+
+    perfil:
+      "ENGENHEIRO",
+
+    validadeSessaoDias:
+      30,
+
+    validadeOfflineDias:
+      7,
+
+    renovarAntesHoras:
+      24,
+
+    intervaloAtualizacaoDispositivoMinutos:
+      15,
+
+    origem:
+      "TRANSICAO_UX214"
+  });
+
+
+function textoUX214_(valor) {
+  return String(
+    valor === undefined ||
+    valor === null
+      ? ""
+      : valor
+  ).trim();
+}
+
+
+function clonarUX214_(valor) {
+  return JSON.parse(
+    JSON.stringify(valor)
+  );
+}
+
+
+function agoraIsoUX214_() {
+  return new Date().toISOString();
+}
+
+
+function adicionarDiasUX214_(
+  data,
+  dias
+) {
+  return new Date(
+    data.getTime() +
+    Number(dias) *
+    24 *
+    60 *
+    60 *
+    1000
+  ).toISOString();
+}
+
+
+function dataFuturaUX214_(
+  valor,
+  referencia = new Date()
+) {
+  const data =
+    new Date(valor);
+
+  return (
+    !Number.isNaN(
+      data.getTime()
+    ) &&
+    data.getTime() >
+      referencia.getTime()
+  );
+}
+
+
+function diferencaMinutosUX214_(
+  dataInicial,
+  dataFinal = new Date()
+) {
+  const inicio =
+    new Date(dataInicial);
+
+  if (
+    Number.isNaN(
+      inicio.getTime()
+    )
+  ) {
+    return Infinity;
+  }
+
+  return (
+    dataFinal.getTime() -
+    inicio.getTime()
+  ) / 60000;
+}
+
+
+/**
+ * Gera uma assinatura pequena e determinística.
+ */
+function hashUX214_(valor) {
+  if (
+    typeof gerarHashIdentidadeUX211_ ===
+    "function"
+  ) {
+    return gerarHashIdentidadeUX211_(
+      textoUX214_(valor)
+    ).toUpperCase();
+  }
+
+  let hash =
+    2166136261;
+
+  const texto =
+    textoUX214_(valor);
+
+  for (
+    let indice = 0;
+    indice < texto.length;
+    indice++
+  ) {
+    hash ^=
+      texto.charCodeAt(indice);
+
+    hash =
+      Math.imul(
+        hash,
+        16777619
+      );
+  }
+
+  return (
+    hash >>> 0
+  )
+    .toString(16)
+    .toUpperCase()
+    .padStart(8, "0");
+}
+
+
+/**
+ * Lê qualquer store sem utilizar cache de interface.
+ */
+async function lerStoreBrutaUX214_(
+  nomeStore
+) {
+  if (
+    typeof lerStoreBrutaUX1997A_ ===
+    "function"
+  ) {
+    return lerStoreBrutaUX1997A_(
+      nomeStore
+    );
+  }
+
+  const db =
+    await abrirBancoLocalSIGO();
+
+  const transacao =
+    db.transaction(
+      [nomeStore],
+      "readonly"
+    );
+
+  const requisicao =
+    transacao
+      .objectStore(nomeStore)
+      .getAll();
+
+  const registros =
+    await promessaRequisicaoUX213_(
+      requisicao
+    );
+
+  return Array.isArray(registros)
+    ? registros
+    : [];
+}
+
+
+/**
+ * Localiza o ID persistente real do dispositivo.
+ *
+ * Nenhum novo ID é criado nesta etapa.
+ */
+async function resolverIdDispositivoAtualUX214_() {
+  const candidatos =
+    new Set();
+
+
+  if (
+    typeof auditarLocalStorageIdentidadeUX211_ ===
+    "function"
+  ) {
+    const auditoria =
+      auditarLocalStorageIdentidadeUX211_();
+
+    (
+      auditoria.dispositivos || []
+    ).forEach(
+      function (idDispositivo) {
+        if (
+          idDispositivoValidoUX212_(
+            idDispositivo
+          )
+        ) {
+          candidatos.add(
+            idDispositivo
+          );
+        }
+      }
+    );
+  }
+
+
+  for (
+    let indice = 0;
+    indice < localStorage.length;
+    indice++
+  ) {
+    const chave =
+      localStorage.key(indice);
+
+    const valor =
+      chave
+        ? localStorage.getItem(chave)
+        : "";
+
+    const encontrados =
+      textoUX214_(valor).match(
+        /DISP-MOBILE-[A-Z0-9_-]+/gi
+      ) || [];
+
+    encontrados.forEach(
+      function (idDispositivo) {
+        if (
+          idDispositivoValidoUX212_(
+            idDispositivo
+          )
+        ) {
+          candidatos.add(
+            idDispositivo
+          );
+        }
+      }
+    );
+  }
+
+
+  const candidatosGlobais = [
+    window.idDispositivo,
+    window.ID_DISPOSITIVO,
+    window.dispositivoAtual
+      ?.idDispositivo,
+    window.SIGO
+      ?.idDispositivo,
+    window.SIGO
+      ?.dispositivo
+      ?.idDispositivo,
+    window.SIGOContexto
+      ?.idDispositivo,
+    window.estadoMobile
+      ?.idDispositivo
+  ];
+
+  candidatosGlobais.forEach(
+    function (idDispositivo) {
+      if (
+        idDispositivoValidoUX212_(
+          idDispositivo
+        )
+      ) {
+        candidatos.add(
+          idDispositivo
+        );
+      }
+    }
+  );
+
+
+  if (
+    candidatos.size === 0
+  ) {
+    const dispositivosPersistidos =
+      await listarRegistrosIdentidadeUX213_(
+        STORES_IDENTIDADE_UX213
+          .dispositivos
+      );
+
+    dispositivosPersistidos
+      .filter(
+        function (dispositivo) {
+          return (
+            dispositivo
+              .statusDispositivo !==
+              "REVOGADO" &&
+            dispositivo
+              .statusDispositivo !==
+              "BLOQUEADO"
+          );
+        }
+      )
+      .forEach(
+        function (dispositivo) {
+          if (
+            idDispositivoValidoUX212_(
+              dispositivo.idDispositivo
+            )
+          ) {
+            candidatos.add(
+              dispositivo.idDispositivo
+            );
+          }
+        }
+      );
+  }
+
+
+  const lista =
+    Array.from(candidatos);
+
+  if (
+    lista.length === 0
+  ) {
+    throw new Error(
+      "UX214_DISPOSITIVO_ATUAL_NAO_ENCONTRADO"
+    );
+  }
+
+  if (
+    lista.length > 1
+  ) {
+    throw new Error(
+      "UX214_MULTIPLOS_DISPOSITIVOS_ENCONTRADOS: " +
+      lista.join(", ")
+    );
+  }
+
+  return lista[0];
+}
+
+
+/**
+ * Obtém todas as obras atualmente baixadas no aparelho.
+ */
+async function listarObrasDisponiveisUX214_() {
+  const registros =
+    await lerStoreBrutaUX214_(
+      "TB_OBRAS"
+    );
+
+  const mapa =
+    new Map();
+
+  registros.forEach(
+    function (obra) {
+      const idObra =
+        textoUX214_(
+          obra?.idObra
+        );
+
+      if (
+        !/^OBR[A-Z0-9_-]+$/i.test(
+          idObra
+        )
+      ) {
+        return;
+      }
+
+      mapa.set(
+        idObra,
+        {
+          idObra:
+            idObra,
+
+          nomeObra:
+            textoUX214_(
+              obra.nomeObra ||
+              obra.nome ||
+              obra.descricao
+            )
+        }
+      );
+    }
+  );
+
+  return Array.from(
+    mapa.values()
+  ).sort(
+    function (a, b) {
+      return a.idObra
+        .localeCompare(
+          b.idObra
+        );
+    }
+  );
+}
+
+
+/**
+ * Snapshot usado para comparar obras e permissões.
+ */
+function snapshotVinculosUX214_(
+  vinculos
+) {
+  return (
+    Array.isArray(vinculos)
+      ? vinculos
+      : []
+  )
+    .map(
+      function (vinculo) {
+        return {
+          idObra:
+            vinculo.idObra,
+
+          perfil:
+            vinculo.perfil,
+
+          statusVinculo:
+            vinculo.statusVinculo,
+
+          permissoes: [
+            ...(
+              vinculo.permissoes || []
+            )
+          ].sort()
+        };
+      }
+    )
+    .sort(
+      function (a, b) {
+        return a.idObra
+          .localeCompare(
+            b.idObra
+          );
+      }
+    );
+}
+
+
+function snapshotPermissoesSessaoUX214_(
+  permissoesPorObra
+) {
+  return (
+    Array.isArray(
+      permissoesPorObra
+    )
+      ? permissoesPorObra
+      : []
+  )
+    .map(
+      function (vinculo) {
+        return {
+          idObra:
+            vinculo.idObra,
+
+          perfil:
+            vinculo.perfil,
+
+          permissoes: [
+            ...(
+              vinculo.permissoes || []
+            )
+          ].sort()
+        };
+      }
+    )
+    .sort(
+      function (a, b) {
+        return a.idObra
+          .localeCompare(
+            b.idObra
+          );
+      }
+    );
+}
+
+
+function objetosIguaisUX214_(
+  a,
+  b
+) {
+  return (
+    JSON.stringify(a) ===
+    JSON.stringify(b)
+  );
+}
+
+
+/**
+ * Cria ou atualiza o usuário técnico.
+ */
+async function garantirUsuarioTransicaoUX214_(
+  obras
+) {
+  const config =
+    CONFIG_IDENTIDADE_TRANSICAO_UX214;
+
+  const existente =
+    await obterUsuarioIdentidadeUX213_(
+      config.idUsuario
+    );
+
+
+  if (
+    existente &&
+    [
+      "BLOQUEADO",
+      "REVOGADO",
+      "INATIVO"
+    ].includes(
+      existente.statusUsuario
+    )
+  ) {
+    throw new Error(
+      "UX214_USUARIO_TRANSICAO_NAO_ATIVO: " +
+      existente.statusUsuario
+    );
+  }
+
+
+  const agora =
+    agoraIsoUX214_();
+
+  const vinculosExistentes =
+    new Map(
+      (
+        existente
+          ?.obrasAutorizadas || []
+      ).map(
+        function (vinculo) {
+          return [
+            vinculo.idObra,
+            vinculo
+          ];
+        }
+      )
+    );
+
+
+  const obrasAutorizadas =
+    obras.map(
+      function (obra) {
+        const anterior =
+          vinculosExistentes.get(
+            obra.idObra
+          );
+
+        return {
+          idObra:
+            obra.idObra,
+
+          perfil:
+            config.perfil,
+
+          permissoes:
+            obterPermissoesPerfilUX212_(
+              config.perfil
+            ),
+
+          statusVinculo:
+            "ATIVO",
+
+          autorizadoEm:
+            anterior
+              ?.autorizadoEm ||
+            agora,
+
+          autorizadoPor:
+            anterior
+              ?.autorizadoPor ||
+            "SISTEMA_UX214"
+        };
+      }
+    );
+
+
+  const candidato =
+    criarUsuarioContratoUX212_({
+      idUsuario:
+        config.idUsuario,
+
+      nomeUsuario:
+        config.nomeUsuario,
+
+      email:
+        config.email,
+
+      statusUsuario:
+        "ATIVO",
+
+      obrasAutorizadas:
+        obrasAutorizadas,
+
+      criadoEm:
+        existente
+          ?.criadoEm ||
+        agora,
+
+      criadoPor:
+        existente
+          ?.criadoPor ||
+        "SISTEMA_UX214",
+
+      atualizadoEm:
+        existente
+          ?.atualizadoEm ||
+        agora,
+
+      origemCadastro:
+        config.origem,
+
+      ultimoAcessoEm:
+        existente
+          ?.ultimoAcessoEm ||
+        ""
+    });
+
+
+  candidato.modoIdentidade =
+    "TRANSICAO_TECNICA";
+
+
+  const mudou =
+    !existente ||
+    existente.nomeUsuario !==
+      candidato.nomeUsuario ||
+    existente.email !==
+      candidato.email ||
+    existente.statusUsuario !==
+      candidato.statusUsuario ||
+    !objetosIguaisUX214_(
+      snapshotVinculosUX214_(
+        existente.obrasAutorizadas
+      ),
+      snapshotVinculosUX214_(
+        candidato.obrasAutorizadas
+      )
+    );
+
+
+  if (!mudou) {
+    return {
+      usuario:
+        existente,
+
+      operacao:
+        "REUTILIZADO"
+    };
+  }
+
+
+  candidato.atualizadoEm =
+    agora;
+
+  const persistido =
+    await salvarUsuarioIdentidadeUX213_(
+      candidato,
+      {
+        tipoEvento:
+          existente
+            ? "USUARIO_TRANSICAO_ATUALIZADO"
+            : "USUARIO_TRANSICAO_CRIADO",
+
+        origem:
+          config.origem
+      }
+    );
+
+  return {
+    usuario:
+      persistido,
+
+    operacao:
+      existente
+        ? "ATUALIZADO"
+        : "CRIADO"
+  };
+}
+
+
+/**
+ * Cria ou atualiza o dispositivo real.
+ */
+async function garantirDispositivoTransicaoUX214_(
+  idDispositivo,
+  usuario
+) {
+  const config =
+    CONFIG_IDENTIDADE_TRANSICAO_UX214;
+
+  const existente =
+    await obterDispositivoIdentidadeUX213_(
+      idDispositivo
+    );
+
+
+  if (
+    existente &&
+    [
+      "BLOQUEADO",
+      "REVOGADO"
+    ].includes(
+      existente.statusDispositivo
+    )
+  ) {
+    throw new Error(
+      "UX214_DISPOSITIVO_NAO_AUTORIZADO: " +
+      existente.statusDispositivo
+    );
+  }
+
+
+  if (
+    existente &&
+    existente.idUsuarioVinculado &&
+    existente.idUsuarioVinculado !==
+      usuario.idUsuario
+  ) {
+    throw new Error(
+      "UX214_DISPOSITIVO_VINCULADO_A_OUTRO_USUARIO"
+    );
+  }
+
+
+  const agora =
+    agoraIsoUX214_();
+
+  const minutosUltimaConexao =
+    diferencaMinutosUX214_(
+      existente?.ultimaConexaoEm
+    );
+
+  const atualizarConexao =
+    !existente ||
+    minutosUltimaConexao >=
+      config
+        .intervaloAtualizacaoDispositivoMinutos;
+
+
+  const candidato =
+    criarDispositivoContratoUX212_({
+      idDispositivo:
+        idDispositivo,
+
+      idUsuarioVinculado:
+        usuario.idUsuario,
+
+      nomeDispositivo:
+        existente
+          ?.nomeDispositivo ||
+        (
+          "Dispositivo Mobile " +
+          idDispositivo.slice(-8)
+        ),
+
+      plataforma:
+        existente
+          ?.plataforma ||
+        "PWA",
+
+      navegador:
+        existente
+          ?.navegador ||
+        textoUX214_(
+          navigator.userAgent
+        ).slice(0, 250),
+
+      statusDispositivo:
+        "ATIVO",
+
+      autorizadoEm:
+        existente
+          ?.autorizadoEm ||
+        agora,
+
+      autorizadoPor:
+        existente
+          ?.autorizadoPor ||
+        "SISTEMA_UX214",
+
+      ultimaValidacaoEm:
+        existente
+          ?.ultimaValidacaoEm ||
+        agora,
+
+      ultimaConexaoEm:
+        atualizarConexao
+          ? agora
+          : existente
+              ?.ultimaConexaoEm,
+
+      comandoRemoto:
+        existente
+          ?.comandoRemoto || {
+          tipo:
+            "NENHUM",
+
+          status:
+            "SEM_COMANDO"
+        },
+
+      criadoEm:
+        existente
+          ?.criadoEm ||
+        agora,
+
+      atualizadoEm:
+        existente
+          ?.atualizadoEm ||
+        agora
+    });
+
+
+  candidato.modoIdentidade =
+    "TRANSICAO_TECNICA";
+
+
+  const mudou =
+    !existente ||
+    existente.idUsuarioVinculado !==
+      candidato.idUsuarioVinculado ||
+    existente.statusDispositivo !==
+      candidato.statusDispositivo ||
+    existente.ultimaConexaoEm !==
+      candidato.ultimaConexaoEm ||
+    existente.comandoRemoto
+      ?.tipo !==
+      candidato.comandoRemoto
+        ?.tipo;
+
+
+  if (!mudou) {
+    return {
+      dispositivo:
+        existente,
+
+      operacao:
+        "REUTILIZADO"
+    };
+  }
+
+
+  candidato.atualizadoEm =
+    agora;
+
+  const persistido =
+    await salvarDispositivoIdentidadeUX213_(
+      candidato,
+      {
+        tipoEvento:
+          existente
+            ? "DISPOSITIVO_TRANSICAO_ATUALIZADO"
+            : "DISPOSITIVO_TRANSICAO_CRIADO",
+
+        origem:
+          config.origem
+      }
+    );
+
+  return {
+    dispositivo:
+      persistido,
+
+    operacao:
+      existente
+        ? "ATUALIZADO"
+        : "CRIADO"
+  };
+}
+
+
+/**
+ * Determina se a sessão deve ser renovada.
+ */
+function sessaoPrecisaRenovarUX214_(
+  sessao,
+  usuario
+) {
+  if (!sessao) {
+    return true;
+  }
+
+  if (
+    sessao.statusSessao !==
+    "ATIVA"
+  ) {
+    return true;
+  }
+
+  if (
+    sessao.idUsuario !==
+    usuario.idUsuario
+  ) {
+    return true;
+  }
+
+  const validacao =
+    validarSessaoContratoUX212_(
+      sessao
+    );
+
+  if (!validacao.valido) {
+    return true;
+  }
+
+
+  const esperado =
+    snapshotPermissoesSessaoUX214_(
+      criarPermissoesSessaoPorObraUX212_(
+        usuario
+      )
+    );
+
+  const atual =
+    snapshotPermissoesSessaoUX214_(
+      sessao.permissoesPorObra
+    );
+
+  if (
+    !objetosIguaisUX214_(
+      esperado,
+      atual
+    )
+  ) {
+    return true;
+  }
+
+
+  const limiteRenovacao =
+    new Date(
+      Date.now() +
+      CONFIG_IDENTIDADE_TRANSICAO_UX214
+        .renovarAntesHoras *
+      60 *
+      60 *
+      1000
+    );
+
+  return (
+    !dataFuturaUX214_(
+      sessao.expiraEm,
+      limiteRenovacao
+    ) ||
+    !dataFuturaUX214_(
+      sessao.validadeOfflineAte,
+      limiteRenovacao
+    )
+  );
+}
+
+
+function gerarIdSessaoTransicaoUX214_(
+  idDispositivo
+) {
+  return (
+    "SES-TRANSICAO-" +
+    hashUX214_(
+      idDispositivo
+    ) +
+    "-" +
+    Date.now()
+      .toString(36)
+      .toUpperCase()
+  );
+}
+
+
+/**
+ * Cria ou restaura a sessão técnica.
+ */
+async function garantirSessaoTransicaoUX214_(
+  usuario,
+  dispositivo
+) {
+  const config =
+    CONFIG_IDENTIDADE_TRANSICAO_UX214;
+
+  const sessaoAtiva =
+    await obterSessaoAtivaDispositivoUX213_(
+      dispositivo.idDispositivo
+    );
+
+
+  if (
+    sessaoAtiva &&
+    sessaoAtiva.idUsuario !==
+      usuario.idUsuario
+  ) {
+    throw new Error(
+      "UX214_SESSAO_ATIVA_PERTENCE_A_OUTRO_USUARIO"
+    );
+  }
+
+
+  if (
+    !sessaoPrecisaRenovarUX214_(
+      sessaoAtiva,
+      usuario
+    )
+  ) {
+    return {
+      sessao:
+        sessaoAtiva,
+
+      operacao:
+        "RESTAURADA"
+    };
+  }
+
+
+  if (
+    navigator.onLine === false &&
+    sessaoAtiva
+  ) {
+    throw new Error(
+      "UX214_SESSAO_EXPIRADA_SEM_CONEXAO"
+    );
+  }
+
+
+  const agora =
+    new Date();
+
+  const sessao =
+    criarSessaoContratoUX212_({
+      idSessao:
+        gerarIdSessaoTransicaoUX214_(
+          dispositivo.idDispositivo
+        ),
+
+      usuario:
+        usuario,
+
+      dispositivo:
+        dispositivo,
+
+      statusSessao:
+        "ATIVA",
+
+      iniciadoEm:
+        agora.toISOString(),
+
+      validadoEm:
+        agora.toISOString(),
+
+      expiraEm:
+        adicionarDiasUX214_(
+          agora,
+          config.validadeSessaoDias
+        ),
+
+      validadeOfflineAte:
+        adicionarDiasUX214_(
+          agora,
+          config.validadeOfflineDias
+        ),
+
+      idAutenticacaoServidor:
+        (
+          "AUTH-TRANSICAO-LOCAL-" +
+          hashUX214_(
+            dispositivo.idDispositivo
+          )
+        )
+    });
+
+
+  sessao.modoIdentidade =
+    "TRANSICAO_TECNICA";
+
+
+  const resultado =
+    await salvarSessaoIdentidadeUX213_(
+      sessao,
+      {
+        tipoEvento:
+          "SESSAO_TRANSICAO_PERSISTIDA",
+
+        origem:
+          config.origem
+      }
+    );
+
+
+  return {
+    sessao:
+      resultado.sessao,
+
+    operacao:
+      sessaoAtiva
+        ? "RENOVADA"
+        : "CRIADA",
+
+    sessoesEncerradas:
+      resultado.sessoesEncerradas
+  };
+}
+
+
+/**
+ * Publica o contexto apenas em memória.
+ */
+function publicarContextoIdentidadeUX214_({
+  usuario,
+  dispositivo,
+  sessao,
+  obras,
+  operacoes
+}) {
+  const contexto = {
+    versaoContrato:
+      VERSAO_CONTRATO_IDENTIDADE_UX212,
+
+    modoIdentidade:
+      "TRANSICAO_TECNICA",
+
+    usuario:
+      clonarUX214_(
+        usuario
+      ),
+
+    dispositivo:
+      clonarUX214_(
+        dispositivo
+      ),
+
+    sessao:
+      clonarUX214_(
+        sessao
+      ),
+
+    obras:
+      clonarUX214_(
+        obras
+      ),
+
+    operacoes:
+      clonarUX214_(
+        operacoes || {}
+      ),
+
+    publicadoEm:
+      agoraIsoUX214_()
+  };
+
+  window.SIGO_IDENTIDADE_ATUAL =
+    contexto;
+
+  window.SIGO_UX214 =
+    window.SIGO_UX214 || {};
+
+  window.SIGO_UX214.contexto =
+    contexto;
+
+  window.dispatchEvent(
+    new CustomEvent(
+      "SIGO_IDENTIDADE_ATUALIZADA",
+      {
+        detail: {
+          idUsuario:
+            usuario.idUsuario,
+
+          idDispositivo:
+            dispositivo.idDispositivo,
+
+          idSessao:
+            sessao.idSessao,
+
+          modoIdentidade:
+            "TRANSICAO_TECNICA"
+        }
+      }
+    )
+  );
+
+  return contexto;
+}
+
+
+/**
+ * Inicialização principal da identidade técnica.
+ */
+async function inicializarIdentidadeTransicaoUX214_() {
+  console.log(
+    "[UX.21.4] Inicializando identidade técnica de transição..."
+  );
+
+  const idDispositivo =
+    await resolverIdDispositivoAtualUX214_();
+
+  const obras =
+    await listarObrasDisponiveisUX214_();
+
+  if (!obras.length) {
+    throw new Error(
+      "UX214_NENHUMA_OBRA_DISPONIVEL"
+    );
+  }
+
+
+  const resultadoUsuario =
+    await garantirUsuarioTransicaoUX214_(
+      obras
+    );
+
+  const resultadoDispositivo =
+    await garantirDispositivoTransicaoUX214_(
+      idDispositivo,
+      resultadoUsuario.usuario
+    );
+
+  const resultadoSessao =
+    await garantirSessaoTransicaoUX214_(
+      resultadoUsuario.usuario,
+      resultadoDispositivo
+        .dispositivo
+    );
+
+
+  const contexto =
+    publicarContextoIdentidadeUX214_({
+      usuario:
+        resultadoUsuario.usuario,
+
+      dispositivo:
+        resultadoDispositivo
+          .dispositivo,
+
+      sessao:
+        resultadoSessao.sessao,
+
+      obras:
+        obras,
+
+      operacoes: {
+        usuario:
+          resultadoUsuario.operacao,
+
+        dispositivo:
+          resultadoDispositivo
+            .operacao,
+
+        sessao:
+          resultadoSessao.operacao
+      }
+    });
+
+
+  console.log(
+    "[UX.21.4] Identidade técnica disponível.",
+    {
+      idUsuario:
+        contexto.usuario.idUsuario,
+
+      idDispositivo:
+        contexto.dispositivo
+          .idDispositivo,
+
+      idSessao:
+        contexto.sessao.idSessao,
+
+      obras:
+        contexto.sessao
+          .obrasAutorizadas,
+
+      operacoes:
+        contexto.operacoes
+    }
+  );
+
+
+  return contexto;
+}
+
+
+/**
+ * Restaura uma sessão já persistida sem criar registros.
+ */
+async function restaurarIdentidadeTransicaoUX214_() {
+  const idDispositivo =
+    await resolverIdDispositivoAtualUX214_();
+
+  const sessao =
+    await obterSessaoAtivaDispositivoUX213_(
+      idDispositivo
+    );
+
+  if (!sessao) {
+    return null;
+  }
+
+  if (
+    sessao.idUsuario !==
+    CONFIG_IDENTIDADE_TRANSICAO_UX214
+      .idUsuario
+  ) {
+    throw new Error(
+      "UX214_SESSAO_NAO_EH_DE_TRANSICAO"
+    );
+  }
+
+
+  const usuario =
+    await obterUsuarioIdentidadeUX213_(
+      sessao.idUsuario
+    );
+
+  const dispositivo =
+    await obterDispositivoIdentidadeUX213_(
+      idDispositivo
+    );
+
+
+  if (
+    !usuario ||
+    !dispositivo
+  ) {
+    return null;
+  }
+
+
+  const validacaoUsuario =
+    validarUsuarioContratoUX212_(
+      usuario
+    );
+
+  const validacaoDispositivo =
+    validarDispositivoContratoUX212_(
+      dispositivo
+    );
+
+  const validacaoSessao =
+    validarSessaoContratoUX212_(
+      sessao
+    );
+
+  const elegibilidade =
+    validarElegibilidadeSessaoUX212_(
+      usuario,
+      dispositivo
+    );
+
+
+  if (
+    !validacaoUsuario.valido ||
+    !validacaoDispositivo.valido ||
+    !validacaoSessao.valido ||
+    !elegibilidade.elegivel
+  ) {
+    return null;
+  }
+
+
+  const agora =
+    new Date();
+
+  const validade =
+    navigator.onLine === false
+      ? sessao.validadeOfflineAte
+      : sessao.expiraEm;
+
+  if (
+    !dataFuturaUX214_(
+      validade,
+      agora
+    )
+  ) {
+    return null;
+  }
+
+
+  const obras =
+    await listarObrasDisponiveisUX214_();
+
+
+  return publicarContextoIdentidadeUX214_({
+    usuario:
+      usuario,
+
+    dispositivo:
+      dispositivo,
+
+    sessao:
+      sessao,
+
+    obras:
+      obras,
+
+    operacoes: {
+      usuario:
+        "RESTAURADO",
+
+      dispositivo:
+        "RESTAURADO",
+
+      sessao:
+        "RESTAURADA"
+    }
+  });
+}
+
+
+/**
+ * Retorna o contexto oficial já carregado.
+ */
+function obterIdentidadeAtualUX214_() {
+  return window.SIGO_IDENTIDADE_ATUAL
+    ? clonarUX214_(
+        window.SIGO_IDENTIDADE_ATUAL
+      )
+    : null;
+}
+
+
+/**
+ * Produz a autoria oficial para uma obra.
+ *
+ * Ainda não é incorporada automaticamente aos registros
+ * operacionais nesta etapa.
+ */
+async function obterContextoAutoriaAtualUX214_(
+  idObra
+) {
+  let identidade =
+    window.SIGO_IDENTIDADE_ATUAL;
+
+  if (!identidade) {
+    identidade =
+      await restaurarIdentidadeTransicaoUX214_();
+  }
+
+  if (!identidade) {
+    throw new Error(
+      "UX214_IDENTIDADE_NAO_INICIALIZADA"
+    );
+  }
+
+
+  const autorizado =
+    identidade.sessao
+      .obrasAutorizadas
+      .includes(
+        idObra
+      );
+
+  if (!autorizado) {
+    throw new Error(
+      "UX214_OBRA_NAO_AUTORIZADA: " +
+      idObra
+    );
+  }
+
+
+  const autoria =
+    criarContextoAutoriaUX212_({
+      sessao:
+        identidade.sessao,
+
+      idObra:
+        idObra,
+
+      modoConexao:
+        navigator.onLine
+          ? "ONLINE"
+          : "OFFLINE",
+
+      ocorridoEm:
+        agoraIsoUX214_(),
+
+      origem:
+        "APP_MOBILE_TRANSICAO"
+    });
+
+
+  const validacao =
+    validarContextoAutoriaUX212_(
+      autoria
+    );
+
+  if (!validacao.valido) {
+    throw new Error(
+      "UX214_AUTORIA_INVALIDA: " +
+      validacao.erros.join(", ")
+    );
+  }
+
+  return autoria;
+}
+
+/**
+ * ============================================================
+ * UX.21.4 — AUDITORIA
+ * ============================================================
+ *
+ * Os registros técnicos criados nesta auditoria são reais e
+ * permanecem nas stores de identidade.
+ *
+ * Nenhum registro operacional é alterado.
+ */
+async function auditarIdentidadeTransicaoUX214_() {
+  console.log(
+    "[UX.21.4] Iniciando auditoria da identidade persistente..."
+  );
+
+
+  const assinaturaStorageAntes =
+    assinarLocalStorageIdentidadeUX211_();
+
+  const storesExistentes =
+    await listarStoresIdentidadeUX211_();
+
+  const estadoOperacionalAntes =
+    await capturarEstadoIdentidadeUX211_(
+      storesExistentes
+    );
+
+  const identidadeAntes =
+    await capturarEstadoStoresIdentidadeUX213_();
+
+
+  const contextoInicial =
+    await inicializarIdentidadeTransicaoUX214_();
+
+  const idUsuario =
+    contextoInicial.usuario.idUsuario;
+
+  const idDispositivo =
+    contextoInicial.dispositivo
+      .idDispositivo;
+
+  const idSessao =
+    contextoInicial.sessao.idSessao;
+
+
+  const usuarioPersistido =
+    await obterUsuarioIdentidadeUX213_(
+      idUsuario
+    );
+
+  const dispositivoPersistido =
+    await obterDispositivoIdentidadeUX213_(
+      idDispositivo
+    );
+
+  const sessaoPersistida =
+    await obterSessaoIdentidadeUX213_(
+      idSessao
+    );
+
+  const sessoesDispositivo =
+    await listarSessoesPorDispositivoUX213_(
+      idDispositivo
+    );
+
+
+  const autorias = [];
+
+  for (
+    const obra of
+    contextoInicial.obras
+  ) {
+    autorias.push(
+      await obterContextoAutoriaAtualUX214_(
+        obra.idObra
+      )
+    );
+  }
+
+
+  /*
+   * Simulação de reinicialização da página:
+   * remove somente o contexto em memória.
+   */
+  delete window.SIGO_IDENTIDADE_ATUAL;
+
+  if (
+    window.SIGO_UX214
+  ) {
+    window.SIGO_UX214.contexto =
+      null;
+  }
+
+
+  const contextoRestaurado =
+    await restaurarIdentidadeTransicaoUX214_();
+
+  const contextoSegundaInicializacao =
+    await inicializarIdentidadeTransicaoUX214_();
+
+
+  const identidadeDepois =
+    await capturarEstadoStoresIdentidadeUX213_();
+
+  const estadoOperacionalDepois =
+    await capturarEstadoIdentidadeUX211_(
+      storesExistentes
+    );
+
+  const assinaturaStorageDepois =
+    assinarLocalStorageIdentidadeUX211_();
+
+
+  const storesOperacionaisAlteradas =
+    compararEstadoIdentidadeUX211_(
+      estadoOperacionalAntes,
+      estadoOperacionalDepois
+    );
+
+
+  const eventosAuditoria =
+    identidadeDepois
+      .TB_AUDITORIA_IDENTIDADE
+      .registros
+      .filter(
+        function (evento) {
+          return (
+            evento.idUsuario ===
+              idUsuario ||
+            evento.idDispositivo ===
+              idDispositivo ||
+            evento.idSessao ===
+              idSessao ||
+            evento.idEntidade ===
+              idUsuario ||
+            evento.idEntidade ===
+              idDispositivo ||
+            evento.idEntidade ===
+              idSessao
+          );
+        }
+      );
+
+
+  const obrasEsperadas =
+    contextoInicial.obras
+      .map(
+        function (obra) {
+          return obra.idObra;
+        }
+      )
+      .sort();
+
+  const obrasUsuario =
+    usuarioPersistido
+      .obrasAutorizadas
+      .map(
+        function (vinculo) {
+          return vinculo.idObra;
+        }
+      )
+      .sort();
+
+  const obrasSessao =
+    [
+      ...sessaoPersistida
+        .obrasAutorizadas
+    ].sort();
+
+
+  const camposSecretos = [
+    ...localizarCamposSecretosUX212_(
+      usuarioPersistido
+    ),
+
+    ...localizarCamposSecretosUX212_(
+      dispositivoPersistido
+    ),
+
+    ...localizarCamposSecretosUX212_(
+      sessaoPersistida
+    )
+  ];
+
+
+  const validacoes = {
+    dispositivoRealEncontrado:
+      idDispositivo ===
+      "DISP-MOBILE-10355705-c01d-4dbe-9012-f43283628e3b",
+
+    usuarioTecnicoCorreto:
+      idUsuario ===
+      CONFIG_IDENTIDADE_TRANSICAO_UX214
+        .idUsuario,
+
+    usuarioPersistido:
+      usuarioPersistido
+        ?.idUsuario ===
+      idUsuario,
+
+    usuarioAtivo:
+      usuarioPersistido
+        ?.statusUsuario ===
+      "ATIVO",
+
+    dispositivoPersistido:
+      dispositivoPersistido
+        ?.idDispositivo ===
+      idDispositivo,
+
+    dispositivoAtivo:
+      dispositivoPersistido
+        ?.statusDispositivo ===
+      "ATIVO",
+
+    dispositivoVinculadoAoUsuario:
+      dispositivoPersistido
+        ?.idUsuarioVinculado ===
+      idUsuario,
+
+    sessaoPersistida:
+      sessaoPersistida
+        ?.idSessao ===
+      idSessao,
+
+    sessaoAtiva:
+      sessaoPersistida
+        ?.statusSessao ===
+      "ATIVA",
+
+    somenteUmaSessaoAtiva:
+      sessoesDispositivo.filter(
+        function (sessao) {
+          return (
+            sessao.statusSessao ===
+            "ATIVA"
+          );
+        }
+      ).length === 1,
+
+    obrasUsuarioCorretas:
+      objetosIguaisUX214_(
+        obrasEsperadas,
+        obrasUsuario
+      ),
+
+    obrasSessaoCorretas:
+      objetosIguaisUX214_(
+        obrasEsperadas,
+        obrasSessao
+      ),
+
+    perfilTransicaoCorreto:
+      usuarioPersistido
+        .obrasAutorizadas
+        .every(
+          function (vinculo) {
+            return (
+              vinculo.perfil ===
+              CONFIG_IDENTIDADE_TRANSICAO_UX214
+                .perfil
+            );
+          }
+        ),
+
+    autoriasGeradas:
+      autorias.length ===
+      obrasEsperadas.length,
+
+    autoriasValidas:
+      autorias.every(
+        function (autoria) {
+          return (
+            validarContextoAutoriaUX212_(
+              autoria
+            ).valido === true
+          );
+        }
+      ),
+
+    contextoRestaurado:
+      contextoRestaurado
+        ?.sessao
+        ?.idSessao ===
+      idSessao,
+
+    segundaInicializacaoMesmaSessao:
+      contextoSegundaInicializacao
+        ?.sessao
+        ?.idSessao ===
+      idSessao,
+
+    credenciaisSecretasAusentes:
+      camposSecretos.length === 0,
+
+    eventosAuditoriaExistentes:
+      eventosAuditoria.length >= 3,
+
+    storesOperacionaisPreservadas:
+      storesOperacionaisAlteradas
+        .length === 0,
+
+    localStoragePreservado:
+      assinaturaStorageAntes ===
+      assinaturaStorageDepois,
+
+    filaPreservada:
+      !storesOperacionaisAlteradas
+        .some(
+          function (item) {
+            return (
+              item.store ===
+              "TB_SYNC_QUEUE"
+            );
+          }
+        ),
+
+    lotesPreservados:
+      !storesOperacionaisAlteradas
+        .some(
+          function (item) {
+            return (
+              item.store ===
+              "TB_LOTES_MEDICAO"
+            );
+          }
+        ),
+
+    notificacoesPreservadas:
+      !storesOperacionaisAlteradas
+        .some(
+          function (item) {
+            return (
+              item.store ===
+              "TB_NOTIFICACOES"
+            );
+          }
+        )
+  };
+
+
+  const aprovado =
+    Object.values(
+      validacoes
+    ).every(
+      function (valor) {
+        return valor === true;
+      }
+    );
+
+
+  const resultado = {
+    etapa:
+      "UX.21.4",
+
+    auditoria:
+      "IDENTIDADE_PERSISTENTE_E_SESSAO_TECNICA_TRANSICAO",
+
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+
+    identidade: {
+      modo:
+        "TRANSICAO_TECNICA",
+
+      idUsuario:
+        idUsuario,
+
+      idDispositivo:
+        idDispositivo,
+
+      idSessao:
+        idSessao,
+
+      perfil:
+        CONFIG_IDENTIDADE_TRANSICAO_UX214
+          .perfil,
+
+      obrasAutorizadas:
+        obrasSessao,
+
+      validadeSessao:
+        sessaoPersistida.expiraEm,
+
+      validadeOffline:
+        sessaoPersistida
+          .validadeOfflineAte
+    },
+
+    inicializacao: {
+      usuario:
+        contextoInicial
+          .operacoes
+          .usuario,
+
+      dispositivo:
+        contextoInicial
+          .operacoes
+          .dispositivo,
+
+      sessao:
+        contextoInicial
+          .operacoes
+          .sessao
+    },
+
+    restauracao: {
+      contextoRestaurado:
+        Boolean(
+          contextoRestaurado
+        ),
+
+      sessaoOriginal:
+        idSessao,
+
+      sessaoRestaurada:
+        contextoRestaurado
+          ?.sessao
+          ?.idSessao || "",
+
+      segundaInicializacao:
+        contextoSegundaInicializacao
+          ?.operacoes || {}
+    },
+
+    autoria: {
+      quantidade:
+        autorias.length,
+
+      registros:
+        autorias
+    },
+
+    auditoriaIdentidade: {
+      eventosRelacionados:
+        eventosAuditoria.length,
+
+      tipos:
+        eventosAuditoria.map(
+          function (evento) {
+            return evento.tipoEvento;
+          }
+        )
+    },
+
+    persistencia: {
+      usuarioPermanecePersistido:
+        true,
+
+      dispositivoPermanecePersistido:
+        true,
+
+      sessaoPermanecePersistida:
+        true,
+
+      registrosDeTeste:
+        false
+    },
+
+    preservacao: {
+      storesOperacionaisAlteradas:
+        storesOperacionaisAlteradas,
+
+      localStorageAlterado:
+        assinaturaStorageAntes !==
+        assinaturaStorageDepois,
+
+      filaPreservada:
+        validacoes
+          .filaPreservada,
+
+      lotesPreservados:
+        validacoes
+          .lotesPreservados,
+
+      notificacoesPreservadas:
+        validacoes
+          .notificacoesPreservadas
+    },
+
+    transicao: {
+      usuarioMobileSubstituido:
+        false,
+
+      payloadsOperacionaisAlterados:
+        false,
+
+      registrosLegadosMigrados:
+        false,
+
+      identidadeOficialDisponivel:
+        true
+    },
+
+    validacoes:
+      validacoes,
+
+    aprovado:
+      aprovado,
+
+    prontoParaAtivacaoAutomatica:
+      aprovado
+  };
+
+
+  console.log(
+    JSON.stringify(
+      resultado,
+      null,
+      2
+    )
+  );
+
+
+  if (!aprovado) {
+    throw new Error(
+      "UX.21.4 REPROVADA. Consulte as validações da identidade de transição."
+    );
+  }
+
+
+  console.log(
+    "UX.21.4 — IDENTIDADE PERSISTENTE E SESSÃO TÉCNICA APROVADAS."
+  );
+
+
+  return resultado;
+}
