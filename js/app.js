@@ -29058,12 +29058,48 @@ function consolidarResultadosReidratacaoUX1977_(
       "diarioItens"
     );
 
-  const ocorrencias =
-    normalizarResumoEntidadeUX1977_(
-      resultadoOcorrencias,
-      "ocorrencias"
-    );
-
+  const ocorrenciasBase =
+    typeof normalizarResumoOcorrenciasUX1967_ ===
+      "function"
+      ? normalizarResumoOcorrenciasUX1967_(
+          resultadoOcorrencias
+        )
+      : normalizarResumoEntidadeUX1977_(
+          resultadoOcorrencias,
+          "ocorrencias"
+        );
+  
+  const ocorrencias = {
+    recebidos:
+      numeroSeguroReidratacaoUX1977_(
+        ocorrenciasBase.recebidos
+      ),
+  
+    inseridos:
+      numeroSeguroReidratacaoUX1977_(
+        ocorrenciasBase.inseridos
+      ),
+  
+    atualizados:
+      numeroSeguroReidratacaoUX1977_(
+        ocorrenciasBase.atualizados
+      ),
+  
+    preservados:
+      numeroSeguroReidratacaoUX1977_(
+        ocorrenciasBase.preservados
+      ),
+  
+    rejeitados:
+      numeroSeguroReidratacaoUX1977_(
+        ocorrenciasBase.rejeitados
+      ),
+  
+    gravacoesExecutadas:
+      numeroSeguroReidratacaoUX1977_(
+        ocorrenciasBase.gravacoesExecutadas
+      )
+  };
   const climas =
     normalizarResumoEntidadeUX1977_(
       resultadoClimas,
