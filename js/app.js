@@ -33561,3 +33561,1223 @@ async function executarMesclagemRealEvidenciasUX1985_() {
 
   return resultado;
 }
+
+/**
+ * ============================================================
+ * UX.19.8.6 — AUDITORIA PÓS-MESCLAGEM E IDEMPOTÊNCIA
+ * DE EVIDÊNCIAS
+ * ============================================================
+ *
+ * Etapa somente leitura.
+ *
+ * Verifica:
+ *
+ * - servidor × TB_EVIDENCIAS;
+ * - duplicidades;
+ * - faltantes;
+ * - extras;
+ * - divergências funcionais;
+ * - links;
+ * - metadados de reidratação;
+ * - idempotência;
+ * - preservação da TB_EVIDENCIAS;
+ * - preservação da TB_SYNC_QUEUE.
+ */
+
+
+/**
+ * Normaliza valores para comparação funcional.
+ */
+function normalizarValorAuditoriaEvidenciaUX1986_(
+  valor
+) {
+  if (
+    valor === undefined ||
+    valor === null
+  ) {
+    return "";
+  }
+
+  return String(valor)
+    .trim()
+    .replace(/\r\n/g, "\n");
+}
+
+
+/**
+ * Obtém o valor funcional local de um campo.
+ *
+ * Mantém compatibilidade com aliases antigos:
+ *
+ * - tipoEvidencia / tipo;
+ * - statusEvidencia / status.
+ */
+function obterCampoLocalAuditoriaEvidenciaUX1986_(
+  registro,
+  campo
+) {
+  const origem =
+    registro &&
+    typeof registro === "object"
+      ? registro
+      : {};
+
+  if (
+    campo === "tipoEvidencia"
+  ) {
+    return origem.tipoEvidencia ??
+      origem.tipo ??
+      "";
+  }
+
+  if (
+    campo === "statusEvidencia"
+  ) {
+    return origem.statusEvidencia ??
+      origem.status ??
+      "";
+  }
+
+  return origem[campo];
+}
+
+
+/**
+ * Compara os campos funcionais de uma Evidência.
+ */
+function compararRegistroEvidenciaUX1986_(
+  servidor,
+  local
+) {
+  const camposFuncionais = [
+    "idEvidencia",
+    "data",
+    "idObra",
+    "origem",
+    "idReferencia",
+    "idAtividade",
+    "tipoEvidencia",
+    "descricao",
+    "linkArquivo",
+    "responsavel",
+    "statusEvidencia"
+  ];
+
+  const divergencias = [];
+
+  camposFuncionais.forEach(
+    function (campo) {
+      const valorServidor =
+        normalizarValorAuditoriaEvidenciaUX1986_(
+          servidor?.[campo]
+        );
+
+      const valorLocal =
+        normalizarValorAuditoriaEvidenciaUX1986_(
+          obterCampoLocalAuditoriaEvidenciaUX1986_(
+            local,
+            campo
+          )
+        );
+
+      if (
+        valorServidor !==
+        valorLocal
+      ) {
+        divergencias.push({
+          campo:
+            campo,
+
+          servidor:
+            campo === "linkArquivo"
+              ? resumirLinkEvidenciaMobileUX1984_(
+                  valorServidor
+                )
+              : valorServidor,
+
+          local:
+            campo === "linkArquivo"
+              ? resumirLinkEvidenciaMobileUX1984_(
+                  valorLocal
+                )
+              : valorLocal
+        });
+      }
+    }
+  );
+
+  return divergencias;
+}
+
+
+/**
+ * Localiza IDs duplicados em uma coleção.
+ */
+function localizarDuplicidadesEvidenciasUX1986_(
+  registros
+) {
+  const vistos =
+    new Map();
+
+  const duplicados =
+    [];
+
+  const lista =
+    Array.isArray(registros)
+      ? registros
+      : [];
+
+  lista.forEach(
+    function (registro, indice) {
+      const idEvidencia =
+        normalizarValorAuditoriaEvidenciaUX1986_(
+          registro?.idEvidencia
+        );
+
+      if (!idEvidencia) {
+        return;
+      }
+
+      if (
+        vistos.has(idEvidencia)
+      ) {
+        duplicados.push({
+          idEvidencia:
+            idEvidencia,
+
+          primeiraPosicao:
+            vistos.get(idEvidencia),
+
+          posicaoDuplicada:
+            indice
+        });
+
+      } else {
+        vistos.set(
+          idEvidencia,
+          indice
+        );
+      }
+    }
+  );
+
+  return duplicados;
+}
+
+
+/**
+ * Verifica se uma Evidência local possui os
+ * campos essenciais.
+ */
+function validarRegistroLocalEvidenciaUX1986_(
+  registro
+) {
+  const problemas = [];
+
+  const idEvidencia =
+    normalizarValorAuditoriaEvidenciaUX1986_(
+      registro?.idEvidencia
+    );
+
+  const data =
+    normalizarValorAuditoriaEvidenciaUX1986_(
+      registro?.data
+    );
+
+  const idObra =
+    normalizarValorAuditoriaEvidenciaUX1986_(
+      registro?.idObra
+    );
+
+  const linkArquivo =
+    normalizarValorAuditoriaEvidenciaUX1986_(
+      registro?.linkArquivo
+    );
+
+  if (!idEvidencia) {
+    problemas.push(
+      "ID_EVIDENCIA_AUSENTE"
+    );
+  }
+
+  if (!data) {
+    problemas.push(
+      "DATA_AUSENTE"
+    );
+
+  } else if (
+    !validarDataEvidenciaMobileUX1984_(
+      data
+    )
+  ) {
+    problemas.push(
+      "DATA_INVALIDA"
+    );
+  }
+
+  if (!idObra) {
+    problemas.push(
+      "ID_OBRA_AUSENTE"
+    );
+  }
+
+  if (!linkArquivo) {
+    problemas.push(
+      "LINK_AUSENTE"
+    );
+
+  } else if (
+    !validarUrlEvidenciaMobileUX1984_(
+      linkArquivo
+    )
+  ) {
+    problemas.push(
+      "LINK_INVALIDO"
+    );
+  }
+
+  return problemas;
+}
+
+
+/**
+ * ============================================================
+ * AUDITORIA PRINCIPAL
+ * ============================================================
+ */
+async function auditarMesclagemEvidenciasUX1986_() {
+  console.log(
+    "[UX.19.8.6] Iniciando auditoria da mesclagem de Evidências..."
+  );
+
+  const idObra =
+    "OBR002";
+
+  const periodoDias =
+    30;
+
+
+  /*
+   * ========================================================
+   * ESTADO ANTES DA AUDITORIA
+   * ========================================================
+   */
+
+  const evidenciasAntes =
+    await listarRegistrosSIGO(
+      "TB_EVIDENCIAS"
+    );
+
+  const filaAntes =
+    await listarRegistrosSIGO(
+      "TB_SYNC_QUEUE"
+    );
+
+  const assinaturaEvidenciasAntes =
+    criarAssinaturaColecaoEvidenciasUX1985_(
+      evidenciasAntes,
+      "idEvidencia"
+    );
+
+  const assinaturaFilaAntes =
+    criarAssinaturaColecaoEvidenciasUX1985_(
+      filaAntes,
+      "idSyncLocal"
+    );
+
+
+  /*
+   * ========================================================
+   * PACOTE DO SERVIDOR
+   * ========================================================
+   */
+
+  const pacoteServidor =
+    await obterEvidenciasOperacionaisObraMobile_(
+      idObra,
+      periodoDias
+    );
+
+  const evidenciasServidor =
+    Array.isArray(
+      pacoteServidor.evidencias
+    )
+      ? pacoteServidor.evidencias
+      : [];
+
+  const evidenciasLocaisObra =
+    evidenciasAntes.filter(
+      function (registro) {
+        return (
+          normalizarValorAuditoriaEvidenciaUX1986_(
+            registro?.idObra
+          ) === idObra
+        );
+      }
+    );
+
+
+  /*
+   * ========================================================
+   * MAPAS
+   * ========================================================
+   */
+
+  const mapaServidor =
+    new Map();
+
+  const mapaLocal =
+    new Map();
+
+  evidenciasServidor.forEach(
+    function (registro) {
+      const id =
+        normalizarValorAuditoriaEvidenciaUX1986_(
+          registro?.idEvidencia
+        );
+
+      if (id) {
+        mapaServidor.set(
+          id,
+          registro
+        );
+      }
+    }
+  );
+
+  evidenciasLocaisObra.forEach(
+    function (registro) {
+      const id =
+        normalizarValorAuditoriaEvidenciaUX1986_(
+          registro?.idEvidencia
+        );
+
+      if (id) {
+        mapaLocal.set(
+          id,
+          registro
+        );
+      }
+    }
+  );
+
+
+  /*
+   * ========================================================
+   * PROBLEMAS E CONTADORES
+   * ========================================================
+   */
+
+  const duplicadosServidor =
+    localizarDuplicidadesEvidenciasUX1986_(
+      evidenciasServidor
+    );
+
+  const duplicadosLocal =
+    localizarDuplicidadesEvidenciasUX1986_(
+      evidenciasLocaisObra
+    );
+
+  const invalidosLocal =
+    [];
+
+  const faltantesLocal =
+    [];
+
+  const extrasLocal =
+    [];
+
+  const misturaDeObras =
+    [];
+
+  const divergenciasFuncionais =
+    [];
+
+  const linksInvalidos =
+    [];
+
+  const linksNaoGoogleDrive =
+    [];
+
+  const statusSyncIncorreto =
+    [];
+
+  const origemIncorreta =
+    [];
+
+  const dataSyncAusente =
+    [];
+
+  let comAtividade = 0;
+  let semAtividade = 0;
+
+
+  /*
+   * ========================================================
+   * VALIDAÇÃO DOS REGISTROS LOCAIS DA OBRA
+   * ========================================================
+   */
+
+  evidenciasLocaisObra.forEach(
+    function (registro) {
+      const idEvidencia =
+        normalizarValorAuditoriaEvidenciaUX1986_(
+          registro?.idEvidencia
+        );
+
+      const problemasRegistro =
+        validarRegistroLocalEvidenciaUX1986_(
+          registro
+        );
+
+      if (
+        problemasRegistro.length
+      ) {
+        invalidosLocal.push({
+          idEvidencia:
+            idEvidencia ||
+            "SEM_ID",
+
+          problemas:
+            problemasRegistro
+        });
+      }
+
+      const linkArquivo =
+        normalizarValorAuditoriaEvidenciaUX1986_(
+          registro?.linkArquivo
+        );
+
+      if (
+        linkArquivo &&
+        !validarUrlEvidenciaMobileUX1984_(
+          linkArquivo
+        )
+      ) {
+        linksInvalidos.push({
+          idEvidencia:
+            idEvidencia,
+
+          linkResumo:
+            resumirLinkEvidenciaMobileUX1984_(
+              linkArquivo
+            )
+        });
+      }
+
+      if (
+        linkArquivo &&
+        !/drive\.google\.com/i.test(
+          linkArquivo
+        )
+      ) {
+        linksNaoGoogleDrive.push({
+          idEvidencia:
+            idEvidencia,
+
+          linkResumo:
+            resumirLinkEvidenciaMobileUX1984_(
+              linkArquivo
+            )
+        });
+      }
+
+      if (
+        normalizarValorAuditoriaEvidenciaUX1986_(
+          registro?.idAtividade
+        )
+      ) {
+        comAtividade++;
+
+      } else {
+        semAtividade++;
+      }
+
+      if (
+        normalizarValorAuditoriaEvidenciaUX1986_(
+          registro?.statusSync
+        ) !== "SINCRONIZADO"
+      ) {
+        statusSyncIncorreto.push({
+          idEvidencia:
+            idEvidencia,
+
+          statusSync:
+            registro?.statusSync
+        });
+      }
+
+      if (
+        normalizarValorAuditoriaEvidenciaUX1986_(
+          registro?.origemReidratacao
+        ) !== "SERVIDOR"
+      ) {
+        origemIncorreta.push({
+          idEvidencia:
+            idEvidencia,
+
+          origemReidratacao:
+            registro?.origemReidratacao
+        });
+      }
+
+      if (
+        !normalizarValorAuditoriaEvidenciaUX1986_(
+          registro?.dataSync
+        )
+      ) {
+        dataSyncAusente.push(
+          idEvidencia
+        );
+      }
+    }
+  );
+
+
+  /*
+   * ========================================================
+   * FALTANTES E DIVERGÊNCIAS
+   * ========================================================
+   */
+
+  evidenciasServidor.forEach(
+    function (registroServidor) {
+      const idEvidencia =
+        normalizarValorAuditoriaEvidenciaUX1986_(
+          registroServidor?.idEvidencia
+        );
+
+      const registroLocal =
+        mapaLocal.get(
+          idEvidencia
+        );
+
+      if (!registroLocal) {
+        /*
+         * Verifica se o mesmo ID existe localmente
+         * vinculado a outra obra.
+         */
+        const mesmoIdOutraObra =
+          evidenciasAntes.find(
+            function (registro) {
+              return (
+                normalizarValorAuditoriaEvidenciaUX1986_(
+                  registro?.idEvidencia
+                ) === idEvidencia &&
+                normalizarValorAuditoriaEvidenciaUX1986_(
+                  registro?.idObra
+                ) !== idObra
+              );
+            }
+          );
+
+        if (mesmoIdOutraObra) {
+          misturaDeObras.push({
+            idEvidencia:
+              idEvidencia,
+
+            idObraLocal:
+              mesmoIdOutraObra.idObra,
+
+            idObraServidor:
+              idObra
+          });
+
+        } else {
+          faltantesLocal.push(
+            idEvidencia
+          );
+        }
+
+        return;
+      }
+
+      const divergencias =
+        compararRegistroEvidenciaUX1986_(
+          registroServidor,
+          registroLocal
+        );
+
+      if (
+        divergencias.length
+      ) {
+        divergenciasFuncionais.push({
+          idEvidencia:
+            idEvidencia,
+
+          divergencias:
+            divergencias
+        });
+      }
+    }
+  );
+
+
+  /*
+   * ========================================================
+   * EXTRAS LOCAIS
+   * ========================================================
+   */
+
+  evidenciasLocaisObra.forEach(
+    function (registroLocal) {
+      const idEvidencia =
+        normalizarValorAuditoriaEvidenciaUX1986_(
+          registroLocal?.idEvidencia
+        );
+
+      if (
+        idEvidencia &&
+        !mapaServidor.has(
+          idEvidencia
+        )
+      ) {
+        extrasLocal.push(
+          idEvidencia
+        );
+      }
+    }
+  );
+
+
+  /*
+   * ========================================================
+   * IDEMPOTÊNCIA — SOMENTE SIMULAÇÃO
+   * ========================================================
+   */
+
+  const idempotencia =
+    await mesclarEvidenciasReidratacaoSIGO_(
+      pacoteServidor,
+      {
+        simular:
+          true
+      }
+    );
+
+  const resumoIdempotencia =
+    idempotencia.evidencias || {};
+
+
+  /*
+   * ========================================================
+   * ESTADO DEPOIS DA AUDITORIA
+   * ========================================================
+   */
+
+  const evidenciasDepois =
+    await listarRegistrosSIGO(
+      "TB_EVIDENCIAS"
+    );
+
+  const filaDepois =
+    await listarRegistrosSIGO(
+      "TB_SYNC_QUEUE"
+    );
+
+  const assinaturaEvidenciasDepois =
+    criarAssinaturaColecaoEvidenciasUX1985_(
+      evidenciasDepois,
+      "idEvidencia"
+    );
+
+  const assinaturaFilaDepois =
+    criarAssinaturaColecaoEvidenciasUX1985_(
+      filaDepois,
+      "idSyncLocal"
+    );
+
+
+  /*
+   * ========================================================
+   * VALIDAÇÕES
+   * ========================================================
+   */
+
+  const validacoes = {
+    apiHttp200:
+      pacoteServidor.codigoHttp ===
+      200,
+
+    apiStatusOK:
+      pacoteServidor.status ===
+      "OK",
+
+    contratoVersao1:
+      pacoteServidor.versaoContrato ===
+      "1.0",
+
+    obraCorreta:
+      pacoteServidor.idObra ===
+      idObra,
+
+    periodoCorreto:
+      pacoteServidor.periodoDias ===
+      periodoDias,
+
+    servidorRetornou7:
+      evidenciasServidor.length ===
+      7,
+
+    localPossui7DaObra:
+      evidenciasLocaisObra.length ===
+      7,
+
+    localPossui4ComAtividade:
+      comAtividade ===
+      4,
+
+    localPossui3SemAtividade:
+      semAtividade ===
+      3,
+
+    nenhumDuplicadoServidor:
+      duplicadosServidor.length ===
+      0,
+
+    nenhumDuplicadoLocal:
+      duplicadosLocal.length ===
+      0,
+
+    nenhumLocalInvalido:
+      invalidosLocal.length ===
+      0,
+
+    nenhumRegistroFaltante:
+      faltantesLocal.length ===
+      0,
+
+    nenhumRegistroExtra:
+      extrasLocal.length ===
+      0,
+
+    nenhumaMisturaDeObras:
+      misturaDeObras.length ===
+      0,
+
+    nenhumCampoFuncionalDivergente:
+      divergenciasFuncionais.length ===
+      0,
+
+    todosLinksValidos:
+      linksInvalidos.length ===
+      0,
+
+    todosLinksGoogleDrive:
+      linksNaoGoogleDrive.length ===
+      0,
+
+    todosStatusSyncCorretos:
+      statusSyncIncorreto.length ===
+      0,
+
+    todasOrigensCorretas:
+      origemIncorreta.length ===
+      0,
+
+    todosPossuemDataSync:
+      dataSyncAusente.length ===
+      0,
+
+    idempotenciaModoSimulacao:
+      idempotencia.modo ===
+      "SIMULACAO",
+
+    idempotenciaRecebeu7:
+      resumoIdempotencia.recebidos ===
+      7,
+
+    idempotenciaInseririaZero:
+      resumoIdempotencia.inseridos ===
+      0,
+
+    idempotenciaAtualizaria7:
+      resumoIdempotencia.atualizados ===
+      7,
+
+    idempotenciaNenhumUpsertPreservado:
+      resumoIdempotencia
+        .preservadosUpsert === 0,
+
+    idempotenciaNenhumDeletePreservado:
+      resumoIdempotencia
+        .preservadosDelete === 0,
+
+    idempotenciaNenhumStatusPreservado:
+      resumoIdempotencia
+        .preservadosStatusLocal === 0,
+
+    idempotenciaNenhumaFilaDesconhecida:
+      resumoIdempotencia
+        .preservadosFilaDesconhecida === 0,
+
+    idempotenciaNenhumInvalido:
+      resumoIdempotencia
+        .rejeitadosInvalidos === 0,
+
+    idempotenciaNenhumaOutraObra:
+      resumoIdempotencia
+        .rejeitadosOutraObra === 0,
+
+    idempotenciaNenhumConflito:
+      idempotencia
+        .totalConflitosEvitados === 0,
+
+    idempotenciaNenhumaGravacao:
+      resumoIdempotencia
+        .gravacoesExecutadas === 0,
+
+    tbEvidenciasNaoAlterada:
+      assinaturaEvidenciasAntes ===
+      assinaturaEvidenciasDepois,
+
+    quantidadeTbEvidenciasPreservada:
+      evidenciasAntes.length ===
+      evidenciasDepois.length,
+
+    filaPossui45Antes:
+      filaAntes.length ===
+      45,
+
+    filaPossui45Depois:
+      filaDepois.length ===
+      45,
+
+    filaQuantidadePreservada:
+      filaAntes.length ===
+      filaDepois.length,
+
+    filaConteudoPreservado:
+      assinaturaFilaAntes ===
+      assinaturaFilaDepois,
+
+    filaConfirmadaPelaMesclagem:
+      idempotencia.fila
+        ?.preservada === true
+  };
+
+  const aprovado =
+    Object.values(
+      validacoes
+    ).every(
+      function (valor) {
+        return valor === true;
+      }
+    );
+
+
+  /*
+   * ========================================================
+   * RESULTADO
+   * ========================================================
+   */
+
+  const primeiroRegistroLocal =
+    evidenciasLocaisObra.length
+      ? evidenciasLocaisObra[0]
+      : null;
+
+  const resultado = {
+    etapa:
+      "UX.19.8.6",
+
+    auditoria:
+      "MESCLAGEM_EVIDENCIAS_E_IDEMPOTENCIA",
+
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+
+    idObra:
+      idObra,
+
+    periodoDias:
+      periodoDias,
+
+    totais: {
+      servidor:
+        evidenciasServidor.length,
+
+      localObra:
+        evidenciasLocaisObra.length,
+
+      localStoreCompleta:
+        evidenciasAntes.length,
+
+      comAtividade:
+        comAtividade,
+
+      semAtividade:
+        semAtividade,
+
+      duplicadosServidor:
+        duplicadosServidor.length,
+
+      duplicadosLocal:
+        duplicadosLocal.length,
+
+      invalidosLocal:
+        invalidosLocal.length,
+
+      faltantesLocal:
+        faltantesLocal.length,
+
+      extrasLocal:
+        extrasLocal.length,
+
+      misturaDeObras:
+        misturaDeObras.length,
+
+      divergenciasFuncionais:
+        divergenciasFuncionais.length,
+
+      linksInvalidos:
+        linksInvalidos.length,
+
+      linksNaoGoogleDrive:
+        linksNaoGoogleDrive.length,
+
+      statusSyncIncorreto:
+        statusSyncIncorreto.length,
+
+      origemIncorreta:
+        origemIncorreta.length,
+
+      dataSyncAusente:
+        dataSyncAusente.length
+    },
+
+    idempotencia: {
+      modo:
+        idempotencia.modo,
+
+      recebidos:
+        Number(
+          resumoIdempotencia.recebidos || 0
+        ),
+
+      inseriria:
+        Number(
+          resumoIdempotencia.inseridos || 0
+        ),
+
+      atualizaria:
+        Number(
+          resumoIdempotencia.atualizados || 0
+        ),
+
+      preservariaUpsert:
+        Number(
+          resumoIdempotencia
+            .preservadosUpsert || 0
+        ),
+
+      preservariaDelete:
+        Number(
+          resumoIdempotencia
+            .preservadosDelete || 0
+        ),
+
+      preservariaStatusLocal:
+        Number(
+          resumoIdempotencia
+            .preservadosStatusLocal || 0
+        ),
+
+      preservariaFilaDesconhecida:
+        Number(
+          resumoIdempotencia
+            .preservadosFilaDesconhecida || 0
+        ),
+
+      rejeitariaInvalidos:
+        Number(
+          resumoIdempotencia
+            .rejeitadosInvalidos || 0
+        ),
+
+      rejeitariaOutraObra:
+        Number(
+          resumoIdempotencia
+            .rejeitadosOutraObra || 0
+        ),
+
+      conflitos:
+        Number(
+          idempotencia
+            .totalConflitosEvitados || 0
+        ),
+
+      gravacoesExecutadas:
+        Number(
+          resumoIdempotencia
+            .gravacoesExecutadas || 0
+        )
+    },
+
+    fila: {
+      totalAntes:
+        filaAntes.length,
+
+      totalDepois:
+        filaDepois.length,
+
+      preservada:
+        assinaturaFilaAntes ===
+        assinaturaFilaDepois,
+
+      confirmadaPelaMesclagem:
+        idempotencia.fila
+          ?.preservada === true
+    },
+
+    problemas: {
+      duplicadosServidor:
+        duplicadosServidor,
+
+      duplicadosLocal:
+        duplicadosLocal,
+
+      invalidosLocal:
+        invalidosLocal,
+
+      faltantesLocal:
+        faltantesLocal,
+
+      extrasLocal:
+        extrasLocal,
+
+      misturaDeObras:
+        misturaDeObras,
+
+      divergenciasFuncionais:
+        divergenciasFuncionais,
+
+      linksInvalidos:
+        linksInvalidos,
+
+      linksNaoGoogleDrive:
+        linksNaoGoogleDrive,
+
+      statusSyncIncorreto:
+        statusSyncIncorreto,
+
+      origemIncorreta:
+        origemIncorreta,
+
+      dataSyncAusente:
+        dataSyncAusente
+    },
+
+    validacoes:
+      validacoes,
+
+    primeiroRegistroLocal:
+      primeiroRegistroLocal
+        ? {
+            idEvidencia:
+              primeiroRegistroLocal
+                .idEvidencia,
+
+            data:
+              primeiroRegistroLocal
+                .data,
+
+            idObra:
+              primeiroRegistroLocal
+                .idObra,
+
+            origem:
+              primeiroRegistroLocal
+                .origem,
+
+            idReferencia:
+              primeiroRegistroLocal
+                .idReferencia,
+
+            idAtividade:
+              primeiroRegistroLocal
+                .idAtividade,
+
+            tipoEvidencia:
+              primeiroRegistroLocal
+                .tipoEvidencia ||
+              primeiroRegistroLocal
+                .tipo,
+
+            descricao:
+              primeiroRegistroLocal
+                .descricao,
+
+            linkArquivoPresente:
+              Boolean(
+                primeiroRegistroLocal
+                  .linkArquivo
+              ),
+
+            linkArquivoResumo:
+              resumirLinkEvidenciaMobileUX1984_(
+                primeiroRegistroLocal
+                  .linkArquivo
+              ),
+
+            responsavel:
+              primeiroRegistroLocal
+                .responsavel,
+
+            statusEvidencia:
+              primeiroRegistroLocal
+                .statusEvidencia ||
+              primeiroRegistroLocal
+                .status,
+
+            statusSync:
+              primeiroRegistroLocal
+                .statusSync,
+
+            dataSync:
+              primeiroRegistroLocal
+                .dataSync,
+
+            origemReidratacao:
+              primeiroRegistroLocal
+                .origemReidratacao
+          }
+        : null,
+
+    aprovado:
+      aprovado
+  };
+
+  console.log(
+    JSON.stringify(
+      resultado,
+      null,
+      2
+    )
+  );
+
+  if (!aprovado) {
+    throw new Error(
+      "UX.19.8.6 REPROVADA. Consulte as validações no console."
+    );
+  }
+
+  console.log(
+    "UX.19.8.6 — AUDITORIA DA MESCLAGEM DE EVIDÊNCIAS APROVADA."
+  );
+
+  return {
+    auditoria:
+      resultado,
+
+    pacoteServidor:
+      pacoteServidor,
+
+    idempotencia:
+      idempotencia
+  };
+}
+
+
