@@ -48503,17 +48503,38 @@ function obterAreaUltimaAtualizacaoUX201_() {
 
 
 /**
- * Atualiza a informação visual do histórico configurado.
+ * ============================================================
+ * UX.20.1A — INDICADOR VISUAL ROBUSTO
+ * ============================================================
+ *
+ * Prioridades de ancoragem:
+ *
+ * 1. área de Última atualização;
+ * 2. container do select de período;
+ * 3. modal de reidratação.
  */
 function atualizarIndicadorHistoricoUX201_(
   periodo
 ) {
-  const area =
+  const periodoResolvido =
+    resolverPeriodoHistoricoOfflineUX201_(
+      periodo
+    );
+
+  const select =
+    obterSelectPeriodoHistoricoUX201_();
+
+  const areaUltimaAtualizacao =
     obterAreaUltimaAtualizacaoUX201_();
 
-  if (!area) {
-    return false;
-  }
+  const modalReidratacao =
+    document.getElementById(
+      "modalReidratacaoUX1958"
+    ) ||
+    document.querySelector(
+      '[id*="reidratacao" i], ' +
+      '[id*="reidrat" i][role="dialog"]'
+    );
 
   let indicador =
     document.getElementById(
@@ -48527,39 +48548,131 @@ function atualizarIndicadorHistoricoUX201_(
     indicador.id =
       "indicadorHistoricoOfflineUX201";
 
+    indicador.className =
+      "sigo-indicador-historico-offline";
+
+    indicador.setAttribute(
+      "aria-live",
+      "polite"
+    );
+
     indicador.style.marginTop =
-      "6px";
+      "7px";
 
     indicador.style.fontSize =
       "12px";
 
-    indicador.style.opacity =
-      "0.78";
+    indicador.style.lineHeight =
+      "1.4";
 
     indicador.style.fontWeight =
       "600";
 
-    const container =
-      area.matches(
-        "input, select, textarea"
-      )
-        ? area.parentElement
-        : area;
+    indicador.style.opacity =
+      "0.78";
 
-    container?.appendChild(
-      indicador
-    );
+    indicador.style.display =
+      "flex";
+
+    indicador.style.alignItems =
+      "center";
+
+    indicador.style.gap =
+      "5px";
   }
 
-  indicador.textContent =
+  const textoEsperado =
     "Histórico offline: " +
-    periodo +
+    periodoResolvido +
     " dias";
 
-  indicador.dataset.periodoDias =
-    String(periodo);
+  /*
+   * Evita disparar o MutationObserver repetidamente
+   * quando o texto já estiver correto.
+   */
+  if (
+    indicador.textContent !==
+    textoEsperado
+  ) {
+    indicador.textContent =
+      textoEsperado;
+  }
 
-  return true;
+  indicador.dataset.periodoDias =
+    String(periodoResolvido);
+
+  indicador.dataset.ux201a =
+    "true";
+
+
+  /*
+   * 1. Preferência: área de Última atualização.
+   */
+  if (areaUltimaAtualizacao) {
+    const container =
+      areaUltimaAtualizacao.matches(
+        "input, select, textarea"
+      )
+        ? areaUltimaAtualizacao.parentElement
+        : areaUltimaAtualizacao;
+
+    if (
+      container &&
+      indicador.parentElement !==
+        container
+    ) {
+      container.appendChild(
+        indicador
+      );
+    }
+
+    return true;
+  }
+
+
+  /*
+   * 2. Fallback principal:
+   * posiciona imediatamente após o select.
+   */
+  if (select) {
+    if (
+      indicador.previousElementSibling !==
+        select ||
+      indicador.parentElement !==
+        select.parentElement
+    ) {
+      select.insertAdjacentElement(
+        "afterend",
+        indicador
+      );
+    }
+
+    return true;
+  }
+
+
+  /*
+   * 3. Último fallback:
+   * adiciona dentro do modal de reidratação.
+   */
+  if (modalReidratacao) {
+    if (
+      indicador.parentElement !==
+      modalReidratacao
+    ) {
+      modalReidratacao.appendChild(
+        indicador
+      );
+    }
+
+    return true;
+  }
+
+  console.warn(
+    "[UX.20.1A] Não foi encontrado um container para o indicador visual."
+  );
+
+  return false;
 }
 
 
