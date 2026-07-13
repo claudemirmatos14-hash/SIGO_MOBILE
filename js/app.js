@@ -53461,3 +53461,2155 @@ async function testarExclusaoEfetivaRetencaoUX202A_() {
     throw erro;
   }
 }
+
+/**
+ * ============================================================
+ * UX.20.3 — INTEGRAÇÃO VISUAL DA RETENÇÃO LOCAL
+ * ============================================================
+ *
+ * Dependências:
+ *
+ * - UX.20.1 — configuração persistente;
+ * - UX.20.2 — política segura de retenção;
+ * - UX.20.2A — exclusão efetiva validada.
+ *
+ * A interface:
+ *
+ * - não executa limpeza automaticamente;
+ * - exige simulação prévia;
+ * - exige confirmação explícita;
+ * - invalida a simulação quando obra ou período mudam;
+ * - preserva o histórico da última execução no localStorage.
+ */
+
+const CHAVE_ULTIMA_RETENCAO_UX203 =
+  "SIGO_ULTIMA_RETENCAO_LOCAL_V1";
+
+
+/**
+ * Normalização textual.
+ */
+function textoUX203_(valor) {
+  return String(
+    valor === undefined ||
+    valor === null
+      ? ""
+      : valor
+  ).trim();
+}
+
+
+/**
+ * Escapa conteúdo antes da inserção em HTML.
+ */
+function escaparHtmlUX203_(valor) {
+  return textoUX203_(valor)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+
+/**
+ * Formata YYYY-MM-DD para DD/MM/YYYY.
+ */
+function formatarDataUX203_(valor) {
+  const data =
+    normalizarDataUX202_(valor);
+
+  if (!data) {
+    return "Não disponível";
+  }
+
+  const partes =
+    data.split("-");
+
+  return (
+    partes[2] +
+    "/" +
+    partes[1] +
+    "/" +
+    partes[0]
+  );
+}
+
+
+/**
+ * Formata uma data/hora para exibição local.
+ */
+function formatarDataHoraUX203_(valor) {
+  if (!valor) {
+    return "Nunca executada";
+  }
+
+  const data =
+    new Date(valor);
+
+  if (
+    Number.isNaN(
+      data.getTime()
+    )
+  ) {
+    return "Nunca executada";
+  }
+
+  return data.toLocaleString(
+    "pt-BR",
+    {
+      dateStyle:
+        "short",
+
+      timeStyle:
+        "short"
+    }
+  );
+}
+
+
+/**
+ * Obtém uma informação de obra a partir de
+ * string ou objeto.
+ */
+function extrairIdObraUX203_(valor) {
+  if (!valor) {
+    return "";
+  }
+
+  if (
+    typeof valor === "string"
+  ) {
+    const texto =
+      valor.trim();
+
+    if (
+      /^OBR[A-Z0-9_-]*$/i.test(
+        texto
+      )
+    ) {
+      return texto;
+    }
+
+    try {
+      return extrairIdObraUX203_(
+        JSON.parse(texto)
+      );
+
+    } catch (erro) {
+      return "";
+    }
+  }
+
+  if (
+    typeof valor === "object"
+  ) {
+    return textoUX203_(
+      valor.idObra ??
+      valor.ID_OBRA ??
+      valor.codigoObra ??
+      valor.obraAtiva ??
+      valor.id
+    );
+  }
+
+  return "";
+}
+
+
+/**
+ * Resolve a obra ativa sem fixar OBR002.
+ */
+async function resolverIdObraAtivaUX203_() {
+  const funcoesConhecidas = [
+    "obterObraAtivaMobile_",
+    "obterObraAtivaSIGO_",
+    "obterObraAtiva_",
+    "getObraAtiva"
+  ];
+
+  for (
+    const nomeFuncao of
+    funcoesConhecidas
+  ) {
+    if (
+      typeof window[nomeFuncao] !==
+      "function"
+    ) {
+      continue;
+    }
+
+    try {
+      const retorno =
+        await Promise.resolve(
+          window[nomeFuncao]()
+        );
+
+      const idObra =
+        extrairIdObraUX203_(
+          retorno
+        );
+
+      if (idObra) {
+        return idObra;
+      }
+
+    } catch (erro) {
+      console.warn(
+        "[UX.20.3] Leitura da obra ativa ignorada:",
+        nomeFuncao,
+        erro
+      );
+    }
+  }
+
+
+  const candidatosGlobais = [
+    window.obraAtiva,
+    window.OBRA_ATIVA,
+    window.SIGO?.obraAtiva,
+    window.SIGO?.contexto?.obraAtiva,
+    window.SIGOContexto?.obraAtiva,
+    window.SIGO_ESTADO?.obraAtiva,
+    window.estadoMobile?.obraAtiva
+  ];
+
+  for (
+    const candidato of
+    candidatosGlobais
+  ) {
+    const idObra =
+      extrairIdObraUX203_(
+        candidato
+      );
+
+    if (idObra) {
+      return idObra;
+    }
+  }
+
+
+  const seletoresObra = [
+    "#seletorObra",
+    "#seletorObraMobile",
+    "#selectObra",
+    "#obraAtivaSelect",
+    "#selectObraAtiva",
+    'select[data-obra-ativa]',
+    'select[id*="obra" i]'
+  ];
+
+  for (
+    const seletor of
+    seletoresObra
+  ) {
+    const elemento =
+      document.querySelector(
+        seletor
+      );
+
+    const idObra =
+      extrairIdObraUX203_(
+        elemento?.value
+      );
+
+    if (idObra) {
+      return idObra;
+    }
+  }
+
+
+  const chavesLocalStorage = [
+    "SIGO_OBRA_ATIVA",
+    "OBRA_ATIVA",
+    "obraAtiva",
+    "sigo_obra_ativa",
+    "SIGO_CONTEXTO_OBRA"
+  ];
+
+  for (
+    const chave of
+    chavesLocalStorage
+  ) {
+    try {
+      const idObra =
+        extrairIdObraUX203_(
+          localStorage.getItem(
+            chave
+          )
+        );
+
+      if (idObra) {
+        return idObra;
+      }
+
+    } catch (erro) {
+      // Continua procurando.
+    }
+  }
+
+  throw new Error(
+    "Não foi possível identificar a obra ativa para a retenção local."
+  );
+}
+
+
+/**
+ * Lê os metadados da última execução.
+ */
+function obterUltimaRetencaoUX203_() {
+  try {
+    return JSON.parse(
+      localStorage.getItem(
+        CHAVE_ULTIMA_RETENCAO_UX203
+      ) || "null"
+    );
+
+  } catch (erro) {
+    return null;
+  }
+}
+
+
+/**
+ * Salva os metadados da última execução real.
+ */
+function salvarUltimaRetencaoUX203_(
+  execucao
+) {
+  const registro = {
+    idObra:
+      execucao.idObra,
+
+    periodoDias:
+      execucao.periodoDias,
+
+    dataReferencia:
+      execucao.dataReferencia,
+
+    dataCorte:
+      execucao.dataCorte,
+
+    totalRemovido:
+      Number(
+        execucao.gravacoesExecutadas || 0
+      ),
+
+    removidosPorStore:
+      execucao.removidosPorStore || {},
+
+    tokenPlano:
+      execucao.tokenPlano || "",
+
+    executadoEm:
+      new Date().toISOString()
+  };
+
+  localStorage.setItem(
+    CHAVE_ULTIMA_RETENCAO_UX203,
+    JSON.stringify(registro)
+  );
+
+  return registro;
+}
+
+
+/**
+ * Localiza o modal ou container de reidratação.
+ */
+function obterContainerRetencaoUX203_() {
+  const modal =
+    document.getElementById(
+      "modalReidratacaoUX1958"
+    ) ||
+    document.querySelector(
+      '[id*="reidratacao" i][role="dialog"], ' +
+      '[id*="reidrat" i].modal, ' +
+      '[id*="reidrat" i].drawer, ' +
+      '[id*="reidrat" i].sigo-modal'
+    );
+
+  if (modal) {
+    return modal;
+  }
+
+  const select =
+    typeof obterSelectPeriodoHistoricoUX201_ ===
+      "function"
+      ? obterSelectPeriodoHistoricoUX201_()
+      : null;
+
+  return (
+    select?.closest(
+      ".modal, .drawer, [role='dialog'], .sigo-modal"
+    ) ||
+    select?.parentElement ||
+    null
+  );
+}
+
+
+/**
+ * Cria a estrutura visual apenas uma vez.
+ */
+function montarPainelRetencaoUX203_() {
+  let painel =
+    document.getElementById(
+      "painelRetencaoLocalUX203"
+    );
+
+  if (painel) {
+    return painel;
+  }
+
+  const container =
+    obterContainerRetencaoUX203_();
+
+  if (!container) {
+    return null;
+  }
+
+  painel =
+    document.createElement(
+      "section"
+    );
+
+  painel.id =
+    "painelRetencaoLocalUX203";
+
+  painel.dataset.ux203Instalado =
+    "true";
+
+  painel.style.marginTop =
+    "16px";
+
+  painel.style.padding =
+    "16px";
+
+  painel.style.border =
+    "1px solid rgba(148,163,184,.35)";
+
+  painel.style.borderRadius =
+    "16px";
+
+  painel.style.background =
+    "rgba(248,250,252,.82)";
+
+  painel.style.boxShadow =
+    "0 8px 24px rgba(15,23,42,.06)";
+
+  painel.innerHTML = `
+    <div style="
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:14px;
+    ">
+      <div>
+        <div style="
+          font-size:15px;
+          font-weight:800;
+          color:#0f172a;
+        ">
+          🧹 Retenção local
+        </div>
+
+        <div style="
+          margin-top:4px;
+          font-size:12px;
+          line-height:1.45;
+          color:#64748b;
+        ">
+          Simule antes de remover registros antigos deste dispositivo.
+        </div>
+      </div>
+
+      <span
+        id="statusRetencaoUX203"
+        style="
+          display:inline-flex;
+          align-items:center;
+          padding:5px 9px;
+          border-radius:999px;
+          font-size:11px;
+          font-weight:800;
+          background:#e2e8f0;
+          color:#475569;
+          white-space:nowrap;
+        "
+      >
+        Não simulada
+      </span>
+    </div>
+
+    <div style="
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:10px;
+    ">
+      <div style="
+        padding:11px;
+        border-radius:12px;
+        background:#ffffff;
+        border:1px solid #e2e8f0;
+      ">
+        <div style="
+          font-size:11px;
+          color:#64748b;
+          font-weight:700;
+        ">
+          Período atual
+        </div>
+
+        <strong
+          id="periodoRetencaoUX203"
+          style="
+            display:block;
+            margin-top:4px;
+            font-size:16px;
+            color:#0f172a;
+          "
+        >
+          —
+        </strong>
+      </div>
+
+      <div style="
+        padding:11px;
+        border-radius:12px;
+        background:#ffffff;
+        border:1px solid #e2e8f0;
+      ">
+        <div style="
+          font-size:11px;
+          color:#64748b;
+          font-weight:700;
+        ">
+          Data de corte
+        </div>
+
+        <strong
+          id="dataCorteRetencaoUX203"
+          style="
+            display:block;
+            margin-top:4px;
+            font-size:16px;
+            color:#0f172a;
+          "
+        >
+          —
+        </strong>
+      </div>
+
+      <div style="
+        padding:11px;
+        border-radius:12px;
+        background:#ffffff;
+        border:1px solid #e2e8f0;
+      ">
+        <div style="
+          font-size:11px;
+          color:#64748b;
+          font-weight:700;
+        ">
+          Previstos para remoção
+        </div>
+
+        <strong
+          id="totalExcluirRetencaoUX203"
+          style="
+            display:block;
+            margin-top:4px;
+            font-size:16px;
+            color:#0f172a;
+          "
+        >
+          —
+        </strong>
+      </div>
+
+      <div style="
+        padding:11px;
+        border-radius:12px;
+        background:#ffffff;
+        border:1px solid #e2e8f0;
+      ">
+        <div style="
+          font-size:11px;
+          color:#64748b;
+          font-weight:700;
+        ">
+          Registros protegidos
+        </div>
+
+        <strong
+          id="totalProtegidosRetencaoUX203"
+          style="
+            display:block;
+            margin-top:4px;
+            font-size:16px;
+            color:#0f172a;
+          "
+        >
+          —
+        </strong>
+      </div>
+    </div>
+
+    <div
+      id="ultimaLimpezaRetencaoUX203"
+      style="
+        margin-top:11px;
+        padding:9px 11px;
+        border-radius:10px;
+        background:#f1f5f9;
+        color:#475569;
+        font-size:12px;
+        line-height:1.45;
+      "
+    >
+      Última limpeza local: nunca executada
+    </div>
+
+    <div style="
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+      margin-top:14px;
+    ">
+      <button
+        type="button"
+        id="simularRetencaoUX203"
+        style="
+          min-height:44px;
+          padding:10px 12px;
+          border:1px solid #cbd5e1;
+          border-radius:12px;
+          background:#ffffff;
+          color:#0f172a;
+          font-weight:800;
+          cursor:pointer;
+        "
+      >
+        🔎 Simular limpeza
+      </button>
+
+      <button
+        type="button"
+        id="executarRetencaoUX203"
+        disabled
+        style="
+          min-height:44px;
+          padding:10px 12px;
+          border:0;
+          border-radius:12px;
+          background:#0f172a;
+          color:#ffffff;
+          font-weight:800;
+          cursor:pointer;
+          opacity:.45;
+        "
+      >
+        🧹 Executar limpeza
+      </button>
+    </div>
+
+    <div
+      id="resultadoRetencaoUX203"
+      style="
+        display:none;
+        margin-top:14px;
+      "
+    ></div>
+
+    <div style="
+      margin-top:12px;
+      font-size:11px;
+      line-height:1.45;
+      color:#64748b;
+    ">
+      Pendências, tombstones, arquivos locais, lotes de Medição,
+      notificações e histórico da fila são preservados.
+    </div>
+  `;
+
+
+  const resumo =
+    document.getElementById(
+      "resumoReidratacaoUX1958"
+    );
+
+  if (
+    resumo &&
+    resumo.parentElement === container
+  ) {
+    container.insertBefore(
+      painel,
+      resumo
+    );
+
+  } else {
+    const select =
+      typeof obterSelectPeriodoHistoricoUX201_ ===
+        "function"
+        ? obterSelectPeriodoHistoricoUX201_()
+        : null;
+
+    const ancora =
+      select?.closest(
+        ".sigo-form-group, .form-group, .campo, label"
+      ) ||
+      select?.parentElement ||
+      null;
+
+    if (
+      ancora &&
+      ancora.parentElement
+    ) {
+      ancora.insertAdjacentElement(
+        "afterend",
+        painel
+      );
+
+    } else {
+      container.appendChild(
+        painel
+      );
+    }
+  }
+
+  return painel;
+}
+
+
+/**
+ * Atualiza o estilo do botão de execução.
+ */
+function definirBotaoExecucaoRetencaoUX203_(
+  liberado
+) {
+  const botao =
+    document.getElementById(
+      "executarRetencaoUX203"
+    );
+
+  if (!botao) {
+    return;
+  }
+
+  botao.disabled =
+    !liberado;
+
+  botao.style.opacity =
+    liberado
+      ? "1"
+      : ".45";
+
+  botao.style.cursor =
+    liberado
+      ? "pointer"
+      : "not-allowed";
+}
+
+
+/**
+ * Atualiza o selo de estado.
+ */
+function atualizarStatusRetencaoUX203_(
+  texto,
+  tipo = "NEUTRO"
+) {
+  const elemento =
+    document.getElementById(
+      "statusRetencaoUX203"
+    );
+
+  if (!elemento) {
+    return;
+  }
+
+  const estilos = {
+    NEUTRO: {
+      fundo:
+        "#e2e8f0",
+
+      texto:
+        "#475569"
+    },
+
+    PROCESSANDO: {
+      fundo:
+        "#fef3c7",
+
+      texto:
+        "#92400e"
+    },
+
+    APROVADO: {
+      fundo:
+        "#dcfce7",
+
+      texto:
+        "#166534"
+    },
+
+    ERRO: {
+      fundo:
+        "#fee2e2",
+
+      texto:
+        "#991b1b"
+    }
+  };
+
+  const estilo =
+    estilos[tipo] ||
+    estilos.NEUTRO;
+
+  elemento.textContent =
+    texto;
+
+  elemento.style.background =
+    estilo.fundo;
+
+  elemento.style.color =
+    estilo.texto;
+}
+
+
+/**
+ * Atualiza período, corte e última execução.
+ */
+async function atualizarCabecalhoRetencaoUX203_() {
+  montarPainelRetencaoUX203_();
+
+  const periodo =
+    obterPeriodoHistoricoOfflineUX201_();
+
+  const dataReferencia =
+    obterDataLocalAtualUX202_();
+
+  const dataCorte =
+    calcularDataCorteUX202_(
+      periodo,
+      dataReferencia
+    );
+
+  const periodoElemento =
+    document.getElementById(
+      "periodoRetencaoUX203"
+    );
+
+  const corteElemento =
+    document.getElementById(
+      "dataCorteRetencaoUX203"
+    );
+
+  if (periodoElemento) {
+    periodoElemento.textContent =
+      periodo + " dias";
+  }
+
+  if (corteElemento) {
+    corteElemento.textContent =
+      formatarDataUX203_(
+        dataCorte
+      );
+  }
+
+  const ultima =
+    obterUltimaRetencaoUX203_();
+
+  const ultimaElemento =
+    document.getElementById(
+      "ultimaLimpezaRetencaoUX203"
+    );
+
+  if (ultimaElemento) {
+    if (!ultima) {
+      ultimaElemento.textContent =
+        "Última limpeza local: nunca executada";
+
+    } else {
+      ultimaElemento.textContent =
+        "Última limpeza local: " +
+        formatarDataHoraUX203_(
+          ultima.executadoEm
+        ) +
+        " • " +
+        Number(
+          ultima.totalRemovido || 0
+        ) +
+        " registro(s) removido(s)";
+    }
+  }
+
+  return {
+    periodoDias:
+      periodo,
+
+    dataReferencia:
+      dataReferencia,
+
+    dataCorte:
+      dataCorte
+  };
+}
+
+
+/**
+ * Soma os removidos planejados por store.
+ */
+function montarListaPorStoreUX203_(
+  porStore
+) {
+  const rotulos = {
+    TB_DIARIOS:
+      "Diários",
+
+    TB_DIARIO_ITENS:
+      "Itens de Diário",
+
+    TB_OCORRENCIAS:
+      "Ocorrências",
+
+    TB_CLIMA:
+      "Clima",
+
+    TB_EVIDENCIAS:
+      "Evidências",
+
+    TB_MEDICOES:
+      "Medições oficiais"
+  };
+
+  const linhas =
+    Object.entries(
+      porStore || {}
+    )
+      .filter(
+        function (
+          [, quantidade]
+        ) {
+          return Number(
+            quantidade || 0
+          ) > 0;
+        }
+      )
+      .map(
+        function (
+          [store, quantidade]
+        ) {
+          return `
+            <div style="
+              display:flex;
+              justify-content:space-between;
+              gap:12px;
+              padding:7px 0;
+              border-bottom:1px solid #e2e8f0;
+              font-size:12px;
+            ">
+              <span>
+                ${escaparHtmlUX203_(
+                  rotulos[store] || store
+                )}
+              </span>
+
+              <strong>
+                ${Number(quantidade || 0)}
+              </strong>
+            </div>
+          `;
+        }
+      );
+
+  if (!linhas.length) {
+    return `
+      <div style="
+        padding:10px;
+        border-radius:10px;
+        background:#ecfdf5;
+        color:#166534;
+        font-size:12px;
+        font-weight:700;
+      ">
+        Nenhum registro será removido.
+      </div>
+    `;
+  }
+
+  return linhas.join("");
+}
+
+
+/**
+ * Agrupa motivos de proteção.
+ */
+function agruparProtecoesUX203_(
+  registros
+) {
+  const contagem = {};
+
+  (
+    Array.isArray(registros)
+      ? registros
+      : []
+  ).forEach(
+    function (registro) {
+      (
+        Array.isArray(
+          registro.motivos
+        )
+          ? registro.motivos
+          : []
+      ).forEach(
+        function (motivo) {
+          contagem[motivo] =
+            Number(
+              contagem[motivo] || 0
+            ) + 1;
+        }
+      );
+    }
+  );
+
+  return contagem;
+}
+
+
+/**
+ * Renderiza o plano da simulação.
+ */
+function renderizarSimulacaoRetencaoUX203_(
+  simulacao
+) {
+  const totalExcluir =
+    Number(
+      simulacao.totalExcluir || 0
+    );
+
+  const totalProtegidos =
+    Number(
+      simulacao
+        .protegidosForaPeriodo
+        ?.total || 0
+    );
+
+  const totalSemData =
+    Number(
+      simulacao
+        .registrosSemData
+        ?.total || 0
+    );
+
+  const campoExcluir =
+    document.getElementById(
+      "totalExcluirRetencaoUX203"
+    );
+
+  const campoProtegidos =
+    document.getElementById(
+      "totalProtegidosRetencaoUX203"
+    );
+
+  if (campoExcluir) {
+    campoExcluir.textContent =
+      String(totalExcluir);
+  }
+
+  if (campoProtegidos) {
+    campoProtegidos.textContent =
+      String(
+        totalProtegidos +
+        totalSemData
+      );
+  }
+
+  const resultado =
+    document.getElementById(
+      "resultadoRetencaoUX203"
+    );
+
+  if (!resultado) {
+    return;
+  }
+
+  const protecoes =
+    agruparProtecoesUX203_(
+      simulacao
+        .protegidosForaPeriodo
+        ?.registros
+    );
+
+  const linhasProtecao =
+    Object.entries(protecoes)
+      .map(
+        function (
+          [motivo, quantidade]
+        ) {
+          return `
+            <div style="
+              display:flex;
+              justify-content:space-between;
+              gap:10px;
+              font-size:11px;
+              padding:4px 0;
+            ">
+              <span>
+                ${escaparHtmlUX203_(motivo)}
+              </span>
+
+              <strong>
+                ${quantidade}
+              </strong>
+            </div>
+          `;
+        }
+      )
+      .join("");
+
+  resultado.style.display =
+    "block";
+
+  resultado.innerHTML = `
+    <div style="
+      padding:13px;
+      border-radius:12px;
+      border:1px solid #dbeafe;
+      background:#eff6ff;
+    ">
+      <div style="
+        font-size:13px;
+        font-weight:800;
+        color:#1e3a8a;
+      ">
+        Plano de limpeza aprovado
+      </div>
+
+      <div style="
+        margin-top:5px;
+        font-size:12px;
+        color:#475569;
+      ">
+        Preservação a partir de
+        <strong>
+          ${formatarDataUX203_(
+            simulacao.dataCorte
+          )}
+        </strong>.
+      </div>
+
+      <div style="
+        margin-top:11px;
+        padding:10px;
+        border-radius:10px;
+        background:#ffffff;
+      ">
+        ${montarListaPorStoreUX203_(
+          simulacao.porStore
+        )}
+      </div>
+
+      <div style="
+        margin-top:10px;
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:8px;
+      ">
+        <div style="
+          padding:9px;
+          border-radius:9px;
+          background:#ffffff;
+          font-size:11px;
+          color:#475569;
+        ">
+          Protegidos fora do período
+          <strong style="
+            display:block;
+            margin-top:3px;
+            font-size:15px;
+            color:#0f172a;
+          ">
+            ${totalProtegidos}
+          </strong>
+        </div>
+
+        <div style="
+          padding:9px;
+          border-radius:9px;
+          background:#ffffff;
+          font-size:11px;
+          color:#475569;
+        ">
+          Registros sem data
+          <strong style="
+            display:block;
+            margin-top:3px;
+            font-size:15px;
+            color:#0f172a;
+          ">
+            ${totalSemData}
+          </strong>
+        </div>
+      </div>
+
+      ${
+        linhasProtecao
+          ? `
+            <div style="
+              margin-top:10px;
+              padding:9px;
+              border-radius:9px;
+              background:#ffffff;
+              color:#475569;
+            ">
+              <div style="
+                margin-bottom:4px;
+                font-size:11px;
+                font-weight:800;
+              ">
+                Motivos de proteção
+              </div>
+
+              ${linhasProtecao}
+            </div>
+          `
+          : ""
+      }
+
+      <div style="
+        margin-top:10px;
+        font-size:10px;
+        color:#64748b;
+        word-break:break-all;
+      ">
+        Plano: ${escaparHtmlUX203_(
+          simulacao.tokenPlano
+        )}
+      </div>
+    </div>
+  `;
+
+  atualizarStatusRetencaoUX203_(
+    "Simulação aprovada",
+    "APROVADO"
+  );
+
+  definirBotaoExecucaoRetencaoUX203_(
+    true
+  );
+}
+
+
+/**
+ * Renderiza o resultado da execução real.
+ */
+function renderizarExecucaoRetencaoUX203_(
+  execucao
+) {
+  const resultado =
+    document.getElementById(
+      "resultadoRetencaoUX203"
+    );
+
+  if (!resultado) {
+    return;
+  }
+
+  const total =
+    Number(
+      execucao.gravacoesExecutadas || 0
+    );
+
+  resultado.style.display =
+    "block";
+
+  resultado.innerHTML = `
+    <div style="
+      padding:13px;
+      border-radius:12px;
+      border:1px solid #bbf7d0;
+      background:#f0fdf4;
+    ">
+      <div style="
+        font-size:13px;
+        font-weight:800;
+        color:#166534;
+      ">
+        ✅ Limpeza local concluída
+      </div>
+
+      <div style="
+        margin-top:6px;
+        font-size:12px;
+        color:#475569;
+      ">
+        ${total} registro(s) removido(s) deste dispositivo.
+      </div>
+
+      <div style="
+        margin-top:10px;
+        padding:10px;
+        border-radius:10px;
+        background:#ffffff;
+      ">
+        ${montarListaPorStoreUX203_(
+          execucao.removidosPorStore
+        )}
+      </div>
+
+      <div style="
+        margin-top:10px;
+        font-size:11px;
+        color:#475569;
+      ">
+        Fila, lotes e notificações permaneceram preservados.
+      </div>
+    </div>
+  `;
+
+  const campoExcluir =
+    document.getElementById(
+      "totalExcluirRetencaoUX203"
+    );
+
+  if (campoExcluir) {
+    campoExcluir.textContent =
+      "0";
+  }
+
+  atualizarStatusRetencaoUX203_(
+    "Limpeza concluída",
+    "APROVADO"
+  );
+
+  definirBotaoExecucaoRetencaoUX203_(
+    false
+  );
+}
+
+
+/**
+ * Limpa um plano visual que deixou de ser válido.
+ */
+function invalidarPlanoVisualRetencaoUX203_(
+  mensagem =
+    "Configuração alterada. Simule novamente."
+) {
+  window.SIGO_UX203 =
+    window.SIGO_UX203 || {};
+
+  window.SIGO_UX203
+    .ultimaSimulacaoVisual =
+      null;
+
+  definirBotaoExecucaoRetencaoUX203_(
+    false
+  );
+
+  const excluir =
+    document.getElementById(
+      "totalExcluirRetencaoUX203"
+    );
+
+  const protegidos =
+    document.getElementById(
+      "totalProtegidosRetencaoUX203"
+    );
+
+  if (excluir) {
+    excluir.textContent =
+      "—";
+  }
+
+  if (protegidos) {
+    protegidos.textContent =
+      "—";
+  }
+
+  const resultado =
+    document.getElementById(
+      "resultadoRetencaoUX203"
+    );
+
+  if (resultado) {
+    resultado.style.display =
+      "block";
+
+    resultado.innerHTML = `
+      <div style="
+        padding:10px;
+        border-radius:10px;
+        background:#fff7ed;
+        color:#9a3412;
+        font-size:12px;
+        font-weight:700;
+      ">
+        ${escaparHtmlUX203_(mensagem)}
+      </div>
+    `;
+  }
+
+  atualizarStatusRetencaoUX203_(
+    "Simulação necessária",
+    "NEUTRO"
+  );
+}
+
+
+/**
+ * Executa a simulação pela interface.
+ */
+async function simularRetencaoPeloPainelUX203_() {
+  const botao =
+    document.getElementById(
+      "simularRetencaoUX203"
+    );
+
+  try {
+    botao &&
+      (
+        botao.disabled = true
+      );
+
+    definirBotaoExecucaoRetencaoUX203_(
+      false
+    );
+
+    atualizarStatusRetencaoUX203_(
+      "Simulando...",
+      "PROCESSANDO"
+    );
+
+    const cabecalho =
+      await atualizarCabecalhoRetencaoUX203_();
+
+    const idObra =
+      await resolverIdObraAtivaUX203_();
+
+    const simulacao =
+      await simularRetencaoLocalUX202_({
+        idObra:
+          idObra,
+
+        periodoDias:
+          cabecalho.periodoDias,
+
+        dataReferencia:
+          cabecalho.dataReferencia
+      });
+
+    window.SIGO_UX203 =
+      window.SIGO_UX203 || {};
+
+    window.SIGO_UX203
+      .ultimaSimulacaoVisual = {
+        idObra:
+          idObra,
+
+        periodoDias:
+          cabecalho.periodoDias,
+
+        dataReferencia:
+          cabecalho.dataReferencia,
+
+        dataCorte:
+          cabecalho.dataCorte,
+
+        tokenPlano:
+          simulacao.tokenPlano,
+
+        totalExcluir:
+          simulacao.totalExcluir,
+
+        simulacao:
+          simulacao
+      };
+
+    renderizarSimulacaoRetencaoUX203_(
+      simulacao
+    );
+
+    return simulacao;
+
+  } catch (erro) {
+    atualizarStatusRetencaoUX203_(
+      "Falha na simulação",
+      "ERRO"
+    );
+
+    const resultado =
+      document.getElementById(
+        "resultadoRetencaoUX203"
+      );
+
+    if (resultado) {
+      resultado.style.display =
+        "block";
+
+      resultado.innerHTML = `
+        <div style="
+          padding:10px;
+          border-radius:10px;
+          background:#fee2e2;
+          color:#991b1b;
+          font-size:12px;
+          font-weight:700;
+        ">
+          ${escaparHtmlUX203_(
+            erro?.message ||
+            "Não foi possível simular a limpeza."
+          )}
+        </div>
+      `;
+    }
+
+    throw erro;
+
+  } finally {
+    botao &&
+      (
+        botao.disabled = false
+      );
+  }
+}
+
+
+/**
+ * Executa a limpeza real pela interface.
+ */
+async function executarRetencaoPeloPainelUX203_() {
+  const plano =
+    window.SIGO_UX203
+      ?.ultimaSimulacaoVisual;
+
+  if (!plano) {
+    throw new Error(
+      "Execute a simulação antes de confirmar a limpeza."
+    );
+  }
+
+  const periodoAtual =
+    obterPeriodoHistoricoOfflineUX201_();
+
+  const idObraAtual =
+    await resolverIdObraAtivaUX203_();
+
+  if (
+    periodoAtual !==
+      plano.periodoDias ||
+    idObraAtual !==
+      plano.idObra
+  ) {
+    invalidarPlanoVisualRetencaoUX203_(
+      "A obra ou o período foram alterados. Simule novamente."
+    );
+
+    throw new Error(
+      "O plano visual não corresponde mais à configuração atual."
+    );
+  }
+
+  const total =
+    Number(
+      plano.totalExcluir || 0
+    );
+
+  const confirmou =
+    window.confirm(
+      total > 0
+        ? (
+          "Confirmar a remoção de " +
+          total +
+          " registro(s) antigo(s) deste dispositivo?\n\n" +
+          "Pendências, tombstones, arquivos locais, lotes, " +
+          "notificações e histórico da fila serão preservados."
+        )
+        : (
+          "A simulação não encontrou registros antigos.\n\n" +
+          "Deseja concluir a verificação da política de retenção?"
+        )
+    );
+
+  if (!confirmou) {
+    return {
+      cancelado:
+        true
+    };
+  }
+
+  const botao =
+    document.getElementById(
+      "executarRetencaoUX203"
+    );
+
+  try {
+    botao &&
+      (
+        botao.disabled = true
+      );
+
+    atualizarStatusRetencaoUX203_(
+      "Executando...",
+      "PROCESSANDO"
+    );
+
+    const execucao =
+      await executarRetencaoLocalUX202_(
+        plano.tokenPlano
+      );
+
+    salvarUltimaRetencaoUX203_(
+      execucao
+    );
+
+    window.SIGO_UX203
+      .ultimaSimulacaoVisual =
+        null;
+
+    renderizarExecucaoRetencaoUX203_(
+      execucao
+    );
+
+    await atualizarCabecalhoRetencaoUX203_();
+
+    return execucao;
+
+  } catch (erro) {
+    atualizarStatusRetencaoUX203_(
+      "Execução bloqueada",
+      "ERRO"
+    );
+
+    invalidarPlanoVisualRetencaoUX203_(
+      erro?.message ||
+      "O plano não pôde ser executado."
+    );
+
+    throw erro;
+  }
+}
+
+
+/**
+ * Instala os handlers delegados.
+ */
+async function instalarIntegracaoVisualRetencaoUX203_() {
+  window.SIGO_UX203 =
+    window.SIGO_UX203 || {};
+
+  montarPainelRetencaoUX203_();
+
+  await atualizarCabecalhoRetencaoUX203_();
+
+
+  if (
+    window.SIGO_UX203
+      .listenersInstalados !==
+    true
+  ) {
+    window.SIGO_UX203
+      .listenersInstalados =
+        true;
+
+
+    document.addEventListener(
+      "click",
+      async function (evento) {
+        const botaoSimular =
+          evento.target?.closest?.(
+            "#simularRetencaoUX203"
+          );
+
+        if (botaoSimular) {
+          evento.preventDefault();
+
+          try {
+            await simularRetencaoPeloPainelUX203_();
+
+          } catch (erro) {
+            console.error(
+              "[UX.20.3] Falha na simulação visual:",
+              erro
+            );
+          }
+
+          return;
+        }
+
+
+        const botaoExecutar =
+          evento.target?.closest?.(
+            "#executarRetencaoUX203"
+          );
+
+        if (botaoExecutar) {
+          evento.preventDefault();
+
+          try {
+            await executarRetencaoPeloPainelUX203_();
+
+          } catch (erro) {
+            console.error(
+              "[UX.20.3] Falha na execução visual:",
+              erro
+            );
+          }
+        }
+      },
+      true
+    );
+
+
+    document.addEventListener(
+      "change",
+      function (evento) {
+        const elemento =
+          evento.target;
+
+        if (
+          !elemento ||
+          elemento.tagName !==
+            "SELECT"
+        ) {
+          return;
+        }
+
+        const selectPeriodo =
+          typeof obterSelectPeriodoHistoricoUX201_ ===
+            "function"
+            ? obterSelectPeriodoHistoricoUX201_()
+            : null;
+
+        const pareceSeletorObra =
+          /obra/i.test(
+            elemento.id || ""
+          ) ||
+          /obra/i.test(
+            elemento.name || ""
+          ) ||
+          elemento.dataset
+            ?.obraAtiva !==
+            undefined;
+
+        if (
+          elemento ===
+            selectPeriodo ||
+          pareceSeletorObra
+        ) {
+          invalidarPlanoVisualRetencaoUX203_();
+
+          setTimeout(
+            function () {
+              atualizarCabecalhoRetencaoUX203_()
+                .catch(
+                  function (erro) {
+                    console.warn(
+                      "[UX.20.3] Cabeçalho não atualizado:",
+                      erro
+                    );
+                  }
+                );
+            },
+            50
+          );
+        }
+      },
+      true
+    );
+  }
+
+
+  if (
+    !window.SIGO_UX203.observer
+  ) {
+    let temporizador =
+      null;
+
+    const observer =
+      new MutationObserver(
+        function () {
+          clearTimeout(
+            temporizador
+          );
+
+          temporizador =
+            setTimeout(
+              function () {
+                montarPainelRetencaoUX203_();
+
+                atualizarCabecalhoRetencaoUX203_()
+                  .catch(
+                    function () {
+                      // Modal ainda não disponível.
+                    }
+                  );
+              },
+              80
+            );
+        }
+      );
+
+    observer.observe(
+      document.documentElement,
+      {
+        childList:
+          true,
+
+        subtree:
+          true
+      }
+    );
+
+    window.SIGO_UX203.observer =
+      observer;
+  }
+
+
+  console.log(
+    "UX.20.3 — Integração visual da retenção local instalada."
+  );
+
+  return {
+    instalado:
+      true,
+
+    painelEncontrado:
+      Boolean(
+        document.getElementById(
+          "painelRetencaoLocalUX203"
+        )
+      ),
+
+    periodoDias:
+      obterPeriodoHistoricoOfflineUX201_(),
+
+    ultimaRetencao:
+      obterUltimaRetencaoUX203_()
+  };
+}
+
+
+/**
+ * Instalação automática.
+ */
+if (
+  document.readyState ===
+  "loading"
+) {
+  document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+      instalarIntegracaoVisualRetencaoUX203_()
+        .catch(
+          function (erro) {
+            console.warn(
+              "[UX.20.3] Instalação visual adiada:",
+              erro
+            );
+          }
+        );
+    },
+    {
+      once:
+        true
+    }
+  );
+
+} else {
+  instalarIntegracaoVisualRetencaoUX203_()
+    .catch(
+      function (erro) {
+        console.warn(
+          "[UX.20.3] Instalação visual adiada:",
+          erro
+        );
+      }
+    );
+}
+
+/**
+ * ============================================================
+ * UX.20.3 — AUDITORIA DA INTEGRAÇÃO VISUAL
+ * ============================================================
+ *
+ * Executa uma simulação, mas não executa limpeza real.
+ */
+async function auditarIntegracaoVisualRetencaoUX203_() {
+  console.log(
+    "[UX.20.3] Iniciando auditoria da integração visual..."
+  );
+
+  const estadoAntes =
+    await capturarEstadoRetencaoUX202_();
+
+  const assinaturasAntes =
+    extrairAssinaturasUX202_(
+      estadoAntes
+    );
+
+  const instalacao =
+    await instalarIntegracaoVisualRetencaoUX203_();
+
+  const simulacao =
+    await simularRetencaoPeloPainelUX203_();
+
+  const estadoDepois =
+    await capturarEstadoRetencaoUX202_();
+
+  const assinaturasDepois =
+    extrairAssinaturasUX202_(
+      estadoDepois
+    );
+
+  const storesAlteradas =
+    compararAssinaturasUX202_(
+      assinaturasAntes,
+      assinaturasDepois
+    );
+
+  const periodo =
+    obterPeriodoHistoricoOfflineUX201_();
+
+  const dataCorte =
+    calcularDataCorteUX202_(
+      periodo,
+      obterDataLocalAtualUX202_()
+    );
+
+  const painel =
+    document.getElementById(
+      "painelRetencaoLocalUX203"
+    );
+
+  const botaoSimular =
+    document.getElementById(
+      "simularRetencaoUX203"
+    );
+
+  const botaoExecutar =
+    document.getElementById(
+      "executarRetencaoUX203"
+    );
+
+  const resultado =
+    document.getElementById(
+      "resultadoRetencaoUX203"
+    );
+
+  const validacoes = {
+    painelCriado:
+      Boolean(painel),
+
+    painelMarcadoUX203:
+      painel?.dataset
+        ?.ux203Instalado ===
+      "true",
+
+    periodoExibido:
+      document.getElementById(
+        "periodoRetencaoUX203"
+      )?.textContent ===
+      periodo + " dias",
+
+    dataCorteExibida:
+      document.getElementById(
+        "dataCorteRetencaoUX203"
+      )?.textContent ===
+      formatarDataUX203_(
+        dataCorte
+      ),
+
+    botaoSimularCriado:
+      Boolean(botaoSimular),
+
+    botaoExecutarCriado:
+      Boolean(botaoExecutar),
+
+    simulacaoAprovada:
+      simulacao.aprovado ===
+      true,
+
+    resultadoVisualCriado:
+      Boolean(
+        resultado &&
+        resultado.style.display !==
+          "none"
+      ),
+
+    planoVisualArmazenado:
+      Boolean(
+        window.SIGO_UX203
+          ?.ultimaSimulacaoVisual
+          ?.tokenPlano
+      ),
+
+    tokenVisualCorreto:
+      window.SIGO_UX203
+        ?.ultimaSimulacaoVisual
+        ?.tokenPlano ===
+      simulacao.tokenPlano,
+
+    execucaoLiberada:
+      botaoExecutar?.disabled ===
+      false,
+
+    nenhumaStoreAlterada:
+      storesAlteradas.length ===
+      0,
+
+    filaPreservada:
+      estadoAntes
+        .TB_SYNC_QUEUE
+        .assinatura ===
+      estadoDepois
+        .TB_SYNC_QUEUE
+        .assinatura,
+
+    lotesPreservados:
+      estadoAntes
+        .TB_LOTES_MEDICAO
+        .assinatura ===
+      estadoDepois
+        .TB_LOTES_MEDICAO
+        .assinatura,
+
+    notificacoesPreservadas:
+      estadoAntes
+        .TB_NOTIFICACOES
+        .assinatura ===
+      estadoDepois
+        .TB_NOTIFICACOES
+        .assinatura
+  };
+
+  const aprovado =
+    Object.values(
+      validacoes
+    ).every(
+      function (valor) {
+        return valor === true;
+      }
+    );
+
+  const auditoria = {
+    etapa:
+      "UX.20.3",
+
+    auditoria:
+      "INTEGRACAO_VISUAL_RETENCAO_LOCAL",
+
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+
+    instalacao:
+      instalacao,
+
+    configuracao: {
+      periodoDias:
+        periodo,
+
+      dataCorte:
+        dataCorte,
+
+      ultimaRetencao:
+        obterUltimaRetencaoUX203_()
+    },
+
+    simulacao: {
+      idObra:
+        simulacao.idObra,
+
+      status:
+        simulacao.status,
+
+      totalExcluir:
+        simulacao.totalExcluir,
+
+      porStore:
+        simulacao.porStore,
+
+      protegidos:
+        simulacao
+          .protegidosForaPeriodo
+          ?.total || 0,
+
+      semData:
+        simulacao
+          .registrosSemData
+          ?.total || 0,
+
+      tokenPlano:
+        simulacao.tokenPlano,
+
+      gravacoesExecutadas:
+        simulacao.gravacoesExecutadas
+    },
+
+    interface: {
+      painelEncontrado:
+        Boolean(painel),
+
+      periodo:
+        document.getElementById(
+          "periodoRetencaoUX203"
+        )?.textContent || "",
+
+      dataCorte:
+        document.getElementById(
+          "dataCorteRetencaoUX203"
+        )?.textContent || "",
+
+      totalExcluir:
+        document.getElementById(
+          "totalExcluirRetencaoUX203"
+        )?.textContent || "",
+
+      totalProtegidos:
+        document.getElementById(
+          "totalProtegidosRetencaoUX203"
+        )?.textContent || "",
+
+      status:
+        document.getElementById(
+          "statusRetencaoUX203"
+        )?.textContent || "",
+
+      botaoExecucaoLiberado:
+        botaoExecutar?.disabled ===
+        false
+    },
+
+    storesAlteradas:
+      storesAlteradas,
+
+    validacoes:
+      validacoes,
+
+    aprovado:
+      aprovado
+  };
+
+  console.log(
+    JSON.stringify(
+      auditoria,
+      null,
+      2
+    )
+  );
+
+  if (!aprovado) {
+    throw new Error(
+      "UX.20.3 REPROVADA. Consulte as validações no console."
+    );
+  }
+
+  console.log(
+    "UX.20.3 — INTEGRAÇÃO VISUAL DA RETENÇÃO LOCAL APROVADA."
+  );
+
+  return auditoria;
+}
