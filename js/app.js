@@ -47406,3 +47406,690 @@ async function auditarReidratacaoMultientidadeUX1910_() {
 
   return resultado;
 }
+
+/**
+ * ============================================================
+ * UX.19.10B — REMOÇÃO SEGURA DE DIÁRIO LOCAL OBSOLETO
+ * ============================================================
+ *
+ * Remove exclusivamente:
+ *
+ * DIA-1782869932254
+ *
+ * Não cria tombstone.
+ * Não cria operação na fila.
+ * Não altera o servidor.
+ * Não remove o histórico da TB_SYNC_QUEUE.
+ */
+async function removerDiarioObsoletoUX1910B_() {
+  console.log(
+    "[UX.19.10B] Iniciando remoção segura do Diário obsoleto..."
+  );
+
+  const idDiario =
+    "DIA-1782869932254";
+
+  const idObra =
+    "OBR002";
+
+
+  function texto_(valor) {
+    return String(
+      valor === undefined ||
+      valor === null
+        ? ""
+        : valor
+    ).trim();
+  }
+
+
+  function maiusculo_(valor) {
+    return texto_(valor)
+      .normalize("NFD")
+      .replace(
+        /[\u0300-\u036f]/g,
+        ""
+      )
+      .toUpperCase();
+  }
+
+
+  function filaConcluida_(registro) {
+    const status =
+      maiusculo_(
+        registro?.statusSync ??
+        registro?.status ??
+        registro?.situacao
+      );
+
+    return [
+      "SINCRONIZADO",
+      "CONCLUIDO",
+      "PROCESSADO",
+      "ENVIADO",
+      "SUCESSO",
+      "OK",
+      "CANCELADO"
+    ].includes(status);
+  }
+
+
+  function idDiarioPai_(registro) {
+    return texto_(
+      registro?.idDiario ??
+      registro?.idDiarioObra ??
+      registro?.idDiarioPai ??
+      registro?.ID_DIARIO ??
+      registro?.idReferencia
+    );
+  }
+
+
+  function registroEhTombstone_(registro) {
+    if (
+      registro?.tombstone === true ||
+      registro?.deleted === true ||
+      registro?.excluido === true
+    ) {
+      return true;
+    }
+
+    const operacao =
+      maiusculo_(
+        registro?.operacao ??
+        registro?.acao ??
+        registro?.tipoOperacao
+      );
+
+    return (
+      operacao.includes("DELETE") ||
+      operacao.includes("EXCLUIR") ||
+      operacao.includes("REMOVER")
+    );
+  }
+
+
+  /*
+   * ========================================================
+   * ESTADO ANTERIOR
+   * ========================================================
+   */
+
+  const [
+    diariosAntes,
+    itensAntes,
+    filaAntes,
+    pacoteServidor
+  ] =
+    await Promise.all([
+      lerStoreBrutaUX1997A_(
+        "TB_DIARIOS"
+      ),
+
+      lerStoreBrutaUX1997A_(
+        "TB_DIARIO_ITENS"
+      ),
+
+      lerStoreBrutaUX1997A_(
+        "TB_SYNC_QUEUE"
+      ),
+
+      obterDadosOperacionaisObraMobile_(
+        idObra,
+        30
+      )
+    ]);
+
+
+  const registroAlvo =
+    diariosAntes.find(
+      function (registro) {
+        return (
+          texto_(
+            registro?.idDiario
+          ) === idDiario
+        );
+      }
+    ) || null;
+
+
+  const itensVinculados =
+    itensAntes.filter(
+      function (registro) {
+        return (
+          idDiarioPai_(registro) ===
+          idDiario
+        );
+      }
+    );
+
+
+  const referenciasFila =
+    filaAntes.filter(
+      function (registro) {
+        try {
+          return JSON.stringify(
+            registro
+          ).includes(
+            idDiario
+          );
+
+        } catch (erro) {
+          return false;
+        }
+      }
+    );
+
+
+  const referenciasAtivas =
+    referenciasFila.filter(
+      function (registro) {
+        return !filaConcluida_(
+          registro
+        );
+      }
+    );
+
+
+  const diariosServidor =
+    obterPrimeiroArrayUX1910_(
+      pacoteServidor,
+      [
+        "diarios",
+        "detalhes.diarios",
+        "dados.diarios"
+      ]
+    );
+
+
+  const existeNoServidor =
+    diariosServidor.some(
+      function (registro) {
+        return (
+          texto_(
+            registro?.idDiario ??
+            registro?.ID_DIARIO ??
+            registro?.id
+          ) === idDiario
+        );
+      }
+    );
+
+
+  const assinaturaItensAntes =
+    criarAssinaturaStoreMedicoesUX1994_(
+      itensAntes
+    );
+
+  const assinaturaFilaAntes =
+    criarAssinaturaStoreMedicoesUX1994_(
+      filaAntes
+    );
+
+
+  /*
+   * ========================================================
+   * PRÉ-CONDIÇÕES OBRIGATÓRIAS
+   * ========================================================
+   */
+
+  const conteudoOperacionalVazio =
+    texto_(
+      registroAlvo?.data
+    ) === "" &&
+
+    texto_(
+      registroAlvo?.responsavel
+    ) === "" &&
+
+    texto_(
+      registroAlvo?.equipe
+    ) === "" &&
+
+    Number(
+      registroAlvo?.horasDia || 0
+    ) === 0 &&
+
+    texto_(
+      registroAlvo?.clima
+    ) === "" &&
+
+    texto_(
+      registroAlvo?.ocorrencias
+    ) === "" &&
+
+    texto_(
+      registroAlvo?.observacoes
+    ) === "";
+
+
+  const preCondicoes = {
+    registroEncontrado:
+      Boolean(registroAlvo),
+
+    pertenceObraCorreta:
+      registroAlvo?.idObra ===
+      idObra,
+
+    statusSincronizado:
+      maiusculo_(
+        registroAlvo?.statusSync
+      ) === "SINCRONIZADO",
+
+    origemAppOffline:
+      maiusculo_(
+        registroAlvo?.origem
+      ) === "APP_OFFLINE",
+
+    naoEhTombstone:
+      !registroEhTombstone_(
+        registroAlvo
+      ),
+
+    naoExisteNoServidor:
+      existeNoServidor === false,
+
+    nenhumItemVinculado:
+      itensVinculados.length === 0,
+
+    nenhumaPendenciaAtiva:
+      referenciasAtivas.length === 0,
+
+    possuiSomenteHistorico:
+      referenciasFila.length === 1,
+
+    conteudoOperacionalVazio:
+      conteudoOperacionalVazio,
+
+    totalInicial37:
+      diariosAntes.length === 37
+  };
+
+
+  const preCondicoesAprovadas =
+    Object.values(
+      preCondicoes
+    ).every(
+      function (valor) {
+        return valor === true;
+      }
+    );
+
+
+  if (!preCondicoesAprovadas) {
+    console.error(
+      "[UX.19.10B] Pré-condições reprovadas:",
+      preCondicoes
+    );
+
+    throw new Error(
+      "A remoção foi bloqueada porque alguma condição de segurança não foi atendida."
+    );
+  }
+
+
+  /*
+   * ========================================================
+   * EXCLUSÃO DIRETA E SOMENTE LOCAL
+   * ========================================================
+   */
+
+  const db =
+    await abrirBancoLocalSIGO();
+
+  await new Promise(
+    function (resolve, reject) {
+      const transacao =
+        db.transaction(
+          ["TB_DIARIOS"],
+          "readwrite"
+        );
+
+      const store =
+        transacao.objectStore(
+          "TB_DIARIOS"
+        );
+
+      if (
+        store.keyPath !==
+        "idDiario"
+      ) {
+        transacao.abort();
+
+        reject(
+          new Error(
+            "A keyPath esperada da TB_DIARIOS não foi encontrada."
+          )
+        );
+
+        return;
+      }
+
+      store.delete(
+        idDiario
+      );
+
+      transacao.oncomplete =
+        function () {
+          resolve();
+        };
+
+      transacao.onerror =
+        function () {
+          reject(
+            transacao.error ||
+            new Error(
+              "Falha ao remover o Diário obsoleto."
+            )
+          );
+        };
+
+      transacao.onabort =
+        function () {
+          reject(
+            transacao.error ||
+            new Error(
+              "A remoção do Diário foi abortada."
+            )
+          );
+        };
+    }
+  );
+
+
+  /*
+   * ========================================================
+   * CACHE E INTERFACE
+   * ========================================================
+   */
+
+  if (
+    typeof SIGODataCache !==
+      "undefined" &&
+    SIGODataCache &&
+    typeof SIGODataCache.invalidate ===
+      "function"
+  ) {
+    SIGODataCache.invalidate(
+      "TB_DIARIOS"
+    );
+  }
+
+
+  if (
+    typeof invalidarCacheObraSIGO_ ===
+      "function"
+  ) {
+    await Promise.resolve(
+      invalidarCacheObraSIGO_(
+        "TB_DIARIOS",
+        idObra
+      )
+    );
+  }
+
+
+  if (
+    typeof SIGODataBinding !==
+      "undefined" &&
+    SIGODataBinding &&
+    typeof SIGODataBinding.notify ===
+      "function"
+  ) {
+    try {
+      await SIGODataBinding.notify(
+        "TB_DIARIOS",
+        {
+          acao:
+            "DELETE_LOCAL_OBSOLETO",
+
+          store:
+            "TB_DIARIOS",
+
+          registro:
+            registroAlvo,
+
+          chave:
+            idDiario,
+
+          idObra:
+            idObra,
+
+          origem:
+            "UX.19.10B",
+
+          quantidade:
+            1
+        }
+      );
+
+    } catch (erroDataBinding) {
+      console.warn(
+        "[UX.19.10B] Atualização visual ignorada:",
+        erroDataBinding
+      );
+    }
+  }
+
+
+  /*
+   * ========================================================
+   * ESTADO POSTERIOR
+   * ========================================================
+   */
+
+  const [
+    diariosDepois,
+    diariosSistemaDepois,
+    itensDepois,
+    filaDepois
+  ] =
+    await Promise.all([
+      lerStoreBrutaUX1997A_(
+        "TB_DIARIOS"
+      ),
+
+      listarRegistrosSIGO(
+        "TB_DIARIOS"
+      ),
+
+      lerStoreBrutaUX1997A_(
+        "TB_DIARIO_ITENS"
+      ),
+
+      lerStoreBrutaUX1997A_(
+        "TB_SYNC_QUEUE"
+      )
+    ]);
+
+
+  const registroAindaExiste =
+    diariosDepois.some(
+      function (registro) {
+        return (
+          texto_(
+            registro?.idDiario
+          ) === idDiario
+        );
+      }
+    );
+
+
+  const assinaturaItensDepois =
+    criarAssinaturaStoreMedicoesUX1994_(
+      itensDepois
+    );
+
+  const assinaturaFilaDepois =
+    criarAssinaturaStoreMedicoesUX1994_(
+      filaDepois
+    );
+
+
+  const referenciasHistoricasDepois =
+    filaDepois.filter(
+      function (registro) {
+        try {
+          return JSON.stringify(
+            registro
+          ).includes(
+            idDiario
+          );
+
+        } catch (erro) {
+          return false;
+        }
+      }
+    );
+
+
+  const validacoes = {
+    todasPreCondicoesAprovadas:
+      preCondicoesAprovadas,
+
+    totalBrutoAntes37:
+      diariosAntes.length === 37,
+
+    totalBrutoDepois36:
+      diariosDepois.length === 36,
+
+    totalSistemaDepois36:
+      diariosSistemaDepois.length === 36,
+
+    registroRemovido:
+      registroAindaExiste === false,
+
+    itensPermaneceram6:
+      itensDepois.length === 6,
+
+    itensPreservados:
+      assinaturaItensAntes ===
+      assinaturaItensDepois,
+
+    filaPermaneceu45:
+      filaDepois.length === 45,
+
+    filaPreservada:
+      assinaturaFilaAntes ===
+      assinaturaFilaDepois,
+
+    referenciaHistoricaPreservada:
+      referenciasHistoricasDepois.length ===
+      1,
+
+    nenhumaPendenciaCriada:
+      filaDepois.length ===
+      filaAntes.length
+  };
+
+
+  const aprovado =
+    Object.values(
+      validacoes
+    ).every(
+      function (valor) {
+        return valor === true;
+      }
+    );
+
+
+  const resultado = {
+    etapa:
+      "UX.19.10B",
+
+    operacao:
+      "REMOCAO_SEGURA_DIARIO_LOCAL_OBSOLETO",
+
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+
+    idDiario:
+      idDiario,
+
+    idObra:
+      idObra,
+
+    classificacao:
+      "CABECALHO_LOCAL_OBSOLETO_SEM_VINCULOS",
+
+    tombstoneCriado:
+      false,
+
+    operacaoFilaCriada:
+      false,
+
+    preCondicoes:
+      preCondicoes,
+
+    stores: {
+      TB_DIARIOS: {
+        antes:
+          diariosAntes.length,
+
+        depois:
+          diariosDepois.length,
+
+        sistemaDepois:
+          diariosSistemaDepois.length
+      },
+
+      TB_DIARIO_ITENS: {
+        antes:
+          itensAntes.length,
+
+        depois:
+          itensDepois.length,
+
+        preservada:
+          assinaturaItensAntes ===
+          assinaturaItensDepois
+      },
+
+      TB_SYNC_QUEUE: {
+        antes:
+          filaAntes.length,
+
+        depois:
+          filaDepois.length,
+
+        preservada:
+          assinaturaFilaAntes ===
+          assinaturaFilaDepois,
+
+        referenciasHistoricas:
+          referenciasHistoricasDepois.length
+      }
+    },
+
+    validacoes:
+      validacoes,
+
+    aprovado:
+      aprovado
+  };
+
+
+  console.log(
+    JSON.stringify(
+      resultado,
+      null,
+      2
+    )
+  );
+
+
+  if (!aprovado) {
+    throw new Error(
+      "UX.19.10B REPROVADA. Consulte as validações no console."
+    );
+  }
+
+
+  console.log(
+    "UX.19.10B — DIÁRIO LOCAL OBSOLETO REMOVIDO COM SEGURANÇA."
+  );
+
+  return resultado;
+}
