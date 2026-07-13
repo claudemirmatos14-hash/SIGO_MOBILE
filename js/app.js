@@ -55613,3 +55613,2834 @@ async function auditarIntegracaoVisualRetencaoUX203_() {
 
   return auditoria;
 }
+
+/**
+ * ============================================================
+ * UX.21.1 — AUDITORIA DA IDENTIDADE ATUAL
+ * DO USUÁRIO E DO DISPOSITIVO
+ * ============================================================
+ *
+ * Etapa somente leitura.
+ *
+ * Não:
+ *
+ * - autentica usuário;
+ * - cria usuário;
+ * - cria dispositivo;
+ * - altera registros;
+ * - altera a fila;
+ * - chama API;
+ * - grava no localStorage;
+ * - invalida cache.
+ */
+
+const STORES_IDENTIDADE_UX211 =
+  Object.freeze([
+    "TB_OBRAS",
+    "TB_DIARIOS",
+    "TB_DIARIO_ITENS",
+    "TB_OCORRENCIAS",
+    "TB_CLIMA",
+    "TB_EVIDENCIAS",
+    "TB_MEDICOES",
+    "TB_LOTES_MEDICAO",
+    "TB_SYNC_QUEUE",
+    "TB_NOTIFICACOES"
+  ]);
+
+
+/**
+ * Normalização textual.
+ */
+function textoUX211_(valor) {
+  return String(
+    valor === undefined ||
+    valor === null
+      ? ""
+      : valor
+  ).trim();
+}
+
+
+/**
+ * Normalização de nomes de campos.
+ */
+function normalizarCampoIdentidadeUX211_(
+  valor
+) {
+  return textoUX211_(valor)
+    .normalize("NFD")
+    .replace(
+      /[\u0300-\u036f]/g,
+      ""
+    )
+    .replace(
+      /[^a-zA-Z0-9]/g,
+      ""
+    )
+    .toLowerCase();
+}
+
+
+/**
+ * Normalização de valores para comparação.
+ */
+function normalizarValorIdentidadeUX211_(
+  valor
+) {
+  return textoUX211_(valor)
+    .normalize("NFD")
+    .replace(
+      /[\u0300-\u036f]/g,
+      ""
+    )
+    .toUpperCase();
+}
+
+
+/**
+ * Classifica campos relacionados à identidade.
+ */
+function classificarCampoIdentidadeUX211_(
+  nomeCampo
+) {
+  const campo =
+    normalizarCampoIdentidadeUX211_(
+      nomeCampo
+    );
+
+  const grupos = {
+    usuarioId: new Set([
+      "idusuario",
+      "usuarioid",
+      "userid",
+      "criadoporid",
+      "atualizadoporid",
+      "responsavelid",
+      "aprovadoporid",
+      "consolidadoporid",
+      "usuarioaprovacaoid",
+      "idusuarioaprovacao"
+    ]),
+
+    usuarioNome: new Set([
+      "nomeusuario",
+      "usuario",
+      "responsavel",
+      "criadopor",
+      "atualizadopor",
+      "aprovadopor",
+      "consolidadopor",
+      "usuarioaprovacao"
+    ]),
+
+    dispositivoId: new Set([
+      "iddispositivo",
+      "dispositivoid",
+      "deviceid",
+      "iddevice",
+      "criadonodispositivo",
+      "atualizadonodispositivo"
+    ]),
+
+    perfil: new Set([
+      "perfil",
+      "perfilusuario",
+      "papel",
+      "role",
+      "tipousuario",
+      "nivelacesso"
+    ]),
+
+    permissao: new Set([
+      "permissao",
+      "permissoes",
+      "permission",
+      "permissions",
+      "obrasautorizadas",
+      "obraspermitidas",
+      "escopoacesso"
+    ]),
+
+    revogacao: new Set([
+      "revogado",
+      "revogada",
+      "statususuario",
+      "statusdispositivo",
+      "bloqueado",
+      "bloqueada",
+      "limpezaremota",
+      "comandoremoto"
+    ]),
+
+    autenticacao: new Set([
+      "token",
+      "authtoken",
+      "accesstoken",
+      "refreshtoken",
+      "tokenacesso",
+      "tokensessao",
+      "sessao",
+      "session"
+    ])
+  };
+
+  for (
+    const [categoria, campos] of
+    Object.entries(grupos)
+  ) {
+    if (campos.has(campo)) {
+      return categoria;
+    }
+  }
+
+  return "";
+}
+
+
+/**
+ * Evita percorrer arquivos, blobs e Base64.
+ */
+function campoPesadoUX211_(
+  nomeCampo
+) {
+  return /base64|blob|arquivo|file|imagem|foto|conteudo|content/i
+    .test(
+      textoUX211_(nomeCampo)
+    );
+}
+
+
+/**
+ * Extrai campos de identidade de qualquer objeto,
+ * inclusive payloads aninhados da fila.
+ */
+function extrairIdentidadeObjetoUX211_(
+  objeto,
+  profundidadeMaxima = 5
+) {
+  const resultado = {
+    usuarioId:
+      [],
+
+    usuarioNome:
+      [],
+
+    dispositivoId:
+      [],
+
+    perfil:
+      [],
+
+    permissao:
+      [],
+
+    revogacao:
+      [],
+
+    autenticacao:
+      []
+  };
+
+  const visitados =
+    new WeakSet();
+
+
+  function visitar_(
+    valor,
+    caminho,
+    profundidade
+  ) {
+    if (
+      valor === undefined ||
+      valor === null ||
+      profundidade >
+        profundidadeMaxima
+    ) {
+      return;
+    }
+
+    if (
+      typeof valor !==
+      "object"
+    ) {
+      return;
+    }
+
+    if (
+      visitados.has(valor)
+    ) {
+      return;
+    }
+
+    visitados.add(valor);
+
+
+    if (Array.isArray(valor)) {
+      valor
+        .slice(0, 100)
+        .forEach(
+          function (
+            item,
+            indice
+          ) {
+            visitar_(
+              item,
+              caminho +
+                "[" +
+                indice +
+                "]",
+              profundidade + 1
+            );
+          }
+        );
+
+      return;
+    }
+
+
+    Object.entries(valor)
+      .forEach(
+        function (
+          [chave, conteudo]
+        ) {
+          if (
+            campoPesadoUX211_(
+              chave
+            )
+          ) {
+            return;
+          }
+
+          const caminhoAtual =
+            caminho
+              ? caminho +
+                "." +
+                chave
+              : chave;
+
+          const categoria =
+            classificarCampoIdentidadeUX211_(
+              chave
+            );
+
+          if (categoria) {
+            if (
+              categoria ===
+              "autenticacao"
+            ) {
+              resultado[
+                categoria
+              ].push({
+                caminho:
+                  caminhoAtual,
+
+                presente:
+                  Boolean(
+                    conteudo
+                  ),
+
+                valor:
+                  conteudo
+                    ? "[PRESENTE]"
+                    : ""
+              });
+
+            } else if (
+              Array.isArray(
+                conteudo
+              )
+            ) {
+              resultado[
+                categoria
+              ].push({
+                caminho:
+                  caminhoAtual,
+
+                valor:
+                  conteudo
+                    .map(textoUX211_)
+                    .filter(Boolean)
+              });
+
+            } else if (
+              typeof conteudo ===
+                "object" &&
+              conteudo !== null
+            ) {
+              /*
+               * O objeto será percorrido abaixo.
+               */
+
+            } else {
+              const texto =
+                textoUX211_(
+                  conteudo
+                );
+
+              if (texto) {
+                resultado[
+                  categoria
+                ].push({
+                  caminho:
+                    caminhoAtual,
+
+                  valor:
+                    texto
+                });
+              }
+            }
+          }
+
+          if (
+            typeof conteudo ===
+              "object" &&
+            conteudo !== null
+          ) {
+            visitar_(
+              conteudo,
+              caminhoAtual,
+              profundidade + 1
+            );
+          }
+        }
+      );
+  }
+
+
+  visitar_(
+    objeto,
+    "",
+    0
+  );
+
+  return resultado;
+}
+
+
+/**
+ * Retorna valores únicos extraídos.
+ */
+function valoresUnicosIdentidadeUX211_(
+  ocorrencias
+) {
+  const valores =
+    [];
+
+  (
+    Array.isArray(ocorrencias)
+      ? ocorrencias
+      : []
+  ).forEach(
+    function (ocorrencia) {
+      const valor =
+        ocorrencia?.valor;
+
+      if (Array.isArray(valor)) {
+        valor.forEach(
+          function (item) {
+            const texto =
+              textoUX211_(item);
+
+            if (texto) {
+              valores.push(texto);
+            }
+          }
+        );
+
+        return;
+      }
+
+      const texto =
+        textoUX211_(valor);
+
+      if (
+        texto &&
+        texto !==
+          "[PRESENTE]"
+      ) {
+        valores.push(texto);
+      }
+    }
+  );
+
+  return Array.from(
+    new Set(valores)
+  );
+}
+
+
+/**
+ * Identifica usuários genéricos ou placeholders.
+ */
+function usuarioEhPlaceholderUX211_(
+  valor
+) {
+  const usuario =
+    normalizarValorIdentidadeUX211_(
+      valor
+    );
+
+  return [
+    "USUARIO_MOBILE",
+    "USUARIO",
+    "MOBILE_USER",
+    "USER_MOBILE",
+    "ANONIMO",
+    "ANONYMOUS",
+    "GUEST",
+    "CONVIDADO",
+    "USUARIO_TESTE",
+    "TESTE"
+  ].includes(usuario);
+}
+
+
+/**
+ * Identifica dispositivos genéricos sem
+ * individualização suficiente.
+ */
+function dispositivoEhPlaceholderUX211_(
+  valor
+) {
+  const dispositivo =
+    normalizarValorIdentidadeUX211_(
+      valor
+    );
+
+  return [
+    "DISPOSITIVO",
+    "DISPOSITIVO_MOBILE",
+    "DEVICE",
+    "MOBILE_DEVICE",
+    "DISP-MOBILE"
+  ].includes(dispositivo);
+}
+
+
+/**
+ * Gera uma assinatura simples.
+ */
+function gerarHashIdentidadeUX211_(
+  valor
+) {
+  if (
+    typeof gerarHashUX202_ ===
+    "function"
+  ) {
+    return gerarHashUX202_(
+      valor
+    );
+  }
+
+  const texto =
+    String(valor);
+
+  let hash =
+    2166136261;
+
+  for (
+    let indice = 0;
+    indice < texto.length;
+    indice++
+  ) {
+    hash ^=
+      texto.charCodeAt(indice);
+
+    hash +=
+      (
+        hash << 1
+      ) +
+      (
+        hash << 4
+      ) +
+      (
+        hash << 7
+      ) +
+      (
+        hash << 8
+      ) +
+      (
+        hash << 24
+      );
+  }
+
+  return (
+    hash >>> 0
+  )
+    .toString(16)
+    .padStart(8, "0");
+}
+
+
+/**
+ * Assinatura estável de uma lista de registros.
+ */
+function assinarRegistrosIdentidadeUX211_(
+  registros
+) {
+  if (
+    typeof criarAssinaturaStoreMedicoesUX1994_ ===
+    "function"
+  ) {
+    return criarAssinaturaStoreMedicoesUX1994_(
+      registros
+    );
+  }
+
+  return gerarHashIdentidadeUX211_(
+    JSON.stringify(
+      registros
+    )
+  );
+}
+
+
+/**
+ * Leitura bruta sem cache.
+ */
+async function lerStoreBrutaIdentidadeUX211_(
+  nomeStore
+) {
+  if (
+    typeof lerStoreBrutaUX1997A_ ===
+    "function"
+  ) {
+    return lerStoreBrutaUX1997A_(
+      nomeStore
+    );
+  }
+
+  const db =
+    await abrirBancoLocalSIGO();
+
+  return new Promise(
+    function (resolve, reject) {
+      const transacao =
+        db.transaction(
+          [nomeStore],
+          "readonly"
+        );
+
+      const store =
+        transacao.objectStore(
+          nomeStore
+        );
+
+      const requisicao =
+        store.getAll();
+
+      requisicao.onsuccess =
+        function () {
+          resolve(
+            requisicao.result || []
+          );
+        };
+
+      requisicao.onerror =
+        function () {
+          reject(
+            requisicao.error ||
+            new Error(
+              "Falha ao ler " +
+              nomeStore
+            )
+          );
+        };
+    }
+  );
+}
+
+
+/**
+ * Lista as stores existentes no banco.
+ */
+async function listarStoresIdentidadeUX211_() {
+  const db =
+    await abrirBancoLocalSIGO();
+
+  return Array.from(
+    db.objectStoreNames
+  );
+}
+
+
+/**
+ * Obtém um identificador apenas para amostras.
+ */
+function obterIdAmostraUX211_(
+  registro
+) {
+  const campos = [
+    "idDiario",
+    "idItemDiario",
+    "idDiarioItem",
+    "idItem",
+    "idOcorrencia",
+    "idClima",
+    "idRegistroClima",
+    "idEvidencia",
+    "idItemMedicao",
+    "idMedicao",
+    "idSync",
+    "idFila",
+    "idNotificacao",
+    "idObra",
+    "id"
+  ];
+
+  for (const campo of campos) {
+    const valor =
+      textoUX211_(
+        registro?.[campo]
+      );
+
+    if (valor) {
+      return valor;
+    }
+  }
+
+  return "";
+}
+
+
+/**
+ * Resume identidade por store.
+ */
+function resumirStoreIdentidadeUX211_(
+  nomeStore,
+  registros
+) {
+  const usuariosId =
+    new Set();
+
+  const usuariosNome =
+    new Set();
+
+  const dispositivosId =
+    new Set();
+
+  const perfis =
+    new Set();
+
+  const permissoes =
+    new Set();
+
+  const revogacoes =
+    new Set();
+
+  let comUsuarioId =
+    0;
+
+  let comUsuarioNome =
+    0;
+
+  let comDispositivoId =
+    0;
+
+  let comPerfil =
+    0;
+
+  let comPermissao =
+    0;
+
+  let comRevogacao =
+    0;
+
+  let comAutenticacao =
+    0;
+
+  let comUsuarioPlaceholder =
+    0;
+
+  let comDispositivoPlaceholder =
+    0;
+
+  const amostrasLacunas =
+    [];
+
+
+  (
+    Array.isArray(registros)
+      ? registros
+      : []
+  ).forEach(
+    function (registro) {
+      const identidade =
+        extrairIdentidadeObjetoUX211_(
+          registro
+        );
+
+      const idsUsuario =
+        valoresUnicosIdentidadeUX211_(
+          identidade.usuarioId
+        );
+
+      const nomesUsuario =
+        valoresUnicosIdentidadeUX211_(
+          identidade.usuarioNome
+        );
+
+      const idsDispositivo =
+        valoresUnicosIdentidadeUX211_(
+          identidade.dispositivoId
+        );
+
+      const valoresPerfil =
+        valoresUnicosIdentidadeUX211_(
+          identidade.perfil
+        );
+
+      const valoresPermissao =
+        valoresUnicosIdentidadeUX211_(
+          identidade.permissao
+        );
+
+      const valoresRevogacao =
+        valoresUnicosIdentidadeUX211_(
+          identidade.revogacao
+        );
+
+
+      if (idsUsuario.length) {
+        comUsuarioId++;
+
+        idsUsuario.forEach(
+          function (valor) {
+            usuariosId.add(valor);
+
+            if (
+              usuarioEhPlaceholderUX211_(
+                valor
+              )
+            ) {
+              comUsuarioPlaceholder++;
+            }
+          }
+        );
+      }
+
+
+      if (nomesUsuario.length) {
+        comUsuarioNome++;
+
+        nomesUsuario.forEach(
+          function (valor) {
+            usuariosNome.add(valor);
+          }
+        );
+      }
+
+
+      if (idsDispositivo.length) {
+        comDispositivoId++;
+
+        idsDispositivo.forEach(
+          function (valor) {
+            dispositivosId.add(valor);
+
+            if (
+              dispositivoEhPlaceholderUX211_(
+                valor
+              )
+            ) {
+              comDispositivoPlaceholder++;
+            }
+          }
+        );
+      }
+
+
+      if (valoresPerfil.length) {
+        comPerfil++;
+
+        valoresPerfil.forEach(
+          function (valor) {
+            perfis.add(valor);
+          }
+        );
+      }
+
+
+      if (valoresPermissao.length) {
+        comPermissao++;
+
+        valoresPermissao.forEach(
+          function (valor) {
+            permissoes.add(valor);
+          }
+        );
+      }
+
+
+      if (valoresRevogacao.length) {
+        comRevogacao++;
+
+        valoresRevogacao.forEach(
+          function (valor) {
+            revogacoes.add(valor);
+          }
+        );
+      }
+
+
+      if (
+        identidade
+          .autenticacao
+          .some(
+            function (item) {
+              return (
+                item.presente ===
+                true
+              );
+            }
+          )
+      ) {
+        comAutenticacao++;
+      }
+
+
+      if (
+        amostrasLacunas.length <
+          5 &&
+        (
+          !idsUsuario.length ||
+          !idsDispositivo.length
+        )
+      ) {
+        amostrasLacunas.push({
+          id:
+            obterIdAmostraUX211_(
+              registro
+            ),
+
+          possuiUsuarioId:
+            idsUsuario.length > 0,
+
+          possuiDispositivoId:
+            idsDispositivo.length > 0,
+
+          usuarioNome:
+            nomesUsuario,
+
+          statusSync:
+            registro?.statusSync || "",
+
+          origem:
+            registro?.origem || ""
+        });
+      }
+    }
+  );
+
+
+  const total =
+    registros.length;
+
+  return {
+    store:
+      nomeStore,
+
+    totalRegistros:
+      total,
+
+    cobertura: {
+      comUsuarioId:
+        comUsuarioId,
+
+      semUsuarioId:
+        total - comUsuarioId,
+
+      comUsuarioNome:
+        comUsuarioNome,
+
+      semUsuarioNome:
+        total - comUsuarioNome,
+
+      comDispositivoId:
+        comDispositivoId,
+
+      semDispositivoId:
+        total - comDispositivoId,
+
+      comPerfil:
+        comPerfil,
+
+      comPermissao:
+        comPermissao,
+
+      comRevogacao:
+        comRevogacao,
+
+      comAutenticacao:
+        comAutenticacao
+    },
+
+    valores: {
+      usuariosId:
+        Array.from(usuariosId),
+
+      usuariosNome:
+        Array.from(usuariosNome),
+
+      dispositivosId:
+        Array.from(dispositivosId),
+
+      perfis:
+        Array.from(perfis),
+
+      permissoes:
+        Array.from(permissoes),
+
+      revogacoes:
+        Array.from(revogacoes)
+    },
+
+    placeholders: {
+      usuarios:
+        comUsuarioPlaceholder,
+
+      dispositivos:
+        comDispositivoPlaceholder
+    },
+
+    amostrasLacunas:
+      amostrasLacunas
+  };
+}
+
+
+/**
+ * Captura apenas chaves relevantes do localStorage.
+ *
+ * Tokens nunca são exibidos.
+ */
+function auditarLocalStorageIdentidadeUX211_() {
+  const chaves = [];
+
+  const usuarios =
+    new Set();
+
+  const dispositivos =
+    new Set();
+
+  let autenticacaoPresente =
+    false;
+
+  let perfilPresente =
+    false;
+
+  let permissaoPresente =
+    false;
+
+  let revogacaoPresente =
+    false;
+
+
+  for (
+    let indice = 0;
+    indice < localStorage.length;
+    indice++
+  ) {
+    const chave =
+      localStorage.key(indice);
+
+    if (!chave) {
+      continue;
+    }
+
+    const valor =
+      localStorage.getItem(chave);
+
+    const relevante =
+      /usuario|user|dispositivo|device|identidade|sessao|session|auth|token|perfil|permiss|revog|bloque/i
+        .test(chave) ||
+
+      /USUARIO_MOBILE|DISP-MOBILE-/i
+        .test(
+          valor || ""
+        );
+
+    if (!relevante) {
+      continue;
+    }
+
+
+    const categoria =
+      classificarCampoIdentidadeUX211_(
+        chave
+      );
+
+    const chaveSensivel =
+      /token|auth|sessao|session/i
+        .test(chave);
+
+
+    chaves.push({
+      chave:
+        chave,
+
+      categoria:
+        categoria ||
+        "OUTRO",
+
+      valor:
+        chaveSensivel
+          ? (
+            valor
+              ? "[PRESENTE]"
+              : ""
+          )
+          : (
+            textoUX211_(valor)
+              .slice(0, 180)
+          )
+    });
+
+
+    if (chaveSensivel && valor) {
+      autenticacaoPresente =
+        true;
+    }
+
+
+    if (
+      categoria ===
+      "perfil"
+    ) {
+      perfilPresente =
+        true;
+    }
+
+
+    if (
+      categoria ===
+      "permissao"
+    ) {
+      permissaoPresente =
+        true;
+    }
+
+
+    if (
+      categoria ===
+      "revogacao"
+    ) {
+      revogacaoPresente =
+        true;
+    }
+
+
+    if (
+      categoria ===
+        "usuarioId" &&
+      valor
+    ) {
+      usuarios.add(
+        textoUX211_(valor)
+      );
+    }
+
+
+    if (
+      categoria ===
+        "dispositivoId" &&
+      valor
+    ) {
+      dispositivos.add(
+        textoUX211_(valor)
+      );
+    }
+
+
+    const usuariosEncontrados =
+      String(valor || "")
+        .match(
+          /USUARIO_[A-Z0-9_-]+/gi
+        ) || [];
+
+    usuariosEncontrados
+      .forEach(
+        function (usuario) {
+          usuarios.add(usuario);
+        }
+      );
+
+
+    const dispositivosEncontrados =
+      String(valor || "")
+        .match(
+          /DISP-MOBILE-[A-Z0-9_-]+/gi
+        ) || [];
+
+    dispositivosEncontrados
+      .forEach(
+        function (dispositivo) {
+          dispositivos.add(
+            dispositivo
+          );
+        }
+      );
+
+
+    if (
+      valor &&
+      valor.length <
+        50000 &&
+      /^[\[{]/.test(
+        valor.trim()
+      )
+    ) {
+      try {
+        const objeto =
+          JSON.parse(valor);
+
+        const identidade =
+          extrairIdentidadeObjetoUX211_(
+            objeto
+          );
+
+        valoresUnicosIdentidadeUX211_(
+          identidade.usuarioId
+        ).forEach(
+          function (usuario) {
+            usuarios.add(usuario);
+          }
+        );
+
+        valoresUnicosIdentidadeUX211_(
+          identidade.dispositivoId
+        ).forEach(
+          function (dispositivo) {
+            dispositivos.add(
+              dispositivo
+            );
+          }
+        );
+
+        if (
+          identidade
+            .autenticacao
+            .some(
+              function (item) {
+                return item.presente;
+              }
+            )
+        ) {
+          autenticacaoPresente =
+            true;
+        }
+
+        if (
+          identidade.perfil.length
+        ) {
+          perfilPresente =
+            true;
+        }
+
+        if (
+          identidade.permissao.length
+        ) {
+          permissaoPresente =
+            true;
+        }
+
+        if (
+          identidade.revogacao.length
+        ) {
+          revogacaoPresente =
+            true;
+        }
+
+      } catch (erro) {
+        // Valor não é JSON utilizável.
+      }
+    }
+  }
+
+
+  return {
+    chavesRelevantes:
+      chaves,
+
+    usuarios:
+      Array.from(usuarios),
+
+    dispositivos:
+      Array.from(dispositivos),
+
+    autenticacaoPresente:
+      autenticacaoPresente,
+
+    perfilPresente:
+      perfilPresente,
+
+    permissaoPresente:
+      permissaoPresente,
+
+    revogacaoPresente:
+      revogacaoPresente
+  };
+}
+
+
+/**
+ * Assina as entradas relevantes do localStorage
+ * sem expor o conteúdo no resultado.
+ */
+function assinarLocalStorageIdentidadeUX211_() {
+  const entradas = [];
+
+  for (
+    let indice = 0;
+    indice < localStorage.length;
+    indice++
+  ) {
+    const chave =
+      localStorage.key(indice);
+
+    if (!chave) {
+      continue;
+    }
+
+    if (
+      !/usuario|user|dispositivo|device|identidade|sessao|session|auth|token|perfil|permiss|revog|bloque/i
+        .test(chave)
+    ) {
+      continue;
+    }
+
+    entradas.push([
+      chave,
+      localStorage.getItem(chave)
+    ]);
+  }
+
+  entradas.sort(
+    function (a, b) {
+      return a[0]
+        .localeCompare(b[0]);
+    }
+  );
+
+  return gerarHashIdentidadeUX211_(
+    JSON.stringify(
+      entradas
+    )
+  );
+}
+
+
+/**
+ * Lê alguns caminhos globais conhecidos.
+ */
+function auditarGlobaisIdentidadeUX211_() {
+  const caminhos = {
+    usuario: [
+      "idUsuario",
+      "ID_USUARIO",
+      "usuarioAtual.idUsuario",
+      "SIGO.idUsuario",
+      "SIGO.usuario.idUsuario",
+      "SIGO.contexto.idUsuario",
+      "SIGOContexto.idUsuario",
+      "SIGO_ESTADO.idUsuario",
+      "estadoMobile.idUsuario",
+      "contextoMobile.idUsuario"
+    ],
+
+    dispositivo: [
+      "idDispositivo",
+      "ID_DISPOSITIVO",
+      "dispositivoAtual.idDispositivo",
+      "SIGO.idDispositivo",
+      "SIGO.dispositivo.idDispositivo",
+      "SIGO.contexto.idDispositivo",
+      "SIGOContexto.idDispositivo",
+      "SIGO_ESTADO.idDispositivo",
+      "estadoMobile.idDispositivo",
+      "contextoMobile.idDispositivo"
+    ],
+
+    perfil: [
+      "perfilUsuario",
+      "usuarioAtual.perfil",
+      "SIGO.usuario.perfil",
+      "SIGO.contexto.perfil",
+      "SIGOContexto.perfil"
+    ]
+  };
+
+
+  function lerCaminho_(caminho) {
+    return caminho
+      .split(".")
+      .reduce(
+        function (
+          atual,
+          parte
+        ) {
+          return atual?.[parte];
+        },
+        window
+      );
+  }
+
+
+  const resultado = {
+    usuario:
+      [],
+
+    dispositivo:
+      [],
+
+    perfil:
+      []
+  };
+
+
+  Object.entries(caminhos)
+    .forEach(
+      function (
+        [categoria, lista]
+      ) {
+        lista.forEach(
+          function (caminho) {
+            const valor =
+              lerCaminho_(caminho);
+
+            if (
+              valor !== undefined &&
+              valor !== null &&
+              valor !== ""
+            ) {
+              resultado[
+                categoria
+              ].push({
+                caminho:
+                  caminho,
+
+                valor:
+                  textoUX211_(valor)
+              });
+            }
+          }
+        );
+      }
+    );
+
+
+  return resultado;
+}
+
+
+/**
+ * Recupera a função original quando ela foi
+ * envolvida por outras etapas.
+ */
+function desembrulharFuncaoUX211_(
+  funcao
+) {
+  let atual =
+    funcao;
+
+  const visitadas =
+    new Set();
+
+  for (
+    let nivel = 0;
+    nivel < 8;
+    nivel++
+  ) {
+    if (
+      typeof atual !==
+        "function" ||
+      visitadas.has(atual)
+    ) {
+      break;
+    }
+
+    visitadas.add(atual);
+
+    const propriedades =
+      Object.getOwnPropertyNames(
+        atual
+      );
+
+    const propriedadeOriginal =
+      propriedades.find(
+        function (nome) {
+          return (
+            /original|base/i.test(
+              nome
+            ) &&
+            typeof atual[nome] ===
+              "function"
+          );
+        }
+      );
+
+    if (!propriedadeOriginal) {
+      break;
+    }
+
+    atual =
+      atual[
+        propriedadeOriginal
+      ];
+  }
+
+  return atual;
+}
+
+
+/**
+ * Mapeia funções que manipulam identidade.
+ *
+ * Apenas Function.toString().
+ * Nenhuma função é executada.
+ */
+function auditarFuncoesIdentidadeUX211_() {
+  const resultados =
+    [];
+
+  const nomes =
+    Object.getOwnPropertyNames(
+      window
+    )
+      .filter(
+        function (nome) {
+          return (
+            /mobile|sigo|sync|sincron|api|fila|reidrat|usuario|dispositivo/i
+              .test(nome) &&
+            typeof window[nome] ===
+              "function"
+          );
+        }
+      );
+
+
+  nomes.forEach(
+    function (nome) {
+      try {
+        const funcao =
+          desembrulharFuncaoUX211_(
+            window[nome]
+          );
+
+        const fonte =
+          Function.prototype
+            .toString
+            .call(funcao);
+
+        const usaIdUsuario =
+          /\bidUsuario\b/.test(
+            fonte
+          );
+
+        const usaIdDispositivo =
+          /\bidDispositivo\b/.test(
+            fonte
+          );
+
+        const usaToken =
+          /\btoken\b/i.test(
+            fonte
+          );
+
+        const possuiUsuarioMobile =
+          /USUARIO_MOBILE/i.test(
+            fonte
+          );
+
+        const possuiPrefixoDispositivo =
+          /DISP-MOBILE-/i.test(
+            fonte
+          );
+
+        if (
+          !usaIdUsuario &&
+          !usaIdDispositivo &&
+          !usaToken &&
+          !possuiUsuarioMobile &&
+          !possuiPrefixoDispositivo
+        ) {
+          return;
+        }
+
+        const acoes =
+          Array.from(
+            new Set(
+              fonte.match(
+                /\b(?:OBTER|ENVIAR|RECEBER|SINCRONIZAR|SYNC)_[A-Z0-9_]+\b/g
+              ) || []
+            )
+          );
+
+        resultados.push({
+          funcao:
+            nome,
+
+          usaIdUsuario:
+            usaIdUsuario,
+
+          usaIdDispositivo:
+            usaIdDispositivo,
+
+          usaToken:
+            usaToken,
+
+          usuarioMobileLiteral:
+            possuiUsuarioMobile,
+
+          prefixoDispositivoLiteral:
+            possuiPrefixoDispositivo,
+
+          acoes:
+            acoes
+        });
+
+      } catch (erro) {
+        // Função não inspecionável.
+      }
+    }
+  );
+
+
+  return resultados
+    .sort(
+      function (a, b) {
+        return a.funcao
+          .localeCompare(
+            b.funcao
+          );
+      }
+    )
+    .slice(0, 150);
+}
+
+
+/**
+ * Captura o estado bruto das stores.
+ */
+async function capturarEstadoIdentidadeUX211_(
+  storesExistentes
+) {
+  const resultado = {};
+
+  for (
+    const nomeStore of
+    STORES_IDENTIDADE_UX211
+  ) {
+    if (
+      !storesExistentes.includes(
+        nomeStore
+      )
+    ) {
+      resultado[
+        nomeStore
+      ] = {
+        existe:
+          false,
+
+        registros:
+          [],
+
+        quantidade:
+          0,
+
+        assinatura:
+          ""
+      };
+
+      continue;
+    }
+
+    const registros =
+      await lerStoreBrutaIdentidadeUX211_(
+        nomeStore
+      );
+
+    resultado[
+      nomeStore
+    ] = {
+      existe:
+        true,
+
+      registros:
+        registros,
+
+      quantidade:
+        registros.length,
+
+      assinatura:
+        assinarRegistrosIdentidadeUX211_(
+          registros
+        )
+    };
+  }
+
+  return resultado;
+}
+
+
+/**
+ * Compara as assinaturas antes e depois.
+ */
+function compararEstadoIdentidadeUX211_(
+  antes,
+  depois
+) {
+  const divergencias =
+    [];
+
+  for (
+    const nomeStore of
+    STORES_IDENTIDADE_UX211
+  ) {
+    if (
+      antes[
+        nomeStore
+      ]?.assinatura !==
+      depois[
+        nomeStore
+      ]?.assinatura
+    ) {
+      divergencias.push({
+        store:
+          nomeStore,
+
+        quantidadeAntes:
+          antes[
+            nomeStore
+          ]?.quantidade ?? null,
+
+        quantidadeDepois:
+          depois[
+            nomeStore
+          ]?.quantidade ?? null
+      });
+    }
+  }
+
+  return divergencias;
+}
+
+
+/**
+ * Adiciona candidato com sua origem.
+ */
+function adicionarCandidatoIdentidadeUX211_(
+  mapa,
+  valor,
+  origem
+) {
+  const texto =
+    textoUX211_(valor);
+
+  if (!texto) {
+    return;
+  }
+
+  if (!mapa.has(texto)) {
+    mapa.set(
+      texto,
+      new Set()
+    );
+  }
+
+  mapa
+    .get(texto)
+    .add(origem);
+}
+
+
+/**
+ * Converte candidatos para o relatório.
+ */
+function serializarCandidatosIdentidadeUX211_(
+  mapa
+) {
+  return Array.from(
+    mapa.entries()
+  ).map(
+    function (
+      [valor, origens]
+    ) {
+      return {
+        valor:
+          valor,
+
+        placeholder:
+          usuarioEhPlaceholderUX211_(
+            valor
+          ) ||
+          dispositivoEhPlaceholderUX211_(
+            valor
+          ),
+
+        origens:
+          Array.from(origens)
+      };
+    }
+  );
+}
+
+
+/**
+ * ============================================================
+ * AUDITORIA PRINCIPAL
+ * ============================================================
+ */
+async function auditarIdentidadeAtualUX211_() {
+  console.log(
+    "[UX.21.1] Iniciando auditoria da identidade atual..."
+  );
+
+  const assinaturaStorageAntes =
+    assinarLocalStorageIdentidadeUX211_();
+
+  const storesExistentes =
+    await listarStoresIdentidadeUX211_();
+
+  const estadoAntes =
+    await capturarEstadoIdentidadeUX211_(
+      storesExistentes
+    );
+
+
+  const localStorageAuditado =
+    auditarLocalStorageIdentidadeUX211_();
+
+  const globais =
+    auditarGlobaisIdentidadeUX211_();
+
+  const funcoes =
+    auditarFuncoesIdentidadeUX211_();
+
+
+  const resumosStores = {};
+
+  for (
+    const nomeStore of
+    STORES_IDENTIDADE_UX211
+  ) {
+    resumosStores[
+      nomeStore
+    ] =
+      resumirStoreIdentidadeUX211_(
+        nomeStore,
+        estadoAntes[
+          nomeStore
+        ].registros
+      );
+  }
+
+
+  /*
+   * ========================================================
+   * CANDIDATOS DE USUÁRIO E DISPOSITIVO
+   * ========================================================
+   */
+
+  const candidatosUsuario =
+    new Map();
+
+  const candidatosDispositivo =
+    new Map();
+
+
+  localStorageAuditado
+    .usuarios
+    .forEach(
+      function (valor) {
+        adicionarCandidatoIdentidadeUX211_(
+          candidatosUsuario,
+          valor,
+          "LOCAL_STORAGE"
+        );
+      }
+    );
+
+
+  localStorageAuditado
+    .dispositivos
+    .forEach(
+      function (valor) {
+        adicionarCandidatoIdentidadeUX211_(
+          candidatosDispositivo,
+          valor,
+          "LOCAL_STORAGE"
+        );
+      }
+    );
+
+
+  globais.usuario
+    .forEach(
+      function (item) {
+        adicionarCandidatoIdentidadeUX211_(
+          candidatosUsuario,
+          item.valor,
+          "GLOBAL:" +
+            item.caminho
+        );
+      }
+    );
+
+
+  globais.dispositivo
+    .forEach(
+      function (item) {
+        adicionarCandidatoIdentidadeUX211_(
+          candidatosDispositivo,
+          item.valor,
+          "GLOBAL:" +
+            item.caminho
+        );
+      }
+    );
+
+
+  Object.values(
+    resumosStores
+  ).forEach(
+    function (resumo) {
+      resumo
+        .valores
+        .usuariosId
+        .forEach(
+          function (valor) {
+            adicionarCandidatoIdentidadeUX211_(
+              candidatosUsuario,
+              valor,
+              "STORE:" +
+                resumo.store
+            );
+          }
+        );
+
+      resumo
+        .valores
+        .dispositivosId
+        .forEach(
+          function (valor) {
+            adicionarCandidatoIdentidadeUX211_(
+              candidatosDispositivo,
+              valor,
+              "STORE:" +
+                resumo.store
+            );
+          }
+        );
+    }
+  );
+
+
+  const funcoesComUsuarioLiteral =
+    funcoes.filter(
+      function (funcao) {
+        return (
+          funcao
+            .usuarioMobileLiteral ===
+          true
+        );
+      }
+    );
+
+
+  if (
+    funcoesComUsuarioLiteral.length
+  ) {
+    adicionarCandidatoIdentidadeUX211_(
+      candidatosUsuario,
+      "USUARIO_MOBILE",
+      "CODIGO_FONTE"
+    );
+  }
+
+
+  const usuariosSerializados =
+    serializarCandidatosIdentidadeUX211_(
+      candidatosUsuario
+    );
+
+  const dispositivosSerializados =
+    serializarCandidatosIdentidadeUX211_(
+      candidatosDispositivo
+    );
+
+
+  const usuarioPrincipal =
+    usuariosSerializados
+      .find(
+        function (item) {
+          return (
+            item.origens.some(
+              function (origem) {
+                return origem ===
+                  "LOCAL_STORAGE";
+              }
+            ) &&
+            !item.placeholder
+          );
+        }
+      ) ||
+
+    usuariosSerializados
+      .find(
+        function (item) {
+          return (
+            item.origens.some(
+              function (origem) {
+                return origem ===
+                  "LOCAL_STORAGE";
+              }
+            )
+          );
+        }
+      ) ||
+
+    usuariosSerializados[0] ||
+    null;
+
+
+  const dispositivoPrincipal =
+    dispositivosSerializados
+      .find(
+        function (item) {
+          return (
+            item.origens.some(
+              function (origem) {
+                return origem ===
+                  "LOCAL_STORAGE";
+              }
+            ) &&
+            !item.placeholder
+          );
+        }
+      ) ||
+
+    dispositivosSerializados[0] ||
+    null;
+
+
+  /*
+   * ========================================================
+   * PRESENÇA DE ESTRUTURAS DE IDENTIDADE
+   * ========================================================
+   */
+
+  const storesDedicadasIdentidade =
+    storesExistentes.filter(
+      function (nomeStore) {
+        return /USUARIO|USER|DISPOSITIVO|DEVICE|SESSAO|SESSION|PERMISSAO|PERMISSION|AUTORIZACAO|IDENTIDADE/i
+          .test(nomeStore);
+      }
+    );
+
+
+  const totalRegistrosOperacionais =
+    [
+      "TB_DIARIOS",
+      "TB_DIARIO_ITENS",
+      "TB_OCORRENCIAS",
+      "TB_CLIMA",
+      "TB_EVIDENCIAS",
+      "TB_MEDICOES"
+    ].reduce(
+      function (
+        total,
+        nomeStore
+      ) {
+        return (
+          total +
+          resumosStores[
+            nomeStore
+          ].totalRegistros
+        );
+      },
+      0
+    );
+
+
+  const registrosOperacionaisComUsuario =
+    [
+      "TB_DIARIOS",
+      "TB_DIARIO_ITENS",
+      "TB_OCORRENCIAS",
+      "TB_CLIMA",
+      "TB_EVIDENCIAS",
+      "TB_MEDICOES"
+    ].reduce(
+      function (
+        total,
+        nomeStore
+      ) {
+        return (
+          total +
+          resumosStores[
+            nomeStore
+          ].cobertura
+            .comUsuarioId
+        );
+      },
+      0
+    );
+
+
+  const registrosOperacionaisComDispositivo =
+    [
+      "TB_DIARIOS",
+      "TB_DIARIO_ITENS",
+      "TB_OCORRENCIAS",
+      "TB_CLIMA",
+      "TB_EVIDENCIAS",
+      "TB_MEDICOES"
+    ].reduce(
+      function (
+        total,
+        nomeStore
+      ) {
+        return (
+          total +
+          resumosStores[
+            nomeStore
+          ].cobertura
+            .comDispositivoId
+        );
+      },
+      0
+    );
+
+
+  const perfisEncontrados =
+    Array.from(
+      new Set(
+        Object.values(
+          resumosStores
+        ).flatMap(
+          function (resumo) {
+            return resumo
+              .valores
+              .perfis;
+          }
+        )
+      )
+    );
+
+
+  const permissoesEncontradas =
+    Array.from(
+      new Set(
+        Object.values(
+          resumosStores
+        ).flatMap(
+          function (resumo) {
+            return resumo
+              .valores
+              .permissoes;
+          }
+        )
+      )
+    );
+
+
+  const revogacoesEncontradas =
+    Array.from(
+      new Set(
+        Object.values(
+          resumosStores
+        ).flatMap(
+          function (resumo) {
+            return resumo
+              .valores
+              .revogacoes;
+          }
+        )
+      )
+    );
+
+
+  /*
+   * ========================================================
+   * ESTADO POSTERIOR — COMPROVAÇÃO SOMENTE LEITURA
+   * ========================================================
+   */
+
+  const estadoDepois =
+    await capturarEstadoIdentidadeUX211_(
+      storesExistentes
+    );
+
+  const assinaturaStorageDepois =
+    assinarLocalStorageIdentidadeUX211_();
+
+  const storesAlteradas =
+    compararEstadoIdentidadeUX211_(
+      estadoAntes,
+      estadoDepois
+    );
+
+
+  /*
+   * ========================================================
+   * LACUNAS DA ARQUITETURA ATUAL
+   * ========================================================
+   */
+
+  const lacunas =
+    [];
+
+
+  if (!usuarioPrincipal) {
+    lacunas.push({
+      severidade:
+        "CRITICA",
+
+      codigo:
+        "USUARIO_NAO_IDENTIFICADO",
+
+      descricao:
+        "Não foi encontrado um identificador de usuário persistente."
+    });
+
+  } else if (
+    usuarioPrincipal.placeholder
+  ) {
+    lacunas.push({
+      severidade:
+        "CRITICA",
+
+      codigo:
+        "USUARIO_GENERICO",
+
+      descricao:
+        "O usuário atual é um identificador técnico genérico: " +
+        usuarioPrincipal.valor +
+        "."
+    });
+  }
+
+
+  if (!dispositivoPrincipal) {
+    lacunas.push({
+      severidade:
+        "CRITICA",
+
+      codigo:
+        "DISPOSITIVO_NAO_IDENTIFICADO",
+
+      descricao:
+        "Não foi encontrado um identificador persistente do dispositivo."
+    });
+  }
+
+
+  if (
+    usuariosSerializados.length >
+    1
+  ) {
+    lacunas.push({
+      severidade:
+        "ALTA",
+
+      codigo:
+        "MULTIPLOS_USUARIOS_TECNICOS",
+
+      descricao:
+        "Foram encontrados múltiplos identificadores de usuário no dispositivo."
+    });
+  }
+
+
+  if (
+    dispositivosSerializados.length >
+    1
+  ) {
+    lacunas.push({
+      severidade:
+        "ALTA",
+
+      codigo:
+        "MULTIPLOS_DISPOSITIVOS",
+
+      descricao:
+        "Foram encontrados múltiplos identificadores de dispositivo no mesmo navegador."
+    });
+  }
+
+
+  if (
+    storesDedicadasIdentidade.length ===
+    0
+  ) {
+    lacunas.push({
+      severidade:
+        "ALTA",
+
+      codigo:
+        "SEM_STORE_DE_IDENTIDADE",
+
+      descricao:
+        "O IndexedDB não possui uma store dedicada a usuário, dispositivo ou sessão."
+    });
+  }
+
+
+  if (
+    registrosOperacionaisComUsuario <
+    totalRegistrosOperacionais
+  ) {
+    lacunas.push({
+      severidade:
+        "ALTA",
+
+      codigo:
+        "AUTORIA_ID_INCOMPLETA",
+
+      descricao:
+        (
+          totalRegistrosOperacionais -
+          registrosOperacionaisComUsuario
+        ) +
+        " registro(s) operacional(is) não possuem um ID de usuário individual."
+    });
+  }
+
+
+  if (
+    registrosOperacionaisComDispositivo <
+    totalRegistrosOperacionais
+  ) {
+    lacunas.push({
+      severidade:
+        "ALTA",
+
+      codigo:
+        "DISPOSITIVO_ID_INCOMPLETO",
+
+      descricao:
+        (
+          totalRegistrosOperacionais -
+          registrosOperacionaisComDispositivo
+        ) +
+        " registro(s) operacional(is) não possuem autoria de dispositivo."
+    });
+  }
+
+
+  if (
+    !perfisEncontrados.length &&
+    !localStorageAuditado
+      .perfilPresente
+  ) {
+    lacunas.push({
+      severidade:
+        "ALTA",
+
+      codigo:
+        "SEM_PERFIL_DE_ACESSO",
+
+      descricao:
+        "Não foi localizado perfil individual de acesso."
+    });
+  }
+
+
+  if (
+    !permissoesEncontradas.length &&
+    !localStorageAuditado
+      .permissaoPresente
+  ) {
+    lacunas.push({
+      severidade:
+        "ALTA",
+
+      codigo:
+        "SEM_PERMISSOES_POR_OBRA",
+
+      descricao:
+        "Não foram localizadas permissões individuais ou obras autorizadas."
+    });
+  }
+
+
+  if (
+    !revogacoesEncontradas.length &&
+    !localStorageAuditado
+      .revogacaoPresente
+  ) {
+    lacunas.push({
+      severidade:
+        "ALTA",
+
+      codigo:
+        "SEM_CONTROLE_DE_REVOGACAO",
+
+      descricao:
+        "Não foi localizado controle de revogação de usuário ou dispositivo."
+    });
+  }
+
+
+  if (
+    funcoesComUsuarioLiteral.length
+  ) {
+    lacunas.push({
+      severidade:
+        "CRITICA",
+
+      codigo:
+        "USUARIO_FIXO_NO_CODIGO",
+
+      descricao:
+        "O literal USUARIO_MOBILE foi encontrado em " +
+        funcoesComUsuarioLiteral.length +
+        " função(ões)."
+    });
+  }
+
+
+  const filaResumo =
+    resumosStores
+      .TB_SYNC_QUEUE;
+
+
+  if (
+    filaResumo.totalRegistros >
+      0 &&
+    filaResumo
+      .cobertura
+      .comUsuarioId <
+    filaResumo.totalRegistros
+  ) {
+    lacunas.push({
+      severidade:
+        "ALTA",
+
+      codigo:
+        "FILA_SEM_USUARIO_COMPLETO",
+
+      descricao:
+        (
+          filaResumo.totalRegistros -
+          filaResumo
+            .cobertura
+            .comUsuarioId
+        ) +
+        " entrada(s) da fila não possuem ID de usuário."
+    });
+  }
+
+
+  if (
+    filaResumo.totalRegistros >
+      0 &&
+    filaResumo
+      .cobertura
+      .comDispositivoId <
+    filaResumo.totalRegistros
+  ) {
+    lacunas.push({
+      severidade:
+        "ALTA",
+
+      codigo:
+        "FILA_SEM_DISPOSITIVO_COMPLETO",
+
+      descricao:
+        (
+          filaResumo.totalRegistros -
+          filaResumo
+            .cobertura
+            .comDispositivoId
+        ) +
+        " entrada(s) da fila não possuem ID do dispositivo."
+    });
+  }
+
+
+  const validacoesTecnicas = {
+    bancoLocalAcessivel:
+      storesExistentes.length > 0,
+
+    storesOperacionaisAuditadas:
+      STORES_IDENTIDADE_UX211
+        .filter(
+          function (store) {
+            return storesExistentes
+              .includes(store);
+          }
+        )
+        .length > 0,
+
+    funcoesInspecionadas:
+      funcoes.length > 0,
+
+    nenhumaStoreAlterada:
+      storesAlteradas.length === 0,
+
+    localStorageNaoAlterado:
+      assinaturaStorageAntes ===
+      assinaturaStorageDepois
+  };
+
+
+  const auditoriaConcluida =
+    Object.values(
+      validacoesTecnicas
+    ).every(
+      function (valor) {
+        return valor === true;
+      }
+    );
+
+
+  const possuiLacunaCritica =
+    lacunas.some(
+      function (lacuna) {
+        return (
+          lacuna.severidade ===
+          "CRITICA"
+        );
+      }
+    );
+
+
+  const identidadeAtualAprovada =
+    auditoriaConcluida &&
+    lacunas.length === 0;
+
+
+  const maturidade =
+    possuiLacunaCritica
+      ? "IDENTIDADE_TECNICA_NAO_AUTENTICADA"
+      : (
+        lacunas.length
+          ? "IDENTIDADE_PARCIAL"
+          : "IDENTIDADE_INDIVIDUAL_ESTRUTURADA"
+      );
+
+
+  const resultado = {
+    etapa:
+      "UX.21.1",
+
+    auditoria:
+      "IDENTIDADE_ATUAL_USUARIO_DISPOSITIVO",
+
+    status:
+      auditoriaConcluida
+        ? (
+          lacunas.length
+            ? "CONCLUIDO_COM_LACUNAS"
+            : "APROVADO"
+        )
+        : "REPROVADO_TECNICAMENTE",
+
+    maturidade:
+      maturidade,
+
+    identidadeAtual: {
+      usuario: {
+        principal:
+          usuarioPrincipal,
+
+        candidatos:
+          usuariosSerializados,
+
+        usaPlaceholder:
+          Boolean(
+            usuarioPrincipal
+              ?.placeholder
+          )
+      },
+
+      dispositivo: {
+        principal:
+          dispositivoPrincipal,
+
+        candidatos:
+          dispositivosSerializados,
+
+        usaPlaceholder:
+          Boolean(
+            dispositivoPrincipal
+              ?.placeholder
+          )
+      },
+
+      autenticacaoEncontrada:
+        localStorageAuditado
+          .autenticacaoPresente,
+
+      perfisEncontrados:
+        perfisEncontrados,
+
+      permissoesEncontradas:
+        permissoesEncontradas,
+
+      revogacoesEncontradas:
+        revogacoesEncontradas
+    },
+
+    indexedDB: {
+      nomeBanco:
+        "SIGO_OFFLINE_DB",
+
+      storesExistentes:
+        storesExistentes,
+
+      storesDedicadasIdentidade:
+        storesDedicadasIdentidade,
+
+      possuiStoreDedicada:
+        storesDedicadasIdentidade
+          .length > 0
+    },
+
+    coberturaOperacional: {
+      totalRegistros:
+        totalRegistrosOperacionais,
+
+      comUsuarioId:
+        registrosOperacionaisComUsuario,
+
+      semUsuarioId:
+        totalRegistrosOperacionais -
+        registrosOperacionaisComUsuario,
+
+      comDispositivoId:
+        registrosOperacionaisComDispositivo,
+
+      semDispositivoId:
+        totalRegistrosOperacionais -
+        registrosOperacionaisComDispositivo
+    },
+
+    stores:
+      resumosStores,
+
+    fila: {
+      total:
+        filaResumo.totalRegistros,
+
+      comUsuarioId:
+        filaResumo
+          .cobertura
+          .comUsuarioId,
+
+      semUsuarioId:
+        filaResumo
+          .cobertura
+          .semUsuarioId,
+
+      comDispositivoId:
+        filaResumo
+          .cobertura
+          .comDispositivoId,
+
+      semDispositivoId:
+        filaResumo
+          .cobertura
+          .semDispositivoId,
+
+      usuariosEncontrados:
+        filaResumo
+          .valores
+          .usuariosId,
+
+      dispositivosEncontrados:
+        filaResumo
+          .valores
+          .dispositivosId
+    },
+
+    localStorage: {
+      chavesRelevantes:
+        localStorageAuditado
+          .chavesRelevantes,
+
+      autenticacaoPresente:
+        localStorageAuditado
+          .autenticacaoPresente,
+
+      perfilPresente:
+        localStorageAuditado
+          .perfilPresente,
+
+      permissaoPresente:
+        localStorageAuditado
+          .permissaoPresente,
+
+      revogacaoPresente:
+        localStorageAuditado
+          .revogacaoPresente
+    },
+
+    globais:
+      globais,
+
+    funcoes: {
+      totalAnalisadas:
+        funcoes.length,
+
+      comIdUsuario:
+        funcoes.filter(
+          function (funcao) {
+            return funcao
+              .usaIdUsuario;
+          }
+        ).length,
+
+      comIdDispositivo:
+        funcoes.filter(
+          function (funcao) {
+            return funcao
+              .usaIdDispositivo;
+          }
+        ).length,
+
+      comToken:
+        funcoes.filter(
+          function (funcao) {
+            return funcao
+              .usaToken;
+          }
+        ).length,
+
+      comUsuarioMobileLiteral:
+        funcoesComUsuarioLiteral
+          .map(
+            function (funcao) {
+              return funcao.funcao;
+            }
+          ),
+
+      detalhes:
+        funcoes
+    },
+
+    lacunas:
+      lacunas,
+
+    preservacao: {
+      storesAlteradas:
+        storesAlteradas,
+
+      localStorageAlterado:
+        assinaturaStorageAntes !==
+        assinaturaStorageDepois
+    },
+
+    proximoContratoRecomendado: {
+      usuario: {
+        idUsuario:
+          "",
+
+        nomeUsuario:
+          "",
+
+        email:
+          "",
+
+        perfil:
+          "",
+
+        statusUsuario:
+          "ATIVO"
+      },
+
+      dispositivo: {
+        idDispositivo:
+          "",
+
+        idUsuario:
+          "",
+
+        nomeDispositivo:
+          "",
+
+        plataforma:
+          "",
+
+        autorizadoEm:
+          "",
+
+        ultimaValidacao:
+          "",
+
+        statusDispositivo:
+          "ATIVO"
+      },
+
+      sessao: {
+        idUsuario:
+          "",
+
+        idDispositivo:
+          "",
+
+        obrasAutorizadas:
+          [],
+
+        permissoes:
+          [],
+
+        validadoEm:
+          "",
+
+        expiraEm:
+          "",
+
+        revogado:
+          false
+      }
+    },
+
+    validacoesTecnicas:
+      validacoesTecnicas,
+
+    auditoriaConcluida:
+      auditoriaConcluida,
+
+    identidadeAtualAprovada:
+      identidadeAtualAprovada,
+
+    prontoParaUX212:
+      auditoriaConcluida
+  };
+
+
+  console.log(
+    JSON.stringify(
+      resultado,
+      null,
+      2
+    )
+  );
+
+
+  if (!auditoriaConcluida) {
+    throw new Error(
+      "UX.21.1 REPROVADA TECNICAMENTE. A auditoria alterou dados ou não conseguiu acessar as estruturas."
+    );
+  }
+
+
+  console.log(
+    lacunas.length
+      ? (
+        "UX.21.1 — AUDITORIA CONCLUÍDA COM " +
+        lacunas.length +
+        " LACUNA(S) DE IDENTIDADE."
+      )
+      : (
+        "UX.21.1 — IDENTIDADE ATUAL APROVADA."
+      )
+  );
+
+
+  return resultado;
+}
