@@ -45625,3 +45625,1784 @@ async function auditarCorrecaoClimaUX1997A_() {
 
   return resultado;
 }
+
+/**
+ * ============================================================
+ * UX.19.10 — AUDITORIA CONSOLIDADA FINAL DA
+ * REIDRATAÇÃO MULTIENTIDADE
+ * ============================================================
+ *
+ * Etapa exclusivamente de leitura.
+ *
+ * Não altera:
+ *
+ * - IndexedDB;
+ * - caches;
+ * - DataBinding;
+ * - TB_SYNC_QUEUE;
+ * - notificações;
+ * - planejamento.
+ */
+
+
+/**
+ * Normalização textual.
+ */
+function normalizarTextoUX1910_(valor) {
+  return String(
+    valor === undefined ||
+    valor === null
+      ? ""
+      : valor
+  ).trim();
+}
+
+
+/**
+ * Normalização para comparação de estados.
+ */
+function normalizarMaiusculoUX1910_(valor) {
+  return normalizarTextoUX1910_(valor)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+}
+
+
+/**
+ * Obtém o primeiro campo preenchido.
+ */
+function obterPrimeiroCampoUX1910_(
+  registro,
+  campos
+) {
+  for (const campo of campos) {
+    const valor =
+      normalizarTextoUX1910_(
+        registro?.[campo]
+      );
+
+    if (valor) {
+      return valor;
+    }
+  }
+
+  return "";
+}
+
+
+/**
+ * Obtém um valor por caminho.
+ *
+ * Exemplo:
+ *
+ * obterCaminhoUX1910_(
+ *   objeto,
+ *   "detalhes.diarios"
+ * )
+ */
+function obterCaminhoUX1910_(
+  objeto,
+  caminho
+) {
+  return String(caminho)
+    .split(".")
+    .reduce(
+      function (atual, chave) {
+        return atual?.[chave];
+      },
+      objeto
+    );
+}
+
+
+/**
+ * Localiza o primeiro array existente entre
+ * diferentes versões possíveis do contrato.
+ */
+function obterPrimeiroArrayUX1910_(
+  pacote,
+  caminhos
+) {
+  for (const caminho of caminhos) {
+    const valor =
+      obterCaminhoUX1910_(
+        pacote,
+        caminho
+      );
+
+    if (Array.isArray(valor)) {
+      return valor;
+    }
+  }
+
+  return [];
+}
+
+
+/**
+ * Executa o primeiro cliente Mobile disponível.
+ */
+async function executarClienteUX1910_(
+  nomes,
+  idObra,
+  periodoDias
+) {
+  for (const nome of nomes) {
+    const funcao =
+      window[nome];
+
+    if (
+      typeof funcao !== "function"
+    ) {
+      continue;
+    }
+
+    return funcao(
+      idObra,
+      periodoDias
+    );
+  }
+
+  throw new Error(
+    "Nenhum cliente Mobile disponível: " +
+    nomes.join(", ")
+  );
+}
+
+
+/**
+ * Localiza valores duplicados.
+ */
+function localizarDuplicadosUX1910_(
+  valores
+) {
+  const contagem =
+    new Map();
+
+  (
+    Array.isArray(valores)
+      ? valores
+      : []
+  ).forEach(
+    function (valorOriginal) {
+      const valor =
+        normalizarTextoUX1910_(
+          valorOriginal
+        );
+
+      if (!valor) {
+        return;
+      }
+
+      contagem.set(
+        valor,
+        Number(
+          contagem.get(valor) || 0
+        ) + 1
+      );
+    }
+  );
+
+  const duplicados = [];
+
+  contagem.forEach(
+    function (quantidade, valor) {
+      if (quantidade > 1) {
+        duplicados.push({
+          valor:
+            valor,
+
+          quantidade:
+            quantidade
+        });
+      }
+    }
+  );
+
+  return duplicados;
+}
+
+
+/**
+ * Verifica tombstone ou exclusão lógica.
+ */
+function registroEhTombstoneUX1910_(
+  registro
+) {
+  if (
+    registro?.tombstone === true ||
+    registro?.deleted === true ||
+    registro?.excluido === true
+  ) {
+    return true;
+  }
+
+  const operacao =
+    normalizarMaiusculoUX1910_(
+      registro?.operacao ??
+      registro?.acao ??
+      registro?.tipoOperacao
+    );
+
+  return (
+    operacao.includes("DELETE") ||
+    operacao.includes("EXCLUIR") ||
+    operacao.includes("REMOVER")
+  );
+}
+
+
+/**
+ * Verifica metadados obrigatórios dos registros
+ * recuperados do servidor.
+ */
+function auditarMetadadosLocalUX1910_(
+  registros
+) {
+  const problemas = [];
+
+  (
+    Array.isArray(registros)
+      ? registros
+      : []
+  ).forEach(
+    function (registro) {
+      const statusSync =
+        normalizarMaiusculoUX1910_(
+          registro?.statusSync
+        );
+
+      const origemReidratacao =
+        normalizarMaiusculoUX1910_(
+          registro?.origemReidratacao
+        );
+
+      if (
+        statusSync !==
+        "SINCRONIZADO"
+      ) {
+        problemas.push({
+          id:
+            registro?.idMedicao ||
+            registro?.idDiario ||
+            registro?.idOcorrencia ||
+            registro?.idClima ||
+            registro?.idEvidencia ||
+            registro?.idItem ||
+            "",
+
+          campo:
+            "statusSync",
+
+          valor:
+            registro?.statusSync
+        });
+      }
+
+      if (
+        origemReidratacao !==
+        "SERVIDOR"
+      ) {
+        problemas.push({
+          id:
+            registro?.idMedicao ||
+            registro?.idDiario ||
+            registro?.idOcorrencia ||
+            registro?.idClima ||
+            registro?.idEvidencia ||
+            registro?.idItem ||
+            "",
+
+          campo:
+            "origemReidratacao",
+
+          valor:
+            registro?.origemReidratacao
+        });
+      }
+
+      if (
+        registroEhTombstoneUX1910_(
+          registro
+        )
+      ) {
+        problemas.push({
+          id:
+            registro?.idMedicao ||
+            registro?.idDiario ||
+            registro?.idOcorrencia ||
+            registro?.idClima ||
+            registro?.idEvidencia ||
+            registro?.idItem ||
+            "",
+
+          campo:
+            "tombstone",
+
+          valor:
+            true
+        });
+      }
+    }
+  );
+
+  return problemas;
+}
+
+
+/**
+ * Captura uma store pela leitura bruta e pela
+ * camada normal do sistema.
+ */
+async function capturarStoreUX1910_(
+  nomeStore
+) {
+  const bruto =
+    await lerStoreBrutaUX1997A_(
+      nomeStore
+    );
+
+  const sistema =
+    await listarRegistrosSIGO(
+      nomeStore
+    );
+
+  return {
+    bruto:
+      bruto,
+
+    sistema:
+      sistema,
+
+    quantidadeBruta:
+      bruto.length,
+
+    quantidadeSistema:
+      sistema.length,
+
+    assinaturaBruta:
+      criarAssinaturaStoreMedicoesUX1994_(
+        bruto
+      ),
+
+    assinaturaSistema:
+      criarAssinaturaStoreMedicoesUX1994_(
+        sistema
+      ),
+
+    cacheSincronizado:
+      criarAssinaturaStoreMedicoesUX1994_(
+        bruto
+      ) ===
+      criarAssinaturaStoreMedicoesUX1994_(
+        sistema
+      )
+  };
+}
+
+
+/**
+ * Captura todas as stores envolvidas.
+ */
+async function capturarEstadoMultientidadeUX1910_() {
+  const nomes = [
+    "TB_DIARIOS",
+    "TB_DIARIO_ITENS",
+    "TB_OCORRENCIAS",
+    "TB_CLIMA",
+    "TB_EVIDENCIAS",
+    "TB_MEDICOES",
+    "TB_LOTES_MEDICAO",
+    "TB_SYNC_QUEUE",
+    "TB_NOTIFICACOES"
+  ];
+
+  const resultado = {};
+
+  for (const nome of nomes) {
+    resultado[nome] =
+      await capturarStoreUX1910_(
+        nome
+      );
+  }
+
+  return resultado;
+}
+
+
+/**
+ * Audita uma entidade por IDs servidor × local.
+ */
+function auditarEntidadeUX1910_({
+  nome,
+  registrosServidor,
+  registrosLocais,
+  camposIdServidor,
+  camposIdLocal,
+  idObra
+}) {
+  const idsServidor =
+    registrosServidor.map(
+      function (registro) {
+        return obterPrimeiroCampoUX1910_(
+          registro,
+          camposIdServidor
+        );
+      }
+    );
+
+  const idsLocais =
+    registrosLocais.map(
+      function (registro) {
+        return obterPrimeiroCampoUX1910_(
+          registro,
+          camposIdLocal
+        );
+      }
+    );
+
+  const idsServidorValidos =
+    idsServidor.filter(Boolean);
+
+  const idsLocaisValidos =
+    idsLocais.filter(Boolean);
+
+  const conjuntoServidor =
+    new Set(
+      idsServidorValidos
+    );
+
+  const conjuntoLocal =
+    new Set(
+      idsLocaisValidos
+    );
+
+  const faltantes =
+    idsServidorValidos.filter(
+      function (id) {
+        return !conjuntoLocal.has(id);
+      }
+    );
+
+  const extras =
+    idsLocaisValidos.filter(
+      function (id) {
+        return !conjuntoServidor.has(id);
+      }
+    );
+
+  const misturaServidor =
+    registrosServidor
+      .filter(
+        function (registro) {
+          return (
+            normalizarTextoUX1910_(
+              registro?.idObra
+            ) !== idObra
+          );
+        }
+      )
+      .map(
+        function (registro) {
+          return {
+            id:
+              obterPrimeiroCampoUX1910_(
+                registro,
+                camposIdServidor
+              ),
+
+            idObra:
+              registro?.idObra
+          };
+        }
+      );
+
+  const misturaLocal =
+    registrosLocais
+      .filter(
+        function (registro) {
+          return (
+            normalizarTextoUX1910_(
+              registro?.idObra
+            ) !== idObra
+          );
+        }
+      )
+      .map(
+        function (registro) {
+          return {
+            id:
+              obterPrimeiroCampoUX1910_(
+                registro,
+                camposIdLocal
+              ),
+
+            idObra:
+              registro?.idObra
+          };
+        }
+      );
+
+  const metadadosInvalidos =
+    auditarMetadadosLocalUX1910_(
+      registrosLocais
+    );
+
+  return {
+    nome:
+      nome,
+
+    servidor:
+      registrosServidor.length,
+
+    local:
+      registrosLocais.length,
+
+    idsServidorAusentes:
+      idsServidor.filter(
+        function (id) {
+          return !id;
+        }
+      ).length,
+
+    idsLocaisAusentes:
+      idsLocais.filter(
+        function (id) {
+          return !id;
+        }
+      ).length,
+
+    duplicadosServidor:
+      localizarDuplicadosUX1910_(
+        idsServidorValidos
+      ),
+
+    duplicadosLocal:
+      localizarDuplicadosUX1910_(
+        idsLocaisValidos
+      ),
+
+    faltantes:
+      faltantes,
+
+    extras:
+      extras,
+
+    misturaServidor:
+      misturaServidor,
+
+    misturaLocal:
+      misturaLocal,
+
+    metadadosInvalidos:
+      metadadosInvalidos,
+
+    aprovado:
+      idsServidor.length ===
+        idsLocais.length &&
+      idsServidor.every(Boolean) &&
+      idsLocais.every(Boolean) &&
+      localizarDuplicadosUX1910_(
+        idsServidorValidos
+      ).length === 0 &&
+      localizarDuplicadosUX1910_(
+        idsLocaisValidos
+      ).length === 0 &&
+      faltantes.length === 0 &&
+      extras.length === 0 &&
+      misturaServidor.length === 0 &&
+      misturaLocal.length === 0 &&
+      metadadosInvalidos.length === 0
+  };
+}
+
+
+/**
+ * Estados finais considerados históricos/concluídos
+ * na fila de sincronização.
+ */
+function filaConcluidaUX1910_(
+  registro
+) {
+  const status =
+    normalizarMaiusculoUX1910_(
+      registro?.statusSync ??
+      registro?.status ??
+      registro?.situacao
+    );
+
+  return [
+    "SINCRONIZADO",
+    "CONCLUIDO",
+    "PROCESSADO",
+    "ENVIADO",
+    "SUCESSO",
+    "OK",
+    "CANCELADO"
+  ].includes(status);
+}
+
+
+/**
+ * Extrai store e ID de uma entrada da fila.
+ */
+function extrairReferenciaFilaUX1910_(
+  registro
+) {
+  return {
+    store:
+      normalizarMaiusculoUX1910_(
+        registro?.storeOrigem ??
+        registro?.store ??
+        registro?.tabela ??
+        registro?.payload?.storeOrigem ??
+        registro?.dados?.storeOrigem
+      ),
+
+    id:
+      normalizarTextoUX1910_(
+        registro?.idRegistro ??
+        registro?.registroId ??
+        registro?.idMedicao ??
+        registro?.idDiario ??
+        registro?.payload?.idRegistro ??
+        registro?.payload?.idMedicao ??
+        registro?.dados?.idRegistro
+      )
+  };
+}
+
+
+/**
+ * Localiza pendências ativas relacionadas aos
+ * registros que vieram do servidor.
+ */
+function localizarPendenciasAtivasUX1910_(
+  fila,
+  idsPorStore
+) {
+  const problemas = [];
+
+  (
+    Array.isArray(fila)
+      ? fila
+      : []
+  ).forEach(
+    function (registro) {
+      if (
+        filaConcluidaUX1910_(
+          registro
+        )
+      ) {
+        return;
+      }
+
+      const referencia =
+        extrairReferenciaFilaUX1910_(
+          registro
+        );
+
+      const ids =
+        idsPorStore[
+          referencia.store
+        ];
+
+      if (
+        ids &&
+        referencia.id &&
+        ids.has(referencia.id)
+      ) {
+        problemas.push({
+          store:
+            referencia.store,
+
+          id:
+            referencia.id,
+
+          status:
+            registro?.statusSync ??
+            registro?.status ??
+            registro?.situacao ??
+            "",
+
+          operacao:
+            registro?.operacao ??
+            registro?.acao ??
+            registro?.tipoOperacao ??
+            ""
+        });
+      }
+    }
+  );
+
+  return problemas;
+}
+
+
+/**
+ * Localiza a notificação consolidada mais recente.
+ */
+function localizarNotificacaoFinalUX1910_(
+  notificacoes,
+  idObra
+) {
+  if (
+    typeof localizarNotificacaoClimaUX1997A_ ===
+    "function"
+  ) {
+    return localizarNotificacaoClimaUX1997A_(
+      notificacoes
+    );
+  }
+
+  return (
+    notificacoes
+      .filter(
+        function (registro) {
+          return (
+            registro?.idObra === idObra &&
+            registro?.tipo ===
+              "REIDRATACAO" &&
+            registro?.titulo ===
+              "Obra atualizada"
+          );
+        }
+      )
+      .reverse()[0] ||
+    null
+  );
+}
+
+
+/**
+ * ============================================================
+ * AUDITORIA PRINCIPAL
+ * ============================================================
+ */
+async function auditarReidratacaoMultientidadeUX1910_() {
+  console.log(
+    "[UX.19.10] Iniciando auditoria consolidada final..."
+  );
+
+  const idObra =
+    "OBR002";
+
+  const periodoDias =
+    30;
+
+  const mensagemEsperada =
+    "36 Diários, 6 itens, 14 ocorrências, " +
+    "8 registros de Clima, 7 Evidências e " +
+    "1 Medição oficial recuperados.";
+
+
+  /*
+   * ========================================================
+   * ESTADO ANTERIOR
+   * ========================================================
+   */
+
+  const estadoAntes =
+    await capturarEstadoMultientidadeUX1910_();
+
+
+  /*
+   * ========================================================
+   * PACOTES PUBLICADOS
+   * ========================================================
+   */
+
+  const pacoteOperacional =
+    await executarClienteUX1910_(
+      [
+        "obterDadosOperacionaisObraMobile_",
+        "obterDadosOperacionaisMobile_"
+      ],
+      idObra,
+      periodoDias
+    );
+
+  const pacoteOcorrencias =
+    await executarClienteUX1910_(
+      [
+        "obterOcorrenciasOperacionaisObraMobile_",
+        "obterOcorrenciasObraMobile_"
+      ],
+      idObra,
+      periodoDias
+    );
+
+  const pacoteClima =
+    await executarClienteUX1910_(
+      [
+        "obterClimasOperacionaisObraMobile_",
+        "obterClimaOperacionalObraMobile_",
+        "obterRegistrosClimaOperacionaisObraMobile_"
+      ],
+      idObra,
+      periodoDias
+    );
+
+  const pacoteEvidencias =
+    await executarClienteUX1910_(
+      [
+        "obterEvidenciasOperacionaisObraMobile_"
+      ],
+      idObra,
+      periodoDias
+    );
+
+  const pacoteMedicoes =
+    await executarClienteUX1910_(
+      [
+        "obterMedicoesOficiaisObraMobile_"
+      ],
+      idObra,
+      periodoDias
+    );
+
+
+  /*
+   * ========================================================
+   * ARRAYS DO SERVIDOR
+   * ========================================================
+   */
+
+  const diariosServidor =
+    obterPrimeiroArrayUX1910_(
+      pacoteOperacional,
+      [
+        "diarios",
+        "detalhes.diarios",
+        "dados.diarios"
+      ]
+    );
+
+  const itensServidor =
+    obterPrimeiroArrayUX1910_(
+      pacoteOperacional,
+      [
+        "itens",
+        "diarioItens",
+        "itensDiario",
+        "detalhes.itens",
+        "detalhes.diarioItens",
+        "dados.itens"
+      ]
+    );
+
+  const ocorrenciasServidor =
+    obterPrimeiroArrayUX1910_(
+      pacoteOcorrencias,
+      [
+        "ocorrencias",
+        "detalhes.ocorrencias",
+        "dados.ocorrencias"
+      ]
+    );
+
+  const climaServidor =
+    obterPrimeiroArrayUX1910_(
+      pacoteClima,
+      [
+        "clima",
+        "climas",
+        "registrosClima",
+        "detalhes.clima",
+        "detalhes.climas",
+        "detalhes.registrosClima",
+        "dados.clima"
+      ]
+    );
+
+  const evidenciasServidor =
+    obterPrimeiroArrayUX1910_(
+      pacoteEvidencias,
+      [
+        "evidencias",
+        "detalhes.evidencias",
+        "dados.evidencias"
+      ]
+    );
+
+  const medicoesServidor =
+    obterPrimeiroArrayUX1910_(
+      pacoteMedicoes,
+      [
+        "medicoes",
+        "detalhes.medicoes"
+      ]
+    );
+
+  const itensMedicaoServidor =
+    obterPrimeiroArrayUX1910_(
+      pacoteMedicoes,
+      [
+        "itensMedicao",
+        "detalhes.itensMedicao"
+      ]
+    );
+
+
+  /*
+   * ========================================================
+   * REGISTROS LOCAIS DA OBR002
+   * ========================================================
+   */
+
+  const filtrarObra =
+    function (registros) {
+      return registros.filter(
+        function (registro) {
+          return (
+            normalizarTextoUX1910_(
+              registro?.idObra
+            ) === idObra
+          );
+        }
+      );
+    };
+
+  const diariosLocais =
+    filtrarObra(
+      estadoAntes
+        .TB_DIARIOS
+        .bruto
+    );
+
+  const itensLocais =
+    filtrarObra(
+      estadoAntes
+        .TB_DIARIO_ITENS
+        .bruto
+    );
+
+  const ocorrenciasLocais =
+    filtrarObra(
+      estadoAntes
+        .TB_OCORRENCIAS
+        .bruto
+    );
+
+  const climaLocal =
+    filtrarObra(
+      estadoAntes
+        .TB_CLIMA
+        .bruto
+    );
+
+  const evidenciasLocais =
+    filtrarObra(
+      estadoAntes
+        .TB_EVIDENCIAS
+        .bruto
+    );
+
+  const medicoesLocaisObra =
+    filtrarObra(
+      estadoAntes
+        .TB_MEDICOES
+        .bruto
+    );
+
+  const medicoesOficiaisLocais =
+    medicoesLocaisObra.filter(
+      function (registro) {
+        return (
+          registro?.registroOficial ===
+            true ||
+          normalizarMaiusculoUX1910_(
+            registro?.tipoRegistro
+          ) ===
+            "ITEM_MEDICAO_OFICIAL"
+        );
+      }
+    );
+
+  const medicoesOperacionaisLocais =
+    medicoesLocaisObra.filter(
+      function (registro) {
+        return (
+          registro?.registroOficial !==
+            true &&
+          normalizarMaiusculoUX1910_(
+            registro?.tipoRegistro
+          ) !==
+            "ITEM_MEDICAO_OFICIAL"
+        );
+      }
+    );
+
+
+  /*
+   * ========================================================
+   * AUDITORIAS POR ENTIDADE
+   * ========================================================
+   */
+
+  const auditoriaDiarios =
+    auditarEntidadeUX1910_({
+      nome:
+        "DIARIOS",
+
+      registrosServidor:
+        diariosServidor,
+
+      registrosLocais:
+        diariosLocais,
+
+      camposIdServidor: [
+        "idDiario",
+        "id"
+      ],
+
+      camposIdLocal: [
+        "idDiario",
+        "id"
+      ],
+
+      idObra:
+        idObra
+    });
+
+  const auditoriaItens =
+    auditarEntidadeUX1910_({
+      nome:
+        "DIARIO_ITENS",
+
+      registrosServidor:
+        itensServidor,
+
+      registrosLocais:
+        itensLocais,
+
+      camposIdServidor: [
+        "idItemDiario",
+        "idDiarioItem",
+        "idItem",
+        "id"
+      ],
+
+      camposIdLocal: [
+        "idItemDiario",
+        "idDiarioItem",
+        "idItem",
+        "id"
+      ],
+
+      idObra:
+        idObra
+    });
+
+  const auditoriaOcorrencias =
+    auditarEntidadeUX1910_({
+      nome:
+        "OCORRENCIAS",
+
+      registrosServidor:
+        ocorrenciasServidor,
+
+      registrosLocais:
+        ocorrenciasLocais,
+
+      camposIdServidor: [
+        "idOcorrencia",
+        "id"
+      ],
+
+      camposIdLocal: [
+        "idOcorrencia",
+        "id"
+      ],
+
+      idObra:
+        idObra
+    });
+
+  const auditoriaClima =
+    auditarEntidadeUX1910_({
+      nome:
+        "CLIMA",
+
+      registrosServidor:
+        climaServidor,
+
+      registrosLocais:
+        climaLocal,
+
+      camposIdServidor: [
+        "idClima",
+        "idRegistroClima",
+        "id"
+      ],
+
+      camposIdLocal: [
+        "idClima",
+        "idRegistroClima",
+        "id"
+      ],
+
+      idObra:
+        idObra
+    });
+
+  const auditoriaEvidencias =
+    auditarEntidadeUX1910_({
+      nome:
+        "EVIDENCIAS",
+
+      registrosServidor:
+        evidenciasServidor,
+
+      registrosLocais:
+        evidenciasLocais,
+
+      camposIdServidor: [
+        "idEvidencia",
+        "id"
+      ],
+
+      camposIdLocal: [
+        "idEvidencia",
+        "id"
+      ],
+
+      idObra:
+        idObra
+    });
+
+  const auditoriaMedicoes =
+    auditarEntidadeUX1910_({
+      nome:
+        "MEDICOES_OFICIAIS",
+
+      registrosServidor:
+        itensMedicaoServidor,
+
+      registrosLocais:
+        medicoesOficiaisLocais,
+
+      camposIdServidor: [
+        "idItemMedicao",
+        "id"
+      ],
+
+      camposIdLocal: [
+        "idItemMedicao",
+        "idMedicao"
+      ],
+
+      idObra:
+        idObra
+    });
+
+
+  /*
+   * ========================================================
+   * INTEGRIDADE RELACIONAL DAS MEDIÇÕES
+   * ========================================================
+   */
+
+  const mapaCabecalhosMedicao =
+    new Map(
+      medicoesServidor.map(
+        function (medicao) {
+          return [
+            normalizarTextoUX1910_(
+              medicao.idMedicao
+            ),
+            medicao
+          ];
+        }
+      )
+    );
+
+  const divergenciasRelacionaisMedicao =
+    [];
+
+  medicoesOficiaisLocais.forEach(
+    function (registro) {
+      const idMedicaoOficial =
+        normalizarTextoUX1910_(
+          registro.idMedicaoOficial
+        );
+
+      const cabecalho =
+        mapaCabecalhosMedicao.get(
+          idMedicaoOficial
+        );
+
+      if (!cabecalho) {
+        divergenciasRelacionaisMedicao.push({
+          tipo:
+            "CABECALHO_AUSENTE",
+
+          idItemMedicao:
+            registro.idItemMedicao,
+
+          idMedicaoOficial:
+            idMedicaoOficial
+        });
+
+        return;
+      }
+
+      if (
+        registro.idMedicao !==
+        registro.idItemMedicao
+      ) {
+        divergenciasRelacionaisMedicao.push({
+          tipo:
+            "CHAVE_LOCAL_DIVERGENTE",
+
+          idMedicao:
+            registro.idMedicao,
+
+          idItemMedicao:
+            registro.idItemMedicao
+        });
+      }
+
+      if (
+        registro.cabecalhoOficial
+          ?.idMedicao !==
+        idMedicaoOficial
+      ) {
+        divergenciasRelacionaisMedicao.push({
+          tipo:
+            "SNAPSHOT_DIVERGENTE",
+
+          idItemMedicao:
+            registro.idItemMedicao,
+
+          idMedicaoOficial:
+            idMedicaoOficial,
+
+          snapshot:
+            registro.cabecalhoOficial
+              ?.idMedicao
+        });
+      }
+    }
+  );
+
+
+  /*
+   * ========================================================
+   * PENDÊNCIAS ATIVAS DA FILA
+   * ========================================================
+   */
+
+  const idsPorStore = {
+    TB_DIARIOS:
+      new Set(
+        diariosServidor.map(
+          function (registro) {
+            return obterPrimeiroCampoUX1910_(
+              registro,
+              ["idDiario", "id"]
+            );
+          }
+        )
+      ),
+
+    TB_DIARIO_ITENS:
+      new Set(
+        itensServidor.map(
+          function (registro) {
+            return obterPrimeiroCampoUX1910_(
+              registro,
+              [
+                "idItemDiario",
+                "idDiarioItem",
+                "idItem",
+                "id"
+              ]
+            );
+          }
+        )
+      ),
+
+    TB_OCORRENCIAS:
+      new Set(
+        ocorrenciasServidor.map(
+          function (registro) {
+            return obterPrimeiroCampoUX1910_(
+              registro,
+              ["idOcorrencia", "id"]
+            );
+          }
+        )
+      ),
+
+    TB_CLIMA:
+      new Set(
+        climaServidor.map(
+          function (registro) {
+            return obterPrimeiroCampoUX1910_(
+              registro,
+              [
+                "idClima",
+                "idRegistroClima",
+                "id"
+              ]
+            );
+          }
+        )
+      ),
+
+    TB_EVIDENCIAS:
+      new Set(
+        evidenciasServidor.map(
+          function (registro) {
+            return obterPrimeiroCampoUX1910_(
+              registro,
+              ["idEvidencia", "id"]
+            );
+          }
+        )
+      ),
+
+    TB_MEDICOES:
+      new Set(
+        itensMedicaoServidor.map(
+          function (registro) {
+            return obterPrimeiroCampoUX1910_(
+              registro,
+              ["idItemMedicao", "id"]
+            );
+          }
+        )
+      )
+  };
+
+  const pendenciasAtivas =
+    localizarPendenciasAtivasUX1910_(
+      estadoAntes
+        .TB_SYNC_QUEUE
+        .bruto,
+      idsPorStore
+    );
+
+
+  /*
+   * ========================================================
+   * TOTAL CONSOLIDADO
+   * ========================================================
+   *
+   * O cabeçalho de Medição organiza o item oficial,
+   * mas não é contado duas vezes no total operacional.
+   */
+
+  const totalConsolidado =
+    diariosServidor.length +
+    itensServidor.length +
+    ocorrenciasServidor.length +
+    climaServidor.length +
+    evidenciasServidor.length +
+    itensMedicaoServidor.length;
+
+
+  /*
+   * ========================================================
+   * NOTIFICAÇÃO CONSOLIDADA
+   * ========================================================
+   */
+
+  const notificacaoFinal =
+    localizarNotificacaoFinalUX1910_(
+      estadoAntes
+        .TB_NOTIFICACOES
+        .bruto,
+      idObra
+    );
+
+
+  /*
+   * ========================================================
+   * ESTADO POSTERIOR
+   * ========================================================
+   */
+
+  const estadoDepois =
+    await capturarEstadoMultientidadeUX1910_();
+
+  const storesAlteradas = [];
+
+  Object.keys(estadoAntes)
+    .forEach(
+      function (nomeStore) {
+        if (
+          estadoAntes[nomeStore]
+            .assinaturaBruta !==
+          estadoDepois[nomeStore]
+            .assinaturaBruta
+        ) {
+          storesAlteradas.push(
+            nomeStore
+          );
+        }
+      }
+    );
+
+
+  /*
+   * ========================================================
+   * VALIDAÇÕES FINAIS
+   * ========================================================
+   */
+
+  const cacheStoresPrincipaisSincronizado = [
+    "TB_DIARIOS",
+    "TB_DIARIO_ITENS",
+    "TB_OCORRENCIAS",
+    "TB_CLIMA",
+    "TB_EVIDENCIAS",
+    "TB_MEDICOES",
+    "TB_LOTES_MEDICAO",
+    "TB_SYNC_QUEUE"
+  ].every(
+    function (nomeStore) {
+      return (
+        estadoAntes[nomeStore]
+          .cacheSincronizado === true &&
+        estadoDepois[nomeStore]
+          .cacheSincronizado === true
+      );
+    }
+  );
+
+  const validacoes = {
+    diariosServidor36:
+      diariosServidor.length === 36,
+
+    diariosLocal36:
+      diariosLocais.length === 36,
+
+    itensServidor6:
+      itensServidor.length === 6,
+
+    itensLocal6:
+      itensLocais.length === 6,
+
+    ocorrenciasServidor14:
+      ocorrenciasServidor.length === 14,
+
+    ocorrenciasLocal14:
+      ocorrenciasLocais.length === 14,
+
+    climaServidor8:
+      climaServidor.length === 8,
+
+    climaLocal8:
+      climaLocal.length === 8,
+
+    evidenciasServidor7:
+      evidenciasServidor.length === 7,
+
+    evidenciasLocal7:
+      evidenciasLocais.length === 7,
+
+    servidorPossui1Medicao:
+      medicoesServidor.length === 1,
+
+    servidorPossui1ItemMedicao:
+      itensMedicaoServidor.length === 1,
+
+    localPossui1MedicaoOficial:
+      medicoesOficiaisLocais.length === 1,
+
+    cincoMedicoesOperacionaisPreservadas:
+      medicoesOperacionaisLocais.length === 5,
+
+    tbMedicoesPossui6:
+      medicoesLocaisObra.length === 6,
+
+    totalConsolidado72:
+      totalConsolidado === 72,
+
+    diariosAprovados:
+      auditoriaDiarios.aprovado === true,
+
+    itensAprovados:
+      auditoriaItens.aprovado === true,
+
+    ocorrenciasAprovadas:
+      auditoriaOcorrencias.aprovado === true,
+
+    climaAprovado:
+      auditoriaClima.aprovado === true,
+
+    evidenciasAprovadas:
+      auditoriaEvidencias.aprovado === true,
+
+    medicoesAprovadas:
+      auditoriaMedicoes.aprovado === true,
+
+    integridadeRelacionalMedicoes:
+      divergenciasRelacionaisMedicao.length ===
+      0,
+
+    nenhumaPendenciaAtivaSobreReidratados:
+      pendenciasAtivas.length === 0,
+
+    filaPossui45:
+      estadoAntes
+        .TB_SYNC_QUEUE
+        .quantidadeBruta === 45,
+
+    filaPermaneceu45:
+      estadoDepois
+        .TB_SYNC_QUEUE
+        .quantidadeBruta === 45,
+
+    lotesPossuemZero:
+      estadoAntes
+        .TB_LOTES_MEDICAO
+        .quantidadeBruta === 0,
+
+    lotesPermaneceramZero:
+      estadoDepois
+        .TB_LOTES_MEDICAO
+        .quantidadeBruta === 0,
+
+    cacheSincronizado:
+      cacheStoresPrincipaisSincronizado,
+
+    nenhumaStoreAlterada:
+      storesAlteradas.length === 0,
+
+    notificacaoEncontrada:
+      Boolean(notificacaoFinal),
+
+    notificacaoCorreta:
+      notificacaoFinal?.mensagem ===
+      mensagemEsperada
+  };
+
+  const aprovado =
+    Object.values(validacoes)
+      .every(
+        function (valor) {
+          return valor === true;
+        }
+      );
+
+
+  /*
+   * ========================================================
+   * RESULTADO
+   * ========================================================
+   */
+
+  const resultado = {
+    etapa:
+      "UX.19.10",
+
+    auditoria:
+      "REIDRATACAO_MULTIENTIDADE_FINAL",
+
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+
+    idObra:
+      idObra,
+
+    periodoDias:
+      periodoDias,
+
+    periodo: {
+      dataInicio:
+        pacoteOperacional
+          ?.dataInicio ||
+        pacoteMedicoes
+          ?.dataInicio ||
+        "",
+
+      dataFim:
+        pacoteOperacional
+          ?.dataFim ||
+        pacoteMedicoes
+          ?.dataFim ||
+        ""
+    },
+
+    totais: {
+      diarios:
+        diariosServidor.length,
+
+      itensDiario:
+        itensServidor.length,
+
+      ocorrencias:
+        ocorrenciasServidor.length,
+
+      clima:
+        climaServidor.length,
+
+      evidencias:
+        evidenciasServidor.length,
+
+      medicoesOficiais:
+        medicoesServidor.length,
+
+      itensMedicaoOficial:
+        itensMedicaoServidor.length,
+
+      totalConsolidado:
+        totalConsolidado,
+
+      medicoesOperacionaisPreservadas:
+        medicoesOperacionaisLocais.length
+    },
+
+    entidades: {
+      diarios:
+        auditoriaDiarios,
+
+      itensDiario:
+        auditoriaItens,
+
+      ocorrencias:
+        auditoriaOcorrencias,
+
+      clima:
+        auditoriaClima,
+
+      evidencias:
+        auditoriaEvidencias,
+
+      medicoesOficiais:
+        auditoriaMedicoes
+    },
+
+    medicoes: {
+      cabecalhosServidor:
+        medicoesServidor.length,
+
+      itensServidor:
+        itensMedicaoServidor.length,
+
+      oficiaisLocais:
+        medicoesOficiaisLocais.length,
+
+      operacionaisLocais:
+        medicoesOperacionaisLocais.length,
+
+      totalLocal:
+        medicoesLocaisObra.length,
+
+      divergenciasRelacionais:
+        divergenciasRelacionaisMedicao
+    },
+
+    sincronizacao: {
+      totalFila:
+        estadoDepois
+          .TB_SYNC_QUEUE
+          .quantidadeBruta,
+
+      pendenciasAtivasSobreReidratados:
+        pendenciasAtivas,
+
+      lotesLocais:
+        estadoDepois
+          .TB_LOTES_MEDICAO
+          .quantidadeBruta
+    },
+
+    stores: Object.fromEntries(
+      Object.keys(estadoAntes)
+        .map(
+          function (nomeStore) {
+            return [
+              nomeStore,
+              {
+                brutoAntes:
+                  estadoAntes[nomeStore]
+                    .quantidadeBruta,
+
+                brutoDepois:
+                  estadoDepois[nomeStore]
+                    .quantidadeBruta,
+
+                sistemaAntes:
+                  estadoAntes[nomeStore]
+                    .quantidadeSistema,
+
+                sistemaDepois:
+                  estadoDepois[nomeStore]
+                    .quantidadeSistema,
+
+                cacheSincronizadoAntes:
+                  estadoAntes[nomeStore]
+                    .cacheSincronizado,
+
+                cacheSincronizadoDepois:
+                  estadoDepois[nomeStore]
+                    .cacheSincronizado,
+
+                preservada:
+                  estadoAntes[nomeStore]
+                    .assinaturaBruta ===
+                  estadoDepois[nomeStore]
+                    .assinaturaBruta
+              }
+            ];
+          }
+        )
+    ),
+
+    notificacao: {
+      encontrada:
+        Boolean(notificacaoFinal),
+
+      idNotificacao:
+        notificacaoFinal
+          ?.idNotificacao || "",
+
+      titulo:
+        notificacaoFinal
+          ?.titulo || "",
+
+      mensagem:
+        notificacaoFinal
+          ?.mensagem || "",
+
+      mensagemEsperada:
+        mensagemEsperada
+    },
+
+    storesAlteradas:
+      storesAlteradas,
+
+    validacoes:
+      validacoes,
+
+    aprovado:
+      aprovado
+  };
+
+  console.log(
+    JSON.stringify(
+      resultado,
+      null,
+      2
+    )
+  );
+
+  if (!aprovado) {
+    throw new Error(
+      "UX.19.10 REPROVADA. Consulte as validações e as entidades no console."
+    );
+  }
+
+  console.log(
+    "UX.19.10 — AUDITORIA CONSOLIDADA FINAL DA REIDRATAÇÃO APROVADA."
+  );
+
+  return resultado;
+}
