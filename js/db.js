@@ -1,5 +1,5 @@
 const SIGO_DB_NAME = "SIGO_OFFLINE_DB";
-const SIGO_DB_VERSION = 16;
+const SIGO_DB_VERSION = 17;
 
 let SIGO_DB = null;
 
@@ -138,6 +138,157 @@ if (!db.objectStoreNames.contains("TB_PARAMETROS_OBRA")) {
 
   store.createIndex("criadaEm", "criadaEm", { unique: false });
 }
+    // =====================================================
+  // UX.21.3 — IDENTIDADE OFICIAL
+  // =====================================================
+
+  if (!db.objectStoreNames.contains("TB_USUARIOS")) {
+
+    const store = db.createObjectStore("TB_USUARIOS", {
+      keyPath: "idUsuario"
+    });
+
+    store.createIndex(
+      "porEmail",
+      "email",
+      { unique: false }
+    );
+
+    store.createIndex(
+      "porStatus",
+      "statusUsuario",
+      { unique: false }
+    );
+
+    store.createIndex(
+      "porAtualizacao",
+      "atualizadoEm",
+      { unique: false }
+    );
+  }
+
+
+  if (!db.objectStoreNames.contains("TB_DISPOSITIVOS")) {
+
+    const store = db.createObjectStore("TB_DISPOSITIVOS", {
+      keyPath: "idDispositivo"
+    });
+
+    store.createIndex(
+      "porUsuario",
+      "idUsuarioVinculado",
+      { unique: false }
+    );
+
+    store.createIndex(
+      "porStatus",
+      "statusDispositivo",
+      { unique: false }
+    );
+
+    store.createIndex(
+      "porUltimaConexao",
+      "ultimaConexaoEm",
+      { unique: false }
+    );
+
+    store.createIndex(
+      "porComandoRemoto",
+      "comandoRemoto.tipo",
+      { unique: false }
+    );
+  }
+
+
+  if (!db.objectStoreNames.contains("TB_SESSAO")) {
+
+    const store = db.createObjectStore("TB_SESSAO", {
+      keyPath: "idSessao"
+    });
+
+    store.createIndex(
+      "porUsuario",
+      "idUsuario",
+      { unique: false }
+    );
+
+    store.createIndex(
+      "porDispositivo",
+      "idDispositivo",
+      { unique: false }
+    );
+
+    store.createIndex(
+      "porStatus",
+      "statusSessao",
+      { unique: false }
+    );
+
+    store.createIndex(
+      "porValidadeOffline",
+      "validadeOfflineAte",
+      { unique: false }
+    );
+
+    store.createIndex(
+      "porAtualizacao",
+      "atualizadoEm",
+      { unique: false }
+    );
+  }
+
+
+  if (!db.objectStoreNames.contains("TB_AUDITORIA_IDENTIDADE")) {
+
+    const store = db.createObjectStore(
+      "TB_AUDITORIA_IDENTIDADE",
+      {
+        keyPath: "idEvento"
+      }
+    );
+
+    store.createIndex(
+      "porTipoEvento",
+      "tipoEvento",
+      { unique: false }
+    );
+
+    store.createIndex(
+      "porEntidade",
+      "tipoEntidade",
+      { unique: false }
+    );
+
+    store.createIndex(
+      "porIdEntidade",
+      "idEntidade",
+      { unique: false }
+    );
+
+    store.createIndex(
+      "porUsuario",
+      "idUsuario",
+      { unique: false }
+    );
+
+    store.createIndex(
+      "porDispositivo",
+      "idDispositivo",
+      { unique: false }
+    );
+
+    store.createIndex(
+      "porSessao",
+      "idSessao",
+      { unique: false }
+    );
+
+    store.createIndex(
+      "porData",
+      "ocorridoEm",
+      { unique: false }
+    );
+  }
 }
 
 function salvarRegistroSIGO(storeName, registro) {
