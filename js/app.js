@@ -31853,3 +31853,1711 @@ async function testarClienteEvidenciasMobileUX1984_() {
 
   return resultado;
 }
+
+/**
+ * ============================================================
+ * UX.19.8.5 — MESCLAGEM PROTEGIDA DE EVIDÊNCIAS
+ * ============================================================
+ *
+ * Stores:
+ *
+ * - TB_EVIDENCIAS;
+ * - TB_SYNC_QUEUE.
+ *
+ * Regras:
+ *
+ * - simulação sem gravações;
+ * - preservação de pendências locais;
+ * - preservação de tombstones;
+ * - preservação de arquivos Base64 locais;
+ * - nenhuma alteração na fila;
+ * - nenhuma mistura entre obras.
+ */
+
+
+/**
+ * Normaliza textos.
+ */
+function normalizarTextoEvidenciasUX1985_(valor) {
+  return String(
+    valor === undefined ||
+    valor === null
+      ? ""
+      : valor
+  ).trim();
+}
+
+
+/**
+ * Normaliza texto para comparação.
+ */
+function normalizarMaiusculoEvidenciasUX1985_(valor) {
+  return normalizarTextoEvidenciasUX1985_(
+    valor
+  )
+    .normalize("NFD")
+    .replace(
+      /[\u0300-\u036f]/g,
+      ""
+    )
+    .toUpperCase();
+}
+
+
+/**
+ * Converte strings JSON encontradas em contratos
+ * antigos da fila.
+ */
+function converterObjetoFilaEvidenciasUX1985_(valor) {
+  if (
+    valor &&
+    typeof valor === "object"
+  ) {
+    return valor;
+  }
+
+  if (
+    typeof valor !== "string" ||
+    !valor.trim()
+  ) {
+    return null;
+  }
+
+  try {
+    const objeto =
+      JSON.parse(valor);
+
+    return (
+      objeto &&
+      typeof objeto === "object"
+        ? objeto
+        : null
+    );
+
+  } catch (erro) {
+    return null;
+  }
+}
+
+
+/**
+ * Obtém possíveis payloads existentes na fila.
+ */
+function obterPayloadFilaEvidenciasUX1985_(
+  registroFila
+) {
+  const candidatos = [
+    registroFila?.payloadExclusao,
+    registroFila?.exclusao,
+    registroFila?.payload,
+    registroFila?.registro,
+    registroFila?.dados,
+    registroFila?.dadosRegistro,
+    registroFila?.objeto
+  ];
+
+  for (const candidato of candidatos) {
+    const objeto =
+      converterObjetoFilaEvidenciasUX1985_(
+        candidato
+      );
+
+    if (objeto) {
+      return objeto;
+    }
+  }
+
+  return null;
+}
+
+
+/**
+ * Obtém o ID da Evidência referenciada pela fila.
+ */
+function obterIdEvidenciaFilaUX1985_(
+  registroFila
+) {
+  const payload =
+    obterPayloadFilaEvidenciasUX1985_(
+      registroFila
+    );
+
+  return normalizarTextoEvidenciasUX1985_(
+    registroFila?.idRegistro ||
+    registroFila?.idEvidencia ||
+    registroFila?.chave ||
+    registroFila?.registroId ||
+    payload?.idRegistro ||
+    payload?.idEvidencia ||
+    payload?.chave ||
+    payload?.registroId
+  );
+}
+
+
+/**
+ * Verifica se o item da fila pertence à
+ * TB_EVIDENCIAS.
+ */
+function filaPertenceEvidenciasUX1985_(
+  registroFila
+) {
+  if (
+    !registroFila ||
+    typeof registroFila !== "object"
+  ) {
+    return false;
+  }
+
+  const payload =
+    obterPayloadFilaEvidenciasUX1985_(
+      registroFila
+    );
+
+  const store =
+    normalizarMaiusculoEvidenciasUX1985_(
+      registroFila.storeOrigem ||
+      registroFila.store ||
+      payload?.storeOrigem ||
+      payload?.store
+    );
+
+  if (
+    store === "TB_EVIDENCIAS"
+  ) {
+    return true;
+  }
+
+  const entidade =
+    normalizarMaiusculoEvidenciasUX1985_(
+      registroFila.entidade ||
+      registroFila.tipoEntidade ||
+      payload?.entidade ||
+      payload?.tipoEntidade
+    );
+
+  if (
+    entidade === "EVIDENCIA" ||
+    entidade === "EVIDENCIAS"
+  ) {
+    return true;
+  }
+
+  return Boolean(
+    normalizarTextoEvidenciasUX1985_(
+      registroFila.idEvidencia ||
+      payload?.idEvidencia
+    )
+  );
+}
+
+
+/**
+ * Identifica se o item da fila ainda representa
+ * uma pendência operacional.
+ */
+function filaEvidenciaEstaPendenteUX1985_(
+  registroFila
+) {
+  const status =
+    normalizarMaiusculoEvidenciasUX1985_(
+      registroFila?.statusSync ||
+      registroFila?.status
+    );
+
+  const statusFinalizados = [
+    "SINCRONIZADO",
+    "CONCLUIDO",
+    "CONCLUIDA",
+    "ENVIADO",
+    "FINALIZADO",
+    "FINALIZADA"
+  ];
+
+  if (
+    statusFinalizados.includes(status)
+  ) {
+    return false;
+  }
+
+  const statusAtivos = [
+    "PENDENTE",
+    "ERRO",
+    "FALHA",
+    "SINCRONIZANDO",
+    "RETRY",
+    "AGUARDANDO"
+  ];
+
+  if (
+    statusAtivos.includes(status)
+  ) {
+    return true;
+  }
+
+  /*
+   * Compatibilidade com registros antigos:
+   * sem status final e sem dataSync são tratados
+   * de forma conservadora como pendentes.
+   */
+  if (!status) {
+    const possuiDataFinal =
+      Boolean(
+        normalizarTextoEvidenciasUX1985_(
+          registroFila?.dataSync ||
+          registroFila?.sincronizadoEm ||
+          registroFila?.finalizadoEm
+        )
+      );
+
+    return !possuiDataFinal;
+  }
+
+  return false;
+}
+
+
+/**
+ * Identifica a operação da fila.
+ */
+function obterOperacaoFilaEvidenciasUX1985_(
+  registroFila
+) {
+  const payload =
+    obterPayloadFilaEvidenciasUX1985_(
+      registroFila
+    );
+
+  const operacao =
+    normalizarMaiusculoEvidenciasUX1985_(
+      registroFila?.operacao ||
+      registroFila?.acao ||
+      payload?.operacao ||
+      payload?.acao ||
+      registroFila?.tipo
+    );
+
+  if (
+    operacao.includes("DELETE") ||
+    operacao.includes("EXCLUSAO") ||
+    operacao.includes("EXCLUIR") ||
+    operacao.includes("REMOVER")
+  ) {
+    return "DELETE";
+  }
+
+  if (
+    operacao.includes("INSERT") ||
+    operacao.includes("UPDATE") ||
+    operacao.includes("UPSERT") ||
+    operacao.includes("EVIDENCIA")
+  ) {
+    return "UPSERT";
+  }
+
+  return "DESCONHECIDA";
+}
+
+
+/**
+ * Cria mapa das pendências de Evidências.
+ */
+function criarMapaPendenciasEvidenciasUX1985_(
+  fila
+) {
+  const mapa =
+    new Map();
+
+  const registros =
+    Array.isArray(fila)
+      ? fila
+      : [];
+
+  registros.forEach(
+    function (registroFila) {
+      if (
+        !filaPertenceEvidenciasUX1985_(
+          registroFila
+        ) ||
+        !filaEvidenciaEstaPendenteUX1985_(
+          registroFila
+        )
+      ) {
+        return;
+      }
+
+      const idEvidencia =
+        obterIdEvidenciaFilaUX1985_(
+          registroFila
+        );
+
+      if (!idEvidencia) {
+        return;
+      }
+
+      if (!mapa.has(idEvidencia)) {
+        mapa.set(
+          idEvidencia,
+          {
+            upsert:
+              false,
+
+            delete:
+              false,
+
+            desconhecida:
+              false,
+
+            registros:
+              []
+          }
+        );
+      }
+
+      const estado =
+        mapa.get(idEvidencia);
+
+      const operacao =
+        obterOperacaoFilaEvidenciasUX1985_(
+          registroFila
+        );
+
+      if (
+        operacao === "DELETE"
+      ) {
+        estado.delete =
+          true;
+
+      } else if (
+        operacao === "UPSERT"
+      ) {
+        estado.upsert =
+          true;
+
+      } else {
+        estado.desconhecida =
+          true;
+      }
+
+      estado.registros.push(
+        registroFila
+      );
+    }
+  );
+
+  return mapa;
+}
+
+
+/**
+ * Verifica se o status local deve ser protegido,
+ * mesmo que a fila esteja incompleta.
+ */
+function statusLocalEvidenciaPendenteUX1985_(
+  evidencia
+) {
+  const status =
+    normalizarMaiusculoEvidenciasUX1985_(
+      evidencia?.statusSync
+    );
+
+  return [
+    "PENDENTE",
+    "ERRO",
+    "FALHA",
+    "SINCRONIZANDO",
+    "RETRY",
+    "AGUARDANDO"
+  ].includes(status);
+}
+
+
+/**
+ * Normaliza a Evidência recebida do servidor para
+ * o formato da TB_EVIDENCIAS.
+ *
+ * Campos binários locais são preservados.
+ */
+function prepararEvidenciaStoreUX1985_(
+  evidenciaServidor,
+  evidenciaLocal,
+  dataSyncPacote
+) {
+  const servidor =
+    evidenciaServidor &&
+    typeof evidenciaServidor === "object"
+      ? evidenciaServidor
+      : {};
+
+  const local =
+    evidenciaLocal &&
+    typeof evidenciaLocal === "object"
+      ? evidenciaLocal
+      : {};
+
+  const agora =
+    new Date().toISOString();
+
+  const statusEvidencia =
+    normalizarTextoEvidenciasUX1985_(
+      servidor.statusEvidencia
+    );
+
+  const tipoEvidencia =
+    normalizarTextoEvidenciasUX1985_(
+      servidor.tipoEvidencia
+    );
+
+  return {
+    /*
+     * Mantém campos locais desconhecidos para evitar
+     * perda de compatibilidade com a interface atual.
+     */
+    ...local,
+
+    idEvidencia:
+      normalizarTextoEvidenciasUX1985_(
+        servidor.idEvidencia
+      ),
+
+    data:
+      normalizarTextoEvidenciasUX1985_(
+        servidor.data
+      ),
+
+    idObra:
+      normalizarTextoEvidenciasUX1985_(
+        servidor.idObra
+      ),
+
+    origem:
+      normalizarTextoEvidenciasUX1985_(
+        servidor.origem
+      ),
+
+    idReferencia:
+      normalizarTextoEvidenciasUX1985_(
+        servidor.idReferencia
+      ),
+
+    idAtividade:
+      normalizarTextoEvidenciasUX1985_(
+        servidor.idAtividade
+      ),
+
+    tipoEvidencia:
+      tipoEvidencia,
+
+    /*
+     * Alias para contratos antigos.
+     */
+    tipo:
+      tipoEvidencia,
+
+    descricao:
+      normalizarTextoEvidenciasUX1985_(
+        servidor.descricao
+      ),
+
+    linkArquivo:
+      normalizarTextoEvidenciasUX1985_(
+        servidor.linkArquivo
+      ),
+
+    responsavel:
+      normalizarTextoEvidenciasUX1985_(
+        servidor.responsavel
+      ),
+
+    statusEvidencia:
+      statusEvidencia,
+
+    /*
+     * Alias utilizado pelo envio antigo.
+     */
+    status:
+      statusEvidencia,
+
+    /*
+     * O servidor não fornece binário, nome ou MIME.
+     * Se já existirem localmente, são mantidos.
+     */
+    nomeArquivo:
+      normalizarTextoEvidenciasUX1985_(
+        local.nomeArquivo
+      ),
+
+    tipoArquivo:
+      normalizarTextoEvidenciasUX1985_(
+        local.tipoArquivo
+      ),
+
+    arquivoBase64:
+      normalizarTextoEvidenciasUX1985_(
+        local.arquivoBase64
+      ),
+
+    statusSync:
+      "SINCRONIZADO",
+
+    dataSync:
+      normalizarTextoEvidenciasUX1985_(
+        servidor.dataSync ||
+        dataSyncPacote ||
+        agora
+      ),
+
+    origemReidratacao:
+      "SERVIDOR",
+
+    criadoEm:
+      normalizarTextoEvidenciasUX1985_(
+        local.criadoEm ||
+        servidor.dataSync ||
+        dataSyncPacote ||
+        agora
+      ),
+
+    atualizadoEm:
+      agora
+  };
+}
+
+
+/**
+ * Cria resumo inicial.
+ */
+function criarResumoEvidenciasUX1985_(
+  recebidas
+) {
+  return {
+    recebidos:
+      Number(recebidas || 0),
+
+    inseridos:
+      0,
+
+    atualizados:
+      0,
+
+    preservadosUpsert:
+      0,
+
+    preservadosDelete:
+      0,
+
+    preservadosStatusLocal:
+      0,
+
+    preservadosFilaDesconhecida:
+      0,
+
+    rejeitadosOutraObra:
+      0,
+
+    rejeitadosInvalidos:
+      0,
+
+    gravacoesPlanejadas:
+      0,
+
+    gravacoesExecutadas:
+      0
+  };
+}
+
+
+/**
+ * Registra conflito sem gerar listas ilimitadas.
+ */
+function adicionarConflitoEvidenciasUX1985_(
+  resultado,
+  conflito
+) {
+  resultado.totalConflitosEvitados++;
+
+  if (
+    resultado.conflitos.length < 100
+  ) {
+    resultado.conflitos.push(
+      conflito
+    );
+  }
+}
+
+
+/**
+ * Normaliza objetos recursivamente para assinatura.
+ */
+function normalizarObjetoAssinaturaEvidenciasUX1985_(
+  valor
+) {
+  if (
+    Array.isArray(valor)
+  ) {
+    return valor.map(
+      normalizarObjetoAssinaturaEvidenciasUX1985_
+    );
+  }
+
+  if (
+    valor &&
+    typeof valor === "object"
+  ) {
+    const objeto = {};
+
+    Object.keys(valor)
+      .sort()
+      .forEach(
+        function (chave) {
+          objeto[chave] =
+            normalizarObjetoAssinaturaEvidenciasUX1985_(
+              valor[chave]
+            );
+        }
+      );
+
+    return objeto;
+  }
+
+  return valor;
+}
+
+
+/**
+ * Cria assinatura determinística de uma coleção.
+ */
+function criarAssinaturaColecaoEvidenciasUX1985_(
+  registros,
+  chavePreferencial
+) {
+  const colecao =
+    Array.isArray(registros)
+      ? registros.slice()
+      : [];
+
+  colecao.sort(
+    function (a, b) {
+      const chaveA =
+        normalizarTextoEvidenciasUX1985_(
+          a?.[chavePreferencial] ||
+          a?.idEvidencia ||
+          a?.idSyncLocal ||
+          a?.idRegistro ||
+          ""
+        );
+
+      const chaveB =
+        normalizarTextoEvidenciasUX1985_(
+          b?.[chavePreferencial] ||
+          b?.idEvidencia ||
+          b?.idSyncLocal ||
+          b?.idRegistro ||
+          ""
+        );
+
+      return chaveA.localeCompare(
+        chaveB
+      );
+    }
+  );
+
+  return JSON.stringify(
+    normalizarObjetoAssinaturaEvidenciasUX1985_(
+      colecao
+    )
+  );
+}
+
+
+/**
+ * Grava diretamente na TB_EVIDENCIAS.
+ *
+ * Não utiliza salvarRegistroSIGO porque uma
+ * reidratação não deve criar nova pendência local.
+ */
+function gravarEvidenciasReidratacaoUX1985_(
+  registros
+) {
+  const evidencias =
+    Array.isArray(registros)
+      ? registros
+      : [];
+
+  if (!evidencias.length) {
+    return Promise.resolve(0);
+  }
+
+  return new Promise(
+    async function (
+      resolve,
+      reject
+    ) {
+      try {
+        const db =
+          (
+            typeof SIGO_DB !==
+              "undefined" &&
+            SIGO_DB
+          ) ||
+          await abrirBancoLocalSIGO();
+
+        if (
+          !db.objectStoreNames.contains(
+            "TB_EVIDENCIAS"
+          )
+        ) {
+          throw new Error(
+            "A store TB_EVIDENCIAS não foi encontrada."
+          );
+        }
+
+        const transacao =
+          db.transaction(
+            ["TB_EVIDENCIAS"],
+            "readwrite"
+          );
+
+        const store =
+          transacao.objectStore(
+            "TB_EVIDENCIAS"
+          );
+
+        evidencias.forEach(
+          function (evidencia) {
+            store.put(evidencia);
+          }
+        );
+
+        transacao.oncomplete =
+          function () {
+            resolve(
+              evidencias.length
+            );
+          };
+
+        transacao.onerror =
+          function () {
+            reject(
+              transacao.error ||
+              new Error(
+                "Erro ao gravar Evidências reidratadas."
+              )
+            );
+          };
+
+        transacao.onabort =
+          function () {
+            reject(
+              transacao.error ||
+              new Error(
+                "A gravação das Evidências foi cancelada."
+              )
+            );
+          };
+
+      } catch (erro) {
+        reject(erro);
+      }
+    }
+  );
+}
+
+
+/**
+ * Atualiza cache e DataBinding após a gravação real.
+ */
+async function notificarMesclagemEvidenciasUX1985_(
+  idObra,
+  quantidade
+) {
+  if (
+    window.SIGODataCache
+  ) {
+    SIGODataCache.invalidate(
+      "TB_EVIDENCIAS"
+    );
+
+    if (
+      typeof invalidarCacheObraSIGO_ ===
+        "function"
+    ) {
+      invalidarCacheObraSIGO_(
+        "TB_EVIDENCIAS",
+        idObra
+      );
+    }
+  }
+
+  if (
+    window.SIGODataBinding &&
+    typeof SIGODataBinding.notify ===
+      "function"
+  ) {
+    await SIGODataBinding.notify(
+      "TB_EVIDENCIAS",
+      {
+        acao:
+          "UPDATE",
+
+        store:
+          "TB_EVIDENCIAS",
+
+        registro:
+          null,
+
+        idObra:
+          idObra,
+
+        quantidade:
+          quantidade,
+
+        origem:
+          "REIDRATACAO"
+      }
+    );
+  }
+}
+
+
+/**
+ * ============================================================
+ * MESCLAGEM PRINCIPAL
+ * ============================================================
+ */
+async function mesclarEvidenciasReidratacaoSIGO_(
+  pacoteRecebido,
+  opcoes = {}
+) {
+  const simular =
+    opcoes.simular !== false;
+
+  const modo =
+    simular
+      ? "SIMULACAO"
+      : "REAL";
+
+  const pacote =
+    pacoteRecebido &&
+    typeof pacoteRecebido === "object"
+      ? pacoteRecebido
+      : {};
+
+  const idObra =
+    normalizarTextoEvidenciasUX1985_(
+      pacote.idObra
+    );
+
+  const periodoDias =
+    Number(
+      pacote.periodoDias || 0
+    );
+
+  const evidenciasServidor =
+    Array.isArray(
+      pacote.evidencias
+    )
+      ? pacote.evidencias
+      : [];
+
+  if (!idObra) {
+    throw new Error(
+      "O pacote de Evidências não possui idObra."
+    );
+  }
+
+  if (
+    pacote.status &&
+    normalizarMaiusculoEvidenciasUX1985_(
+      pacote.status
+    ) !== "OK"
+  ) {
+    throw new Error(
+      pacote.mensagem ||
+      "O pacote de Evidências não está válido."
+    );
+  }
+
+  if (
+    pacote.versaoContrato &&
+    normalizarTextoEvidenciasUX1985_(
+      pacote.versaoContrato
+    ) !== "1.0"
+  ) {
+    throw new Error(
+      "Versão do contrato de Evidências não suportada."
+    );
+  }
+
+  const evidenciasLocaisAntes =
+    await listarRegistrosSIGO(
+      "TB_EVIDENCIAS"
+    );
+
+  const filaAntes =
+    await listarRegistrosSIGO(
+      "TB_SYNC_QUEUE"
+    );
+
+  const assinaturaFilaAntes =
+    criarAssinaturaColecaoEvidenciasUX1985_(
+      filaAntes,
+      "idSyncLocal"
+    );
+
+  const mapaLocais =
+    new Map();
+
+  evidenciasLocaisAntes.forEach(
+    function (evidencia) {
+      const id =
+        normalizarTextoEvidenciasUX1985_(
+          evidencia?.idEvidencia
+        );
+
+      if (id) {
+        mapaLocais.set(
+          id,
+          evidencia
+        );
+      }
+    }
+  );
+
+  const mapaPendencias =
+    criarMapaPendenciasEvidenciasUX1985_(
+      filaAntes
+    );
+
+  const idsServidor =
+    new Set();
+
+  const gravacoes = [];
+
+  const resultado = {
+    etapa:
+      "UX.19.8.5",
+
+    operacao:
+      "MESCLAGEM_PROTEGIDA_EVIDENCIAS",
+
+    modo:
+      modo,
+
+    idObra:
+      idObra,
+
+    periodoDias:
+      periodoDias,
+
+    dataInicio:
+      normalizarTextoEvidenciasUX1985_(
+        pacote.dataInicio
+      ),
+
+    dataFim:
+      normalizarTextoEvidenciasUX1985_(
+        pacote.dataFim
+      ),
+
+    dataSyncServidor:
+      normalizarTextoEvidenciasUX1985_(
+        pacote.dataSync
+      ),
+
+    executadoEm:
+      new Date().toISOString(),
+
+    evidencias:
+      criarResumoEvidenciasUX1985_(
+        evidenciasServidor.length
+      ),
+
+    conflitos:
+      [],
+
+    totalConflitosEvitados:
+      0,
+
+    fila: {
+      totalAntes:
+        filaAntes.length,
+
+      assinaturaAntes:
+        assinaturaFilaAntes,
+
+      totalDepois:
+        0,
+
+      assinaturaDepois:
+        "",
+
+      preservada:
+        false
+    }
+  };
+
+
+  /*
+   * ========================================================
+   * PLANEJAMENTO DA MESCLAGEM
+   * ========================================================
+   */
+
+  evidenciasServidor.forEach(
+    function (evidenciaServidor) {
+      const idEvidencia =
+        normalizarTextoEvidenciasUX1985_(
+          evidenciaServidor?.idEvidencia
+        );
+
+      const obraRegistro =
+        normalizarTextoEvidenciasUX1985_(
+          evidenciaServidor?.idObra
+        );
+
+      const linkArquivo =
+        normalizarTextoEvidenciasUX1985_(
+          evidenciaServidor?.linkArquivo
+        );
+
+      if (
+        !idEvidencia ||
+        !obraRegistro ||
+        !linkArquivo
+      ) {
+        resultado
+          .evidencias
+          .rejeitadosInvalidos++;
+
+        adicionarConflitoEvidenciasUX1985_(
+          resultado,
+          {
+            idEvidencia:
+              idEvidencia ||
+              "SEM_ID",
+
+            motivo:
+              "REGISTRO_SERVIDOR_INVALIDO"
+          }
+        );
+
+        return;
+      }
+
+      if (
+        idsServidor.has(idEvidencia)
+      ) {
+        resultado
+          .evidencias
+          .rejeitadosInvalidos++;
+
+        adicionarConflitoEvidenciasUX1985_(
+          resultado,
+          {
+            idEvidencia:
+              idEvidencia,
+
+            motivo:
+              "ID_DUPLICADO_NO_PACOTE"
+          }
+        );
+
+        return;
+      }
+
+      idsServidor.add(
+        idEvidencia
+      );
+
+      if (
+        obraRegistro !== idObra
+      ) {
+        resultado
+          .evidencias
+          .rejeitadosOutraObra++;
+
+        adicionarConflitoEvidenciasUX1985_(
+          resultado,
+          {
+            idEvidencia:
+              idEvidencia,
+
+            idObraRegistro:
+              obraRegistro,
+
+            idObraPacote:
+              idObra,
+
+            motivo:
+              "MISTURA_DE_OBRAS_NO_PACOTE"
+          }
+        );
+
+        return;
+      }
+
+      const local =
+        mapaLocais.get(
+          idEvidencia
+        ) || null;
+
+      const pendencia =
+        mapaPendencias.get(
+          idEvidencia
+        ) || null;
+
+
+      /*
+       * DELETE possui prioridade absoluta.
+       * Não reintroduzimos um registro removido localmente.
+       */
+      if (
+        pendencia?.delete
+      ) {
+        resultado
+          .evidencias
+          .preservadosDelete++;
+
+        adicionarConflitoEvidenciasUX1985_(
+          resultado,
+          {
+            idEvidencia:
+              idEvidencia,
+
+            motivo:
+              "DELETE_LOCAL_PENDENTE_PRESERVADO"
+          }
+        );
+
+        return;
+      }
+
+
+      /*
+       * INSERT ou UPDATE pendente.
+       */
+      if (
+        pendencia?.upsert
+      ) {
+        resultado
+          .evidencias
+          .preservadosUpsert++;
+
+        adicionarConflitoEvidenciasUX1985_(
+          resultado,
+          {
+            idEvidencia:
+              idEvidencia,
+
+            motivo:
+              "UPSERT_LOCAL_PENDENTE_PRESERVADO"
+          }
+        );
+
+        return;
+      }
+
+
+      /*
+       * Contrato de fila não reconhecido.
+       */
+      if (
+        pendencia?.desconhecida
+      ) {
+        resultado
+          .evidencias
+          .preservadosFilaDesconhecida++;
+
+        adicionarConflitoEvidenciasUX1985_(
+          resultado,
+          {
+            idEvidencia:
+              idEvidencia,
+
+            motivo:
+              "PENDENCIA_LOCAL_NAO_CLASSIFICADA"
+          }
+        );
+
+        return;
+      }
+
+
+      /*
+       * Proteção adicional pelo status do registro local.
+       */
+      if (
+        local &&
+        statusLocalEvidenciaPendenteUX1985_(
+          local
+        )
+      ) {
+        resultado
+          .evidencias
+          .preservadosStatusLocal++;
+
+        adicionarConflitoEvidenciasUX1985_(
+          resultado,
+          {
+            idEvidencia:
+              idEvidencia,
+
+            statusSync:
+              local.statusSync,
+
+            motivo:
+              "STATUS_LOCAL_PENDENTE_PRESERVADO"
+          }
+        );
+
+        return;
+      }
+
+
+      /*
+       * Nunca sobrescrever outra obra.
+       */
+      if (
+        local &&
+        normalizarTextoEvidenciasUX1985_(
+          local.idObra
+        ) &&
+        normalizarTextoEvidenciasUX1985_(
+          local.idObra
+        ) !== idObra
+      ) {
+        resultado
+          .evidencias
+          .rejeitadosOutraObra++;
+
+        adicionarConflitoEvidenciasUX1985_(
+          resultado,
+          {
+            idEvidencia:
+              idEvidencia,
+
+            idObraLocal:
+              local.idObra,
+
+            idObraServidor:
+              idObra,
+
+            motivo:
+              "CHAVE_LOCAL_PERTENCE_A_OUTRA_OBRA"
+          }
+        );
+
+        return;
+      }
+
+
+      const evidenciaPreparada =
+        prepararEvidenciaStoreUX1985_(
+          evidenciaServidor,
+          local,
+          pacote.dataSync
+        );
+
+      gravacoes.push(
+        evidenciaPreparada
+      );
+
+      if (local) {
+        resultado
+          .evidencias
+          .atualizados++;
+
+      } else {
+        resultado
+          .evidencias
+          .inseridos++;
+      }
+    }
+  );
+
+  resultado
+    .evidencias
+    .gravacoesPlanejadas =
+      gravacoes.length;
+
+
+  /*
+   * ========================================================
+   * EXECUÇÃO REAL
+   * ========================================================
+   */
+
+  if (
+    !simular &&
+    gravacoes.length
+  ) {
+    const totalGravado =
+      await gravarEvidenciasReidratacaoUX1985_(
+        gravacoes
+      );
+
+    resultado
+      .evidencias
+      .gravacoesExecutadas =
+        totalGravado;
+
+    await notificarMesclagemEvidenciasUX1985_(
+      idObra,
+      totalGravado
+    );
+  }
+
+
+  /*
+   * ========================================================
+   * AUDITORIA DA FILA
+   * ========================================================
+   */
+
+  const filaDepois =
+    await listarRegistrosSIGO(
+      "TB_SYNC_QUEUE"
+    );
+
+  const assinaturaFilaDepois =
+    criarAssinaturaColecaoEvidenciasUX1985_(
+      filaDepois,
+      "idSyncLocal"
+    );
+
+  resultado.fila.totalDepois =
+    filaDepois.length;
+
+  resultado.fila.assinaturaDepois =
+    assinaturaFilaDepois;
+
+  resultado.fila.preservada =
+    filaAntes.length ===
+      filaDepois.length &&
+    assinaturaFilaAntes ===
+      assinaturaFilaDepois;
+
+  if (
+    !resultado.fila.preservada
+  ) {
+    throw new Error(
+      "A TB_SYNC_QUEUE foi alterada durante a mesclagem de Evidências."
+    );
+  }
+
+  return resultado;
+}
+
+
+/**
+ * Consulta a API e executa a mesclagem.
+ */
+async function reidratarEvidenciasObraMobile_(
+  idObra,
+  diasHistorico,
+  opcoes = {}
+) {
+  const pacote =
+    await obterEvidenciasOperacionaisObraMobile_(
+      idObra,
+      diasHistorico
+    );
+
+  return mesclarEvidenciasReidratacaoSIGO_(
+    pacote,
+    opcoes
+  );
+}
+
+
+/**
+ * ============================================================
+ * TESTE SEGURO — SOMENTE SIMULAÇÃO
+ * ============================================================
+ */
+async function testarMesclagemProtegidaEvidenciasUX1985_() {
+  console.log(
+    "[UX.19.8.5] Iniciando simulação protegida de Evidências..."
+  );
+
+  const evidenciasAntes =
+    await listarRegistrosSIGO(
+      "TB_EVIDENCIAS"
+    );
+
+  const filaAntes =
+    await listarRegistrosSIGO(
+      "TB_SYNC_QUEUE"
+    );
+
+  const assinaturaEvidenciasAntes =
+    criarAssinaturaColecaoEvidenciasUX1985_(
+      evidenciasAntes,
+      "idEvidencia"
+    );
+
+  const assinaturaFilaAntes =
+    criarAssinaturaColecaoEvidenciasUX1985_(
+      filaAntes,
+      "idSyncLocal"
+    );
+
+  const pacote =
+    await obterEvidenciasOperacionaisObraMobile_(
+      "OBR002",
+      30
+    );
+
+  const simulacao =
+    await mesclarEvidenciasReidratacaoSIGO_(
+      pacote,
+      {
+        simular:
+          true
+      }
+    );
+
+  const evidenciasDepois =
+    await listarRegistrosSIGO(
+      "TB_EVIDENCIAS"
+    );
+
+  const filaDepois =
+    await listarRegistrosSIGO(
+      "TB_SYNC_QUEUE"
+    );
+
+  const assinaturaEvidenciasDepois =
+    criarAssinaturaColecaoEvidenciasUX1985_(
+      evidenciasDepois,
+      "idEvidencia"
+    );
+
+  const assinaturaFilaDepois =
+    criarAssinaturaColecaoEvidenciasUX1985_(
+      filaDepois,
+      "idSyncLocal"
+    );
+
+  const resumo =
+    simulacao.evidencias;
+
+  const totalClassificado =
+    Number(
+      resumo.inseridos || 0
+    ) +
+    Number(
+      resumo.atualizados || 0
+    ) +
+    Number(
+      resumo.preservadosUpsert || 0
+    ) +
+    Number(
+      resumo.preservadosDelete || 0
+    ) +
+    Number(
+      resumo.preservadosStatusLocal || 0
+    ) +
+    Number(
+      resumo.preservadosFilaDesconhecida || 0
+    ) +
+    Number(
+      resumo.rejeitadosOutraObra || 0
+    ) +
+    Number(
+      resumo.rejeitadosInvalidos || 0
+    );
+
+  const validacoes = {
+    modoSimulacao:
+      simulacao.modo ===
+      "SIMULACAO",
+
+    obraCorreta:
+      simulacao.idObra ===
+      "OBR002",
+
+    periodoCorreto:
+      simulacao.periodoDias ===
+      30,
+
+    recebeu7Evidencias:
+      resumo.recebidos ===
+      7,
+
+    todosRegistrosClassificados:
+      totalClassificado ===
+      7,
+
+    nenhumaGravacaoExecutada:
+      resumo.gravacoesExecutadas ===
+      0,
+
+    gravacoesPlanejadasCoerentes:
+      resumo.gravacoesPlanejadas ===
+      (
+        resumo.inseridos +
+        resumo.atualizados
+      ),
+
+    nenhumRegistroInvalido:
+      resumo.rejeitadosInvalidos ===
+      0,
+
+    nenhumaMisturaDeObras:
+      resumo.rejeitadosOutraObra ===
+      0,
+
+    tbEvidenciasQuantidadePreservada:
+      evidenciasAntes.length ===
+      evidenciasDepois.length,
+
+    tbEvidenciasConteudoPreservado:
+      assinaturaEvidenciasAntes ===
+      assinaturaEvidenciasDepois,
+
+    filaQuantidadePreservada:
+      filaAntes.length ===
+      filaDepois.length,
+
+    filaConteudoPreservado:
+      assinaturaFilaAntes ===
+      assinaturaFilaDepois,
+
+    filaConfirmadaPelaMesclagem:
+      simulacao.fila
+        ?.preservada === true
+  };
+
+  const aprovado =
+    Object.values(
+      validacoes
+    ).every(
+      function (valor) {
+        return valor === true;
+      }
+    );
+
+  const resultado = {
+    etapa:
+      "UX.19.8.5",
+
+    teste:
+      "SIMULACAO_MESCLAGEM_PROTEGIDA_EVIDENCIAS",
+
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+
+    idObra:
+      simulacao.idObra,
+
+    periodoDias:
+      simulacao.periodoDias,
+
+    local: {
+      totalAntes:
+        evidenciasAntes.length,
+
+      totalDepois:
+        evidenciasDepois.length,
+
+      preservada:
+        assinaturaEvidenciasAntes ===
+        assinaturaEvidenciasDepois
+    },
+
+    evidencias:
+      resumo,
+
+    fila: {
+      totalAntes:
+        filaAntes.length,
+
+      totalDepois:
+        filaDepois.length,
+
+      preservada:
+        assinaturaFilaAntes ===
+        assinaturaFilaDepois
+    },
+
+    conflitosEvitados:
+      simulacao.totalConflitosEvitados,
+
+    validacoes:
+      validacoes,
+
+    aprovado:
+      aprovado
+  };
+
+  console.log(
+    JSON.stringify(
+      resultado,
+      null,
+      2
+    )
+  );
+
+  if (!aprovado) {
+    throw new Error(
+      "UX.19.8.5 REPROVADA. Consulte as validações no console."
+    );
+  }
+
+  console.log(
+    "UX.19.8.5 — SIMULAÇÃO PROTEGIDA DE EVIDÊNCIAS APROVADA."
+  );
+
+  return {
+    teste:
+      resultado,
+
+    pacoteServidor:
+      pacote,
+
+    simulacao:
+      simulacao
+  };
+}
+
+
+/**
+ * ============================================================
+ * EXECUÇÃO REAL
+ * ============================================================
+ *
+ * NÃO EXECUTAR antes da aprovação da simulação.
+ */
+async function executarMesclagemRealEvidenciasUX1985_() {
+  console.log(
+    "[UX.19.8.5] Iniciando mesclagem REAL de Evidências..."
+  );
+
+  const resultado =
+    await reidratarEvidenciasObraMobile_(
+      "OBR002",
+      30,
+      {
+        simular:
+          false
+      }
+    );
+
+  console.log(
+    JSON.stringify(
+      resultado,
+      null,
+      2
+    )
+  );
+
+  console.log(
+    "UX.19.8.5 — MESCLAGEM REAL DE EVIDÊNCIAS CONCLUÍDA."
+  );
+
+  return resultado;
+}
