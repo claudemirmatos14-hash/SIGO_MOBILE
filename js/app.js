@@ -49540,3 +49540,2922 @@ async function auditarConfiguracaoHistoricoOfflineUX201_() {
 
   return resultado;
 }
+
+/**
+ * ============================================================
+ * UX.20.2 — POLÍTICA SEGURA DE RETENÇÃO E LIMPEZA LOCAL
+ * ============================================================
+ *
+ * Fluxo:
+ *
+ * 1. gerar plano em modo SIMULAÇÃO;
+ * 2. armazenar token e assinaturas;
+ * 3. exigir o mesmo token para a execução real;
+ * 4. bloquear a execução se alguma store tiver mudado.
+ *
+ * Nenhuma limpeza é executada automaticamente.
+ */
+
+const STORES_RETENCAO_UX202 =
+  Object.freeze([
+    "TB_DIARIOS",
+    "TB_DIARIO_ITENS",
+    "TB_OCORRENCIAS",
+    "TB_CLIMA",
+    "TB_EVIDENCIAS",
+    "TB_MEDICOES"
+  ]);
+
+const STORES_PRESERVADAS_UX202 =
+  Object.freeze([
+    "TB_LOTES_MEDICAO",
+    "TB_SYNC_QUEUE",
+    "TB_NOTIFICACOES"
+  ]);
+
+const STORES_AUDITADAS_UX202 =
+  Object.freeze([
+    ...STORES_RETENCAO_UX202,
+    ...STORES_PRESERVADAS_UX202
+  ]);
+
+
+/**
+ * Normalização textual.
+ */
+function textoUX202_(valor) {
+  return String(
+    valor === undefined ||
+    valor === null
+      ? ""
+      : valor
+  ).trim();
+}
+
+
+/**
+ * Normalização sem acentos e em maiúsculas.
+ */
+function maiusculoUX202_(valor) {
+  return textoUX202_(valor)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+}
+
+
+/**
+ * Converte uma data para YYYY-MM-DD.
+ */
+function normalizarDataUX202_(valor) {
+  if (
+    valor === undefined ||
+    valor === null ||
+    valor === ""
+  ) {
+    return "";
+  }
+
+  if (
+    typeof valor === "number" &&
+    Number.isFinite(valor)
+  ) {
+    const dataNumero =
+      new Date(valor);
+
+    if (
+      !Number.isNaN(
+        dataNumero.getTime()
+      )
+    ) {
+      return dataNumero
+        .toISOString()
+        .slice(0, 10);
+    }
+  }
+
+  const texto =
+    String(valor).trim();
+
+  const iso =
+    texto.match(
+      /^(\d{4})-(\d{2})-(\d{2})/
+    );
+
+  if (iso) {
+    return (
+      iso[1] +
+      "-" +
+      iso[2] +
+      "-" +
+      iso[3]
+    );
+  }
+
+  const brasileira =
+    texto.match(
+      /^(\d{2})\/(\d{2})\/(\d{4})/
+    );
+
+  if (brasileira) {
+    return (
+      brasileira[3] +
+      "-" +
+      brasileira[2] +
+      "-" +
+      brasileira[1]
+    );
+  }
+
+  const data =
+    new Date(texto);
+
+  if (
+    !Number.isNaN(
+      data.getTime()
+    )
+  ) {
+    return data
+      .toISOString()
+      .slice(0, 10);
+  }
+
+  return "";
+}
+
+
+/**
+ * Data local atual em YYYY-MM-DD.
+ */
+function obterDataLocalAtualUX202_() {
+  const agora =
+    new Date();
+
+  const ano =
+    agora.getFullYear();
+
+  const mes =
+    String(
+      agora.getMonth() + 1
+    ).padStart(2, "0");
+
+  const dia =
+    String(
+      agora.getDate()
+    ).padStart(2, "0");
+
+  return (
+    ano +
+    "-" +
+    mes +
+    "-" +
+    dia
+  );
+}
+
+
+/**
+ * Calcula o primeiro dia que deve permanecer.
+ *
+ * Exemplo:
+ *
+ * referência 13/07
+ * período 30
+ * início preservado 14/06
+ */
+function calcularDataCorteUX202_(
+  periodoDias,
+  dataReferencia = null
+) {
+  const referencia =
+    normalizarDataUX202_(
+      dataReferencia
+    ) ||
+    obterDataLocalAtualUX202_();
+
+  const data =
+    new Date(
+      referencia +
+      "T12:00:00"
+    );
+
+  data.setDate(
+    data.getDate() -
+    (
+      Number(periodoDias) - 1
+    )
+  );
+
+  const ano =
+    data.getFullYear();
+
+  const mes =
+    String(
+      data.getMonth() + 1
+    ).padStart(2, "0");
+
+  const dia =
+    String(
+      data.getDate()
+    ).padStart(2, "0");
+
+  return (
+    ano +
+    "-" +
+    mes +
+    "-" +
+    dia
+  );
+}
+
+
+/**
+ * Retorna true quando a data está antes
+ * do primeiro dia preservado.
+ */
+function dataForaRetencaoUX202_(
+  dataRegistro,
+  dataCorte
+) {
+  return (
+    Boolean(dataRegistro) &&
+    Boolean(dataCorte) &&
+    dataRegistro < dataCorte
+  );
+}
+
+
+/**
+ * Obtém o primeiro campo preenchido.
+ */
+function primeiroCampoUX202_(
+  registro,
+  campos
+) {
+  for (const campo of campos) {
+    const partes =
+      String(campo).split(".");
+
+    let valor =
+      registro;
+
+    for (const parte of partes) {
+      valor =
+        valor?.[parte];
+    }
+
+    if (
+      valor !== undefined &&
+      valor !== null &&
+      valor !== ""
+    ) {
+      return valor;
+    }
+  }
+
+  return "";
+}
+
+
+/**
+ * ID principal por entidade.
+ */
+function obterIdRegistroUX202_(
+  nomeStore,
+  registro
+) {
+  const camposPorStore = {
+    TB_DIARIOS: [
+      "idDiario",
+      "id"
+    ],
+
+    TB_DIARIO_ITENS: [
+      "idItemDiario",
+      "idDiarioItem",
+      "idItem",
+      "id"
+    ],
+
+    TB_OCORRENCIAS: [
+      "idOcorrencia",
+      "id"
+    ],
+
+    TB_CLIMA: [
+      "idClima",
+      "idRegistroClima",
+      "id"
+    ],
+
+    TB_EVIDENCIAS: [
+      "idEvidencia",
+      "id"
+    ],
+
+    TB_MEDICOES: [
+      "idItemMedicao",
+      "idMedicao",
+      "id"
+    ]
+  };
+
+  return textoUX202_(
+    primeiroCampoUX202_(
+      registro,
+      camposPorStore[nomeStore] ||
+      ["id"]
+    )
+  );
+}
+
+
+/**
+ * ID do Diário-pai de um item.
+ */
+function obterIdDiarioPaiUX202_(
+  registro
+) {
+  return textoUX202_(
+    primeiroCampoUX202_(
+      registro,
+      [
+        "idDiario",
+        "idDiarioObra",
+        "idDiarioPai",
+        "idReferencia",
+        "ID_DIARIO"
+      ]
+    )
+  );
+}
+
+
+/**
+ * Identifica registro oficial de Medição.
+ */
+function registroEhMedicaoOficialUX202_(
+  registro
+) {
+  return Boolean(
+    registro?.registroOficial === true ||
+
+    maiusculoUX202_(
+      registro?.tipoRegistro
+    ) ===
+      "ITEM_MEDICAO_OFICIAL" ||
+
+    textoUX202_(
+      registro?.idMedicaoOficial
+    ) !== "" ||
+
+    textoUX202_(
+      registro?.cabecalhoOficial
+        ?.idMedicao
+    ) !== ""
+  );
+}
+
+
+/**
+ * Obtém o ID do lote oficial armazenado
+ * no registro local da Medição.
+ */
+function obterIdGrupoMedicaoUX202_(
+  registro
+) {
+  return textoUX202_(
+    primeiroCampoUX202_(
+      registro,
+      [
+        "idMedicaoOficial",
+        "cabecalhoOficial.idMedicao",
+        "idMedicao"
+      ]
+    )
+  );
+}
+
+
+/**
+ * Obtém a data operacional usada pela retenção.
+ */
+function obterDataRegistroUX202_(
+  nomeStore,
+  registro,
+  diarioPai = null
+) {
+  const camposPorStore = {
+    TB_DIARIOS: [
+      "data",
+      "dataDiario",
+      "dataRegistro",
+      "dataCriacao",
+      "criadoEm",
+      "atualizadoEm"
+    ],
+
+    TB_DIARIO_ITENS: [
+      "data",
+      "dataProducao",
+      "dataRegistro",
+      "criadoEm",
+      "atualizadoEm"
+    ],
+
+    TB_OCORRENCIAS: [
+      "data",
+      "dataOcorrencia",
+      "dataRegistro",
+      "dataCriacao",
+      "criadoEm",
+      "atualizadoEm"
+    ],
+
+    TB_CLIMA: [
+      "data",
+      "dataClima",
+      "dataRegistro",
+      "dataCriacao",
+      "criadoEm",
+      "atualizadoEm"
+    ],
+
+    TB_EVIDENCIAS: [
+      "data",
+      "dataEvidencia",
+      "dataRegistro",
+      "dataCriacao",
+      "criadoEm",
+      "atualizadoEm"
+    ],
+
+    TB_MEDICOES: [
+      "cabecalhoOficial.periodoFim",
+      "cabecalhoOficial.dataAprovacao",
+      "cabecalhoOficial.dataCriacao",
+      "periodoFim",
+      "dataAprovacao",
+      "dataCriacao",
+      "criadoEm",
+      "atualizadoEm"
+    ]
+  };
+
+  const valor =
+    primeiroCampoUX202_(
+      registro,
+      camposPorStore[nomeStore] ||
+      []
+    );
+
+  const dataRegistro =
+    normalizarDataUX202_(valor);
+
+  if (dataRegistro) {
+    return dataRegistro;
+  }
+
+  if (
+    nomeStore ===
+      "TB_DIARIO_ITENS" &&
+    diarioPai
+  ) {
+    return obterDataRegistroUX202_(
+      "TB_DIARIOS",
+      diarioPai
+    );
+  }
+
+  return "";
+}
+
+
+/**
+ * Verifica exclusão lógica.
+ */
+function registroEhTombstoneUX202_(
+  registro
+) {
+  if (
+    registro?.tombstone === true ||
+    registro?.deleted === true ||
+    registro?.excluido === true
+  ) {
+    return true;
+  }
+
+  const operacao =
+    maiusculoUX202_(
+      primeiroCampoUX202_(
+        registro,
+        [
+          "operacao",
+          "acao",
+          "tipoOperacao"
+        ]
+      )
+    );
+
+  return (
+    operacao.includes("DELETE") ||
+    operacao.includes("EXCLUIR") ||
+    operacao.includes("REMOVER")
+  );
+}
+
+
+/**
+ * Status concluídos da fila.
+ *
+ * Status desconhecidos são tratados como ativos,
+ * por segurança.
+ */
+function filaConcluidaUX202_(
+  registro
+) {
+  const status =
+    maiusculoUX202_(
+      primeiroCampoUX202_(
+        registro,
+        [
+          "statusSync",
+          "status",
+          "situacao"
+        ]
+      )
+    );
+
+  return [
+    "SINCRONIZADO",
+    "CONCLUIDO",
+    "PROCESSADO",
+    "ENVIADO",
+    "SUCESSO",
+    "OK",
+    "CANCELADO"
+  ].includes(status);
+}
+
+
+/**
+ * Localiza referências ativas da fila.
+ */
+function localizarReferenciasAtivasFilaUX202_(
+  fila,
+  ids
+) {
+  const idsValidos =
+    (
+      Array.isArray(ids)
+        ? ids
+        : [ids]
+    )
+      .map(textoUX202_)
+      .filter(Boolean);
+
+  if (!idsValidos.length) {
+    return [];
+  }
+
+  return (
+    Array.isArray(fila)
+      ? fila
+      : []
+  ).filter(
+    function (registroFila) {
+      if (
+        filaConcluidaUX202_(
+          registroFila
+        )
+      ) {
+        return false;
+      }
+
+      let serializado = "";
+
+      try {
+        serializado =
+          JSON.stringify(
+            registroFila
+          );
+
+      } catch (erro) {
+        /*
+         * Registro não serializável:
+         * preservação conservadora.
+         */
+        return true;
+      }
+
+      return idsValidos.some(
+        function (id) {
+          return serializado.includes(
+            id
+          );
+        }
+      );
+    }
+  );
+}
+
+
+/**
+ * Status operacionais que ainda podem ser
+ * editados pelo usuário.
+ */
+function registroEstaAbertoUX202_(
+  registro
+) {
+  const status =
+    maiusculoUX202_(
+      primeiroCampoUX202_(
+        registro,
+        [
+          "statusDiario",
+          "statusOcorrencia",
+          "statusItem",
+          "statusMedicao",
+          "status",
+          "situacao"
+        ]
+      )
+    );
+
+  return [
+    "ABERTO",
+    "RASCUNHO",
+    "EM ELABORACAO",
+    "EM_ELABORACAO",
+    "PENDENTE",
+    "AGUARDANDO",
+    "NAO FINALIZADO"
+  ].includes(status);
+}
+
+
+/**
+ * Verifica se há confirmação de que o registro
+ * já está protegido no servidor.
+ */
+function registroConfirmadoNoServidorUX202_(
+  registro
+) {
+  const origemReidratacao =
+    maiusculoUX202_(
+      registro?.origemReidratacao
+    );
+
+  if (
+    origemReidratacao ===
+    "SERVIDOR"
+  ) {
+    return true;
+  }
+
+  const statusSync =
+    maiusculoUX202_(
+      registro?.statusSync
+    );
+
+  return [
+    "SINCRONIZADO",
+    "CONCLUIDO",
+    "PROCESSADO",
+    "ENVIADO",
+    "SUCESSO",
+    "OK"
+  ].includes(statusSync);
+}
+
+
+/**
+ * Detecta arquivo ou binário local de Evidência.
+ */
+function evidenciaPossuiArquivoLocalUX202_(
+  registro
+) {
+  const possuiBlob =
+    typeof Blob !== "undefined" &&
+    (
+      registro?.blob instanceof Blob ||
+      registro?.arquivoBlob instanceof Blob ||
+      registro?.file instanceof Blob
+    );
+
+  return Boolean(
+    textoUX202_(
+      registro?.arquivoBase64
+    ) ||
+
+    possuiBlob ||
+
+    registro?.arquivoLocal === true ||
+
+    registro?.uploadPendente === true ||
+
+    registro?.arquivoPendente === true ||
+
+    registro?.fileHandle ||
+
+    textoUX202_(
+      registro?.caminhoLocal
+    ) ||
+
+    textoUX202_(
+      registro?.urlLocal
+    ) ||
+
+    textoUX202_(
+      registro?.objectUrl
+    )
+  );
+}
+
+
+/**
+ * Avalia proteções comuns.
+ */
+function avaliarProtecoesRegistroUX202_({
+  nomeStore,
+  registro,
+  fila,
+  idsReferencia
+}) {
+  const motivos = [];
+
+  if (
+    registroEhTombstoneUX202_(
+      registro
+    )
+  ) {
+    motivos.push(
+      "TOMBSTONE"
+    );
+  }
+
+  if (
+    registroEstaAbertoUX202_(
+      registro
+    )
+  ) {
+    motivos.push(
+      "STATUS_OPERACIONAL_ABERTO"
+    );
+  }
+
+  if (
+    !registroConfirmadoNoServidorUX202_(
+      registro
+    )
+  ) {
+    motivos.push(
+      "SEM_CONFIRMACAO_DO_SERVIDOR"
+    );
+  }
+
+  const referenciasAtivas =
+    localizarReferenciasAtivasFilaUX202_(
+      fila,
+      idsReferencia
+    );
+
+  if (
+    referenciasAtivas.length
+  ) {
+    motivos.push(
+      "PENDENCIA_ATIVA_NA_FILA"
+    );
+  }
+
+  if (
+    nomeStore ===
+      "TB_EVIDENCIAS" &&
+    evidenciaPossuiArquivoLocalUX202_(
+      registro
+    )
+  ) {
+    motivos.push(
+      "ARQUIVO_LOCAL_PRESERVADO"
+    );
+  }
+
+  if (
+    registro?.preservarOffline === true ||
+    registro?.fixadoOffline === true
+  ) {
+    motivos.push(
+      "FIXADO_PARA_USO_OFFLINE"
+    );
+  }
+
+  return {
+    protegido:
+      motivos.length > 0,
+
+    motivos:
+      motivos,
+
+    referenciasAtivas:
+      referenciasAtivas.length
+  };
+}
+
+
+/**
+ * Lê a keyPath real de cada store.
+ */
+async function obterKeyPathsUX202_(
+  nomesStores
+) {
+  const db =
+    await abrirBancoLocalSIGO();
+
+  const resultado = {};
+
+  for (const nomeStore of nomesStores) {
+    const transacao =
+      db.transaction(
+        [nomeStore],
+        "readonly"
+      );
+
+    const store =
+      transacao.objectStore(
+        nomeStore
+      );
+
+    resultado[nomeStore] =
+      store.keyPath;
+  }
+
+  return resultado;
+}
+
+
+/**
+ * Obtém a chave IndexedDB do registro.
+ */
+function obterChaveRegistroUX202_(
+  registro,
+  keyPath
+) {
+  if (
+    Array.isArray(keyPath)
+  ) {
+    return keyPath.map(
+      function (campo) {
+        return registro?.[campo];
+      }
+    );
+  }
+
+  if (
+    typeof keyPath === "string" &&
+    keyPath
+  ) {
+    return registro?.[keyPath];
+  }
+
+  return undefined;
+}
+
+
+/**
+ * Hash simples usado no token do plano.
+ */
+function gerarHashUX202_(valor) {
+  const texto =
+    String(valor);
+
+  let hash =
+    2166136261;
+
+  for (
+    let indice = 0;
+    indice < texto.length;
+    indice++
+  ) {
+    hash ^=
+      texto.charCodeAt(indice);
+
+    hash +=
+      (
+        hash << 1
+      ) +
+      (
+        hash << 4
+      ) +
+      (
+        hash << 7
+      ) +
+      (
+        hash << 8
+      ) +
+      (
+        hash << 24
+      );
+  }
+
+  return (
+    hash >>> 0
+  )
+    .toString(16)
+    .padStart(8, "0");
+}
+
+
+/**
+ * Captura conteúdo e assinatura das stores.
+ */
+async function capturarEstadoRetencaoUX202_() {
+  const keyPaths =
+    await obterKeyPathsUX202_(
+      STORES_AUDITADAS_UX202
+    );
+
+  const resultado = {};
+
+  for (
+    const nomeStore of
+    STORES_AUDITADAS_UX202
+  ) {
+    const registros =
+      await lerStoreBrutaUX1997A_(
+        nomeStore
+      );
+
+    resultado[nomeStore] = {
+      registros:
+        registros,
+
+      quantidade:
+        registros.length,
+
+      assinatura:
+        criarAssinaturaStoreMedicoesUX1994_(
+          registros
+        ),
+
+      keyPath:
+        keyPaths[nomeStore]
+    };
+  }
+
+  return resultado;
+}
+
+
+/**
+ * Assinaturas utilizadas para bloquear planos obsoletos.
+ */
+function extrairAssinaturasUX202_(
+  estado
+) {
+  return Object.fromEntries(
+    STORES_AUDITADAS_UX202.map(
+      function (nomeStore) {
+        return [
+          nomeStore,
+          estado[nomeStore]
+            .assinatura
+        ];
+      }
+    )
+  );
+}
+
+
+/**
+ * Compara dois conjuntos de assinaturas.
+ */
+function compararAssinaturasUX202_(
+  esperado,
+  atual
+) {
+  const divergencias = [];
+
+  for (
+    const nomeStore of
+    STORES_AUDITADAS_UX202
+  ) {
+    if (
+      esperado?.[nomeStore] !==
+      atual?.[nomeStore]
+    ) {
+      divergencias.push({
+        store:
+          nomeStore,
+
+        esperado:
+          esperado?.[nomeStore] || "",
+
+        atual:
+          atual?.[nomeStore] || ""
+      });
+    }
+  }
+
+  return divergencias;
+}
+
+
+/**
+ * Monta o plano protegido de retenção.
+ */
+async function montarPlanoRetencaoUX202_({
+  idObra,
+  periodoDias = null,
+  dataReferencia = null
+}) {
+  const obra =
+    textoUX202_(idObra);
+
+  if (!obra) {
+    throw new Error(
+      "Informe o idObra para a política de retenção."
+    );
+  }
+
+  let periodo;
+
+  if (
+    periodoDias === undefined ||
+    periodoDias === null ||
+    periodoDias === ""
+  ) {
+    periodo =
+      obterPeriodoHistoricoOfflineUX201_();
+
+  } else {
+    periodo =
+      normalizarPeriodoHistoricoUX201_(
+        periodoDias,
+        null
+      );
+
+    if (periodo === null) {
+      throw new RangeError(
+        "O período deve ser 15, 30, 60 ou 90 dias."
+      );
+    }
+  }
+
+  const referencia =
+    normalizarDataUX202_(
+      dataReferencia
+    ) ||
+    obterDataLocalAtualUX202_();
+
+  const dataCorte =
+    calcularDataCorteUX202_(
+      periodo,
+      referencia
+    );
+
+  const estado =
+    await capturarEstadoRetencaoUX202_();
+
+  const fila =
+    estado
+      .TB_SYNC_QUEUE
+      .registros;
+
+  const candidatos = [];
+
+  const protegidos = [];
+
+  const semData = [];
+
+  const dentroPeriodo = {
+    TB_DIARIOS:
+      0,
+
+    TB_DIARIO_ITENS:
+      0,
+
+    TB_OCORRENCIAS:
+      0,
+
+    TB_CLIMA:
+      0,
+
+    TB_EVIDENCIAS:
+      0,
+
+    TB_MEDICOES:
+      0
+  };
+
+  const ignoradosOutraObra = {
+    TB_DIARIOS:
+      0,
+
+    TB_DIARIO_ITENS:
+      0,
+
+    TB_OCORRENCIAS:
+      0,
+
+    TB_CLIMA:
+      0,
+
+    TB_EVIDENCIAS:
+      0,
+
+    TB_MEDICOES:
+      0
+  };
+
+
+  function pertenceObra_(registro) {
+    return (
+      textoUX202_(
+        registro?.idObra
+      ) === obra
+    );
+  }
+
+
+  function registrarCandidato_(
+    nomeStore,
+    registro,
+    entidade,
+    data,
+    motivo
+  ) {
+    const keyPath =
+      estado[nomeStore]
+        .keyPath;
+
+    const chave =
+      obterChaveRegistroUX202_(
+        registro,
+        keyPath
+      );
+
+    if (
+      chave === undefined ||
+      chave === null ||
+      (
+        Array.isArray(chave) &&
+        chave.some(
+          function (parte) {
+            return (
+              parte === undefined ||
+              parte === null
+            );
+          }
+        )
+      )
+    ) {
+      protegidos.push({
+        store:
+          nomeStore,
+
+        id:
+          obterIdRegistroUX202_(
+            nomeStore,
+            registro
+          ),
+
+        data:
+          data,
+
+        motivos: [
+          "CHAVE_INDEXEDDB_INVALIDA"
+        ]
+      });
+
+      return;
+    }
+
+    candidatos.push({
+      store:
+        nomeStore,
+
+      entidade:
+        entidade,
+
+      id:
+        obterIdRegistroUX202_(
+          nomeStore,
+          registro
+        ),
+
+      idObra:
+        obra,
+
+      data:
+        data,
+
+      motivo:
+        motivo,
+
+      chave:
+        chave,
+
+      chaveSerializada:
+        JSON.stringify(chave),
+
+      tombstone:
+        false,
+
+      registroOficial:
+        nomeStore ===
+          "TB_MEDICOES"
+    });
+  }
+
+
+  function registrarProtegido_(
+    nomeStore,
+    registro,
+    data,
+    motivos
+  ) {
+    protegidos.push({
+      store:
+        nomeStore,
+
+      id:
+        obterIdRegistroUX202_(
+          nomeStore,
+          registro
+      ),
+
+      data:
+        data,
+
+      motivos:
+        Array.from(
+          new Set(motivos)
+        )
+    });
+  }
+
+
+  /*
+   * ========================================================
+   * DIÁRIOS E ITENS — LIMPEZA RELACIONAL
+   * ========================================================
+   */
+
+  const diarios =
+    estado
+      .TB_DIARIOS
+      .registros;
+
+  const itens =
+    estado
+      .TB_DIARIO_ITENS
+      .registros;
+
+  const mapaDiarios =
+    new Map();
+
+  diarios.forEach(
+    function (diario) {
+      const id =
+        obterIdRegistroUX202_(
+          "TB_DIARIOS",
+          diario
+        );
+
+      if (id) {
+        mapaDiarios.set(
+          id,
+          diario
+        );
+      }
+    }
+  );
+
+  const itensPorDiario =
+    new Map();
+
+  itens.forEach(
+    function (item) {
+      const idPai =
+        obterIdDiarioPaiUX202_(
+          item
+        );
+
+      if (!idPai) {
+        return;
+      }
+
+      if (
+        !itensPorDiario.has(
+          idPai
+        )
+      ) {
+        itensPorDiario.set(
+          idPai,
+          []
+        );
+      }
+
+      itensPorDiario
+        .get(idPai)
+        .push(item);
+    }
+  );
+
+  diarios.forEach(
+    function (diario) {
+      if (
+        !pertenceObra_(diario)
+      ) {
+        ignoradosOutraObra
+          .TB_DIARIOS++;
+
+        return;
+      }
+
+      const idDiario =
+        obterIdRegistroUX202_(
+          "TB_DIARIOS",
+          diario
+        );
+
+      const dataDiario =
+        obterDataRegistroUX202_(
+          "TB_DIARIOS",
+          diario
+        );
+
+      const itensVinculados =
+        itensPorDiario.get(
+          idDiario
+        ) || [];
+
+      if (!dataDiario) {
+        semData.push({
+          store:
+            "TB_DIARIOS",
+
+          id:
+            idDiario,
+
+          motivo:
+            "DIARIO_SEM_DATA"
+        });
+
+        return;
+      }
+
+      if (
+        !dataForaRetencaoUX202_(
+          dataDiario,
+          dataCorte
+        )
+      ) {
+        dentroPeriodo
+          .TB_DIARIOS++;
+
+        dentroPeriodo
+          .TB_DIARIO_ITENS +=
+            itensVinculados.length;
+
+        return;
+      }
+
+      const idsGrupo = [
+        idDiario,
+        ...itensVinculados.map(
+          function (item) {
+            return obterIdRegistroUX202_(
+              "TB_DIARIO_ITENS",
+              item
+            );
+          }
+        )
+      ].filter(Boolean);
+
+      const protecaoDiario =
+        avaliarProtecoesRegistroUX202_({
+          nomeStore:
+            "TB_DIARIOS",
+
+          registro:
+            diario,
+
+          fila:
+            fila,
+
+          idsReferencia:
+            idsGrupo
+        });
+
+      const motivosGrupo = [
+        ...protecaoDiario.motivos
+      ];
+
+      for (
+        const item of
+        itensVinculados
+      ) {
+        const dataItem =
+          obterDataRegistroUX202_(
+            "TB_DIARIO_ITENS",
+            item,
+            diario
+          );
+
+        if (
+          dataItem &&
+          !dataForaRetencaoUX202_(
+            dataItem,
+            dataCorte
+          )
+        ) {
+          motivosGrupo.push(
+            "ITEM_DENTRO_DO_PERIODO"
+          );
+        }
+
+        const protecaoItem =
+          avaliarProtecoesRegistroUX202_({
+            nomeStore:
+              "TB_DIARIO_ITENS",
+
+            registro:
+              item,
+
+            fila:
+              fila,
+
+            idsReferencia:
+              idsGrupo
+          });
+
+        motivosGrupo.push(
+          ...protecaoItem.motivos
+        );
+      }
+
+      const motivosUnicos =
+        Array.from(
+          new Set(motivosGrupo)
+        );
+
+      if (
+        motivosUnicos.length
+      ) {
+        registrarProtegido_(
+          "TB_DIARIOS",
+          diario,
+          dataDiario,
+          motivosUnicos
+        );
+
+        return;
+      }
+
+      /*
+       * Itens são incluídos antes do cabeçalho.
+       */
+      itensVinculados.forEach(
+        function (item) {
+          registrarCandidato_(
+            "TB_DIARIO_ITENS",
+            item,
+            "ITEM_DIARIO",
+            obterDataRegistroUX202_(
+              "TB_DIARIO_ITENS",
+              item,
+              diario
+            ),
+            "DIARIO_PAI_FORA_DO_PERIODO"
+          );
+        }
+      );
+
+      registrarCandidato_(
+        "TB_DIARIOS",
+        diario,
+        "DIARIO",
+        dataDiario,
+        "DIARIO_FORA_DO_PERIODO"
+      );
+    }
+  );
+
+
+  /*
+   * Itens órfãos nunca são removidos automaticamente.
+   */
+  itens.forEach(
+    function (item) {
+      if (
+        !pertenceObra_(item)
+      ) {
+        ignoradosOutraObra
+          .TB_DIARIO_ITENS++;
+
+        return;
+      }
+
+      const idPai =
+        obterIdDiarioPaiUX202_(
+          item
+        );
+
+      if (
+        !idPai ||
+        !mapaDiarios.has(idPai)
+      ) {
+        registrarProtegido_(
+          "TB_DIARIO_ITENS",
+          item,
+          obterDataRegistroUX202_(
+            "TB_DIARIO_ITENS",
+            item
+          ),
+          [
+            "ITEM_ORFAO_LOCAL"
+          ]
+        );
+      }
+    }
+  );
+
+
+  /*
+   * ========================================================
+   * ENTIDADES INDEPENDENTES
+   * ========================================================
+   */
+
+  const storesIndependentes = [
+    "TB_OCORRENCIAS",
+    "TB_CLIMA",
+    "TB_EVIDENCIAS"
+  ];
+
+  storesIndependentes.forEach(
+    function (nomeStore) {
+      estado[nomeStore]
+        .registros
+        .forEach(
+          function (registro) {
+            if (
+              !pertenceObra_(
+                registro
+              )
+            ) {
+              ignoradosOutraObra[
+                nomeStore
+              ]++;
+
+              return;
+            }
+
+            const data =
+              obterDataRegistroUX202_(
+                nomeStore,
+                registro
+              );
+
+            if (!data) {
+              semData.push({
+                store:
+                  nomeStore,
+
+                id:
+                  obterIdRegistroUX202_(
+                    nomeStore,
+                    registro
+                  ),
+
+                motivo:
+                  "REGISTRO_SEM_DATA"
+              });
+
+              return;
+            }
+
+            if (
+              !dataForaRetencaoUX202_(
+                data,
+                dataCorte
+              )
+            ) {
+              dentroPeriodo[
+                nomeStore
+              ]++;
+
+              return;
+            }
+
+            const id =
+              obterIdRegistroUX202_(
+                nomeStore,
+                registro
+              );
+
+            const protecao =
+              avaliarProtecoesRegistroUX202_({
+                nomeStore:
+                  nomeStore,
+
+                registro:
+                  registro,
+
+                fila:
+                  fila,
+
+                idsReferencia:
+                  [id]
+              });
+
+            if (protecao.protegido) {
+              registrarProtegido_(
+                nomeStore,
+                registro,
+                data,
+                protecao.motivos
+              );
+
+              return;
+            }
+
+            registrarCandidato_(
+              nomeStore,
+              registro,
+              nomeStore.replace(
+                "TB_",
+                ""
+              ),
+              data,
+              "REGISTRO_FORA_DO_PERIODO"
+            );
+          }
+        );
+    }
+  );
+
+
+  /*
+   * ========================================================
+   * MEDIÇÕES — SOMENTE REGISTROS OFICIAIS
+   * ========================================================
+   */
+
+  const medicoes =
+    estado
+      .TB_MEDICOES
+      .registros;
+
+  const gruposMedicao =
+    new Map();
+
+  let medicoesOperacionaisPreservadas =
+    0;
+
+  medicoes.forEach(
+    function (registro) {
+      if (
+        !pertenceObra_(registro)
+      ) {
+        ignoradosOutraObra
+          .TB_MEDICOES++;
+
+        return;
+      }
+
+      if (
+        !registroEhMedicaoOficialUX202_(
+          registro
+        )
+      ) {
+        medicoesOperacionaisPreservadas++;
+
+        return;
+      }
+
+      const idGrupo =
+        obterIdGrupoMedicaoUX202_(
+          registro
+        ) ||
+        obterIdRegistroUX202_(
+          "TB_MEDICOES",
+          registro
+        );
+
+      if (
+        !gruposMedicao.has(
+          idGrupo
+        )
+      ) {
+        gruposMedicao.set(
+          idGrupo,
+          []
+        );
+      }
+
+      gruposMedicao
+        .get(idGrupo)
+        .push(registro);
+    }
+  );
+
+  gruposMedicao.forEach(
+    function (
+      registrosGrupo,
+      idGrupo
+    ) {
+      const datas =
+        registrosGrupo
+          .map(
+            function (registro) {
+              return obterDataRegistroUX202_(
+                "TB_MEDICOES",
+                registro
+              );
+            }
+          )
+          .filter(Boolean);
+
+      if (
+        datas.length !==
+        registrosGrupo.length
+      ) {
+        registrosGrupo.forEach(
+          function (registro) {
+            registrarProtegido_(
+              "TB_MEDICOES",
+              registro,
+              obterDataRegistroUX202_(
+                "TB_MEDICOES",
+                registro
+              ),
+              [
+                "MEDICAO_OFICIAL_SEM_DATA"
+              ]
+            );
+          }
+        );
+
+        return;
+      }
+
+      const existeDentroPeriodo =
+        datas.some(
+          function (data) {
+            return !dataForaRetencaoUX202_(
+              data,
+              dataCorte
+            );
+          }
+        );
+
+      if (existeDentroPeriodo) {
+        dentroPeriodo
+          .TB_MEDICOES +=
+            registrosGrupo.length;
+
+        return;
+      }
+
+      const idsGrupo = [
+        idGrupo,
+        ...registrosGrupo.map(
+          function (registro) {
+            return obterIdRegistroUX202_(
+              "TB_MEDICOES",
+              registro
+            );
+          }
+        )
+      ].filter(Boolean);
+
+      const motivosGrupo = [];
+
+      registrosGrupo.forEach(
+        function (registro) {
+          const protecao =
+            avaliarProtecoesRegistroUX202_({
+              nomeStore:
+                "TB_MEDICOES",
+
+              registro:
+                registro,
+
+              fila:
+                fila,
+
+              idsReferencia:
+                idsGrupo
+            });
+
+          motivosGrupo.push(
+            ...protecao.motivos
+          );
+        }
+      );
+
+      const motivosUnicos =
+        Array.from(
+          new Set(motivosGrupo)
+        );
+
+      if (
+        motivosUnicos.length
+      ) {
+        registrosGrupo.forEach(
+          function (registro) {
+            registrarProtegido_(
+              "TB_MEDICOES",
+              registro,
+              obterDataRegistroUX202_(
+                "TB_MEDICOES",
+                registro
+              ),
+              motivosUnicos
+            );
+          }
+        );
+
+        return;
+      }
+
+      registrosGrupo.forEach(
+        function (registro) {
+          registrarCandidato_(
+            "TB_MEDICOES",
+            registro,
+            "ITEM_MEDICAO_OFICIAL",
+            obterDataRegistroUX202_(
+              "TB_MEDICOES",
+              registro
+            ),
+            "MEDICAO_OFICIAL_FORA_DO_PERIODO"
+          );
+        }
+      );
+    }
+  );
+
+
+  /*
+   * ========================================================
+   * NORMALIZAÇÃO DO PLANO
+   * ========================================================
+   */
+
+  const prioridades = {
+    TB_DIARIO_ITENS:
+      1,
+
+    TB_DIARIOS:
+      2,
+
+    TB_OCORRENCIAS:
+      3,
+
+    TB_CLIMA:
+      4,
+
+    TB_EVIDENCIAS:
+      5,
+
+    TB_MEDICOES:
+      6
+  };
+
+  candidatos.sort(
+    function (a, b) {
+      return (
+        prioridades[a.store] -
+        prioridades[b.store]
+      );
+    }
+  );
+
+  const duplicidadesPlano = [];
+
+  const chavesPlano =
+    new Set();
+
+  candidatos.forEach(
+    function (candidato) {
+      const chaveUnica =
+        candidato.store +
+        "::" +
+        candidato.chaveSerializada;
+
+      if (
+        chavesPlano.has(
+          chaveUnica
+        )
+      ) {
+        duplicidadesPlano.push(
+          chaveUnica
+        );
+      }
+
+      chavesPlano.add(
+        chaveUnica
+      );
+    }
+  );
+
+  const porStore =
+    Object.fromEntries(
+      STORES_RETENCAO_UX202.map(
+        function (nomeStore) {
+          return [
+            nomeStore,
+            candidatos.filter(
+              function (registro) {
+                return (
+                  registro.store ===
+                  nomeStore
+                );
+              }
+            ).length
+          ];
+        }
+      )
+    );
+
+  const assinaturas =
+    extrairAssinaturasUX202_(
+      estado
+    );
+
+  const baseToken = {
+    idObra:
+      obra,
+
+    periodoDias:
+      periodo,
+
+    dataReferencia:
+      referencia,
+
+    dataCorte:
+      dataCorte,
+
+    assinaturas:
+      assinaturas,
+
+    candidatos:
+      candidatos.map(
+        function (registro) {
+          return {
+            store:
+              registro.store,
+
+            chave:
+              registro.chaveSerializada
+          };
+        }
+      )
+  };
+
+  const tokenPlano =
+    "UX202-" +
+    gerarHashUX202_(
+      JSON.stringify(baseToken)
+    );
+
+  return {
+    idObra:
+      obra,
+
+    periodoDias:
+      periodo,
+
+    dataReferencia:
+      referencia,
+
+    dataCorte:
+      dataCorte,
+
+    estado:
+      estado,
+
+    assinaturas:
+      assinaturas,
+
+    candidatos:
+      candidatos,
+
+    protegidos:
+      protegidos,
+
+    semData:
+      semData,
+
+    dentroPeriodo:
+      dentroPeriodo,
+
+    ignoradosOutraObra:
+      ignoradosOutraObra,
+
+    medicoesOperacionaisPreservadas:
+      medicoesOperacionaisPreservadas,
+
+    duplicidadesPlano:
+      duplicidadesPlano,
+
+    porStore:
+      porStore,
+
+    totalExcluir:
+      candidatos.length,
+
+    tokenPlano:
+      tokenPlano
+  };
+}
+
+
+/**
+ * ============================================================
+ * SIMULAÇÃO
+ * ============================================================
+ */
+async function simularRetencaoLocalUX202_({
+  idObra,
+  periodoDias = null,
+  dataReferencia = null
+} = {}) {
+  console.log(
+    "[UX.20.2] Iniciando simulação da retenção local..."
+  );
+
+  const plano =
+    await montarPlanoRetencaoUX202_({
+      idObra:
+        idObra,
+
+      periodoDias:
+        periodoDias,
+
+      dataReferencia:
+        dataReferencia
+    });
+
+  const estadoDepois =
+    await capturarEstadoRetencaoUX202_();
+
+  const assinaturasDepois =
+    extrairAssinaturasUX202_(
+      estadoDepois
+    );
+
+  const storesAlteradas =
+    compararAssinaturasUX202_(
+      plano.assinaturas,
+      assinaturasDepois
+    );
+
+  const validacoes = {
+    modoSimulacao:
+      true,
+
+    periodoPermitido:
+      [
+        15,
+        30,
+        60,
+        90
+      ].includes(
+        plano.periodoDias
+      ),
+
+    tokenGerado:
+      Boolean(
+        plano.tokenPlano
+      ),
+
+    nenhumaGravacaoExecutada:
+      true,
+
+    nenhumaStoreAlterada:
+      storesAlteradas.length === 0,
+
+    nenhumaDuplicidadeNoPlano:
+      plano.duplicidadesPlano.length ===
+      0,
+
+    filaNaoEhCandidata:
+      plano.porStore
+        .TB_SYNC_QUEUE ===
+      undefined,
+
+    lotesNaoSaoCandidatos:
+      plano.porStore
+        .TB_LOTES_MEDICAO ===
+      undefined,
+
+    notificacoesNaoSaoCandidatas:
+      plano.porStore
+        .TB_NOTIFICACOES ===
+      undefined,
+
+    medicoesOperacionaisPreservadas:
+      plano
+        .medicoesOperacionaisPreservadas >=
+      0,
+
+    nenhumTombstoneCandidato:
+      plano.candidatos.every(
+        function (registro) {
+          return (
+            registro.tombstone ===
+            false
+          );
+        }
+      )
+  };
+
+  const aprovado =
+    Object.values(validacoes)
+      .every(
+        function (valor) {
+          return valor === true;
+        }
+      );
+
+  window.SIGO_UX202 =
+    window.SIGO_UX202 || {};
+
+  window.SIGO_UX202
+    .ultimaSimulacao = {
+      tokenPlano:
+        plano.tokenPlano,
+
+      idObra:
+        plano.idObra,
+
+      periodoDias:
+        plano.periodoDias,
+
+      dataReferencia:
+        plano.dataReferencia,
+
+      dataCorte:
+        plano.dataCorte,
+
+      assinaturas:
+        plano.assinaturas,
+
+      candidatos:
+        plano.candidatos,
+
+      geradoEm:
+        new Date().toISOString()
+    };
+
+  const resultado = {
+    etapa:
+      "UX.20.2",
+
+    operacao:
+      "POLITICA_RETENCAO_LOCAL",
+
+    modo:
+      "SIMULACAO",
+
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+
+    idObra:
+      plano.idObra,
+
+    periodoDias:
+      plano.periodoDias,
+
+    dataReferencia:
+      plano.dataReferencia,
+
+    dataCorte:
+      plano.dataCorte,
+
+    regra:
+      "PRESERVAR_DATA_MAIOR_OU_IGUAL_A_DATA_CORTE",
+
+    tokenPlano:
+      plano.tokenPlano,
+
+    totalExcluir:
+      plano.totalExcluir,
+
+    porStore:
+      plano.porStore,
+
+    dentroPeriodo:
+      plano.dentroPeriodo,
+
+    protegidosForaPeriodo: {
+      total:
+        plano.protegidos.length,
+
+      registros:
+        plano.protegidos
+    },
+
+    registrosSemData: {
+      total:
+        plano.semData.length,
+
+      registros:
+        plano.semData
+    },
+
+    medicoesOperacionaisPreservadas:
+      plano
+        .medicoesOperacionaisPreservadas,
+
+    candidatos:
+      plano.candidatos,
+
+    storesPreservadas: {
+      TB_LOTES_MEDICAO:
+        plano.estado
+          .TB_LOTES_MEDICAO
+          .quantidade,
+
+      TB_SYNC_QUEUE:
+        plano.estado
+          .TB_SYNC_QUEUE
+          .quantidade,
+
+      TB_NOTIFICACOES:
+        plano.estado
+          .TB_NOTIFICACOES
+          .quantidade
+    },
+
+    storesAlteradas:
+      storesAlteradas,
+
+    gravacoesPlanejadas:
+      plano.totalExcluir,
+
+    gravacoesExecutadas:
+      0,
+
+    validacoes:
+      validacoes,
+
+    aprovado:
+      aprovado
+  };
+
+  console.log(
+    JSON.stringify(
+      resultado,
+      null,
+      2
+    )
+  );
+
+  if (!aprovado) {
+    throw new Error(
+      "UX.20.2 REPROVADA NA SIMULAÇÃO. Consulte as validações."
+    );
+  }
+
+  console.log(
+    "UX.20.2 — SIMULAÇÃO DA RETENÇÃO LOCAL APROVADA."
+  );
+
+  return resultado;
+}
+
+
+/**
+ * Remove as chaves planejadas em uma única
+ * transação IndexedDB.
+ */
+async function excluirPlanoRetencaoUX202_(
+  candidatos
+) {
+  if (
+    !Array.isArray(candidatos) ||
+    !candidatos.length
+  ) {
+    return {
+      total:
+        0,
+
+      porStore:
+        {}
+    };
+  }
+
+  const stores =
+    Array.from(
+      new Set(
+        candidatos.map(
+          function (registro) {
+            return registro.store;
+          }
+        )
+      )
+    );
+
+  const db =
+    await abrirBancoLocalSIGO();
+
+  await new Promise(
+    function (resolve, reject) {
+      const transacao =
+        db.transaction(
+          stores,
+          "readwrite"
+        );
+
+      candidatos.forEach(
+        function (registro) {
+          transacao
+            .objectStore(
+              registro.store
+            )
+            .delete(
+              registro.chave
+            );
+        }
+      );
+
+      transacao.oncomplete =
+        function () {
+          resolve();
+        };
+
+      transacao.onerror =
+        function () {
+          reject(
+            transacao.error ||
+            new Error(
+              "Falha na limpeza local."
+            )
+          );
+        };
+
+      transacao.onabort =
+        function () {
+          reject(
+            transacao.error ||
+            new Error(
+              "A limpeza local foi abortada."
+            )
+          );
+        };
+    }
+  );
+
+  return {
+    total:
+      candidatos.length,
+
+    porStore:
+      Object.fromEntries(
+        stores.map(
+          function (nomeStore) {
+            return [
+              nomeStore,
+              candidatos.filter(
+                function (registro) {
+                  return (
+                    registro.store ===
+                    nomeStore
+                  );
+                }
+              ).length
+            ];
+          }
+        )
+      )
+  };
+}
+
+
+/**
+ * Atualiza caches e interfaces após a limpeza real.
+ */
+async function finalizarRetencaoLocalUX202_(
+  idObra,
+  storesAlteradas
+) {
+  for (
+    const nomeStore of
+    storesAlteradas
+  ) {
+    if (
+      typeof SIGODataCache !==
+        "undefined" &&
+      SIGODataCache &&
+      typeof SIGODataCache.invalidate ===
+        "function"
+    ) {
+      SIGODataCache.invalidate(
+        nomeStore
+      );
+    }
+
+    if (
+      typeof invalidarCacheObraSIGO_ ===
+        "function"
+    ) {
+      await Promise.resolve(
+        invalidarCacheObraSIGO_(
+          nomeStore,
+          idObra
+        )
+      );
+    }
+
+    if (
+      typeof SIGODataBinding !==
+        "undefined" &&
+      SIGODataBinding &&
+      typeof SIGODataBinding.notify ===
+        "function"
+    ) {
+      try {
+        await SIGODataBinding.notify(
+          nomeStore,
+          {
+            acao:
+              "RETENCAO_LOCAL",
+
+            store:
+              nomeStore,
+
+            chave:
+              null,
+
+            registro:
+              null,
+
+            idObra:
+              idObra,
+
+            origem:
+              "UX.20.2",
+
+            quantidade:
+              1
+          }
+        );
+
+      } catch (erro) {
+        console.warn(
+          "[UX.20.2] DataBinding não atualizado:",
+          nomeStore,
+          erro
+        );
+      }
+    }
+  }
+}
+
+
+/**
+ * ============================================================
+ * EXECUÇÃO REAL
+ * ============================================================
+ *
+ * Exige token produzido pela simulação.
+ */
+async function executarRetencaoLocalUX202_(
+  tokenPlano
+) {
+  console.log(
+    "[UX.20.2] Validando plano para execução real..."
+  );
+
+  const simulacao =
+    window.SIGO_UX202
+      ?.ultimaSimulacao;
+
+  if (!simulacao) {
+    throw new Error(
+      "Nenhuma simulação válida foi encontrada."
+    );
+  }
+
+  if (
+    textoUX202_(tokenPlano) !==
+    simulacao.tokenPlano
+  ) {
+    throw new Error(
+      "Token do plano inválido. Execute uma nova simulação."
+    );
+  }
+
+  const estadoAntes =
+    await capturarEstadoRetencaoUX202_();
+
+  const assinaturasAntes =
+    extrairAssinaturasUX202_(
+      estadoAntes
+    );
+
+  const divergenciasAntes =
+    compararAssinaturasUX202_(
+      simulacao.assinaturas,
+      assinaturasAntes
+    );
+
+  if (
+    divergenciasAntes.length
+  ) {
+    console.error(
+      "[UX.20.2] Plano obsoleto:",
+      divergenciasAntes
+    );
+
+    throw new Error(
+      "As stores mudaram após a simulação. Gere um novo plano."
+    );
+  }
+
+  const assinaturaFilaAntes =
+    estadoAntes
+      .TB_SYNC_QUEUE
+      .assinatura;
+
+  const assinaturaLotesAntes =
+    estadoAntes
+      .TB_LOTES_MEDICAO
+      .assinatura;
+
+  const assinaturaNotificacoesAntes =
+    estadoAntes
+      .TB_NOTIFICACOES
+      .assinatura;
+
+  const exclusao =
+    await excluirPlanoRetencaoUX202_(
+      simulacao.candidatos
+    );
+
+  const nomesAlterados =
+    Object.keys(
+      exclusao.porStore
+    );
+
+  await finalizarRetencaoLocalUX202_(
+    simulacao.idObra,
+    nomesAlterados
+  );
+
+  const estadoDepois =
+    await capturarEstadoRetencaoUX202_();
+
+  const candidatosAindaExistentes = [];
+
+  for (
+    const candidato of
+    simulacao.candidatos
+  ) {
+    const storeDepois =
+      estadoDepois[
+        candidato.store
+      ];
+
+    const keyPath =
+      storeDepois.keyPath;
+
+    const aindaExiste =
+      storeDepois.registros.some(
+        function (registro) {
+          const chave =
+            obterChaveRegistroUX202_(
+              registro,
+              keyPath
+            );
+
+          return (
+            JSON.stringify(chave) ===
+            candidato.chaveSerializada
+          );
+        }
+      );
+
+    if (aindaExiste) {
+      candidatosAindaExistentes.push(
+        candidato
+      );
+    }
+  }
+
+  const filaPreservada =
+    assinaturaFilaAntes ===
+    estadoDepois
+      .TB_SYNC_QUEUE
+      .assinatura;
+
+  const lotesPreservados =
+    assinaturaLotesAntes ===
+    estadoDepois
+      .TB_LOTES_MEDICAO
+      .assinatura;
+
+  const notificacoesPreservadas =
+    assinaturaNotificacoesAntes ===
+    estadoDepois
+      .TB_NOTIFICACOES
+      .assinatura;
+
+  const validacoes = {
+    tokenValido:
+      true,
+
+    planoNaoEstavaObsoleto:
+      divergenciasAntes.length === 0,
+
+    totalExecutadoConformePlano:
+      exclusao.total ===
+      simulacao.candidatos.length,
+
+    nenhumCandidatoPermaneceu:
+      candidatosAindaExistentes.length ===
+      0,
+
+    filaPreservada:
+      filaPreservada,
+
+    lotesPreservados:
+      lotesPreservados,
+
+    notificacoesPreservadas:
+      notificacoesPreservadas
+  };
+
+  const aprovado =
+    Object.values(validacoes)
+      .every(
+        function (valor) {
+          return valor === true;
+        }
+      );
+
+  const resultado = {
+    etapa:
+      "UX.20.2",
+
+    operacao:
+      "POLITICA_RETENCAO_LOCAL",
+
+    modo:
+      "REAL",
+
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+
+    idObra:
+      simulacao.idObra,
+
+    periodoDias:
+      simulacao.periodoDias,
+
+    dataReferencia:
+      simulacao.dataReferencia,
+
+    dataCorte:
+      simulacao.dataCorte,
+
+    tokenPlano:
+      simulacao.tokenPlano,
+
+    gravacoesPlanejadas:
+      simulacao.candidatos.length,
+
+    gravacoesExecutadas:
+      exclusao.total,
+
+    removidosPorStore:
+      exclusao.porStore,
+
+    candidatosAindaExistentes:
+      candidatosAindaExistentes,
+
+    storesPreservadas: {
+      TB_SYNC_QUEUE: {
+        antes:
+          estadoAntes
+            .TB_SYNC_QUEUE
+            .quantidade,
+
+        depois:
+          estadoDepois
+            .TB_SYNC_QUEUE
+            .quantidade,
+
+        preservada:
+          filaPreservada
+      },
+
+      TB_LOTES_MEDICAO: {
+        antes:
+          estadoAntes
+            .TB_LOTES_MEDICAO
+            .quantidade,
+
+        depois:
+          estadoDepois
+            .TB_LOTES_MEDICAO
+            .quantidade,
+
+        preservada:
+          lotesPreservados
+      },
+
+      TB_NOTIFICACOES: {
+        antes:
+          estadoAntes
+            .TB_NOTIFICACOES
+            .quantidade,
+
+        depois:
+          estadoDepois
+            .TB_NOTIFICACOES
+            .quantidade,
+
+        preservada:
+          notificacoesPreservadas
+      }
+    },
+
+    validacoes:
+      validacoes,
+
+    aprovado:
+      aprovado
+  };
+
+  console.log(
+    JSON.stringify(
+      resultado,
+      null,
+      2
+    )
+  );
+
+  if (!aprovado) {
+    throw new Error(
+      "UX.20.2 REPROVADA NA EXECUÇÃO REAL."
+    );
+  }
+
+  window.SIGO_UX202
+    .ultimaExecucao =
+      resultado;
+
+  window.SIGO_UX202
+    .ultimaSimulacao =
+      null;
+
+  console.log(
+    "UX.20.2 — RETENÇÃO LOCAL EXECUTADA COM SEGURANÇA."
+  );
+
+  return resultado;
+}
+
+
+/**
+ * Auditoria específica da simulação.
+ */
+async function auditarSimulacaoRetencaoLocalUX202_({
+  idObra,
+  periodoDias = null,
+  dataReferencia = null
+} = {}) {
+  const estadoAntes =
+    await capturarEstadoRetencaoUX202_();
+
+  const resultado =
+    await simularRetencaoLocalUX202_({
+      idObra:
+        idObra,
+
+      periodoDias:
+        periodoDias,
+
+      dataReferencia:
+        dataReferencia
+    });
+
+  const estadoDepois =
+    await capturarEstadoRetencaoUX202_();
+
+  const alteradas =
+    compararAssinaturasUX202_(
+      extrairAssinaturasUX202_(
+        estadoAntes
+      ),
+      extrairAssinaturasUX202_(
+        estadoDepois
+      )
+    );
+
+  const validacoesAuditoria = {
+    simulacaoAprovada:
+      resultado.aprovado === true,
+
+    nenhumaStoreAlterada:
+      alteradas.length === 0,
+
+    nenhumaGravacaoExecutada:
+      resultado
+        .gravacoesExecutadas === 0,
+
+    filaPermaneceuPreservada:
+      estadoAntes
+        .TB_SYNC_QUEUE
+        .assinatura ===
+      estadoDepois
+        .TB_SYNC_QUEUE
+        .assinatura,
+
+    lotesPermaneceramPreservados:
+      estadoAntes
+        .TB_LOTES_MEDICAO
+        .assinatura ===
+      estadoDepois
+        .TB_LOTES_MEDICAO
+        .assinatura,
+
+    notificacoesPermaneceramPreservadas:
+      estadoAntes
+        .TB_NOTIFICACOES
+        .assinatura ===
+      estadoDepois
+        .TB_NOTIFICACOES
+        .assinatura,
+
+    cincoMedicoesOperacionaisPreservadas:
+      resultado
+        .medicoesOperacionaisPreservadas ===
+      5
+  };
+
+  const aprovado =
+    Object.values(
+      validacoesAuditoria
+    ).every(
+      function (valor) {
+        return valor === true;
+      }
+    );
+
+  const auditoria = {
+    etapa:
+      "UX.20.2",
+
+    auditoria:
+      "SIMULACAO_POLITICA_RETENCAO_LOCAL",
+
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+
+    simulacao:
+      resultado,
+
+    storesAlteradas:
+      alteradas,
+
+    validacoes:
+      validacoesAuditoria,
+
+    aprovado:
+      aprovado
+  };
+
+  console.log(
+    JSON.stringify(
+      auditoria,
+      null,
+      2
+    )
+  );
+
+  if (!aprovado) {
+    throw new Error(
+      "UX.20.2 REPROVADA NA AUDITORIA DA SIMULAÇÃO."
+    );
+  }
+
+  console.log(
+    "UX.20.2 — AUDITORIA DA SIMULAÇÃO APROVADA."
+  );
+
+  return auditoria;
+}
+
