@@ -30403,3 +30403,1453 @@ async function testarIntegracaoVisualReidratacaoUX1977_() {
 
   return resultado;
 }
+
+/**
+ * ============================================================
+ * UX.19.8.4 — CLIENTE MOBILE DA API DE EVIDÊNCIAS
+ * ============================================================
+ *
+ * Ação:
+ * OBTER_EVIDENCIAS_OPERACIONAIS_OBRA
+ *
+ * Nesta etapa:
+ *
+ * - consulta a API publicada;
+ * - valida o contrato 1.0;
+ * - preserva os links do Google Drive;
+ * - não grava em TB_EVIDENCIAS;
+ * - não altera TB_SYNC_QUEUE;
+ * - não baixa arquivos binários.
+ */
+
+
+/**
+ * Normaliza valores textuais do contrato.
+ */
+function normalizarTextoEvidenciaMobileUX1984_(valor) {
+  return String(
+    valor === undefined ||
+    valor === null
+      ? ""
+      : valor
+  ).trim();
+}
+
+
+/**
+ * Valida datas no formato yyyy-MM-dd.
+ */
+function validarDataEvidenciaMobileUX1984_(valor) {
+  const texto =
+    normalizarTextoEvidenciaMobileUX1984_(
+      valor
+    );
+
+  const correspondencia =
+    texto.match(
+      /^(\d{4})-(\d{2})-(\d{2})$/
+    );
+
+  if (!correspondencia) {
+    return false;
+  }
+
+  const ano =
+    Number(correspondencia[1]);
+
+  const mes =
+    Number(correspondencia[2]);
+
+  const dia =
+    Number(correspondencia[3]);
+
+  const data =
+    new Date(
+      Date.UTC(
+        ano,
+        mes - 1,
+        dia
+      )
+    );
+
+  return (
+    data.getUTCFullYear() === ano &&
+    data.getUTCMonth() === mes - 1 &&
+    data.getUTCDate() === dia
+  );
+}
+
+
+/**
+ * Valida URLs HTTP ou HTTPS.
+ */
+function validarUrlEvidenciaMobileUX1984_(valor) {
+  return /^https?:\/\/\S+$/i.test(
+    normalizarTextoEvidenciaMobileUX1984_(
+      valor
+    )
+  );
+}
+
+
+/**
+ * Resume o domínio do link para os logs.
+ *
+ * A URL completa não é exibida pelo teste.
+ */
+function resumirLinkEvidenciaMobileUX1984_(link) {
+  const texto =
+    normalizarTextoEvidenciaMobileUX1984_(
+      link
+    );
+
+  if (!texto) {
+    return "";
+  }
+
+  try {
+    const url =
+      new URL(texto);
+
+    return (
+      url.protocol +
+      "//" +
+      url.hostname +
+      "/..."
+    );
+
+  } catch (erro) {
+    return "LINK_PRESENTE";
+  }
+}
+
+
+/**
+ * Normaliza o envelope retornado pela API publicada.
+ *
+ * Aceita:
+ *
+ * {
+ *   status,
+ *   mensagem,
+ *   dataResposta,
+ *   detalhes: {...}
+ * }
+ *
+ * Também aceita contratos sem o envelope "detalhes".
+ */
+function normalizarRespostaEvidenciasMobileUX1984_(
+  respostaBruta,
+  codigoHttp
+) {
+  const envelope =
+    respostaBruta &&
+    typeof respostaBruta === "object"
+      ? respostaBruta
+      : {};
+
+  const detalhes =
+    envelope.detalhes &&
+    typeof envelope.detalhes === "object"
+      ? envelope.detalhes
+      : envelope.dados &&
+        typeof envelope.dados === "object"
+        ? envelope.dados
+        : envelope;
+
+  const totaisOrigem =
+    detalhes.totais &&
+    typeof detalhes.totais === "object"
+      ? detalhes.totais
+      : {};
+
+  const registrosOrigem =
+    Array.isArray(
+      detalhes.evidencias
+    )
+      ? detalhes.evidencias
+      : [];
+
+  const evidencias =
+    registrosOrigem.map(
+      function (registro) {
+        const origem =
+          registro &&
+          typeof registro === "object"
+            ? registro
+            : {};
+
+        return {
+          idEvidencia:
+            normalizarTextoEvidenciaMobileUX1984_(
+              origem.idEvidencia
+            ),
+
+          data:
+            normalizarTextoEvidenciaMobileUX1984_(
+              origem.data
+            ),
+
+          idObra:
+            normalizarTextoEvidenciaMobileUX1984_(
+              origem.idObra
+            ),
+
+          origem:
+            normalizarTextoEvidenciaMobileUX1984_(
+              origem.origem
+            ),
+
+          idReferencia:
+            normalizarTextoEvidenciaMobileUX1984_(
+              origem.idReferencia
+            ),
+
+          /*
+           * Pode estar vazio para Evidências gerais da obra.
+           */
+          idAtividade:
+            normalizarTextoEvidenciaMobileUX1984_(
+              origem.idAtividade
+            ),
+
+          tipoEvidencia:
+            normalizarTextoEvidenciaMobileUX1984_(
+              origem.tipoEvidencia
+            ),
+
+          descricao:
+            normalizarTextoEvidenciaMobileUX1984_(
+              origem.descricao
+            ),
+
+          linkArquivo:
+            normalizarTextoEvidenciaMobileUX1984_(
+              origem.linkArquivo
+            ),
+
+          responsavel:
+            normalizarTextoEvidenciaMobileUX1984_(
+              origem.responsavel
+            ),
+
+          statusEvidencia:
+            normalizarTextoEvidenciaMobileUX1984_(
+              origem.statusEvidencia
+            ),
+
+          statusSync:
+            normalizarTextoEvidenciaMobileUX1984_(
+              origem.statusSync
+            ),
+
+          dataSync:
+            normalizarTextoEvidenciaMobileUX1984_(
+              origem.dataSync
+            ),
+
+          origemReidratacao:
+            normalizarTextoEvidenciaMobileUX1984_(
+              origem.origemReidratacao
+            )
+        };
+      }
+    );
+
+  return {
+    codigoHttp:
+      Number(codigoHttp || 0),
+
+    status:
+      normalizarTextoEvidenciaMobileUX1984_(
+        envelope.status ||
+        detalhes.status
+      ).toUpperCase(),
+
+    mensagem:
+      normalizarTextoEvidenciaMobileUX1984_(
+        envelope.mensagem ||
+        detalhes.mensagem
+      ),
+
+    dataResposta:
+      normalizarTextoEvidenciaMobileUX1984_(
+        envelope.dataResposta ||
+        detalhes.dataResposta
+      ),
+
+    versaoContrato:
+      normalizarTextoEvidenciaMobileUX1984_(
+        detalhes.versaoContrato
+      ),
+
+    idObra:
+      normalizarTextoEvidenciaMobileUX1984_(
+        detalhes.idObra
+      ),
+
+    periodoDias:
+      Number(
+        detalhes.periodoDias || 0
+      ),
+
+    dataInicio:
+      normalizarTextoEvidenciaMobileUX1984_(
+        detalhes.dataInicio
+      ),
+
+    dataFim:
+      normalizarTextoEvidenciaMobileUX1984_(
+        detalhes.dataFim
+      ),
+
+    dataSync:
+      normalizarTextoEvidenciaMobileUX1984_(
+        detalhes.dataSync
+      ),
+
+    totais: {
+      evidencias:
+        Number(
+          totaisOrigem.evidencias || 0
+        ),
+
+      comAtividade:
+        Number(
+          totaisOrigem.comAtividade || 0
+        ),
+
+      semAtividade:
+        Number(
+          totaisOrigem.semAtividade || 0
+        )
+    },
+
+    evidencias:
+      evidencias
+  };
+}
+
+
+/**
+ * Valida o contrato normalizado da API.
+ */
+function validarDataContratoEvidenciasUX1984_(
+  pacote,
+  idObraEsperado,
+  periodoEsperado
+) {
+  const origem =
+    pacote &&
+    typeof pacote === "object"
+      ? pacote
+      : {};
+
+  const evidencias =
+    Array.isArray(
+      origem.evidencias
+    )
+      ? origem.evidencias
+      : [];
+
+  const camposContrato = [
+    "idEvidencia",
+    "data",
+    "idObra",
+    "origem",
+    "idReferencia",
+    "idAtividade",
+    "tipoEvidencia",
+    "descricao",
+    "linkArquivo",
+    "responsavel",
+    "statusEvidencia",
+    "statusSync",
+    "dataSync",
+    "origemReidratacao"
+  ];
+
+  const idsVistos =
+    new Set();
+
+  const linksVistos =
+    new Set();
+
+  const duplicados =
+    [];
+
+  const linksDuplicados =
+    [];
+
+  const invalidos =
+    [];
+
+  const datasInvalidas =
+    [];
+
+  const linksInvalidos =
+    [];
+
+  const camposAusentes =
+    [];
+
+  const outraObra =
+    [];
+
+  const foraPeriodo =
+    [];
+
+  const statusSyncIncorreto =
+    [];
+
+  const origemIncorreta =
+    [];
+
+  const dataSyncAusente =
+    [];
+
+  let comAtividade = 0;
+  let semAtividade = 0;
+
+  evidencias.forEach(
+    function (evidencia) {
+      const idEvidencia =
+        normalizarTextoEvidenciaMobileUX1984_(
+          evidencia.idEvidencia
+        );
+
+      const idObra =
+        normalizarTextoEvidenciaMobileUX1984_(
+          evidencia.idObra
+        );
+
+      const data =
+        normalizarTextoEvidenciaMobileUX1984_(
+          evidencia.data
+        );
+
+      const linkArquivo =
+        normalizarTextoEvidenciaMobileUX1984_(
+          evidencia.linkArquivo
+        );
+
+
+      /*
+       * Campos essenciais.
+       */
+      if (
+        !idEvidencia ||
+        !idObra ||
+        !data ||
+        !linkArquivo
+      ) {
+        invalidos.push({
+          idEvidencia:
+            idEvidencia || "SEM_ID",
+
+          motivo:
+            "CAMPO_ESSENCIAL_AUSENTE"
+        });
+      }
+
+
+      /*
+       * Propriedades do contrato.
+       *
+       * Campos como idAtividade e descrição podem estar vazios,
+       * mas a propriedade precisa existir.
+       */
+      const ausentes =
+        camposContrato.filter(
+          function (campo) {
+            return !Object.prototype
+              .hasOwnProperty.call(
+                evidencia,
+                campo
+              );
+          }
+        );
+
+      if (ausentes.length) {
+        camposAusentes.push({
+          idEvidencia:
+            idEvidencia || "SEM_ID",
+
+          campos:
+            ausentes
+        });
+      }
+
+
+      /*
+       * IDs.
+       */
+      if (
+        idsVistos.has(
+          idEvidencia
+        )
+      ) {
+        duplicados.push(
+          idEvidencia
+        );
+
+      } else {
+        idsVistos.add(
+          idEvidencia
+        );
+      }
+
+
+      /*
+       * Datas.
+       */
+      if (
+        !validarDataEvidenciaMobileUX1984_(
+          data
+        )
+      ) {
+        datasInvalidas.push({
+          idEvidencia:
+            idEvidencia,
+
+          data:
+            data
+        });
+      }
+
+      if (
+        data <
+          normalizarTextoEvidenciaMobileUX1984_(
+            origem.dataInicio
+          ) ||
+        data >
+          normalizarTextoEvidenciaMobileUX1984_(
+            origem.dataFim
+          )
+      ) {
+        foraPeriodo.push({
+          idEvidencia:
+            idEvidencia,
+
+          data:
+            data
+        });
+      }
+
+
+      /*
+       * Links.
+       */
+      if (
+        !validarUrlEvidenciaMobileUX1984_(
+          linkArquivo
+        )
+      ) {
+        linksInvalidos.push({
+          idEvidencia:
+            idEvidencia,
+
+          linkResumo:
+            resumirLinkEvidenciaMobileUX1984_(
+              linkArquivo
+            )
+        });
+      }
+
+      if (
+        linksVistos.has(
+          linkArquivo
+        )
+      ) {
+        linksDuplicados.push(
+          idEvidencia
+        );
+
+      } else {
+        linksVistos.add(
+          linkArquivo
+        );
+      }
+
+
+      /*
+       * Obra.
+       */
+      if (
+        idObra !==
+        idObraEsperado
+      ) {
+        outraObra.push({
+          idEvidencia:
+            idEvidencia,
+
+          idObra:
+            idObra
+        });
+      }
+
+
+      /*
+       * Vínculo com atividade.
+       */
+      if (
+        normalizarTextoEvidenciaMobileUX1984_(
+          evidencia.idAtividade
+        )
+      ) {
+        comAtividade++;
+
+      } else {
+        semAtividade++;
+      }
+
+
+      /*
+       * Metadados de reidratação.
+       */
+      if (
+        evidencia.statusSync !==
+        "SINCRONIZADO"
+      ) {
+        statusSyncIncorreto.push(
+          idEvidencia
+        );
+      }
+
+      if (
+        evidencia.origemReidratacao !==
+        "SERVIDOR"
+      ) {
+        origemIncorreta.push(
+          idEvidencia
+        );
+      }
+
+      if (
+        !normalizarTextoEvidenciaMobileUX1984_(
+          evidencia.dataSync
+        )
+      ) {
+        dataSyncAusente.push(
+          idEvidencia
+        );
+      }
+    }
+  );
+
+
+  const validacoes = {
+    codigoHttp200:
+      origem.codigoHttp === 200,
+
+    statusOK:
+      origem.status === "OK",
+
+    contratoVersao1:
+      origem.versaoContrato === "1.0",
+
+    obraCorreta:
+      origem.idObra ===
+      idObraEsperado,
+
+    periodoCorreto:
+      origem.periodoDias ===
+      periodoEsperado,
+
+    dataInicioValida:
+      validarDataEvidenciaMobileUX1984_(
+        origem.dataInicio
+      ),
+
+    dataFimValida:
+      validarDataEvidenciaMobileUX1984_(
+        origem.dataFim
+      ),
+
+    possuiDataSyncServidor:
+      Boolean(
+        normalizarTextoEvidenciaMobileUX1984_(
+          origem.dataSync
+        )
+      ),
+
+    listaEvidenciasValida:
+      Array.isArray(
+        origem.evidencias
+      ),
+
+    totalCoerente:
+      origem.totais.evidencias ===
+      evidencias.length,
+
+    totalVinculosCoerente:
+      origem.totais.comAtividade ===
+        comAtividade &&
+      origem.totais.semAtividade ===
+        semAtividade,
+
+    nenhumaDuplicidade:
+      duplicados.length === 0,
+
+    nenhumLinkDuplicado:
+      linksDuplicados.length === 0,
+
+    nenhumRegistroInvalido:
+      invalidos.length === 0,
+
+    nenhumaDataInvalida:
+      datasInvalidas.length === 0,
+
+    todosLinksValidos:
+      linksInvalidos.length === 0,
+
+    nenhumCampoAusente:
+      camposAusentes.length === 0,
+
+    nenhumaMisturaDeObras:
+      outraObra.length === 0,
+
+    nenhumRegistroForaPeriodo:
+      foraPeriodo.length === 0,
+
+    todosStatusSyncCorretos:
+      statusSyncIncorreto.length === 0,
+
+    todasOrigensCorretas:
+      origemIncorreta.length === 0,
+
+    todosPossuemDataSync:
+      dataSyncAusente.length === 0
+  };
+
+  const valido =
+    Object.values(
+      validacoes
+    ).every(
+      function (valor) {
+        return valor === true;
+      }
+    );
+
+  return {
+    valido:
+      valido,
+
+    totais: {
+      evidencias:
+        evidencias.length,
+
+      comAtividade:
+        comAtividade,
+
+      semAtividade:
+        semAtividade,
+
+      duplicados:
+        duplicados.length,
+
+      linksDuplicados:
+        linksDuplicados.length,
+
+      invalidos:
+        invalidos.length,
+
+      datasInvalidas:
+        datasInvalidas.length,
+
+      linksInvalidos:
+        linksInvalidos.length,
+
+      camposAusentes:
+        camposAusentes.length,
+
+      outraObra:
+        outraObra.length,
+
+      foraPeriodo:
+        foraPeriodo.length,
+
+      statusSyncIncorreto:
+        statusSyncIncorreto.length,
+
+      origemIncorreta:
+        origemIncorreta.length,
+
+      dataSyncAusente:
+        dataSyncAusente.length
+    },
+
+    problemas: {
+      duplicados:
+        duplicados,
+
+      linksDuplicados:
+        linksDuplicados,
+
+      invalidos:
+        invalidos,
+
+      datasInvalidas:
+        datasInvalidas,
+
+      linksInvalidos:
+        linksInvalidos,
+
+      camposAusentes:
+        camposAusentes,
+
+      outraObra:
+        outraObra,
+
+      foraPeriodo:
+        foraPeriodo,
+
+      statusSyncIncorreto:
+        statusSyncIncorreto,
+
+      origemIncorreta:
+        origemIncorreta,
+
+      dataSyncAusente:
+        dataSyncAusente
+    },
+
+    validacoes:
+      validacoes
+  };
+}
+
+
+/**
+ * Consulta a API publicada de Evidências.
+ *
+ * Retorna o pacote normalizado e validado.
+ */
+async function obterEvidenciasOperacionaisObraMobile_(
+  idObra,
+  diasHistorico
+) {
+  const urlApi =
+    "https://script.google.com/macros/s/AKfycbzVE7tdTSwHvKgLkrdcaQtGAm_muqNPo6n0wQZBDpmRwtAJuySfWyh6gdef0R6g_drKRw/exec";
+
+  const obra =
+    normalizarTextoEvidenciaMobileUX1984_(
+      idObra
+    );
+
+  const periodo =
+    Number(
+      diasHistorico || 30
+    );
+
+  const periodosPermitidos =
+    [15, 30, 60, 90];
+
+  if (!obra) {
+    throw new Error(
+      "O ID da obra é obrigatório para consultar Evidências."
+    );
+  }
+
+  if (
+    !periodosPermitidos.includes(
+      periodo
+    )
+  ) {
+    throw new Error(
+      "Período inválido. Utilize 15, 30, 60 ou 90 dias."
+    );
+  }
+
+
+  /*
+   * ==========================================================
+   * HELPERS OBRIGATÓRIOS
+   * ==========================================================
+   */
+
+  if (
+    typeof obterTokenReidratacaoMobileUX1955_ !==
+    "function"
+  ) {
+    throw new Error(
+      "O helper obterTokenReidratacaoMobileUX1955_ não foi encontrado."
+    );
+  }
+
+  if (
+    typeof obterIdDispositivoReidratacaoUX1955_ !==
+    "function"
+  ) {
+    throw new Error(
+      "O helper obterIdDispositivoReidratacaoUX1955_ não foi encontrado."
+    );
+  }
+
+  if (
+    typeof obterIdUsuarioReidratacaoUX1955_ !==
+    "function"
+  ) {
+    throw new Error(
+      "O helper obterIdUsuarioReidratacaoUX1955_ não foi encontrado."
+    );
+  }
+
+
+  const token =
+    await Promise.resolve(
+      obterTokenReidratacaoMobileUX1955_()
+    );
+
+  const idDispositivo =
+    await Promise.resolve(
+      obterIdDispositivoReidratacaoUX1955_()
+    );
+
+  const idUsuario =
+    await Promise.resolve(
+      obterIdUsuarioReidratacaoUX1955_()
+    );
+
+  if (!token) {
+    throw new Error(
+      "O token da API offline não foi encontrado."
+    );
+  }
+
+  if (!idDispositivo) {
+    throw new Error(
+      "O identificador do dispositivo não foi encontrado."
+    );
+  }
+
+  if (!idUsuario) {
+    throw new Error(
+      "O identificador do usuário não foi encontrado."
+    );
+  }
+
+
+  /*
+   * ==========================================================
+   * PAYLOAD
+   * ==========================================================
+   */
+
+  const payload = {
+    token:
+      token,
+
+    acao:
+      "OBTER_EVIDENCIAS_OPERACIONAIS_OBRA",
+
+    idDispositivo:
+      idDispositivo,
+
+    idUsuario:
+      idUsuario,
+
+    idObra:
+      obra,
+
+    diasHistorico:
+      periodo
+  };
+
+  /*
+   * O token não é registrado no console.
+   */
+  console.log(
+    "[UX.19.8.4] Solicitando Evidências operacionais:",
+    {
+      acao:
+        payload.acao,
+
+      idDispositivo:
+        payload.idDispositivo,
+
+      idUsuario:
+        payload.idUsuario,
+
+      idObra:
+        payload.idObra,
+
+      diasHistorico:
+        payload.diasHistorico
+    }
+  );
+
+
+  /*
+   * ==========================================================
+   * REQUISIÇÃO
+   * ==========================================================
+   */
+
+  let respostaHttp;
+
+  try {
+    respostaHttp =
+      await fetch(
+        urlApi,
+        {
+          method:
+            "POST",
+
+          headers: {
+            "Content-Type":
+              "text/plain;charset=utf-8"
+          },
+
+          body:
+            JSON.stringify(
+              payload
+            ),
+
+          redirect:
+            "follow",
+
+          cache:
+            "no-store"
+        }
+      );
+
+  } catch (erroRede) {
+    throw new Error(
+      "Não foi possível conectar à API de Evidências: " +
+      (
+        erroRede?.message ||
+        "erro de rede"
+      )
+    );
+  }
+
+  const textoResposta =
+    await respostaHttp.text();
+
+  let respostaJson;
+
+  try {
+    respostaJson =
+      JSON.parse(
+        textoResposta
+      );
+
+  } catch (erroJson) {
+    console.error(
+      "[UX.19.8.4] Resposta não JSON:",
+      textoResposta.substring(
+        0,
+        300
+      )
+    );
+
+    throw new Error(
+      "A API de Evidências não retornou um JSON válido."
+    );
+  }
+
+
+  const pacote =
+    normalizarRespostaEvidenciasMobileUX1984_(
+      respostaJson,
+      respostaHttp.status
+    );
+
+
+  /*
+   * ==========================================================
+   * ERROS HTTP OU FUNCIONAIS
+   * ==========================================================
+   */
+
+  if (!respostaHttp.ok) {
+    throw new Error(
+      pacote.mensagem ||
+      (
+        "A API de Evidências retornou HTTP " +
+        respostaHttp.status +
+        "."
+      )
+    );
+  }
+
+  if (
+    pacote.status !== "OK"
+  ) {
+    throw new Error(
+      pacote.mensagem ||
+      "A API não conseguiu carregar as Evidências."
+    );
+  }
+
+
+  /*
+   * ==========================================================
+   * VALIDAÇÃO DO CONTRATO
+   * ==========================================================
+   */
+
+  const auditoriaContrato =
+    validarDataContratoEvidenciasUX1984_(
+      pacote,
+      obra,
+      periodo
+    );
+
+  if (!auditoriaContrato.valido) {
+    console.error(
+      "[UX.19.8.4] Contrato inválido:",
+      auditoriaContrato
+    );
+
+    throw new Error(
+      "O contrato recebido da API de Evidências é inválido."
+    );
+  }
+
+  return pacote;
+}
+
+
+/**
+ * ============================================================
+ * TESTE DO CLIENTE MOBILE DE EVIDÊNCIAS
+ * ============================================================
+ *
+ * Somente leitura.
+ *
+ * Não acessa:
+ *
+ * - TB_EVIDENCIAS;
+ * - TB_SYNC_QUEUE;
+ * - outras stores do IndexedDB.
+ */
+async function testarClienteEvidenciasMobileUX1984_() {
+  console.log(
+    "[UX.19.8.4] Iniciando teste do cliente Mobile de Evidências..."
+  );
+
+  const idObra =
+    "OBR002";
+
+  const periodoDias =
+    30;
+
+  const pacote =
+    await obterEvidenciasOperacionaisObraMobile_(
+      idObra,
+      periodoDias
+    );
+
+  const auditoriaContrato =
+    validarDataContratoEvidenciasUX1984_(
+      pacote,
+      idObra,
+      periodoDias
+    );
+
+  const evidencias =
+    pacote.evidencias;
+
+  const comAtividade =
+    evidencias.filter(
+      function (registro) {
+        return Boolean(
+          normalizarTextoEvidenciaMobileUX1984_(
+            registro.idAtividade
+          )
+        );
+      }
+    ).length;
+
+  const semAtividade =
+    evidencias.length -
+    comAtividade;
+
+  const primeiro =
+    evidencias.length
+      ? evidencias[0]
+      : null;
+
+  const validacoes = {
+    codigoHttp200:
+      pacote.codigoHttp === 200,
+
+    statusOK:
+      pacote.status === "OK",
+
+    contratoVersao1:
+      pacote.versaoContrato === "1.0",
+
+    obraCorreta:
+      pacote.idObra === "OBR002",
+
+    periodoCorreto:
+      pacote.periodoDias === 30,
+
+    retornou7Evidencias:
+      evidencias.length === 7,
+
+    totalInformadoCoerente:
+      pacote.totais.evidencias === 7,
+
+    retornou4ComAtividade:
+      comAtividade === 4,
+
+    retornou3SemAtividade:
+      semAtividade === 3,
+
+    totaisVinculosCoerentes:
+      pacote.totais.comAtividade === 4 &&
+      pacote.totais.semAtividade === 3,
+
+    contratoIntegralValido:
+      auditoriaContrato.valido === true,
+
+    nenhumaDuplicidade:
+      auditoriaContrato.totais
+        .duplicados === 0,
+
+    nenhumLinkDuplicado:
+      auditoriaContrato.totais
+        .linksDuplicados === 0,
+
+    nenhumRegistroInvalido:
+      auditoriaContrato.totais
+        .invalidos === 0,
+
+    nenhumaDataInvalida:
+      auditoriaContrato.totais
+        .datasInvalidas === 0,
+
+    todosLinksValidos:
+      auditoriaContrato.totais
+        .linksInvalidos === 0,
+
+    nenhumCampoAusente:
+      auditoriaContrato.totais
+        .camposAusentes === 0,
+
+    nenhumaMisturaDeObras:
+      auditoriaContrato.totais
+        .outraObra === 0,
+
+    nenhumRegistroForaPeriodo:
+      auditoriaContrato.totais
+        .foraPeriodo === 0,
+
+    todosStatusSyncCorretos:
+      auditoriaContrato.totais
+        .statusSyncIncorreto === 0,
+
+    todasOrigensCorretas:
+      auditoriaContrato.totais
+        .origemIncorreta === 0,
+
+    todosPossuemDataSync:
+      auditoriaContrato.totais
+        .dataSyncAusente === 0,
+
+    primeiroLinkPresente:
+      Boolean(
+        primeiro?.linkArquivo
+      ),
+
+    primeiroLinkGoogleDrive:
+      primeiro
+        ? /drive\.google\.com/i.test(
+            primeiro.linkArquivo
+          )
+        : false
+  };
+
+  const aprovado =
+    Object.values(
+      validacoes
+    ).every(
+      function (valor) {
+        return valor === true;
+      }
+    );
+
+  const resultado = {
+    etapa:
+      "UX.19.8.4",
+
+    teste:
+      "CLIENTE_MOBILE_API_EVIDENCIAS",
+
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+
+    codigoHttp:
+      pacote.codigoHttp,
+
+    respostaStatus:
+      pacote.status,
+
+    versaoContrato:
+      pacote.versaoContrato,
+
+    idObra:
+      pacote.idObra,
+
+    periodoDias:
+      pacote.periodoDias,
+
+    dataInicio:
+      pacote.dataInicio,
+
+    dataFim:
+      pacote.dataFim,
+
+    totais: {
+      evidencias:
+        evidencias.length,
+
+      totalInformado:
+        pacote.totais.evidencias,
+
+      comAtividade:
+        comAtividade,
+
+      semAtividade:
+        semAtividade,
+
+      duplicados:
+        auditoriaContrato
+          .totais
+          .duplicados,
+
+      linksDuplicados:
+        auditoriaContrato
+          .totais
+          .linksDuplicados,
+
+      invalidos:
+        auditoriaContrato
+          .totais
+          .invalidos,
+
+      datasInvalidas:
+        auditoriaContrato
+          .totais
+          .datasInvalidas,
+
+      linksInvalidos:
+        auditoriaContrato
+          .totais
+          .linksInvalidos,
+
+      camposAusentes:
+        auditoriaContrato
+          .totais
+          .camposAusentes,
+
+      outraObra:
+        auditoriaContrato
+          .totais
+          .outraObra,
+
+      foraPeriodo:
+        auditoriaContrato
+          .totais
+          .foraPeriodo,
+
+      statusSyncIncorreto:
+        auditoriaContrato
+          .totais
+          .statusSyncIncorreto,
+
+      origemIncorreta:
+        auditoriaContrato
+          .totais
+          .origemIncorreta,
+
+      dataSyncAusente:
+        auditoriaContrato
+          .totais
+          .dataSyncAusente
+    },
+
+    primeiroRegistro:
+      primeiro
+        ? {
+            idEvidencia:
+              primeiro.idEvidencia,
+
+            data:
+              primeiro.data,
+
+            idObra:
+              primeiro.idObra,
+
+            idAtividade:
+              primeiro.idAtividade,
+
+            tipoEvidencia:
+              primeiro.tipoEvidencia,
+
+            descricao:
+              primeiro.descricao,
+
+            linkArquivoPresente:
+              Boolean(
+                primeiro.linkArquivo
+              ),
+
+            linkArquivoResumo:
+              resumirLinkEvidenciaMobileUX1984_(
+                primeiro.linkArquivo
+              ),
+
+            responsavel:
+              primeiro.responsavel,
+
+            statusEvidencia:
+              primeiro.statusEvidencia,
+
+            statusSync:
+              primeiro.statusSync,
+
+            dataSync:
+              primeiro.dataSync,
+
+            origemReidratacao:
+              primeiro.origemReidratacao
+          }
+        : null,
+
+    problemas:
+      auditoriaContrato.problemas,
+
+    validacoes:
+      validacoes,
+
+    aprovado:
+      aprovado
+  };
+
+  console.log(
+    JSON.stringify(
+      resultado,
+      null,
+      2
+    )
+  );
+
+  if (!aprovado) {
+    throw new Error(
+      "UX.19.8.4 REPROVADA. Consulte as validações no console."
+    );
+  }
+
+  console.log(
+    "UX.19.8.4 — CLIENTE MOBILE DA API DE EVIDÊNCIAS APROVADO."
+  );
+
+  return resultado;
+}
