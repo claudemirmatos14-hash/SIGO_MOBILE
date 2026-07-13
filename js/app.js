@@ -52459,3 +52459,1005 @@ async function auditarSimulacaoRetencaoLocalUX202_({
   return auditoria;
 }
 
+/**
+ * ============================================================
+ * UX.20.2A — TESTE CONTROLADO DE EXCLUSÃO EFETIVA
+ * ============================================================
+ *
+ * Cria temporariamente um único registro em TB_CLIMA,
+ * com data anterior ao corte configurado.
+ *
+ * O teste:
+ *
+ * 1. confirma que não há candidatos reais;
+ * 2. insere um registro temporário diretamente;
+ * 3. executa a simulação da UX.20.2;
+ * 4. exige exatamente um candidato;
+ * 5. executa a retenção real;
+ * 6. confirma a remoção;
+ * 7. compara todas as stores com o estado original.
+ *
+ * Nenhuma entrada é criada na TB_SYNC_QUEUE.
+ */
+
+
+/**
+ * Retorna o dia imediatamente anterior.
+ */
+function obterDiaAnteriorUX202A_(
+  dataIso
+) {
+  const data =
+    new Date(
+      dataIso + "T12:00:00"
+    );
+
+  if (
+    Number.isNaN(
+      data.getTime()
+    )
+  ) {
+    throw new Error(
+      "Data inválida para o teste controlado: " +
+      dataIso
+    );
+  }
+
+  data.setDate(
+    data.getDate() - 1
+  );
+
+  const ano =
+    data.getFullYear();
+
+  const mes =
+    String(
+      data.getMonth() + 1
+    ).padStart(2, "0");
+
+  const dia =
+    String(
+      data.getDate()
+    ).padStart(2, "0");
+
+  return (
+    ano +
+    "-" +
+    mes +
+    "-" +
+    dia
+  );
+}
+
+
+/**
+ * Gera um ID exclusivo para o registro temporário.
+ */
+function gerarIdTesteRetencaoUX202A_() {
+  const sufixo =
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID ===
+      "function"
+      ? crypto
+          .randomUUID()
+          .slice(0, 8)
+      : Math.random()
+          .toString(16)
+          .slice(2, 10);
+
+  return (
+    "CLM-UX202A-" +
+    Date.now() +
+    "-" +
+    sufixo
+  );
+}
+
+
+/**
+ * Grava diretamente no IndexedDB.
+ *
+ * Não usa os métodos normais de criação para não
+ * produzir operação na fila de sincronização.
+ */
+async function gravarRegistroDiretoUX202A_(
+  nomeStore,
+  registro
+) {
+  const db =
+    await abrirBancoLocalSIGO();
+
+  await new Promise(
+    function (resolve, reject) {
+      const transacao =
+        db.transaction(
+          [nomeStore],
+          "readwrite"
+        );
+
+      const store =
+        transacao.objectStore(
+          nomeStore
+        );
+
+      store.put(
+        registro
+      );
+
+      transacao.oncomplete =
+        function () {
+          resolve();
+        };
+
+      transacao.onerror =
+        function () {
+          reject(
+            transacao.error ||
+            new Error(
+              "Falha ao inserir o registro temporário."
+            )
+          );
+        };
+
+      transacao.onabort =
+        function () {
+          reject(
+            transacao.error ||
+            new Error(
+              "A inserção temporária foi abortada."
+            )
+          );
+        };
+    }
+  );
+}
+
+
+/**
+ * Exclui diretamente uma chave.
+ *
+ * Utilizada como limpeza emergencial caso o teste
+ * seja interrompido antes da execução da retenção.
+ */
+async function excluirRegistroDiretoUX202A_(
+  nomeStore,
+  chave
+) {
+  const db =
+    await abrirBancoLocalSIGO();
+
+  await new Promise(
+    function (resolve, reject) {
+      const transacao =
+        db.transaction(
+          [nomeStore],
+          "readwrite"
+        );
+
+      const store =
+        transacao.objectStore(
+          nomeStore
+        );
+
+      store.delete(
+        chave
+      );
+
+      transacao.oncomplete =
+        function () {
+          resolve();
+        };
+
+      transacao.onerror =
+        function () {
+          reject(
+            transacao.error ||
+            new Error(
+              "Falha ao remover o registro temporário."
+            )
+          );
+        };
+
+      transacao.onabort =
+        function () {
+          reject(
+            transacao.error ||
+            new Error(
+              "A remoção temporária foi abortada."
+            )
+          );
+        };
+    }
+  );
+}
+
+
+/**
+ * Invalida os caches da store usada no teste.
+ */
+async function invalidarCacheTesteUX202A_(
+  nomeStore,
+  idObra
+) {
+  if (
+    typeof SIGODataCache !==
+      "undefined" &&
+    SIGODataCache &&
+    typeof SIGODataCache.invalidate ===
+      "function"
+  ) {
+    SIGODataCache.invalidate(
+      nomeStore
+    );
+  }
+
+  if (
+    typeof invalidarCacheObraSIGO_ ===
+      "function"
+  ) {
+    await Promise.resolve(
+      invalidarCacheObraSIGO_(
+        nomeStore,
+        idObra
+      )
+    );
+  }
+}
+
+
+/**
+ * Pesquisa uma referência ao ID na fila.
+ */
+function localizarReferenciasTesteFilaUX202A_(
+  fila,
+  idTeste
+) {
+  return (
+    Array.isArray(fila)
+      ? fila
+      : []
+  ).filter(
+    function (registro) {
+      try {
+        return JSON.stringify(
+          registro
+        ).includes(
+          idTeste
+        );
+
+      } catch (erro) {
+        return false;
+      }
+    }
+  );
+}
+
+
+/**
+ * ============================================================
+ * TESTE PRINCIPAL
+ * ============================================================
+ */
+async function testarExclusaoEfetivaRetencaoUX202A_() {
+  console.log(
+    "[UX.20.2A] Iniciando teste controlado de exclusão efetiva..."
+  );
+
+  const nomeStore =
+    "TB_CLIMA";
+
+  const idObra =
+    "OBR002";
+
+  const periodoDias =
+    obterPeriodoHistoricoOfflineUX201_();
+
+  const dataReferencia =
+    obterDataLocalAtualUX202_();
+
+  const dataCorte =
+    calcularDataCorteUX202_(
+      periodoDias,
+      dataReferencia
+    );
+
+  const dataRegistroTeste =
+    obterDiaAnteriorUX202A_(
+      dataCorte
+    );
+
+  const idTeste =
+    gerarIdTesteRetencaoUX202A_();
+
+  let chaveTeste =
+    null;
+
+  let registroInserido =
+    false;
+
+  let simulacao =
+    null;
+
+  let execucao =
+    null;
+
+
+  /*
+   * ========================================================
+   * ESTADO ORIGINAL
+   * ========================================================
+   */
+
+  const estadoOriginal =
+    await capturarEstadoRetencaoUX202_();
+
+  const assinaturasOriginais =
+    extrairAssinaturasUX202_(
+      estadoOriginal
+    );
+
+  const planoOriginal =
+    await montarPlanoRetencaoUX202_({
+      idObra:
+        idObra,
+
+      periodoDias:
+        periodoDias,
+
+      dataReferencia:
+        dataReferencia
+    });
+
+
+  /*
+   * Não permite que o teste seja realizado se houver
+   * candidatos reais.
+   */
+  if (
+    planoOriginal.totalExcluir !== 0
+  ) {
+    throw new Error(
+      "O teste foi bloqueado porque já existem " +
+      planoOriginal.totalExcluir +
+      " candidatos reais à retenção."
+    );
+  }
+
+
+  const keyPath =
+    estadoOriginal[
+      nomeStore
+    ].keyPath;
+
+  if (
+    typeof keyPath !== "string" ||
+    !keyPath
+  ) {
+    throw new Error(
+      "A TB_CLIMA não possui uma keyPath simples válida."
+    );
+  }
+
+
+  const registroTeste = {
+    idClima:
+      idTeste,
+
+    idRegistroClima:
+      idTeste,
+
+    idObra:
+      idObra,
+
+    data:
+      dataRegistroTeste,
+
+    dataClima:
+      dataRegistroTeste,
+
+    periodo:
+      "TESTE_CONTROLADO_UX202A",
+
+    condicao:
+      "TESTE DE RETENÇÃO",
+
+    clima:
+      "TESTE DE RETENÇÃO",
+
+    turno:
+      "TESTE",
+
+    temperatura:
+      "",
+
+    observacoes:
+      "Registro temporário criado exclusivamente pela UX.20.2A.",
+
+    status:
+      "REGISTRADO",
+
+    statusSync:
+      "SINCRONIZADO",
+
+    origem:
+      "TESTE_CONTROLADO_UX202A",
+
+    origemReidratacao:
+      "SERVIDOR",
+
+    dataSync:
+      new Date().toISOString(),
+
+    criadoEm:
+      dataRegistroTeste +
+      "T12:00:00.000Z",
+
+    atualizadoEm:
+      dataRegistroTeste +
+      "T12:00:00.000Z",
+
+    registroTemporario:
+      true,
+
+    ux202a:
+      true
+  };
+
+  /*
+   * Garante que a chave real da store seja preenchida.
+   */
+  registroTeste[
+    keyPath
+  ] =
+    idTeste;
+
+  chaveTeste =
+    registroTeste[
+      keyPath
+    ];
+
+
+  try {
+    /*
+     * ======================================================
+     * INSERÇÃO CONTROLADA
+     * ======================================================
+     */
+
+    await gravarRegistroDiretoUX202A_(
+      nomeStore,
+      registroTeste
+    );
+
+    registroInserido =
+      true;
+
+    await invalidarCacheTesteUX202A_(
+      nomeStore,
+      idObra
+    );
+
+
+    const estadoComTeste =
+      await capturarEstadoRetencaoUX202_();
+
+    const registroEncontradoAposInsercao =
+      estadoComTeste
+        .TB_CLIMA
+        .registros
+        .find(
+          function (registro) {
+            return (
+              textoUX202_(
+                registro?.idClima
+              ) === idTeste
+            );
+          }
+        ) || null;
+
+
+    if (
+      !registroEncontradoAposInsercao
+    ) {
+      throw new Error(
+        "O registro controlado não foi encontrado após a inserção."
+      );
+    }
+
+
+    if (
+      estadoComTeste
+        .TB_CLIMA
+        .quantidade !==
+      estadoOriginal
+        .TB_CLIMA
+        .quantidade + 1
+    ) {
+      throw new Error(
+        "A quantidade da TB_CLIMA não aumentou exatamente em uma unidade."
+      );
+    }
+
+
+    const referenciasFilaComTeste =
+      localizarReferenciasTesteFilaUX202A_(
+        estadoComTeste
+          .TB_SYNC_QUEUE
+          .registros,
+        idTeste
+      );
+
+
+    if (
+      referenciasFilaComTeste.length !== 0
+    ) {
+      throw new Error(
+        "O registro temporário apareceu indevidamente na fila."
+      );
+    }
+
+
+    /*
+     * ======================================================
+     * SIMULAÇÃO COM UM CANDIDATO
+     * ======================================================
+     */
+
+    simulacao =
+      await simularRetencaoLocalUX202_({
+        idObra:
+          idObra,
+
+        periodoDias:
+          periodoDias,
+
+        dataReferencia:
+          dataReferencia
+      });
+
+
+    const candidatoTeste =
+      simulacao.candidatos.find(
+        function (candidato) {
+          return (
+            candidato.store ===
+              nomeStore &&
+            candidato.id ===
+              idTeste
+          );
+        }
+      ) || null;
+
+
+    const candidatosOutrasStores =
+      Object.entries(
+        simulacao.porStore
+      )
+        .filter(
+          function ([store]) {
+            return store !==
+              nomeStore;
+          }
+        )
+        .reduce(
+          function (
+            total,
+            [, quantidade]
+          ) {
+            return (
+              total +
+              Number(
+                quantidade || 0
+              )
+            );
+          },
+          0
+        );
+
+
+    const validacoesSimulacao = {
+      simulacaoAprovada:
+        simulacao.aprovado === true,
+
+      totalExcluir1:
+        simulacao.totalExcluir === 1,
+
+      climaExcluir1:
+        simulacao
+          .porStore
+          .TB_CLIMA === 1,
+
+      outrasStoresExcluir0:
+        candidatosOutrasStores === 0,
+
+      candidatoTesteEncontrado:
+        Boolean(candidatoTeste),
+
+      candidatoPossuiDataCorreta:
+        candidatoTeste?.data ===
+        dataRegistroTeste,
+
+      candidatoAnteriorAoCorte:
+        dataRegistroTeste <
+        dataCorte,
+
+      nenhumaGravacaoNaSimulacao:
+        simulacao
+          .gravacoesExecutadas === 0
+    };
+
+
+    const simulacaoAprovada =
+      Object.values(
+        validacoesSimulacao
+      ).every(
+        function (valor) {
+          return valor === true;
+        }
+      );
+
+
+    if (!simulacaoAprovada) {
+      console.error(
+        "[UX.20.2A] Simulação controlada reprovada:",
+        validacoesSimulacao
+      );
+
+      throw new Error(
+        "A simulação não identificou exclusivamente o registro temporário."
+      );
+    }
+
+
+    /*
+     * ======================================================
+     * EXECUÇÃO REAL
+     * ======================================================
+     */
+
+    execucao =
+      await executarRetencaoLocalUX202_(
+        simulacao.tokenPlano
+      );
+
+
+    /*
+     * A rotina real já deve ter removido o registro.
+     */
+    registroInserido =
+      false;
+
+
+    /*
+     * ======================================================
+     * AUDITORIA FINAL
+     * ======================================================
+     */
+
+    const estadoFinal =
+      await capturarEstadoRetencaoUX202_();
+
+    const assinaturasFinais =
+      extrairAssinaturasUX202_(
+        estadoFinal
+      );
+
+    const storesDivergentes =
+      compararAssinaturasUX202_(
+        assinaturasOriginais,
+        assinaturasFinais
+      );
+
+
+    const registroAindaExiste =
+      estadoFinal
+        .TB_CLIMA
+        .registros
+        .some(
+          function (registro) {
+            return (
+              textoUX202_(
+                registro?.idClima
+              ) === idTeste
+            );
+          }
+        );
+
+
+    const referenciasFilaDepois =
+      localizarReferenciasTesteFilaUX202A_(
+        estadoFinal
+          .TB_SYNC_QUEUE
+          .registros,
+        idTeste
+      );
+
+
+    const validacoes = {
+      naoHaviaCandidatosReais:
+        planoOriginal.totalExcluir === 0,
+
+      climaOriginal8:
+        estadoOriginal
+          .TB_CLIMA
+          .quantidade === 8,
+
+      inseriuExatamente1:
+        estadoComTeste
+          .TB_CLIMA
+          .quantidade === 9,
+
+      simulacaoIdentificou1:
+        simulacao.totalExcluir === 1,
+
+      simulacaoIdentificouSomenteClima:
+        simulacao
+          .porStore
+          .TB_CLIMA === 1 &&
+        candidatosOutrasStores === 0,
+
+      execucaoAprovada:
+        execucao.aprovado === true,
+
+      executouExatamente1:
+        execucao
+          .gravacoesExecutadas === 1,
+
+      removeuDaStoreCorreta:
+        execucao
+          .removidosPorStore
+          ?.TB_CLIMA === 1,
+
+      registroTemporarioRemovido:
+        registroAindaExiste === false,
+
+      climaRetornouPara8:
+        estadoFinal
+          .TB_CLIMA
+          .quantidade === 8,
+
+      nenhumaStoreFicouDivergente:
+        storesDivergentes.length === 0,
+
+      filaPermaneceu45:
+        estadoFinal
+          .TB_SYNC_QUEUE
+          .quantidade === 45,
+
+      filaSemReferenciaAoTeste:
+        referenciasFilaDepois.length === 0,
+
+      lotesPermaneceram0:
+        estadoFinal
+          .TB_LOTES_MEDICAO
+          .quantidade === 0,
+
+      notificacoesPermaneceram43:
+        estadoFinal
+          .TB_NOTIFICACOES
+          .quantidade === 43,
+
+      nenhumTombstoneCriado:
+        registroAindaExiste === false
+    };
+
+
+    const aprovado =
+      Object.values(
+        validacoes
+      ).every(
+        function (valor) {
+          return valor === true;
+        }
+      );
+
+
+    const resultado = {
+      etapa:
+        "UX.20.2A",
+
+      teste:
+        "EXCLUSAO_EFETIVA_CONTROLADA",
+
+      status:
+        aprovado
+          ? "APROVADO"
+          : "REPROVADO",
+
+      idObra:
+        idObra,
+
+      periodoDias:
+        periodoDias,
+
+      dataReferencia:
+        dataReferencia,
+
+      dataCorte:
+        dataCorte,
+
+      registroTeste: {
+        id:
+          idTeste,
+
+        store:
+          nomeStore,
+
+        keyPath:
+          keyPath,
+
+        chave:
+          chaveTeste,
+
+        data:
+          dataRegistroTeste,
+
+        origem:
+          "TESTE_CONTROLADO_UX202A"
+      },
+
+      fluxo: {
+        totalClimaOriginal:
+          estadoOriginal
+            .TB_CLIMA
+            .quantidade,
+
+        totalClimaComTeste:
+          estadoComTeste
+            .TB_CLIMA
+            .quantidade,
+
+        totalClimaFinal:
+          estadoFinal
+            .TB_CLIMA
+            .quantidade
+      },
+
+      simulacao: {
+        status:
+          simulacao.status,
+
+        tokenPlano:
+          simulacao.tokenPlano,
+
+        totalExcluir:
+          simulacao.totalExcluir,
+
+        porStore:
+          simulacao.porStore,
+
+        candidatoTeste:
+          candidatoTeste,
+
+        gravacoesExecutadas:
+          simulacao
+            .gravacoesExecutadas
+      },
+
+      execucao: {
+        status:
+          execucao.status,
+
+        gravacoesPlanejadas:
+          execucao
+            .gravacoesPlanejadas,
+
+        gravacoesExecutadas:
+          execucao
+            .gravacoesExecutadas,
+
+        removidosPorStore:
+          execucao
+            .removidosPorStore
+      },
+
+      storesFinais: {
+        TB_CLIMA:
+          estadoFinal
+            .TB_CLIMA
+            .quantidade,
+
+        TB_SYNC_QUEUE:
+          estadoFinal
+            .TB_SYNC_QUEUE
+            .quantidade,
+
+        TB_LOTES_MEDICAO:
+          estadoFinal
+            .TB_LOTES_MEDICAO
+            .quantidade,
+
+        TB_NOTIFICACOES:
+          estadoFinal
+            .TB_NOTIFICACOES
+            .quantidade
+      },
+
+      storesDivergentes:
+        storesDivergentes,
+
+      validacoes:
+        validacoes,
+
+      aprovado:
+        aprovado
+    };
+
+
+    console.log(
+      JSON.stringify(
+        resultado,
+        null,
+        2
+      )
+    );
+
+
+    if (!aprovado) {
+      throw new Error(
+        "UX.20.2A REPROVADA. Consulte as validações no console."
+      );
+    }
+
+
+    console.log(
+      "UX.20.2A — EXCLUSÃO EFETIVA CONTROLADA APROVADA."
+    );
+
+    return resultado;
+
+  } catch (erro) {
+    /*
+     * ======================================================
+     * LIMPEZA EMERGENCIAL
+     * ======================================================
+     *
+     * Se o teste falhar antes da retenção remover o
+     * registro, ele é excluído diretamente aqui.
+     */
+
+    if (
+      registroInserido &&
+      chaveTeste !== null
+    ) {
+      try {
+        await excluirRegistroDiretoUX202A_(
+          nomeStore,
+          chaveTeste
+        );
+
+        await invalidarCacheTesteUX202A_(
+          nomeStore,
+          idObra
+        );
+
+        console.warn(
+          "[UX.20.2A] Registro temporário removido pela limpeza emergencial."
+        );
+
+      } catch (erroLimpeza) {
+        console.error(
+          "[UX.20.2A] Falha na limpeza emergencial:",
+          erroLimpeza
+        );
+      }
+    }
+
+
+    if (
+      window.SIGO_UX202
+    ) {
+      window.SIGO_UX202
+        .ultimaSimulacao =
+          null;
+    }
+
+
+    console.error(
+      "[UX.20.2A] Teste controlado interrompido:",
+      erro
+    );
+
+    throw erro;
+  }
+}
