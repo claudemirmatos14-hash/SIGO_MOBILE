@@ -42758,3 +42758,1864 @@ async function auditarIntegridadeRelacionalMedicoesUX1996_() {
       pacote
   };
 }
+
+/**
+ * ============================================================
+ * UX.19.9.7 — INTEGRAÇÃO VISUAL DE MEDIÇÕES OFICIAIS
+ * ============================================================
+ *
+ * Esta camada preserva o fluxo visual já existente e adiciona:
+ *
+ * - consulta das Medições oficiais na pré-visualização;
+ * - simulação protegida;
+ * - execução real somente após confirmação;
+ * - atualização dos KPIs do modal;
+ * - seção separada para Medições oficiais;
+ * - preservação integral de TB_LOTES_MEDICAO;
+ * - preservação integral de TB_SYNC_QUEUE.
+ */
+
+
+/**
+ * Captura as funções atuais antes de instalar os adaptadores.
+ *
+ * Isso permite preservar toda a integração visual já aprovada
+ * para Diários, itens, ocorrências, clima e evidências.
+ */
+if (!window.SIGO_UX1997_BASE) {
+  window.SIGO_UX1997_BASE = {
+    preparar:
+      window.prepararReidratacaoInterfaceUX1958_,
+
+    confirmar:
+      window.confirmarReidratacaoInterfaceUX1958_,
+
+    renderizarResultado:
+      window.renderizarResultadoReidratacaoUX1958_,
+
+    criarNotificacao:
+      window.criarNotificacaoSIGO_
+  };
+}
+
+
+/**
+ * Normalização textual.
+ */
+function normalizarTextoVisualMedicoesUX1997_(
+  valor
+) {
+  return String(
+    valor === undefined ||
+    valor === null
+      ? ""
+      : valor
+  ).trim();
+}
+
+
+/**
+ * Normaliza texto para pesquisa de rótulos.
+ */
+function normalizarRotuloVisualMedicoesUX1997_(
+  valor
+) {
+  return normalizarTextoVisualMedicoesUX1997_(
+    valor
+  )
+    .normalize("NFD")
+    .replace(
+      /[\u0300-\u036f]/g,
+      ""
+    )
+    .toLowerCase();
+}
+
+
+/**
+ * Retorna o primeiro número válido encontrado.
+ */
+function primeiroNumeroVisualMedicoesUX1997_(
+  valores,
+  valorPadrao
+) {
+  for (const valor of valores) {
+    if (
+      valor === undefined ||
+      valor === null ||
+      valor === ""
+    ) {
+      continue;
+    }
+
+    const numero =
+      Number(valor);
+
+    if (
+      Number.isFinite(numero)
+    ) {
+      return numero;
+    }
+  }
+
+  return Number(
+    valorPadrao || 0
+  );
+}
+
+
+/**
+ * Conta o primeiro array existente.
+ */
+function contarPrimeiroArrayVisualUX1997_(
+  valores
+) {
+  for (const valor of valores) {
+    if (Array.isArray(valor)) {
+      return valor.length;
+    }
+  }
+
+  return 0;
+}
+
+
+/**
+ * Limpa somente o estado temporário das Medições oficiais.
+ */
+function resetarEstadoVisualMedicoesUX1997_() {
+  const estado =
+    window.SIGO_REIDRATACAO_UX1958;
+
+  if (!estado) {
+    return;
+  }
+
+  estado.pacoteMedicoesOficiais =
+    null;
+
+  estado.simulacaoMedicoesOficiais =
+    null;
+}
+
+
+/**
+ * Retorna o resumo padronizado da mesclagem
+ * de Medições oficiais.
+ */
+function resumirMedicoesVisualUX1997_(
+  resultado
+) {
+  const medicoes =
+    resultado?.medicoes || {};
+
+  return {
+    cabecalhosRecebidos:
+      Number(
+        medicoes.cabecalhosRecebidos ||
+        0
+      ),
+
+    itensRecebidos:
+      Number(
+        medicoes.itensRecebidos ||
+        0
+      ),
+
+    inseridos:
+      Number(
+        medicoes.inseridos || 0
+      ),
+
+    atualizados:
+      Number(
+        medicoes.atualizados || 0
+      ),
+
+    preservados:
+      Number(
+        medicoes.totalPreservados ||
+        0
+      ),
+
+    rejeitados:
+      Number(
+        medicoes.totalRejeitados ||
+        0
+      ),
+
+    conflitos:
+      Number(
+        resultado?.totalConflitosEvitados ||
+        0
+      ),
+
+    gravacoesPlanejadas:
+      Number(
+        medicoes.gravacoesPlanejadas ||
+        0
+      ),
+
+    gravacoesExecutadas:
+      Number(
+        medicoes.gravacoesExecutadas ||
+        0
+      ),
+
+    lotesAntes:
+      Number(
+        resultado?.tbLotesMedicao
+          ?.totalAntes || 0
+      ),
+
+    lotesDepois:
+      Number(
+        resultado?.tbLotesMedicao
+          ?.totalDepois || 0
+      ),
+
+    filaAntes:
+      Number(
+        resultado?.fila
+          ?.totalAntes || 0
+      ),
+
+    filaDepois:
+      Number(
+        resultado?.fila
+          ?.totalDepois || 0
+      )
+  };
+}
+
+
+/**
+ * Restaura KPIs que já tenham sido incrementados
+ * por esta etapa.
+ */
+function restaurarKpisVisualMedicoesUX1997_() {
+  const cards =
+    document.querySelectorAll(
+      "#resumoReidratacaoUX1958 " +
+      ".sigo-reidratacao-kpi"
+    );
+
+  cards.forEach(
+    function (card) {
+      const strong =
+        card.querySelector(
+          "strong"
+        );
+
+      if (
+        !strong ||
+        card.dataset
+          .ux1997ValorBase ===
+          undefined
+      ) {
+        return;
+      }
+
+      strong.textContent =
+        card.dataset
+          .ux1997ValorBase;
+
+      delete card.dataset
+        .ux1997ValorBase;
+    }
+  );
+}
+
+
+/**
+ * Incrementa um KPI já existente no modal,
+ * identificando-o pelo texto do rótulo.
+ */
+function incrementarKpiVisualMedicoesUX1997_(
+  rotulos,
+  incremento
+) {
+  const valorIncremento =
+    Number(incremento || 0);
+
+  if (!valorIncremento) {
+    return false;
+  }
+
+  const rotulosNormalizados =
+    (
+      Array.isArray(rotulos)
+        ? rotulos
+        : [rotulos]
+    ).map(
+      normalizarRotuloVisualMedicoesUX1997_
+    );
+
+  const cards =
+    Array.from(
+      document.querySelectorAll(
+        "#resumoReidratacaoUX1958 " +
+        ".sigo-reidratacao-kpi"
+      )
+    );
+
+  const card =
+    cards.find(
+      function (item) {
+        const span =
+          item.querySelector(
+            "span"
+          );
+
+        const texto =
+          normalizarRotuloVisualMedicoesUX1997_(
+            span?.textContent
+          );
+
+        return rotulosNormalizados
+          .some(
+            function (rotulo) {
+              return (
+                texto === rotulo ||
+                texto.includes(rotulo)
+              );
+            }
+          );
+      }
+    );
+
+  if (!card) {
+    return false;
+  }
+
+  const strong =
+    card.querySelector(
+      "strong"
+    );
+
+  if (!strong) {
+    return false;
+  }
+
+  const valorAtual =
+    Number(
+      normalizarTextoVisualMedicoesUX1997_(
+        strong.textContent
+      ).replace(
+        /[^\d.-]/g,
+        ""
+      ) || 0
+    );
+
+  card.dataset.ux1997ValorBase =
+    String(valorAtual);
+
+  strong.textContent =
+    String(
+      valorAtual +
+      valorIncremento
+    );
+
+  return true;
+}
+
+
+/**
+ * Adiciona a seção de Medições oficiais ao resumo atual.
+ */
+function anexarResumoVisualMedicoesUX1997_(
+  resultado,
+  modo
+) {
+  const elemento =
+    document.getElementById(
+      "resumoReidratacaoUX1958"
+    );
+
+  if (!elemento) {
+    return false;
+  }
+
+  restaurarKpisVisualMedicoesUX1997_();
+
+  const secaoAnterior =
+    elemento.querySelector(
+      ".sigo-reidratacao-medicoes-ux1997"
+    );
+
+  if (secaoAnterior) {
+    secaoAnterior.remove();
+  }
+
+  const resumo =
+    resumirMedicoesVisualUX1997_(
+      resultado
+    );
+
+  /*
+   * O registro local gravado corresponde ao item oficial.
+   */
+  incrementarKpiVisualMedicoesUX1997_(
+    "Registros recebidos",
+    resumo.itensRecebidos
+  );
+
+  incrementarKpiVisualMedicoesUX1997_(
+    "Novos registros",
+    resumo.inseridos
+  );
+
+  incrementarKpiVisualMedicoesUX1997_(
+    "Registros atualizados",
+    resumo.atualizados
+  );
+
+  incrementarKpiVisualMedicoesUX1997_(
+    [
+      "Registros locais protegidos",
+      "Registros preservados"
+    ],
+    resumo.preservados
+  );
+
+  incrementarKpiVisualMedicoesUX1997_(
+    "Conflitos evitados",
+    resumo.conflitos
+  );
+
+  const secao =
+    document.createElement(
+      "section"
+    );
+
+  secao.className =
+    "sigo-reidratacao-medicoes-ux1997";
+
+  secao.dataset.modo =
+    normalizarTextoVisualMedicoesUX1997_(
+      modo
+    );
+
+  secao.innerHTML = `
+    <h3 class="sigo-reidratacao-resumo__titulo">
+      📏 Medições oficiais
+    </h3>
+
+    <div class="sigo-reidratacao-grid">
+      <div class="sigo-reidratacao-kpi">
+        <strong>
+          ${resumo.cabecalhosRecebidos}
+        </strong>
+
+        <span>
+          Medições oficiais recuperadas
+        </span>
+      </div>
+
+      <div class="sigo-reidratacao-kpi">
+        <strong>
+          ${resumo.itensRecebidos}
+        </strong>
+
+        <span>
+          Itens oficiais recuperados
+        </span>
+      </div>
+
+      <div class="sigo-reidratacao-kpi">
+        <strong>
+          ${resumo.inseridos}
+        </strong>
+
+        <span>
+          Novos itens oficiais
+        </span>
+      </div>
+
+      <div class="sigo-reidratacao-kpi">
+        <strong>
+          ${resumo.atualizados}
+        </strong>
+
+        <span>
+          Itens oficiais atualizados
+        </span>
+      </div>
+
+      <div class="sigo-reidratacao-kpi">
+        <strong>
+          ${resumo.preservados}
+        </strong>
+
+        <span>
+          Itens oficiais protegidos
+        </span>
+      </div>
+
+      <div class="sigo-reidratacao-kpi">
+        <strong>
+          ${
+            resumo.lotesDepois -
+            resumo.lotesAntes
+          }
+        </strong>
+
+        <span>
+          Lotes locais alterados
+        </span>
+      </div>
+    </div>
+
+    <p class="sigo-reidratacao-observacao">
+      As Medições oficiais são recuperadas da
+      <strong>Central de Medições</strong>.
+
+      Os lotes locais permanecem separados em
+      <strong>TB_LOTES_MEDICAO</strong> e não são
+      alterados nesta fase.
+    </p>
+  `;
+
+  elemento.appendChild(
+    secao
+  );
+
+  elemento.classList.add(
+    "is-visible"
+  );
+
+  return true;
+}
+
+
+/**
+ * Obtém os totais das entidades que já faziam parte
+ * da integração visual.
+ *
+ * Aceita diferentes nomes usados pelas etapas anteriores.
+ */
+function obterTotaisBaseVisualUX1997_(
+  estadoCapturado,
+  resultadoBase
+) {
+  const pacoteBase =
+    estadoCapturado?.pacote || {};
+
+  const pacoteOcorrencias =
+    estadoCapturado?.pacoteOcorrencias ||
+    estadoCapturado
+      ?.pacoteOcorrenciasOperacionais ||
+    {};
+
+  const pacoteClima =
+    estadoCapturado?.pacoteClima ||
+    estadoCapturado
+      ?.pacoteClimaOperacional ||
+    {};
+
+  const pacoteEvidencias =
+    estadoCapturado?.pacoteEvidencias ||
+    estadoCapturado
+      ?.pacoteEvidenciasOperacionais ||
+    {};
+
+  return {
+    diarios:
+      primeiroNumeroVisualMedicoesUX1997_(
+        [
+          resultadoBase?.diarios
+            ?.recebidos,
+
+          pacoteBase?.totais
+            ?.diarios,
+
+          contarPrimeiroArrayVisualUX1997_(
+            [
+              pacoteBase?.diarios
+            ]
+          )
+        ],
+        0
+      ),
+
+    itens:
+      primeiroNumeroVisualMedicoesUX1997_(
+        [
+          resultadoBase?.diarioItens
+            ?.recebidos,
+
+          pacoteBase?.totais
+            ?.diarioItens,
+
+          contarPrimeiroArrayVisualUX1997_(
+            [
+              pacoteBase?.diarioItens
+            ]
+          )
+        ],
+        0
+      ),
+
+    ocorrencias:
+      primeiroNumeroVisualMedicoesUX1997_(
+        [
+          resultadoBase?.ocorrencias
+            ?.recebidos,
+
+          resultadoBase?.ocorrencias
+            ?.recebidas,
+
+          pacoteOcorrencias?.totais
+            ?.ocorrencias,
+
+          contarPrimeiroArrayVisualUX1997_(
+            [
+              pacoteOcorrencias
+                ?.ocorrencias
+            ]
+          )
+        ],
+        0
+      ),
+
+    clima:
+      primeiroNumeroVisualMedicoesUX1997_(
+        [
+          resultadoBase?.clima
+            ?.recebidos,
+
+          resultadoBase?.clima
+            ?.recebidas,
+
+          pacoteClima?.totais
+            ?.clima,
+
+          pacoteClima?.totais
+            ?.registrosClima,
+
+          contarPrimeiroArrayVisualUX1997_(
+            [
+              pacoteClima?.clima,
+              pacoteClima
+                ?.registrosClima
+            ]
+          )
+        ],
+        0
+      ),
+
+    evidencias:
+      primeiroNumeroVisualMedicoesUX1997_(
+        [
+          resultadoBase?.evidencias
+            ?.recebidos,
+
+          resultadoBase?.evidencias
+            ?.recebidas,
+
+          pacoteEvidencias?.totais
+            ?.evidencias,
+
+          contarPrimeiroArrayVisualUX1997_(
+            [
+              pacoteEvidencias
+                ?.evidencias
+            ]
+          )
+        ],
+        0
+      )
+  };
+}
+
+
+/**
+ * Monta a mensagem consolidada da notificação.
+ */
+function montarMensagemNotificacaoMedicoesUX1997_(
+  totais,
+  quantidadeMedicoes
+) {
+  const medicoes =
+    Number(
+      quantidadeMedicoes || 0
+    );
+
+  return (
+    totais.diarios +
+    (
+      totais.diarios === 1
+        ? " Diário, "
+        : " Diários, "
+    ) +
+
+    totais.itens +
+    (
+      totais.itens === 1
+        ? " item, "
+        : " itens, "
+    ) +
+
+    totais.ocorrencias +
+    (
+      totais.ocorrencias === 1
+        ? " ocorrência, "
+        : " ocorrências, "
+    ) +
+
+    totais.clima +
+    " registros de Clima, " +
+
+    totais.evidencias +
+    (
+      totais.evidencias === 1
+        ? " Evidência e "
+        : " Evidências e "
+    ) +
+
+    medicoes +
+    (
+      medicoes === 1
+        ? " Medição oficial recuperados."
+        : " Medições oficiais recuperados."
+    )
+  );
+}
+
+
+/**
+ * ============================================================
+ * PRÉ-VISUALIZAÇÃO INTEGRADA
+ * ============================================================
+ *
+ * Primeiro executa todo o fluxo visual já existente.
+ * Depois acrescenta a consulta e a simulação das
+ * Medições oficiais.
+ */
+async function prepararReidratacaoInterfaceUX1997_() {
+  const base =
+    window.SIGO_UX1997_BASE;
+
+  const estado =
+    window.SIGO_REIDRATACAO_UX1958;
+
+  if (
+    !base ||
+    typeof base.preparar !==
+      "function"
+  ) {
+    throw new Error(
+      "A preparação original da reidratação não foi encontrada."
+    );
+  }
+
+  resetarEstadoVisualMedicoesUX1997_();
+
+  /*
+   * Executa Diários, itens, ocorrências,
+   * clima e evidências com o fluxo já aprovado.
+   */
+  await base.preparar();
+
+  /*
+   * A função base trata internamente seus erros.
+   */
+  if (
+    !estado?.pacote ||
+    !estado?.simulacao
+  ) {
+    return null;
+  }
+
+  try {
+    estado.emAndamento = true;
+
+    bloquearInterfaceReidratacaoUX1958_(
+      true
+    );
+
+    definirStatusReidratacaoUX1958_(
+      "Consultando as Medições oficiais e validando a separação dos lotes locais...",
+      "loading"
+    );
+
+    const pacoteMedicoes =
+      await obterMedicoesOficiaisObraMobile_(
+        estado.idObra,
+        estado.periodoDias
+      );
+
+    const simulacaoMedicoes =
+      await mesclarMedicoesOficiaisReidratacaoSIGO_(
+        pacoteMedicoes,
+        {
+          simular:
+            true
+        }
+      );
+
+    if (
+      pacoteMedicoes.idObra !==
+      estado.idObra
+    ) {
+      throw new Error(
+        "O pacote de Medições pertence a outra obra."
+      );
+    }
+
+    if (
+      pacoteMedicoes.arquitetura
+        ?.lotesMobileIncluidos !==
+      false
+    ) {
+      throw new Error(
+        "O pacote de Medições incluiu lotes Mobile indevidamente."
+      );
+    }
+
+    estado.pacoteMedicoesOficiais =
+      pacoteMedicoes;
+
+    estado.simulacaoMedicoesOficiais =
+      simulacaoMedicoes;
+
+    anexarResumoVisualMedicoesUX1997_(
+      simulacaoMedicoes,
+      "SIMULACAO"
+    );
+
+    definirStatusReidratacaoUX1958_(
+      "Pré-visualização concluída, incluindo as Medições oficiais. Confirme para gravar no dispositivo.",
+      "success"
+    );
+
+    const confirmar =
+      document.getElementById(
+        "confirmarReidratacaoUX1958"
+      );
+
+    if (confirmar) {
+      confirmar.disabled =
+        false;
+    }
+
+    return {
+      pacoteMedicoes:
+        pacoteMedicoes,
+
+      simulacaoMedicoes:
+        simulacaoMedicoes
+    };
+
+  } catch (erro) {
+    estado.pacoteMedicoesOficiais =
+      null;
+
+    estado.simulacaoMedicoesOficiais =
+      null;
+
+    const confirmar =
+      document.getElementById(
+        "confirmarReidratacaoUX1958"
+      );
+
+    if (confirmar) {
+      confirmar.disabled =
+        true;
+    }
+
+    definirStatusReidratacaoUX1958_(
+      erro.message ||
+      "Não foi possível preparar as Medições oficiais.",
+      "error"
+    );
+
+    console.error(
+      "[UX.19.9.7] Falha na pré-visualização das Medições:",
+      erro
+    );
+
+    return null;
+
+  } finally {
+    estado.emAndamento = false;
+
+    bloquearInterfaceReidratacaoUX1958_(
+      false
+    );
+
+    const confirmar =
+      document.getElementById(
+        "confirmarReidratacaoUX1958"
+      );
+
+    if (confirmar) {
+      confirmar.disabled =
+        !(
+          estado.pacote &&
+          estado
+            .pacoteMedicoesOficiais
+        );
+    }
+  }
+}
+
+
+/**
+ * ============================================================
+ * CONFIRMAÇÃO INTEGRADA
+ * ============================================================
+ *
+ * Preserva a confirmação visual já existente e acrescenta
+ * a mesclagem real das Medições oficiais.
+ */
+async function confirmarReidratacaoInterfaceUX1997_() {
+  const base =
+    window.SIGO_UX1997_BASE;
+
+  const estado =
+    window.SIGO_REIDRATACAO_UX1958;
+
+  if (
+    !base ||
+    typeof base.confirmar !==
+      "function"
+  ) {
+    throw new Error(
+      "A confirmação original da reidratação não foi encontrada."
+    );
+  }
+
+  if (
+    estado?.emAndamento ||
+    !estado?.pacote ||
+    !estado
+      ?.pacoteMedicoesOficiais
+  ) {
+    return;
+  }
+
+  /*
+   * A confirmação base limpa o estado após concluir.
+   * Por isso os dados são capturados antes.
+   */
+  const estadoCapturado = {
+    ...estado
+  };
+
+  const pacoteMedicoes =
+    estado.pacoteMedicoesOficiais;
+
+  const idObra =
+    estado.idObra;
+
+  const periodoDias =
+    estado.periodoDias;
+
+  let resultadoBase =
+    null;
+
+  const renderizadorOriginal =
+    window.renderizarResultadoReidratacaoUX1958_;
+
+  const notificacaoOriginal =
+    window.criarNotificacaoSIGO_;
+
+  let notificacaoBaseInterceptada =
+    false;
+
+  /*
+   * Captura o resultado real das entidades anteriores,
+   * sem alterar a renderização original.
+   */
+  if (
+    typeof renderizadorOriginal ===
+    "function"
+  ) {
+    window.renderizarResultadoReidratacaoUX1958_ =
+      function (resultado) {
+        resultadoBase =
+          resultado;
+
+        return renderizadorOriginal(
+          resultado
+        );
+      };
+  }
+
+  /*
+   * Evita criar duas notificações "Obra atualizada".
+   * A notificação consolidada será criada após as Medições.
+   */
+  if (
+    typeof notificacaoOriginal ===
+    "function"
+  ) {
+    const proxyNotificacao =
+      async function (dados) {
+        if (
+          dados?.tipo ===
+            "REIDRATACAO" &&
+          dados?.titulo ===
+            "Obra atualizada"
+        ) {
+          notificacaoBaseInterceptada =
+            true;
+
+          return dados;
+        }
+
+        return notificacaoOriginal(
+          dados
+        );
+      };
+
+    try {
+      window.criarNotificacaoSIGO_ =
+        proxyNotificacao;
+
+    } catch (erroProxy) {
+      console.warn(
+        "[UX.19.9.7] Não foi possível interceptar a notificação anterior:",
+        erroProxy
+      );
+    }
+  }
+
+  try {
+    /*
+     * Executa Diários, itens, ocorrências,
+     * clima e evidências.
+     */
+    await base.confirmar();
+
+  } finally {
+    if (
+      typeof renderizadorOriginal ===
+      "function"
+    ) {
+      window.renderizarResultadoReidratacaoUX1958_ =
+        renderizadorOriginal;
+    }
+
+    if (
+      typeof notificacaoOriginal ===
+      "function"
+    ) {
+      window.criarNotificacaoSIGO_ =
+        notificacaoOriginal;
+    }
+  }
+
+  /*
+   * Se a função base não chegou à renderização de sucesso,
+   * nenhuma Medição será gravada.
+   */
+  if (!resultadoBase) {
+    console.warn(
+      "[UX.19.9.7] A confirmação base não foi concluída. As Medições não foram processadas."
+    );
+
+    return null;
+  }
+
+  try {
+    estado.emAndamento =
+      true;
+
+    bloquearInterfaceReidratacaoUX1958_(
+      true
+    );
+
+    const obraAtual =
+      await resolverObraAtivaUX1958_();
+
+    if (
+      obraAtual.idObra !==
+      idObra
+    ) {
+      throw new Error(
+        "A obra ativa foi alterada antes da gravação das Medições."
+      );
+    }
+
+    definirStatusReidratacaoUX1958_(
+      "Integrando as Medições oficiais e preservando os lotes locais...",
+      "loading"
+    );
+
+    const resultadoMedicoes =
+      await mesclarMedicoesOficiaisReidratacaoSIGO_(
+        pacoteMedicoes,
+        {
+          simular:
+            false
+        }
+      );
+
+    const resumoMedicoes =
+      resumirMedicoesVisualUX1997_(
+        resultadoMedicoes
+      );
+
+    if (
+      resultadoMedicoes.modo !==
+      "REAL"
+    ) {
+      throw new Error(
+        "A mesclagem das Medições não foi executada em modo REAL."
+      );
+    }
+
+    if (
+      resumoMedicoes
+        .gravacoesExecutadas !==
+      resumoMedicoes
+        .gravacoesPlanejadas
+    ) {
+      throw new Error(
+        "A quantidade de gravações executadas das Medições não corresponde ao planejamento."
+      );
+    }
+
+    if (
+      resumoMedicoes.lotesAntes !==
+      resumoMedicoes.lotesDepois
+    ) {
+      throw new Error(
+        "A TB_LOTES_MEDICAO foi alterada indevidamente."
+      );
+    }
+
+    if (
+      resumoMedicoes.filaAntes !==
+      resumoMedicoes.filaDepois
+    ) {
+      throw new Error(
+        "A TB_SYNC_QUEUE foi alterada indevidamente."
+      );
+    }
+
+    /*
+     * O resumo base já está renderizado.
+     * Agora é acrescentada a seção de Medições.
+     */
+    anexarResumoVisualMedicoesUX1997_(
+      resultadoMedicoes,
+      "REAL"
+    );
+
+    /*
+     * Atualiza a meta salva no card.
+     */
+    const metaAnterior =
+      typeof lerMetaReidratacaoUX1958_ ===
+        "function"
+        ? (
+            lerMetaReidratacaoUX1958_(
+              idObra
+            ) || {}
+          )
+        : {};
+
+    const metaAtualizada = {
+      ...metaAnterior,
+
+      idObra:
+        idObra,
+
+      periodoDias:
+        periodoDias,
+
+      medicoesOficiais:
+        resumoMedicoes
+          .cabecalhosRecebidos,
+
+      itensMedicaoOficial:
+        resumoMedicoes
+          .itensRecebidos,
+
+      inseridos:
+        Number(
+          metaAnterior.inseridos || 0
+        ) +
+        resumoMedicoes.inseridos,
+
+      atualizados:
+        Number(
+          metaAnterior.atualizados || 0
+        ) +
+        resumoMedicoes.atualizados,
+
+      preservados:
+        Number(
+          metaAnterior.preservados || 0
+        ) +
+        resumoMedicoes.preservados,
+
+      conflitosEvitados:
+        Number(
+          metaAnterior
+            .conflitosEvitados || 0
+        ) +
+        resumoMedicoes.conflitos,
+
+      dataAtualizacao:
+        resultadoMedicoes
+          .executadoEm ||
+        new Date().toISOString()
+    };
+
+    salvarMetaReidratacaoUX1958_(
+      idObra,
+      metaAtualizada
+    );
+
+    /*
+     * Notificação consolidada.
+     */
+    const totaisBase =
+      obterTotaisBaseVisualUX1997_(
+        estadoCapturado,
+        resultadoBase
+      );
+
+    const mensagemNotificacao =
+      montarMensagemNotificacaoMedicoesUX1997_(
+        totaisBase,
+        resumoMedicoes
+          .cabecalhosRecebidos
+      );
+
+    if (
+      typeof notificacaoOriginal ===
+      "function"
+    ) {
+      try {
+        await notificacaoOriginal({
+          tipo:
+            "REIDRATACAO",
+
+          titulo:
+            "Obra atualizada",
+
+          mensagem:
+            mensagemNotificacao,
+
+          icone:
+            "🔄"
+        });
+
+      } catch (erroNotificacao) {
+        console.warn(
+          "[UX.19.9.7] Notificação consolidada não criada:",
+          erroNotificacao
+        );
+      }
+    }
+
+    await atualizarCardReidratacaoUX1958_();
+
+    /*
+     * Atualizações visuais complementares.
+     */
+    const funcoesAtualizacao = [
+      "listarMedicoesOffline_",
+      "atualizarSmartMedicoesSIGO_",
+      "atualizarHomeMobile_",
+      "atualizarHeroObraAtivaMobile_",
+      "atualizarPainelSaudeSync_",
+      "atualizarBadgeNotificacoes_"
+    ];
+
+    for (
+      const nomeFuncao of
+        funcoesAtualizacao
+    ) {
+      if (
+        typeof window[nomeFuncao] !==
+        "function"
+      ) {
+        continue;
+      }
+
+      try {
+        await window[nomeFuncao]();
+
+      } catch (erroAtualizacao) {
+        console.warn(
+          "[UX.19.9.7] Atualização visual ignorada:",
+          nomeFuncao,
+          erroAtualizacao
+        );
+      }
+    }
+
+    definirStatusReidratacaoUX1958_(
+      "Diários, itens, ocorrências, clima, evidências e Medições oficiais atualizados com sucesso.",
+      "success"
+    );
+
+    console.log(
+      "[UX.19.9.7] Notificação anterior interceptada:",
+      notificacaoBaseInterceptada
+    );
+
+    console.log(
+      "[UX.19.9.7] Mensagem consolidada:",
+      mensagemNotificacao
+    );
+
+    estado.pacoteMedicoesOficiais =
+      null;
+
+    estado.simulacaoMedicoesOficiais =
+      null;
+
+    return {
+      resultadoBase:
+        resultadoBase,
+
+      resultadoMedicoes:
+        resultadoMedicoes,
+
+      mensagemNotificacao:
+        mensagemNotificacao,
+
+      notificacaoBaseInterceptada:
+        notificacaoBaseInterceptada
+    };
+
+  } catch (erro) {
+    definirStatusReidratacaoUX1958_(
+      (
+        "Os dados anteriores foram processados, " +
+        "mas as Medições oficiais não puderam ser concluídas: "
+      ) +
+      (
+        erro.message ||
+        "erro não identificado"
+      ),
+      "error"
+    );
+
+    console.error(
+      "[UX.19.9.7] Falha na confirmação das Medições:",
+      erro
+    );
+
+    return null;
+
+  } finally {
+    estado.emAndamento =
+      false;
+
+    bloquearInterfaceReidratacaoUX1958_(
+      false
+    );
+
+    const confirmar =
+      document.getElementById(
+        "confirmarReidratacaoUX1958"
+      );
+
+    if (confirmar) {
+      confirmar.disabled =
+        true;
+    }
+  }
+}
+
+
+/**
+ * Atualiza o texto do card da reidratação.
+ */
+function atualizarTextoCardVisualMedicoesUX1997_() {
+  const card =
+    document.getElementById(
+      "cardReidratacaoUX1958"
+    );
+
+  if (!card) {
+    return false;
+  }
+
+  const texto =
+    card.querySelector(
+      ".sigo-reidratacao-card__texto"
+    );
+
+  if (texto) {
+    texto.textContent =
+      "Recupere Diários, itens, ocorrências, clima, evidências e Medições oficiais sincronizados em outro dispositivo.";
+  }
+
+  return true;
+}
+
+
+/**
+ * ============================================================
+ * INSTALAÇÃO DOS NOVOS HANDLERS
+ * ============================================================
+ */
+async function instalarIntegracaoVisualMedicoesUX1997_() {
+  const base =
+    window.SIGO_UX1997_BASE;
+
+  if (
+    !base ||
+    typeof base.preparar !==
+      "function" ||
+    typeof base.confirmar !==
+      "function"
+  ) {
+    console.warn(
+      "[UX.19.9.7] As funções base da reidratação não foram encontradas."
+    );
+
+    return false;
+  }
+
+  if (
+    typeof garantirModalReidratacaoUX1958_ ===
+    "function"
+  ) {
+    garantirModalReidratacaoUX1958_();
+  }
+
+  const visualizar =
+    document.getElementById(
+      "visualizarReidratacaoUX1958"
+    );
+
+  const confirmar =
+    document.getElementById(
+      "confirmarReidratacaoUX1958"
+    );
+
+  if (
+    !visualizar ||
+    !confirmar
+  ) {
+    return false;
+  }
+
+  if (
+    visualizar.dataset
+      .ux1997Instalado !==
+    "true"
+  ) {
+    visualizar.removeEventListener(
+      "click",
+      base.preparar
+    );
+
+    visualizar.addEventListener(
+      "click",
+      prepararReidratacaoInterfaceUX1997_
+    );
+
+    visualizar.dataset
+      .ux1997Instalado =
+      "true";
+  }
+
+  if (
+    confirmar.dataset
+      .ux1997Instalado !==
+    "true"
+  ) {
+    confirmar.removeEventListener(
+      "click",
+      base.confirmar
+    );
+
+    confirmar.addEventListener(
+      "click",
+      confirmarReidratacaoInterfaceUX1997_
+    );
+
+    confirmar.dataset
+      .ux1997Instalado =
+      "true";
+  }
+
+  atualizarTextoCardVisualMedicoesUX1997_();
+
+  console.log(
+    "UX.19.9.7 — Integração visual de Medições instalada."
+  );
+
+  return true;
+}
+
+
+/**
+ * ============================================================
+ * AUDITORIA DA PRÉ-VISUALIZAÇÃO
+ * ============================================================
+ *
+ * Não executa confirmação real.
+ * Não grava nenhum registro.
+ */
+async function testarPreVisualizacaoMedicoesUX1997_() {
+  console.log(
+    "[UX.19.9.7] Iniciando teste da pré-visualização integrada..."
+  );
+
+  await instalarIntegracaoVisualMedicoesUX1997_();
+
+  await abrirReidratacaoUX1958_();
+
+  const seletor =
+    document.getElementById(
+      "periodoReidratacaoUX1958"
+    );
+
+  if (seletor) {
+    seletor.value =
+      "30";
+  }
+
+  const medicoesAntes =
+    await lerTbMedicoesBrutaUX1995A_();
+
+  const lotesAntes =
+    await listarRegistrosSIGO(
+      "TB_LOTES_MEDICAO"
+    );
+
+  const filaAntes =
+    await listarRegistrosSIGO(
+      "TB_SYNC_QUEUE"
+    );
+
+  const assinaturaMedicoesAntes =
+    criarAssinaturaStoreMedicoesUX1994_(
+      medicoesAntes.registros
+    );
+
+  const assinaturaLotesAntes =
+    criarAssinaturaStoreMedicoesUX1994_(
+      lotesAntes
+    );
+
+  const assinaturaFilaAntes =
+    criarAssinaturaStoreMedicoesUX1994_(
+      filaAntes
+    );
+
+  await prepararReidratacaoInterfaceUX1997_();
+
+  const estado =
+    window.SIGO_REIDRATACAO_UX1958;
+
+  const simulacao =
+    estado
+      ?.simulacaoMedicoesOficiais;
+
+  const resumo =
+    resumirMedicoesVisualUX1997_(
+      simulacao
+    );
+
+  const medicoesDepois =
+    await lerTbMedicoesBrutaUX1995A_();
+
+  const lotesDepois =
+    await listarRegistrosSIGO(
+      "TB_LOTES_MEDICAO"
+    );
+
+  const filaDepois =
+    await listarRegistrosSIGO(
+      "TB_SYNC_QUEUE"
+    );
+
+  const assinaturaMedicoesDepois =
+    criarAssinaturaStoreMedicoesUX1994_(
+      medicoesDepois.registros
+    );
+
+  const assinaturaLotesDepois =
+    criarAssinaturaStoreMedicoesUX1994_(
+      lotesDepois
+    );
+
+  const assinaturaFilaDepois =
+    criarAssinaturaStoreMedicoesUX1994_(
+      filaDepois
+    );
+
+  const secao =
+    document.querySelector(
+      ".sigo-reidratacao-medicoes-ux1997"
+    );
+
+  const textoSecao =
+    normalizarTextoVisualMedicoesUX1997_(
+      secao?.textContent
+    );
+
+  const confirmar =
+    document.getElementById(
+      "confirmarReidratacaoUX1958"
+    );
+
+  const validacoes = {
+    pacoteMedicoesPresente:
+      Boolean(
+        estado
+          ?.pacoteMedicoesOficiais
+      ),
+
+    simulacaoMedicoesPresente:
+      Boolean(simulacao),
+
+    modoSimulacao:
+      simulacao?.modo ===
+      "SIMULACAO",
+
+    recebeu1Cabecalho:
+      resumo
+        .cabecalhosRecebidos ===
+      1,
+
+    recebeu1Item:
+      resumo.itensRecebidos ===
+      1,
+
+    naoInseriria:
+      resumo.inseridos === 0,
+
+    atualizaria1:
+      resumo.atualizados === 1,
+
+    nenhumPreservado:
+      resumo.preservados === 0,
+
+    nenhumRejeitado:
+      resumo.rejeitados === 0,
+
+    nenhumConflito:
+      resumo.conflitos === 0,
+
+    nenhumaGravacaoExecutada:
+      resumo.gravacoesExecutadas ===
+      0,
+
+    secaoVisualCriada:
+      Boolean(secao),
+
+    mostraMedicoesOficiais:
+      textoSecao.includes(
+        "Medições oficiais recuperadas"
+      ),
+
+    mostraItensOficiais:
+      textoSecao.includes(
+        "Itens oficiais recuperados"
+      ),
+
+    mostraLotesSeparados:
+      textoSecao.includes(
+        "Lotes locais alterados"
+      ),
+
+    botaoConfirmacaoLiberado:
+      confirmar?.disabled ===
+      false,
+
+    tbMedicoesPossuia6:
+      medicoesAntes
+        .registros.length === 6,
+
+    tbMedicoesPermaneceu6:
+      medicoesDepois
+        .registros.length === 6,
+
+    tbMedicoesPreservada:
+      assinaturaMedicoesAntes ===
+      assinaturaMedicoesDepois,
+
+    lotesPossuiamZero:
+      lotesAntes.length === 0,
+
+    lotesPermaneceramZero:
+      lotesDepois.length === 0,
+
+    lotesPreservados:
+      assinaturaLotesAntes ===
+      assinaturaLotesDepois,
+
+    filaPossuia45:
+      filaAntes.length === 45,
+
+    filaPermaneceu45:
+      filaDepois.length === 45,
+
+    filaPreservada:
+      assinaturaFilaAntes ===
+      assinaturaFilaDepois
+  };
+
+  const aprovado =
+    Object.values(
+      validacoes
+    ).every(
+      function (valor) {
+        return valor === true;
+      }
+    );
+
+  const resultado = {
+    etapa:
+      "UX.19.9.7",
+
+    teste:
+      "PRE_VISUALIZACAO_MEDICOES_OFICIAIS",
+
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+
+    idObra:
+      estado?.idObra,
+
+    periodoDias:
+      estado?.periodoDias,
+
+    medicoesOficiais: {
+      cabecalhosRecebidos:
+        resumo.cabecalhosRecebidos,
+
+      itensRecebidos:
+        resumo.itensRecebidos,
+
+      inseriria:
+        resumo.inseridos,
+
+      atualizaria:
+        resumo.atualizados,
+
+      preservaria:
+        resumo.preservados,
+
+      rejeitaria:
+        resumo.rejeitados,
+
+      conflitos:
+        resumo.conflitos,
+
+      gravacoesPlanejadas:
+        resumo.gravacoesPlanejadas,
+
+      gravacoesExecutadas:
+        resumo.gravacoesExecutadas
+    },
+
+    stores: {
+      TB_MEDICOES: {
+        antes:
+          medicoesAntes
+            .registros.length,
+
+        depois:
+          medicoesDepois
+            .registros.length,
+
+        preservada:
+          assinaturaMedicoesAntes ===
+          assinaturaMedicoesDepois
+      },
+
+      TB_LOTES_MEDICAO: {
+        antes:
+          lotesAntes.length,
+
+        depois:
+          lotesDepois.length,
+
+        preservada:
+          assinaturaLotesAntes ===
+          assinaturaLotesDepois
+      },
+
+      TB_SYNC_QUEUE: {
+        antes:
+          filaAntes.length,
+
+        depois:
+          filaDepois.length,
+
+        preservada:
+          assinaturaFilaAntes ===
+          assinaturaFilaDepois
+      }
+    },
+
+    interface: {
+      secaoVisualCriada:
+        Boolean(secao),
+
+      botaoConfirmacaoLiberado:
+        confirmar?.disabled ===
+        false,
+
+      texto:
+        textoSecao
+    },
+
+    validacoes:
+      validacoes,
+
+    aprovado:
+      aprovado
+  };
+
+  console.log(
+    JSON.stringify(
+      resultado,
+      null,
+      2
+    )
+  );
+
+  if (!aprovado) {
+    throw new Error(
+      "UX.19.9.7 REPROVADA. Consulte as validações no console."
+    );
+  }
+
+  console.log(
+    "UX.19.9.7 — PRÉ-VISUALIZAÇÃO DE MEDIÇÕES OFICIAIS APROVADA."
+  );
+
+  return resultado;
+}
+
+
+/**
+ * Instala automaticamente após o carregamento do documento.
+ */
+if (
+  document.readyState ===
+  "loading"
+) {
+  document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+      instalarIntegracaoVisualMedicoesUX1997_();
+    },
+    {
+      once:
+        true
+    }
+  );
+
+} else {
+  instalarIntegracaoVisualMedicoesUX1997_();
+}
+
