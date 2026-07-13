@@ -23369,6 +23369,2039 @@ async function testarClienteClimaMobileUX1974_() {
 
 /**
  * ============================================================
+ * UX.19.7.5 — MESCLAGEM PROTEGIDA DE CLIMA
+ * ============================================================
+ *
+ * Stores envolvidas:
+ *
+ * - TB_CLIMA
+ * - TB_SYNC_QUEUE
+ *
+ * Regras:
+ *
+ * 1. Registro inexistente:
+ *    inserir como SINCRONIZADO.
+ *
+ * 2. Registro existente sem pendência:
+ *    atualizar com a versão do servidor.
+ *
+ * 3. UPSERT pendente:
+ *    preservar versão local.
+ *
+ * 4. DELETE pendente:
+ *    não restaurar o registro.
+ *
+ * 5. Pendência desconhecida:
+ *    preservar versão local por segurança.
+ *
+ * 6. Registro local marcado como PENDENTE/ERRO:
+ *    preservar mesmo que a fila esteja inconsistente.
+ *
+ * 7. Outra obra:
+ *    rejeitar.
+ *
+ * 8. TB_SYNC_QUEUE:
+ *    não inserir, atualizar, excluir ou limpar.
+ */
+
+
+/**
+ * Normaliza um valor para texto.
+ */
+function normalizarTextoClimaUX1975_(
+  valor
+) {
+  return String(
+    valor === undefined ||
+    valor === null
+      ? ""
+      : valor
+  ).trim();
+}
+
+
+/**
+ * Normaliza texto para comparação.
+ */
+function normalizarMaiusculoClimaUX1975_(
+  valor
+) {
+  return normalizarTextoClimaUX1975_(
+    valor
+  )
+    .normalize("NFD")
+    .replace(
+      /[\u0300-\u036f]/g,
+      ""
+    )
+    .toUpperCase();
+}
+
+
+/**
+ * Converte JSON armazenado como texto.
+ */
+function converterObjetoFilaClimaUX1975_(
+  valor
+) {
+  if (
+    valor &&
+    typeof valor === "object"
+  ) {
+    return valor;
+  }
+
+  if (
+    typeof valor !== "string"
+  ) {
+    return null;
+  }
+
+  const texto =
+    valor.trim();
+
+  if (!texto) {
+    return null;
+  }
+
+  try {
+    const objeto =
+      JSON.parse(texto);
+
+    return (
+      objeto &&
+      typeof objeto === "object"
+        ? objeto
+        : null
+    );
+
+  } catch (erro) {
+    return null;
+  }
+}
+
+
+/**
+ * Obtém o payload funcional de uma pendência.
+ */
+function obterPayloadFilaClimaUX1975_(
+  registroFila
+) {
+  if (
+    !registroFila ||
+    typeof registroFila !== "object"
+  ) {
+    return {};
+  }
+
+  const candidatos = [
+    registroFila.payload,
+    registroFila.registro,
+    registroFila.dados,
+    registroFila.dadosRegistro,
+    registroFila.payloadExclusao,
+    registroFila.exclusao
+  ];
+
+  for (
+    const candidato of candidatos
+  ) {
+    const objeto =
+      converterObjetoFilaClimaUX1975_(
+        candidato
+      );
+
+    if (objeto) {
+      return objeto;
+    }
+  }
+
+  return {};
+}
+
+
+/**
+ * Localiza o ID do Clima dentro de diferentes
+ * formatos históricos da fila.
+ */
+function obterIdClimaFilaUX1975_(
+  registroFila
+) {
+  if (
+    !registroFila ||
+    typeof registroFila !== "object"
+  ) {
+    return "";
+  }
+
+  const payload =
+    obterPayloadFilaClimaUX1975_(
+      registroFila
+    );
+
+  const payloadInterno =
+    converterObjetoFilaClimaUX1975_(
+      payload.registro ||
+      payload.dados ||
+      payload.payload
+    ) || {};
+
+  return normalizarTextoClimaUX1975_(
+    registroFila.idRegistro ||
+    registroFila.chave ||
+    registroFila.registroId ||
+    registroFila.idClima ||
+    payload.idClima ||
+    payload.idRegistro ||
+    payload.chave ||
+    payloadInterno.idClima ||
+    payloadInterno.idRegistro ||
+    ""
+  );
+}
+
+
+/**
+ * Identifica se a pendência pertence a TB_CLIMA.
+ */
+function filaPertenceClimaUX1975_(
+  registroFila
+) {
+  if (
+    !registroFila ||
+    typeof registroFila !== "object"
+  ) {
+    return false;
+  }
+
+  const store =
+    normalizarMaiusculoClimaUX1975_(
+      registroFila.storeOrigem ||
+      registroFila.store
+    );
+
+  if (
+    store === "TB_CLIMA"
+  ) {
+    return true;
+  }
+
+  const entidade =
+    normalizarMaiusculoClimaUX1975_(
+      registroFila.entidade
+    );
+
+  if (
+    [
+      "CLIMA",
+      "CLIMA_OBRA",
+      "TB_CLIMA"
+    ].includes(entidade)
+  ) {
+    return true;
+  }
+
+  const tipo =
+    normalizarMaiusculoClimaUX1975_(
+      registroFila.tipo
+    );
+
+  if (
+    [
+      "CLIMA",
+      "CLIMA_OBRA",
+      "TB_CLIMA"
+    ].includes(tipo)
+  ) {
+    return true;
+  }
+
+  const payload =
+    obterPayloadFilaClimaUX1975_(
+      registroFila
+    );
+
+  return Boolean(
+    normalizarTextoClimaUX1975_(
+      payload.idClima
+    )
+  );
+}
+
+
+/**
+ * Verifica se a entrada da fila ainda está pendente.
+ */
+function filaClimaEstaPendenteUX1975_(
+  registroFila
+) {
+  const status =
+    normalizarMaiusculoClimaUX1975_(
+      registroFila?.statusSync ||
+      registroFila?.status
+    );
+
+  return (
+    status === "PENDENTE" ||
+    status === "ERRO" ||
+    status === "FALHA"
+  );
+}
+
+
+/**
+ * Determina a operação da fila.
+ */
+function obterOperacaoFilaClimaUX1975_(
+  registroFila
+) {
+  const operacaoDireta =
+    normalizarMaiusculoClimaUX1975_(
+      registroFila?.operacao ||
+      registroFila?.acao
+    );
+
+  if (
+    operacaoDireta === "DELETE"
+  ) {
+    return "DELETE";
+  }
+
+  if (
+    [
+      "INSERT",
+      "UPDATE",
+      "UPSERT",
+      "CREATE",
+      "SAVE"
+    ].includes(operacaoDireta)
+  ) {
+    return "UPSERT";
+  }
+
+  const tipo =
+    normalizarMaiusculoClimaUX1975_(
+      registroFila?.tipo
+    );
+
+  if (
+    tipo === "DELETE"
+  ) {
+    return "DELETE";
+  }
+
+  if (
+    [
+      "INSERT",
+      "UPDATE",
+      "UPSERT",
+      "CREATE",
+      "SAVE",
+      "CLIMA",
+      "CLIMA_OBRA"
+    ].includes(tipo)
+  ) {
+    return "UPSERT";
+  }
+
+  const payload =
+    obterPayloadFilaClimaUX1975_(
+      registroFila
+    );
+
+  const operacaoPayload =
+    normalizarMaiusculoClimaUX1975_(
+      payload.operacao ||
+      payload.acao ||
+      payload.tipo
+    );
+
+  if (
+    operacaoPayload === "DELETE"
+  ) {
+    return "DELETE";
+  }
+
+  if (
+    [
+      "INSERT",
+      "UPDATE",
+      "UPSERT",
+      "CREATE",
+      "SAVE"
+    ].includes(operacaoPayload)
+  ) {
+    return "UPSERT";
+  }
+
+  return "DESCONHECIDA";
+}
+
+
+/**
+ * Cria um mapa de pendências por idClima.
+ */
+function criarMapaPendenciasClimaUX1975_(
+  fila
+) {
+  const mapa =
+    new Map();
+
+  const registrosFila =
+    Array.isArray(fila)
+      ? fila
+      : [];
+
+  registrosFila.forEach(
+    function (registroFila) {
+      if (
+        !filaClimaEstaPendenteUX1975_(
+          registroFila
+        )
+      ) {
+        return;
+      }
+
+      if (
+        !filaPertenceClimaUX1975_(
+          registroFila
+        )
+      ) {
+        return;
+      }
+
+      const idClima =
+        obterIdClimaFilaUX1975_(
+          registroFila
+        );
+
+      if (!idClima) {
+        return;
+      }
+
+      const operacao =
+        obterOperacaoFilaClimaUX1975_(
+          registroFila
+        );
+
+      const idObraFila =
+        normalizarTextoClimaUX1975_(
+          registroFila.idObra ||
+          obterPayloadFilaClimaUX1975_(
+            registroFila
+          ).idObra
+        );
+
+      if (
+        !mapa.has(idClima)
+      ) {
+        mapa.set(
+          idClima,
+          {
+            possuiDelete:
+              false,
+
+            possuiUpsert:
+              false,
+
+            possuiDesconhecida:
+              false,
+
+            obras:
+              new Set(),
+
+            registros:
+              []
+          }
+        );
+      }
+
+      const estado =
+        mapa.get(idClima);
+
+      if (
+        operacao === "DELETE"
+      ) {
+        estado.possuiDelete =
+          true;
+
+      } else if (
+        operacao === "UPSERT"
+      ) {
+        estado.possuiUpsert =
+          true;
+
+      } else {
+        estado.possuiDesconhecida =
+          true;
+      }
+
+      if (idObraFila) {
+        estado.obras.add(
+          idObraFila
+        );
+      }
+
+      estado.registros.push(
+        registroFila
+      );
+    }
+  );
+
+  return mapa;
+}
+
+
+/**
+ * Normaliza um registro recebido do servidor
+ * para a estrutura local de TB_CLIMA.
+ */
+function normalizarRegistroServidorClimaUX1975_(
+  registroServidor,
+  registroLocal,
+  pacote,
+  agoraIso
+) {
+  const servidor =
+    registroServidor &&
+    typeof registroServidor === "object"
+      ? registroServidor
+      : {};
+
+  const local =
+    registroLocal &&
+    typeof registroLocal === "object"
+      ? registroLocal
+      : {};
+
+  const dataSync =
+    normalizarTextoClimaUX1975_(
+      servidor.dataSync ||
+      pacote.dataSync ||
+      agoraIso
+    );
+
+  /*
+   * O spread do registro local preserva metadados
+   * adicionais que possam existir no dispositivo.
+   *
+   * Os campos funcionais do servidor vêm depois
+   * e substituem a versão sincronizada anterior.
+   */
+  return {
+    ...local,
+
+    idClima:
+      normalizarTextoClimaUX1975_(
+        servidor.idClima
+      ),
+
+    data:
+      normalizarTextoClimaUX1975_(
+        servidor.data
+      ),
+
+    idObra:
+      normalizarTextoClimaUX1975_(
+        servidor.idObra
+      ),
+
+    periodo:
+      normalizarTextoClimaUX1975_(
+        servidor.periodo
+      ),
+
+    condicaoClimatica:
+      normalizarTextoClimaUX1975_(
+        servidor.condicaoClimatica
+      ),
+
+    intensidade:
+      normalizarTextoClimaUX1975_(
+        servidor.intensidade
+      ),
+
+    impactoExecucao:
+      normalizarTextoClimaUX1975_(
+        servidor.impactoExecucao
+      ),
+
+    atividadeAfetada:
+      normalizarTextoClimaUX1975_(
+        servidor.atividadeAfetada
+      ),
+
+    observacao:
+      normalizarTextoClimaUX1975_(
+        servidor.observacao
+      ),
+
+    statusClima:
+      normalizarTextoClimaUX1975_(
+        servidor.statusClima
+      ),
+
+    statusSync:
+      "SINCRONIZADO",
+
+    dataSync:
+      dataSync,
+
+    origemReidratacao:
+      "SERVIDOR",
+
+    origem:
+      "SERVIDOR",
+
+    criadoEm:
+      normalizarTextoClimaUX1975_(
+        local.criadoEm ||
+        servidor.criadoEm ||
+        dataSync ||
+        agoraIso
+      ),
+
+    atualizadoEm:
+      normalizarTextoClimaUX1975_(
+        servidor.atualizadoEm ||
+        dataSync ||
+        agoraIso
+      )
+  };
+}
+
+
+/**
+ * Ordena recursivamente as propriedades de um objeto.
+ *
+ * Utilizado para criar assinaturas confiáveis.
+ */
+function ordenarObjetoEstavelClimaUX1975_(
+  valor
+) {
+  if (
+    Array.isArray(valor)
+  ) {
+    return valor.map(
+      ordenarObjetoEstavelClimaUX1975_
+    );
+  }
+
+  if (
+    valor &&
+    typeof valor === "object"
+  ) {
+    const resultado = {};
+
+    Object
+      .keys(valor)
+      .sort()
+      .forEach(
+        function (chave) {
+          resultado[chave] =
+            ordenarObjetoEstavelClimaUX1975_(
+              valor[chave]
+            );
+        }
+      );
+
+    return resultado;
+  }
+
+  return valor;
+}
+
+
+/**
+ * Cria assinatura de uma coleção sem depender
+ * da ordem retornada pelo IndexedDB.
+ */
+function criarAssinaturaColecaoClimaUX1975_(
+  registros,
+  campoOrdenacao
+) {
+  const lista =
+    Array.isArray(registros)
+      ? registros
+      : [];
+
+  const campo =
+    campoOrdenacao ||
+    "idClima";
+
+  return JSON.stringify(
+    lista
+      .map(
+        function (registro) {
+          return ordenarObjetoEstavelClimaUX1975_(
+            registro
+          );
+        }
+      )
+      .sort(
+        function (a, b) {
+          return normalizarTextoClimaUX1975_(
+            a?.[campo]
+          ).localeCompare(
+            normalizarTextoClimaUX1975_(
+              b?.[campo]
+            )
+          );
+        }
+      )
+  );
+}
+
+
+/**
+ * Cria os contadores da mesclagem.
+ */
+function criarResumoClimaUX1975_(
+  recebidos
+) {
+  return {
+    recebidos:
+      Number(recebidos || 0),
+
+    inseridos:
+      0,
+
+    atualizados:
+      0,
+
+    preservadosUpsert:
+      0,
+
+    preservadosDelete:
+      0,
+
+    preservadosStatusLocal:
+      0,
+
+    preservadosFilaDesconhecida:
+      0,
+
+    rejeitadosOutraObra:
+      0,
+
+    rejeitadosDuplicidade:
+      0,
+
+    rejeitadosInvalidos:
+      0,
+
+    preservados:
+      0,
+
+    rejeitados:
+      0,
+
+    gravacoesPrevistas:
+      0,
+
+    gravacoesExecutadas:
+      0
+  };
+}
+
+
+/**
+ * Registra conflito evitado sem deixar o log ilimitado.
+ */
+function adicionarConflitoClimaUX1975_(
+  resultado,
+  conflito
+) {
+  resultado.totalConflitosEvitados++;
+
+  if (
+    resultado.conflitos.length < 100
+  ) {
+    resultado.conflitos.push(
+      conflito
+    );
+  }
+}
+
+
+/**
+ * Executa leitura e eventual escrita na mesma transação.
+ *
+ * TB_SYNC_QUEUE participa apenas para leitura.
+ *
+ * Não existe:
+ *
+ * - put na fila;
+ * - delete na fila;
+ * - clear na fila.
+ */
+function executarTransacaoClimaUX1975_(
+  db,
+  pacote,
+  opcoes
+) {
+  const simular =
+    opcoes.simular !== false;
+
+  return new Promise(
+    function (
+      resolve,
+      reject
+    ) {
+      let finalizado =
+        false;
+
+      let resultadoTransacao =
+        null;
+
+      let climasLocais =
+        null;
+
+      let fila =
+        null;
+
+      let processado =
+        false;
+
+      const modo =
+        simular
+          ? "readonly"
+          : "readwrite";
+
+      let transacao;
+
+      try {
+        transacao =
+          db.transaction(
+            [
+              "TB_CLIMA",
+              "TB_SYNC_QUEUE"
+            ],
+            modo
+          );
+
+      } catch (erro) {
+        reject(erro);
+        return;
+      }
+
+      const storeClima =
+        transacao.objectStore(
+          "TB_CLIMA"
+        );
+
+      const storeFila =
+        transacao.objectStore(
+          "TB_SYNC_QUEUE"
+        );
+
+      const requisicaoClimas =
+        storeClima.getAll();
+
+      const requisicaoFila =
+        storeFila.getAll();
+
+
+      function rejeitarUmaVez(
+        erro
+      ) {
+        if (finalizado) {
+          return;
+        }
+
+        finalizado =
+          true;
+
+        reject(
+          erro instanceof Error
+            ? erro
+            : new Error(
+                String(erro)
+              )
+        );
+      }
+
+
+      function processarMesclagem() {
+        if (
+          processado ||
+          climasLocais === null ||
+          fila === null
+        ) {
+          return;
+        }
+
+        processado =
+          true;
+
+        try {
+          const idObra =
+            normalizarTextoClimaUX1975_(
+              pacote.idObra
+            );
+
+          const climasServidor =
+            Array.isArray(
+              pacote.climas
+            )
+              ? pacote.climas
+              : [];
+
+          const agoraIso =
+            new Date().toISOString();
+
+          const resumo =
+            criarResumoClimaUX1975_(
+              climasServidor.length
+            );
+
+          const resultado = {
+            etapa:
+              "UX.19.7.5",
+
+            operacao:
+              "MESCLAGEM_PROTEGIDA_CLIMA",
+
+            modo:
+              simular
+                ? "SIMULACAO"
+                : "REAL",
+
+            idObra:
+              idObra,
+
+            periodoDias:
+              Number(
+                pacote.periodoDias || 0
+              ),
+
+            dataInicio:
+              normalizarTextoClimaUX1975_(
+                pacote.dataInicio
+              ),
+
+            dataFim:
+              normalizarTextoClimaUX1975_(
+                pacote.dataFim
+              ),
+
+            dataSyncServidor:
+              normalizarTextoClimaUX1975_(
+                pacote.dataSync
+              ),
+
+            climas:
+              resumo,
+
+            totalConflitosEvitados:
+              0,
+
+            conflitos:
+              [],
+
+            fila: {
+              totalAntes:
+                fila.length,
+
+              assinaturaAntes:
+                criarAssinaturaColecaoClimaUX1975_(
+                  fila,
+                  "idSyncLocal"
+                ),
+
+              totalDepois:
+                null,
+
+              assinaturaDepois:
+                "",
+
+              preservada:
+                null
+            },
+
+            executadoEm:
+              agoraIso
+          };
+
+          const locaisPorId =
+            new Map();
+
+          climasLocais.forEach(
+            function (registroLocal) {
+              const idLocal =
+                normalizarTextoClimaUX1975_(
+                  registroLocal?.idClima
+                );
+
+              if (idLocal) {
+                locaisPorId.set(
+                  idLocal,
+                  registroLocal
+                );
+              }
+            }
+          );
+
+          const pendenciasPorId =
+            criarMapaPendenciasClimaUX1975_(
+              fila
+            );
+
+          const idsPacote =
+            new Set();
+
+          const gravacoes =
+            [];
+
+
+          climasServidor.forEach(
+            function (registroServidor) {
+              const idClima =
+                normalizarTextoClimaUX1975_(
+                  registroServidor?.idClima
+                );
+
+              const idObraRegistro =
+                normalizarTextoClimaUX1975_(
+                  registroServidor?.idObra
+                );
+
+              const dataRegistro =
+                normalizarTextoClimaUX1975_(
+                  registroServidor?.data
+                );
+
+
+              /*
+               * Registro estruturalmente inválido.
+               */
+              if (
+                !idClima ||
+                !idObraRegistro ||
+                !dataRegistro
+              ) {
+                resumo.rejeitadosInvalidos++;
+
+                adicionarConflitoClimaUX1975_(
+                  resultado,
+                  {
+                    idClima:
+                      idClima ||
+                      "SEM_ID",
+
+                    motivo:
+                      "REGISTRO_SERVIDOR_INVALIDO"
+                  }
+                );
+
+                return;
+              }
+
+
+              /*
+               * Mistura de obras no pacote.
+               */
+              if (
+                idObraRegistro !==
+                idObra
+              ) {
+                resumo.rejeitadosOutraObra++;
+
+                adicionarConflitoClimaUX1975_(
+                  resultado,
+                  {
+                    idClima:
+                      idClima,
+
+                    motivo:
+                      "REGISTRO_SERVIDOR_OUTRA_OBRA",
+
+                    idObraRegistro:
+                      idObraRegistro,
+
+                    idObraEsperada:
+                      idObra
+                  }
+                );
+
+                return;
+              }
+
+
+              /*
+               * ID duplicado no pacote.
+               */
+              if (
+                idsPacote.has(
+                  idClima
+                )
+              ) {
+                resumo.rejeitadosDuplicidade++;
+
+                adicionarConflitoClimaUX1975_(
+                  resultado,
+                  {
+                    idClima:
+                      idClima,
+
+                    motivo:
+                      "ID_DUPLICADO_NO_PACOTE"
+                  }
+                );
+
+                return;
+              }
+
+              idsPacote.add(
+                idClima
+              );
+
+
+              const registroLocal =
+                locaisPorId.get(
+                  idClima
+                ) || null;
+
+              const pendencia =
+                pendenciasPorId.get(
+                  idClima
+                ) || null;
+
+
+              /*
+               * ID local pertencente a outra obra.
+               */
+              if (
+                registroLocal &&
+                normalizarTextoClimaUX1975_(
+                  registroLocal.idObra
+                ) &&
+                normalizarTextoClimaUX1975_(
+                  registroLocal.idObra
+                ) !== idObra
+              ) {
+                resumo.rejeitadosOutraObra++;
+
+                adicionarConflitoClimaUX1975_(
+                  resultado,
+                  {
+                    idClima:
+                      idClima,
+
+                    motivo:
+                      "ID_LOCAL_PERTENCE_OUTRA_OBRA",
+
+                    idObraLocal:
+                      registroLocal.idObra,
+
+                    idObraEsperada:
+                      idObra
+                  }
+                );
+
+                return;
+              }
+
+
+              /*
+               * A própria fila associou o mesmo ID
+               * a outra obra.
+               */
+              if (
+                pendencia &&
+                Array
+                  .from(
+                    pendencia.obras
+                  )
+                  .some(
+                    function (obraFila) {
+                      return (
+                        obraFila &&
+                        obraFila !== idObra
+                      );
+                    }
+                  )
+              ) {
+                resumo.rejeitadosOutraObra++;
+
+                adicionarConflitoClimaUX1975_(
+                  resultado,
+                  {
+                    idClima:
+                      idClima,
+
+                    motivo:
+                      "PENDENCIA_ASSOCIADA_OUTRA_OBRA",
+
+                    obrasFila:
+                      Array.from(
+                        pendencia.obras
+                      )
+                  }
+                );
+
+                return;
+              }
+
+
+              /*
+               * DELETE pendente possui prioridade.
+               *
+               * Mesmo que o registro não exista localmente,
+               * ele não pode ser ressuscitado.
+               */
+              if (
+                pendencia?.possuiDelete
+              ) {
+                resumo.preservadosDelete++;
+
+                adicionarConflitoClimaUX1975_(
+                  resultado,
+                  {
+                    idClima:
+                      idClima,
+
+                    motivo:
+                      "DELETE_PENDENTE_NAO_RESTAURAR"
+                  }
+                );
+
+                return;
+              }
+
+
+              /*
+               * UPSERT pendente.
+               */
+              if (
+                pendencia?.possuiUpsert
+              ) {
+                resumo.preservadosUpsert++;
+
+                adicionarConflitoClimaUX1975_(
+                  resultado,
+                  {
+                    idClima:
+                      idClima,
+
+                    motivo:
+                      "UPSERT_PENDENTE_PRESERVAR_LOCAL"
+                  }
+                );
+
+                return;
+              }
+
+
+              /*
+               * Qualquer pendência não reconhecida
+               * também bloqueia a sobrescrita.
+               */
+              if (
+                pendencia?.possuiDesconhecida
+              ) {
+                resumo.preservadosFilaDesconhecida++;
+
+                adicionarConflitoClimaUX1975_(
+                  resultado,
+                  {
+                    idClima:
+                      idClima,
+
+                    motivo:
+                      "PENDENCIA_DESCONHECIDA_PRESERVAR_LOCAL"
+                  }
+                );
+
+                return;
+              }
+
+
+              /*
+               * Proteção contra inconsistência:
+               *
+               * local está pendente, mas a entrada correspondente
+               * não foi identificada na fila.
+               */
+              const statusLocal =
+                normalizarMaiusculoClimaUX1975_(
+                  registroLocal?.statusSync
+                );
+
+              if (
+                registroLocal &&
+                [
+                  "PENDENTE",
+                  "ERRO",
+                  "FALHA"
+                ].includes(
+                  statusLocal
+                )
+              ) {
+                resumo.preservadosStatusLocal++;
+
+                adicionarConflitoClimaUX1975_(
+                  resultado,
+                  {
+                    idClima:
+                      idClima,
+
+                    motivo:
+                      "STATUS_LOCAL_NAO_SINCRONIZADO",
+
+                    statusLocal:
+                      statusLocal
+                  }
+                );
+
+                return;
+              }
+
+
+              const registroNormalizado =
+                normalizarRegistroServidorClimaUX1975_(
+                  registroServidor,
+                  registroLocal,
+                  pacote,
+                  agoraIso
+                );
+
+
+              if (registroLocal) {
+                resumo.atualizados++;
+
+              } else {
+                resumo.inseridos++;
+              }
+
+              gravacoes.push(
+                registroNormalizado
+              );
+            }
+          );
+
+
+          resumo.preservados =
+            resumo.preservadosUpsert +
+            resumo.preservadosDelete +
+            resumo.preservadosStatusLocal +
+            resumo.preservadosFilaDesconhecida;
+
+          resumo.rejeitados =
+            resumo.rejeitadosOutraObra +
+            resumo.rejeitadosDuplicidade +
+            resumo.rejeitadosInvalidos;
+
+          resumo.gravacoesPrevistas =
+            resumo.inseridos +
+            resumo.atualizados;
+
+          resumo.gravacoesExecutadas =
+            simular
+              ? 0
+              : gravacoes.length;
+
+
+          /*
+           * Somente TB_CLIMA recebe put.
+           *
+           * Nenhuma operação é feita em storeFila.
+           */
+          if (!simular) {
+            gravacoes.forEach(
+              function (registro) {
+                storeClima.put(
+                  registro
+                );
+              }
+            );
+          }
+
+          resultadoTransacao =
+            resultado;
+
+        } catch (erro) {
+          try {
+            transacao.abort();
+          } catch (erroAbortar) {
+            // A transação pode já ter sido encerrada.
+          }
+
+          rejeitarUmaVez(
+            erro
+          );
+        }
+      }
+
+
+      requisicaoClimas.onsuccess =
+        function () {
+          climasLocais =
+            Array.isArray(
+              requisicaoClimas.result
+            )
+              ? requisicaoClimas.result
+              : [];
+
+          processarMesclagem();
+        };
+
+
+      requisicaoClimas.onerror =
+        function () {
+          rejeitarUmaVez(
+            requisicaoClimas.error ||
+            new Error(
+              "Não foi possível ler TB_CLIMA."
+            )
+          );
+        };
+
+
+      requisicaoFila.onsuccess =
+        function () {
+          fila =
+            Array.isArray(
+              requisicaoFila.result
+            )
+              ? requisicaoFila.result
+              : [];
+
+          processarMesclagem();
+        };
+
+
+      requisicaoFila.onerror =
+        function () {
+          rejeitarUmaVez(
+            requisicaoFila.error ||
+            new Error(
+              "Não foi possível ler TB_SYNC_QUEUE."
+            )
+          );
+        };
+
+
+      transacao.oncomplete =
+        function () {
+          if (finalizado) {
+            return;
+          }
+
+          finalizado =
+            true;
+
+          resolve(
+            resultadoTransacao
+          );
+        };
+
+
+      transacao.onerror =
+        function () {
+          rejeitarUmaVez(
+            transacao.error ||
+            new Error(
+              "Erro na transação de mesclagem de Clima."
+            )
+          );
+        };
+
+
+      transacao.onabort =
+        function () {
+          rejeitarUmaVez(
+            transacao.error ||
+            new Error(
+              "A transação de mesclagem de Clima foi cancelada."
+            )
+          );
+        };
+    }
+  );
+}
+
+
+/**
+ * Atualiza cache e DataBinding apenas depois
+ * da mesclagem real.
+ *
+ * Não notifica alteração em TB_SYNC_QUEUE.
+ */
+async function notificarMesclagemClimaUX1975_(
+  resultado
+) {
+  try {
+    if (
+      window.SIGODataCache &&
+      typeof SIGODataCache.invalidate ===
+        "function"
+    ) {
+      SIGODataCache.invalidate(
+        "TB_CLIMA"
+      );
+
+      if (
+        resultado.idObra &&
+        typeof invalidarCacheObraSIGO_ ===
+          "function"
+      ) {
+        invalidarCacheObraSIGO_(
+          "TB_CLIMA",
+          resultado.idObra
+        );
+      }
+    }
+
+    if (
+      window.SIGODataBinding &&
+      typeof SIGODataBinding.notify ===
+        "function"
+    ) {
+      await SIGODataBinding.notify(
+        "TB_CLIMA",
+        {
+          acao:
+            "UPDATE",
+
+          store:
+            "TB_CLIMA",
+
+          idObra:
+            resultado.idObra,
+
+          quantidade:
+            resultado.climas
+              .gravacoesExecutadas,
+
+          origem:
+            "REIDRATACAO"
+        }
+      );
+
+      return;
+    }
+
+    if (
+      window.SIGOEventBus &&
+      typeof SIGOEventBus.emit ===
+        "function"
+    ) {
+      SIGOEventBus.emit(
+        "TB_CLIMA_UPDATED",
+        {
+          acao:
+            "UPDATE",
+
+          store:
+            "TB_CLIMA",
+
+          idObra:
+            resultado.idObra,
+
+          quantidade:
+            resultado.climas
+              .gravacoesExecutadas,
+
+          origem:
+            "REIDRATACAO"
+        }
+      );
+    }
+
+  } catch (erro) {
+    console.warn(
+      "[UX.19.7.5] Mesclagem gravada, mas a atualização visual falhou:",
+      erro
+    );
+  }
+}
+
+
+/**
+ * ============================================================
+ * MESCLAGEM PRINCIPAL
+ * ============================================================
+ */
+async function mesclarClimasReidratacaoSIGO_(
+  pacote,
+  opcoes = {}
+) {
+  if (
+    !pacote ||
+    typeof pacote !== "object"
+  ) {
+    throw new Error(
+      "Pacote de Clima não informado."
+    );
+  }
+
+  const idObra =
+    normalizarTextoClimaUX1975_(
+      pacote.idObra
+    );
+
+  if (!idObra) {
+    throw new Error(
+      "O pacote de Clima não possui idObra."
+    );
+  }
+
+  const climas =
+    Array.isArray(
+      pacote.climas
+    )
+      ? pacote.climas
+      : null;
+
+  if (!climas) {
+    throw new Error(
+      "A lista de Climas do pacote é inválida."
+    );
+  }
+
+  const totalInformado =
+    pacote.totais &&
+    pacote.totais.climas !==
+      undefined
+      ? Number(
+          pacote.totais.climas
+        )
+      : climas.length;
+
+  if (
+    !Number.isFinite(
+      totalInformado
+    ) ||
+    totalInformado !==
+      climas.length
+  ) {
+    throw new Error(
+      "O total de Climas informado não corresponde à lista recebida."
+    );
+  }
+
+  if (
+    typeof abrirBancoLocalSIGO !==
+    "function"
+  ) {
+    throw new Error(
+      "A função abrirBancoLocalSIGO não foi encontrada."
+    );
+  }
+
+  const db =
+    (
+      typeof SIGO_DB !==
+        "undefined" &&
+      SIGO_DB
+    )
+      ? SIGO_DB
+      : await abrirBancoLocalSIGO();
+
+  if (
+    !db.objectStoreNames.contains(
+      "TB_CLIMA"
+    )
+  ) {
+    throw new Error(
+      "A store TB_CLIMA não existe no IndexedDB."
+    );
+  }
+
+  if (
+    !db.objectStoreNames.contains(
+      "TB_SYNC_QUEUE"
+    )
+  ) {
+    throw new Error(
+      "A store TB_SYNC_QUEUE não existe no IndexedDB."
+    );
+  }
+
+  const simular =
+    opcoes.simular !== false;
+
+  const resultado =
+    await executarTransacaoClimaUX1975_(
+      db,
+      {
+        ...pacote,
+        idObra,
+        climas
+      },
+      {
+        simular
+      }
+    );
+
+
+  /*
+   * A fila é relida depois da transação para comprovar
+   * que quantidade e conteúdo permaneceram inalterados.
+   */
+  const filaDepois =
+    await listarRegistrosSIGO(
+      "TB_SYNC_QUEUE"
+    );
+
+  resultado.fila.totalDepois =
+    filaDepois.length;
+
+  resultado.fila.assinaturaDepois =
+    criarAssinaturaColecaoClimaUX1975_(
+      filaDepois,
+      "idSyncLocal"
+    );
+
+  resultado.fila.preservada =
+    (
+      resultado.fila.totalAntes ===
+        resultado.fila.totalDepois &&
+
+      resultado.fila.assinaturaAntes ===
+        resultado.fila.assinaturaDepois
+    );
+
+  if (
+    !resultado.fila.preservada
+  ) {
+    throw new Error(
+      "TB_SYNC_QUEUE foi alterada durante a mesclagem de Clima."
+    );
+  }
+
+  if (!simular) {
+    await notificarMesclagemClimaUX1975_(
+      resultado
+    );
+  }
+
+  return resultado;
+}
+
+
+/**
+ * Consulta a API e aplica a mesclagem protegida.
+ */
+async function reidratarClimasObraMobile_(
+  idObra,
+  diasHistorico,
+  opcoes = {}
+) {
+  if (
+    typeof obterClimasOperacionaisObraMobile_ !==
+    "function"
+  ) {
+    throw new Error(
+      "O cliente de Clima da UX.19.7.4 não foi encontrado."
+    );
+  }
+
+  const respostaApi =
+    await obterClimasOperacionaisObraMobile_(
+      idObra,
+      diasHistorico
+    );
+
+  return mesclarClimasReidratacaoSIGO_(
+    respostaApi,
+    opcoes
+  );
+}
+
+
+/**
+ * ============================================================
+ * TESTE EM MODO SIMULAÇÃO
+ * ============================================================
+ *
+ * Este é o teste que deve ser executado primeiro.
+ *
+ * Não grava em TB_CLIMA.
+ * Não altera TB_SYNC_QUEUE.
+ */
+async function testarMesclagemProtegidaClimaUX1975_() {
+  console.log(
+    "[UX.19.7.5] Iniciando simulação da mesclagem protegida de Clima..."
+  );
+
+  const climasAntes =
+    await listarRegistrosSIGO(
+      "TB_CLIMA"
+    );
+
+  const filaAntes =
+    await listarRegistrosSIGO(
+      "TB_SYNC_QUEUE"
+    );
+
+  const assinaturaClimasAntes =
+    criarAssinaturaColecaoClimaUX1975_(
+      climasAntes,
+      "idClima"
+    );
+
+  const assinaturaFilaAntes =
+    criarAssinaturaColecaoClimaUX1975_(
+      filaAntes,
+      "idSyncLocal"
+    );
+
+  const resultado =
+    await reidratarClimasObraMobile_(
+      "OBR002",
+      30,
+      {
+        simular:
+          true
+      }
+    );
+
+  const climasDepois =
+    await listarRegistrosSIGO(
+      "TB_CLIMA"
+    );
+
+  const filaDepois =
+    await listarRegistrosSIGO(
+      "TB_SYNC_QUEUE"
+    );
+
+  const assinaturaClimasDepois =
+    criarAssinaturaColecaoClimaUX1975_(
+      climasDepois,
+      "idClima"
+    );
+
+  const assinaturaFilaDepois =
+    criarAssinaturaColecaoClimaUX1975_(
+      filaDepois,
+      "idSyncLocal"
+    );
+
+  const totalDecisoes =
+    resultado.climas.inseridos +
+    resultado.climas.atualizados +
+    resultado.climas.preservados +
+    resultado.climas.rejeitados;
+
+  const validacoes = {
+    modoSimulacao:
+      resultado.modo ===
+      "SIMULACAO",
+
+    obraCorreta:
+      resultado.idObra ===
+      "OBR002",
+
+    periodoCorreto:
+      resultado.periodoDias ===
+      30,
+
+    recebeu8Climas:
+      resultado.climas.recebidos ===
+      8,
+
+    totalDecisoesCoerente:
+      totalDecisoes ===
+      resultado.climas.recebidos,
+
+    nenhumaGravacaoExecutada:
+      resultado.climas
+        .gravacoesExecutadas === 0,
+
+    tbClimaNaoAlterada:
+      assinaturaClimasAntes ===
+      assinaturaClimasDepois,
+
+    quantidadeClimasPreservada:
+      climasAntes.length ===
+      climasDepois.length,
+
+    filaQuantidadePreservada:
+      filaAntes.length ===
+      filaDepois.length,
+
+    filaConteudoPreservado:
+      assinaturaFilaAntes ===
+      assinaturaFilaDepois,
+
+    filaConfirmadaPeloResultado:
+      resultado.fila.preservada ===
+      true,
+
+    nenhumRegistroInvalido:
+      resultado.climas
+        .rejeitadosInvalidos === 0,
+
+    nenhumaDuplicidadePacote:
+      resultado.climas
+        .rejeitadosDuplicidade === 0,
+
+    nenhumaMisturaDeObras:
+      resultado.climas
+        .rejeitadosOutraObra === 0
+  };
+
+  const aprovado =
+    Object.values(
+      validacoes
+    ).every(
+      function (valor) {
+        return valor === true;
+      }
+    );
+
+  const auditoria = {
+    etapa:
+      "UX.19.7.5",
+
+    teste:
+      "MESCLAGEM_PROTEGIDA_CLIMA_SIMULACAO",
+
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+
+    idObra:
+      resultado.idObra,
+
+    periodoDias:
+      resultado.periodoDias,
+
+    climas: {
+      locaisAntes:
+        climasAntes.length,
+
+      locaisDepois:
+        climasDepois.length,
+
+      recebidos:
+        resultado.climas.recebidos,
+
+      inseriria:
+        resultado.climas.inseridos,
+
+      atualizaria:
+        resultado.climas.atualizados,
+
+      preservariaUpsert:
+        resultado.climas
+          .preservadosUpsert,
+
+      preservariaDelete:
+        resultado.climas
+          .preservadosDelete,
+
+      preservariaStatusLocal:
+        resultado.climas
+          .preservadosStatusLocal,
+
+      preservariaFilaDesconhecida:
+        resultado.climas
+          .preservadosFilaDesconhecida,
+
+      preservados:
+        resultado.climas.preservados,
+
+      rejeitados:
+        resultado.climas.rejeitados,
+
+      gravacoesExecutadas:
+        resultado.climas
+          .gravacoesExecutadas
+    },
+
+    conflitosEvitados:
+      resultado.totalConflitosEvitados,
+
+    fila: {
+      totalAntes:
+        filaAntes.length,
+
+      totalDepois:
+        filaDepois.length,
+
+      preservada:
+        resultado.fila.preservada
+    },
+
+    validacoes:
+      validacoes,
+
+    conflitos:
+      resultado.conflitos,
+
+    aprovado:
+      aprovado
+  };
+
+  console.log(
+    JSON.stringify(
+      auditoria,
+      null,
+      2
+    )
+  );
+
+  if (!aprovado) {
+    throw new Error(
+      "UX.19.7.5 REPROVADA. Consulte as validações no console."
+    );
+  }
+
+  console.log(
+    "UX.19.7.5 — SIMULAÇÃO DA MESCLAGEM PROTEGIDA DE CLIMA APROVADA."
+  );
+
+  return {
+    auditoria,
+    resultado
+  };
+}
+
+
+/**
+ * ============================================================
+ * MESCLAGEM REAL
+ * ============================================================
+ *
+ * NÃO EXECUTAR ANTES DA APROVAÇÃO DA SIMULAÇÃO.
+ */
+async function executarMesclagemRealClimaUX1975_() {
+  console.log(
+    "[UX.19.7.5] Iniciando mesclagem real de Clima..."
+  );
+
+  const resultado =
+    await reidratarClimasObraMobile_(
+      "OBR002",
+      30,
+      {
+        simular:
+          false
+      }
+    );
+
+  console.log(
+    JSON.stringify(
+      resultado,
+      null,
+      2
+    )
+  );
+
+  console.log(
+    "UX.19.7.5 — MESCLAGEM REAL DE CLIMA CONCLUÍDA."
+  );
+
+  return resultado;
+}
+
+/**
+ * ============================================================
  * UX.19.6.5 — MESCLAGEM PROTEGIDA DE OCORRÊNCIAS
  * ============================================================
  *
