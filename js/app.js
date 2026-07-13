@@ -41076,3 +41076,1685 @@ async function auditarIdempotenciaMedicoesUX1995A_() {
       pacote
   };
 }
+
+/**
+ * ============================================================
+ * UX.19.9.6 — AUDITORIA PÓS-MESCLAGEM E
+ * INTEGRIDADE RELACIONAL DE MEDIÇÕES OFICIAIS
+ * ============================================================
+ *
+ * Etapa somente leitura.
+ *
+ * Não altera:
+ *
+ * - TB_MEDICOES;
+ * - TB_LOTES_MEDICAO;
+ * - TB_SYNC_QUEUE;
+ * - PLANEJAMENTO_ATIVO.
+ */
+
+
+/**
+ * Normaliza textos para comparação funcional.
+ */
+function normalizarTextoAuditoriaMedicoesUX1996_(
+  valor
+) {
+  return String(
+    valor === undefined ||
+    valor === null
+      ? ""
+      : valor
+  )
+    .trim()
+    .replace(/\r\n/g, "\n");
+}
+
+
+/**
+ * Normaliza números para comparação.
+ */
+function normalizarNumeroAuditoriaMedicoesUX1996_(
+  valor
+) {
+  if (
+    valor === undefined ||
+    valor === null ||
+    valor === ""
+  ) {
+    return null;
+  }
+
+  const numero =
+    Number(valor);
+
+  return Number.isFinite(numero)
+    ? numero
+    : null;
+}
+
+
+/**
+ * Registra divergência textual.
+ */
+function compararTextoAuditoriaMedicoesUX1996_(
+  divergencias,
+  campo,
+  esperado,
+  atual
+) {
+  const valorEsperado =
+    normalizarTextoAuditoriaMedicoesUX1996_(
+      esperado
+    );
+
+  const valorAtual =
+    normalizarTextoAuditoriaMedicoesUX1996_(
+      atual
+    );
+
+  if (
+    valorEsperado !==
+    valorAtual
+  ) {
+    divergencias.push({
+      campo:
+        campo,
+
+      esperado:
+        valorEsperado,
+
+      atual:
+        valorAtual
+    });
+  }
+}
+
+
+/**
+ * Registra divergência numérica.
+ */
+function compararNumeroAuditoriaMedicoesUX1996_(
+  divergencias,
+  campo,
+  esperado,
+  atual
+) {
+  const valorEsperado =
+    normalizarNumeroAuditoriaMedicoesUX1996_(
+      esperado
+    );
+
+  const valorAtual =
+    normalizarNumeroAuditoriaMedicoesUX1996_(
+      atual
+    );
+
+  if (
+    valorEsperado !==
+    valorAtual
+  ) {
+    divergencias.push({
+      campo:
+        campo,
+
+      esperado:
+        valorEsperado,
+
+      atual:
+        valorAtual
+    });
+  }
+}
+
+
+/**
+ * Localiza valores duplicados de um campo.
+ */
+function localizarDuplicadosAuditoriaMedicoesUX1996_(
+  registros,
+  campo
+) {
+  const contagem =
+    new Map();
+
+  const duplicados =
+    [];
+
+  (
+    Array.isArray(registros)
+      ? registros
+      : []
+  ).forEach(
+    function (registro) {
+      const valor =
+        normalizarTextoAuditoriaMedicoesUX1996_(
+          registro?.[campo]
+        );
+
+      if (!valor) {
+        return;
+      }
+
+      contagem.set(
+        valor,
+        Number(
+          contagem.get(valor) || 0
+        ) + 1
+      );
+    }
+  );
+
+  contagem.forEach(
+    function (quantidade, valor) {
+      if (quantidade > 1) {
+        duplicados.push({
+          campo:
+            campo,
+
+          valor:
+            valor,
+
+          quantidade:
+            quantidade
+        });
+      }
+    }
+  );
+
+  return duplicados;
+}
+
+
+/**
+ * Verifica se um registro local é uma
+ * Medição oficial reidratada.
+ */
+function registroEhMedicaoOficialUX1996_(
+  registro
+) {
+  return Boolean(
+    registro &&
+    (
+      registro.registroOficial === true ||
+      normalizarTextoAuditoriaMedicoesUX1996_(
+        registro.tipoRegistro
+      ) === "ITEM_MEDICAO_OFICIAL"
+    )
+  );
+}
+
+
+/**
+ * Compara o item oficial do servidor com
+ * o registro transformado da TB_MEDICOES.
+ */
+function compararItemOficialMedicaoUX1996_(
+  itemServidor,
+  cabecalhoServidor,
+  registroLocal
+) {
+  const divergencias = [];
+
+  /*
+   * Chave e relação oficial.
+   */
+  compararTextoAuditoriaMedicoesUX1996_(
+    divergencias,
+    "idMedicao-chave-local",
+    itemServidor.idItemMedicao,
+    registroLocal.idMedicao
+  );
+
+  compararTextoAuditoriaMedicoesUX1996_(
+    divergencias,
+    "idItemMedicao",
+    itemServidor.idItemMedicao,
+    registroLocal.idItemMedicao
+  );
+
+  compararTextoAuditoriaMedicoesUX1996_(
+    divergencias,
+    "idMedicaoOficial",
+    itemServidor.idMedicao,
+    registroLocal.idMedicaoOficial
+  );
+
+
+  /*
+   * Campos funcionais do item.
+   */
+  [
+    {
+      campo:
+        "idObra",
+
+      esperado:
+        itemServidor.idObra,
+
+      atual:
+        registroLocal.idObra
+    },
+    {
+      campo:
+        "numeroMedicao",
+
+      esperado:
+        itemServidor.numeroMedicao,
+
+      atual:
+        registroLocal.numeroMedicao
+    },
+    {
+      campo:
+        "idAtividade",
+
+      esperado:
+        itemServidor.idAtividade,
+
+      atual:
+        registroLocal.idAtividade
+    },
+    {
+      campo:
+        "atividade",
+
+      esperado:
+        itemServidor.idAtividade,
+
+      atual:
+        registroLocal.atividade
+    },
+    {
+      campo:
+        "justificativa",
+
+      esperado:
+        itemServidor.justificativa,
+
+      atual:
+        registroLocal.justificativa
+    },
+    {
+      campo:
+        "statusItem",
+
+      esperado:
+        itemServidor.statusItem,
+
+      atual:
+        registroLocal.statusItem
+    },
+    {
+      campo:
+        "origem",
+
+      esperado:
+        itemServidor.origem,
+
+      atual:
+        registroLocal.origem
+    },
+    {
+      campo:
+        "criadoEm",
+
+      esperado:
+        itemServidor.criadoEm,
+
+      atual:
+        registroLocal.criadoEm
+    },
+    {
+      campo:
+        "atualizadoEm",
+
+      esperado:
+        itemServidor.atualizadoEm,
+
+      atual:
+        registroLocal.atualizadoEm
+    }
+  ].forEach(
+    function (comparacao) {
+      compararTextoAuditoriaMedicoesUX1996_(
+        divergencias,
+        comparacao.campo,
+        comparacao.esperado,
+        comparacao.atual
+      );
+    }
+  );
+
+  compararNumeroAuditoriaMedicoesUX1996_(
+    divergencias,
+    "qtdeMedida",
+    itemServidor.qtdeMedida,
+    registroLocal.qtdeMedida
+  );
+
+  compararNumeroAuditoriaMedicoesUX1996_(
+    divergencias,
+    "qtdeExecutada",
+    itemServidor.qtdeMedida,
+    registroLocal.qtdeExecutada
+  );
+
+
+  /*
+   * Campos do cabeçalho replicados no nível superior.
+   */
+  [
+    {
+      campo:
+        "nomeObra",
+
+      esperado:
+        cabecalhoServidor.nomeObra,
+
+      atual:
+        registroLocal.nomeObra
+    },
+    {
+      campo:
+        "periodoInicio",
+
+      esperado:
+        cabecalhoServidor.periodoInicio,
+
+      atual:
+        registroLocal.periodoInicio
+    },
+    {
+      campo:
+        "periodoFim",
+
+      esperado:
+        cabecalhoServidor.periodoFim,
+
+      atual:
+        registroLocal.periodoFim
+    },
+    {
+      campo:
+        "dataCriacao",
+
+      esperado:
+        cabecalhoServidor.dataCriacao,
+
+      atual:
+        registroLocal.dataCriacao
+    },
+    {
+      campo:
+        "responsavel",
+
+      esperado:
+        cabecalhoServidor.responsavel,
+
+      atual:
+        registroLocal.responsavel
+    },
+    {
+      campo:
+        "observacoes",
+
+      esperado:
+        cabecalhoServidor.observacoes,
+
+      atual:
+        registroLocal.observacoes
+    },
+    {
+      campo:
+        "dataAprovacao",
+
+      esperado:
+        cabecalhoServidor.dataAprovacao,
+
+      atual:
+        registroLocal.dataAprovacao
+    },
+    {
+      campo:
+        "usuarioAprovacao",
+
+      esperado:
+        cabecalhoServidor.usuarioAprovacao,
+
+      atual:
+        registroLocal.usuarioAprovacao
+    },
+    {
+      campo:
+        "statusMedicao",
+
+      esperado:
+        cabecalhoServidor.statusMedicao,
+
+      atual:
+        registroLocal.statusMedicao
+    },
+    {
+      campo:
+        "statusMedicaoOficial",
+
+      esperado:
+        cabecalhoServidor.statusMedicao,
+
+      atual:
+        registroLocal.statusMedicaoOficial
+    }
+  ].forEach(
+    function (comparacao) {
+      compararTextoAuditoriaMedicoesUX1996_(
+        divergencias,
+        comparacao.campo,
+        comparacao.esperado,
+        comparacao.atual
+      );
+    }
+  );
+
+  compararNumeroAuditoriaMedicoesUX1996_(
+    divergencias,
+    "valorTotalMedicao",
+    cabecalhoServidor.valorTotalMedicao,
+    registroLocal.valorTotalMedicao
+  );
+
+
+  /*
+   * Metadados locais obrigatórios.
+   */
+  compararTextoAuditoriaMedicoesUX1996_(
+    divergencias,
+    "statusSync",
+    "SINCRONIZADO",
+    registroLocal.statusSync
+  );
+
+  compararTextoAuditoriaMedicoesUX1996_(
+    divergencias,
+    "origemReidratacao",
+    "SERVIDOR",
+    registroLocal.origemReidratacao
+  );
+
+  compararTextoAuditoriaMedicoesUX1996_(
+    divergencias,
+    "tipoRegistro",
+    "ITEM_MEDICAO_OFICIAL",
+    registroLocal.tipoRegistro
+  );
+
+  compararTextoAuditoriaMedicoesUX1996_(
+    divergencias,
+    "fonteRegistro",
+    "MEDICOES_ITENS",
+    registroLocal.fonteRegistro
+  );
+
+  if (
+    registroLocal.registroOficial !== true
+  ) {
+    divergencias.push({
+      campo:
+        "registroOficial",
+
+      esperado:
+        true,
+
+      atual:
+        registroLocal.registroOficial
+    });
+  }
+
+  return divergencias;
+}
+
+
+/**
+ * Compara o cabeçalho do servidor com
+ * cabecalhoOficial armazenado localmente.
+ */
+function compararSnapshotCabecalhoUX1996_(
+  cabecalhoServidor,
+  snapshotLocal
+) {
+  const divergencias = [];
+
+  if (
+    !snapshotLocal ||
+    typeof snapshotLocal !== "object"
+  ) {
+    divergencias.push({
+      campo:
+        "cabecalhoOficial",
+
+      esperado:
+        "OBJETO",
+
+      atual:
+        snapshotLocal
+    });
+
+    return divergencias;
+  }
+
+  const camposTextuais = [
+    "idMedicao",
+    "idObra",
+    "nomeObra",
+    "numeroMedicao",
+    "periodoInicio",
+    "periodoFim",
+    "dataCriacao",
+    "responsavel",
+    "statusMedicao",
+    "observacoes",
+    "dataAprovacao",
+    "usuarioAprovacao",
+    "origem",
+    "criadoEm",
+    "atualizadoEm"
+  ];
+
+  camposTextuais.forEach(
+    function (campo) {
+      compararTextoAuditoriaMedicoesUX1996_(
+        divergencias,
+        "cabecalhoOficial." + campo,
+        cabecalhoServidor[campo],
+        snapshotLocal[campo]
+      );
+    }
+  );
+
+  compararNumeroAuditoriaMedicoesUX1996_(
+    divergencias,
+    "cabecalhoOficial.valorTotalMedicao",
+    cabecalhoServidor.valorTotalMedicao,
+    snapshotLocal.valorTotalMedicao
+  );
+
+  return divergencias;
+}
+
+
+/**
+ * Verifica a existência de todos os campos
+ * previstos no snapshot.
+ */
+function localizarCamposAusentesSnapshotUX1996_(
+  registroLocal
+) {
+  const camposObrigatorios = [
+    "idMedicao",
+    "idObra",
+    "nomeObra",
+    "numeroMedicao",
+    "periodoInicio",
+    "periodoFim",
+    "dataCriacao",
+    "responsavel",
+    "statusMedicao",
+    "observacoes",
+    "dataAprovacao",
+    "usuarioAprovacao",
+    "valorTotalMedicao",
+    "origem",
+    "criadoEm",
+    "atualizadoEm"
+  ];
+
+  const snapshot =
+    registroLocal?.cabecalhoOficial;
+
+  if (
+    !snapshot ||
+    typeof snapshot !== "object"
+  ) {
+    return camposObrigatorios;
+  }
+
+  return camposObrigatorios.filter(
+    function (campo) {
+      return !Object.prototype
+        .hasOwnProperty.call(
+          snapshot,
+          campo
+        );
+    }
+  );
+}
+
+
+/**
+ * ============================================================
+ * AUDITORIA PRINCIPAL
+ * ============================================================
+ */
+async function auditarIntegridadeRelacionalMedicoesUX1996_() {
+  console.log(
+    "[UX.19.9.6] Iniciando auditoria pós-mesclagem de Medições oficiais..."
+  );
+
+  const idObra =
+    "OBR002";
+
+  const periodoDias =
+    30;
+
+  const idItemEsperado =
+    "803a96ef-ac02-4336-bdc8-5fa418304aac";
+
+  const idMedicaoOficialEsperado =
+    "MED-OBR002-MED01-20260629175311";
+
+  const chavesOperacionaisEsperadas = [
+    "MED-1782748353580",
+    "MED-1782748408380",
+    "MED-1782748476804",
+    "MED-1782748618083",
+    "MED-1782749963925"
+  ].sort();
+
+
+  /*
+   * ========================================================
+   * ESTADO ANTES
+   * ========================================================
+   */
+
+  const brutoAntes =
+    await lerTbMedicoesBrutaUX1995A_();
+
+  const sistemaAntes =
+    await listarRegistrosSIGO(
+      "TB_MEDICOES"
+    );
+
+  const lotesAntes =
+    await listarRegistrosSIGO(
+      "TB_LOTES_MEDICAO"
+    );
+
+  const filaAntes =
+    await listarRegistrosSIGO(
+      "TB_SYNC_QUEUE"
+    );
+
+  const assinaturaBrutaAntes =
+    criarAssinaturaStoreMedicoesUX1994_(
+      brutoAntes.registros
+    );
+
+  const assinaturaSistemaAntes =
+    criarAssinaturaStoreMedicoesUX1994_(
+      sistemaAntes
+    );
+
+  const assinaturaLotesAntes =
+    criarAssinaturaStoreMedicoesUX1994_(
+      lotesAntes
+    );
+
+  const assinaturaFilaAntes =
+    criarAssinaturaStoreMedicoesUX1994_(
+      filaAntes
+    );
+
+
+  /*
+   * ========================================================
+   * PACOTE ATUAL DO SERVIDOR
+   * ========================================================
+   */
+
+  const pacote =
+    await obterMedicoesOficiaisObraMobile_(
+      idObra,
+      periodoDias
+    );
+
+  const medicoesServidor =
+    Array.isArray(pacote.medicoes)
+      ? pacote.medicoes
+      : [];
+
+  const itensServidor =
+    Array.isArray(pacote.itensMedicao)
+      ? pacote.itensMedicao
+      : [];
+
+  const mapaCabecalhosServidor =
+    new Map();
+
+  medicoesServidor.forEach(
+    function (medicao) {
+      const idMedicao =
+        normalizarTextoAuditoriaMedicoesUX1996_(
+          medicao.idMedicao
+        );
+
+      if (idMedicao) {
+        mapaCabecalhosServidor.set(
+          idMedicao,
+          medicao
+        );
+      }
+    }
+  );
+
+
+  /*
+   * ========================================================
+   * CLASSIFICAÇÃO DOS REGISTROS LOCAIS
+   * ========================================================
+   */
+
+  const registrosLocais =
+    brutoAntes.registros;
+
+  const registrosOficiaisLocais =
+    registrosLocais.filter(
+      registroEhMedicaoOficialUX1996_
+    );
+
+  const registrosOperacionaisLocais =
+    registrosLocais.filter(
+      function (registro) {
+        return !registroEhMedicaoOficialUX1996_(
+          registro
+        );
+      }
+    );
+
+  const chavesOperacionaisAtuais =
+    registrosOperacionaisLocais
+      .map(
+        function (registro) {
+          return normalizarTextoAuditoriaMedicoesUX1996_(
+            registro.idMedicao
+          );
+        }
+      )
+      .filter(Boolean)
+      .sort();
+
+  const chavesOperacionaisFaltantes =
+    chavesOperacionaisEsperadas.filter(
+      function (chave) {
+        return !chavesOperacionaisAtuais.includes(
+          chave
+        );
+      }
+    );
+
+  const chavesOperacionaisExtras =
+    chavesOperacionaisAtuais.filter(
+      function (chave) {
+        return !chavesOperacionaisEsperadas.includes(
+          chave
+        );
+      }
+    );
+
+
+  /*
+   * ========================================================
+   * DUPLICIDADES
+   * ========================================================
+   */
+
+  const duplicadosServidorMedicoes =
+    localizarDuplicadosAuditoriaMedicoesUX1996_(
+      medicoesServidor,
+      "idMedicao"
+    );
+
+  const duplicadosServidorItens =
+    localizarDuplicadosAuditoriaMedicoesUX1996_(
+      itensServidor,
+      "idItemMedicao"
+    );
+
+  const duplicadosChaveLocal =
+    localizarDuplicadosAuditoriaMedicoesUX1996_(
+      registrosLocais,
+      "idMedicao"
+    );
+
+  const duplicadosItensOficiaisLocais =
+    localizarDuplicadosAuditoriaMedicoesUX1996_(
+      registrosOficiaisLocais,
+      "idItemMedicao"
+    );
+
+  const duplicadosCabecalhosOficiaisLocais =
+    localizarDuplicadosAuditoriaMedicoesUX1996_(
+      registrosOficiaisLocais,
+      "idMedicaoOficial"
+    );
+
+
+  /*
+   * ========================================================
+   * COMPARAÇÃO SERVIDOR × LOCAL
+   * ========================================================
+   */
+
+  const itensFaltantesLocal = [];
+  const itensExtrasLocal = [];
+  const cabecalhosServidorAusentes = [];
+  const registrosOficiaisInvalidos = [];
+  const camposSnapshotAusentes = [];
+  const divergenciasItem = [];
+  const divergenciasSnapshot = [];
+  const metadadosInvalidos = [];
+
+  itensServidor.forEach(
+    function (itemServidor) {
+      const idItemMedicao =
+        normalizarTextoAuditoriaMedicoesUX1996_(
+          itemServidor.idItemMedicao
+        );
+
+      const idMedicaoOficial =
+        normalizarTextoAuditoriaMedicoesUX1996_(
+          itemServidor.idMedicao
+        );
+
+      const correspondentes =
+        registrosOficiaisLocais.filter(
+          function (registro) {
+            return (
+              normalizarTextoAuditoriaMedicoesUX1996_(
+                registro.idItemMedicao
+              ) === idItemMedicao
+            );
+          }
+        );
+
+      if (!correspondentes.length) {
+        itensFaltantesLocal.push({
+          idItemMedicao:
+            idItemMedicao,
+
+          idMedicaoOficial:
+            idMedicaoOficial
+        });
+
+        return;
+      }
+
+      const registroLocal =
+        correspondentes[0];
+
+      const cabecalhoServidor =
+        mapaCabecalhosServidor.get(
+          idMedicaoOficial
+        );
+
+      if (!cabecalhoServidor) {
+        cabecalhosServidorAusentes.push({
+          idItemMedicao:
+            idItemMedicao,
+
+          idMedicaoOficial:
+            idMedicaoOficial
+        });
+
+        return;
+      }
+
+      const problemasItem =
+        compararItemOficialMedicaoUX1996_(
+          itemServidor,
+          cabecalhoServidor,
+          registroLocal
+        );
+
+      if (problemasItem.length) {
+        divergenciasItem.push({
+          idItemMedicao:
+            idItemMedicao,
+
+          divergencias:
+            problemasItem
+        });
+      }
+
+      const camposAusentes =
+        localizarCamposAusentesSnapshotUX1996_(
+          registroLocal
+        );
+
+      if (camposAusentes.length) {
+        camposSnapshotAusentes.push({
+          idItemMedicao:
+            idItemMedicao,
+
+          campos:
+            camposAusentes
+        });
+      }
+
+      const problemasSnapshot =
+        compararSnapshotCabecalhoUX1996_(
+          cabecalhoServidor,
+          registroLocal.cabecalhoOficial
+        );
+
+      if (problemasSnapshot.length) {
+        divergenciasSnapshot.push({
+          idItemMedicao:
+            idItemMedicao,
+
+          divergencias:
+            problemasSnapshot
+        });
+      }
+
+      const dataSyncLocal =
+        normalizarTextoAuditoriaMedicoesUX1996_(
+          registroLocal.dataSync
+        );
+
+      if (
+        !dataSyncLocal ||
+        Number.isNaN(
+          new Date(
+            dataSyncLocal
+          ).getTime()
+        )
+      ) {
+        metadadosInvalidos.push({
+          idItemMedicao:
+            idItemMedicao,
+
+          campo:
+            "dataSync",
+
+          valor:
+            registroLocal.dataSync
+        });
+      }
+    }
+  );
+
+
+  /*
+   * Registros oficiais locais que não existem
+   * no pacote atual do servidor.
+   */
+  const idsItensServidor =
+    new Set(
+      itensServidor.map(
+        function (item) {
+          return normalizarTextoAuditoriaMedicoesUX1996_(
+            item.idItemMedicao
+          );
+        }
+      )
+    );
+
+  registrosOficiaisLocais.forEach(
+    function (registro) {
+      const idItemMedicao =
+        normalizarTextoAuditoriaMedicoesUX1996_(
+          registro.idItemMedicao
+        );
+
+      if (
+        !idsItensServidor.has(
+          idItemMedicao
+        )
+      ) {
+        itensExtrasLocal.push({
+          idItemMedicao:
+            idItemMedicao,
+
+          idMedicaoOficial:
+            registro.idMedicaoOficial
+        });
+      }
+
+      if (
+        !idItemMedicao ||
+        !normalizarTextoAuditoriaMedicoesUX1996_(
+          registro.idMedicao
+        ) ||
+        !normalizarTextoAuditoriaMedicoesUX1996_(
+          registro.idMedicaoOficial
+        ) ||
+        !normalizarTextoAuditoriaMedicoesUX1996_(
+          registro.idObra
+        ) ||
+        !normalizarTextoAuditoriaMedicoesUX1996_(
+          registro.idAtividade
+        ) ||
+        normalizarNumeroAuditoriaMedicoesUX1996_(
+          registro.qtdeMedida
+        ) === null ||
+        normalizarNumeroAuditoriaMedicoesUX1996_(
+          registro.qtdeMedida
+        ) < 0
+      ) {
+        registrosOficiaisInvalidos.push({
+          idMedicao:
+            registro.idMedicao,
+
+          idItemMedicao:
+            registro.idItemMedicao,
+
+          idMedicaoOficial:
+            registro.idMedicaoOficial
+        });
+      }
+    }
+  );
+
+
+  /*
+   * ========================================================
+   * ESTADO DEPOIS
+   * ========================================================
+   */
+
+  const brutoDepois =
+    await lerTbMedicoesBrutaUX1995A_();
+
+  const sistemaDepois =
+    await listarRegistrosSIGO(
+      "TB_MEDICOES"
+    );
+
+  const lotesDepois =
+    await listarRegistrosSIGO(
+      "TB_LOTES_MEDICAO"
+    );
+
+  const filaDepois =
+    await listarRegistrosSIGO(
+      "TB_SYNC_QUEUE"
+    );
+
+  const assinaturaBrutaDepois =
+    criarAssinaturaStoreMedicoesUX1994_(
+      brutoDepois.registros
+    );
+
+  const assinaturaSistemaDepois =
+    criarAssinaturaStoreMedicoesUX1994_(
+      sistemaDepois
+    );
+
+  const assinaturaLotesDepois =
+    criarAssinaturaStoreMedicoesUX1994_(
+      lotesDepois
+    );
+
+  const assinaturaFilaDepois =
+    criarAssinaturaStoreMedicoesUX1994_(
+      filaDepois
+    );
+
+
+  /*
+   * ========================================================
+   * REGISTRO OFICIAL ESPERADO
+   * ========================================================
+   */
+
+  const registroOficialEsperado =
+    registrosOficiaisLocais.find(
+      function (registro) {
+        return (
+          registro.idMedicao ===
+            idItemEsperado &&
+          registro.idItemMedicao ===
+            idItemEsperado &&
+          registro.idMedicaoOficial ===
+            idMedicaoOficialEsperado
+        );
+      }
+    ) || null;
+
+
+  /*
+   * ========================================================
+   * VALIDAÇÕES
+   * ========================================================
+   */
+
+  const validacoes = {
+    apiHttp200:
+      pacote.codigoHttp === 200,
+
+    apiStatusOK:
+      pacote.status === "OK",
+
+    contratoVersao1:
+      pacote.versaoContrato ===
+      "1.0",
+
+    obraCorreta:
+      pacote.idObra === idObra,
+
+    periodoCorreto:
+      pacote.periodoDias ===
+      periodoDias,
+
+    contratoInternoAprovado:
+      pacote.auditoriaContrato
+        ?.aprovado === true,
+
+    servidorPossui1Medicao:
+      medicoesServidor.length ===
+      1,
+
+    servidorPossui1Item:
+      itensServidor.length ===
+      1,
+
+    localPossui6Registros:
+      registrosLocais.length ===
+      6,
+
+    localPossui1RegistroOficial:
+      registrosOficiaisLocais.length ===
+      1,
+
+    localPossui5Operacionais:
+      registrosOperacionaisLocais.length ===
+      5,
+
+    cincoChavesOperacionaisPreservadas:
+      chavesOperacionaisFaltantes.length ===
+        0 &&
+      chavesOperacionaisExtras.length ===
+        0,
+
+    nenhumDuplicadoServidorMedicao:
+      duplicadosServidorMedicoes.length ===
+      0,
+
+    nenhumDuplicadoServidorItem:
+      duplicadosServidorItens.length ===
+      0,
+
+    nenhumaChaveLocalDuplicada:
+      duplicadosChaveLocal.length ===
+      0,
+
+    nenhumItemOficialLocalDuplicado:
+      duplicadosItensOficiaisLocais.length ===
+      0,
+
+    nenhumCabecalhoOficialLocalDuplicado:
+      duplicadosCabecalhosOficiaisLocais.length ===
+      0,
+
+    nenhumItemFaltanteLocal:
+      itensFaltantesLocal.length ===
+      0,
+
+    nenhumItemExtraLocal:
+      itensExtrasLocal.length ===
+      0,
+
+    nenhumCabecalhoServidorAusente:
+      cabecalhosServidorAusentes.length ===
+      0,
+
+    nenhumRegistroOficialInvalido:
+      registrosOficiaisInvalidos.length ===
+      0,
+
+    nenhumCampoSnapshotAusente:
+      camposSnapshotAusentes.length ===
+      0,
+
+    nenhumaDivergenciaItem:
+      divergenciasItem.length ===
+      0,
+
+    nenhumaDivergenciaSnapshot:
+      divergenciasSnapshot.length ===
+      0,
+
+    nenhumMetadadoInvalido:
+      metadadosInvalidos.length ===
+      0,
+
+    registroOficialEsperadoEncontrado:
+      Boolean(
+        registroOficialEsperado
+      ),
+
+    chaveLocalCorreta:
+      registroOficialEsperado
+        ?.idMedicao ===
+      idItemEsperado,
+
+    idItemCorreto:
+      registroOficialEsperado
+        ?.idItemMedicao ===
+      idItemEsperado,
+
+    vinculoCabecalhoCorreto:
+      registroOficialEsperado
+        ?.idMedicaoOficial ===
+      idMedicaoOficialEsperado,
+
+    snapshotPresente:
+      Boolean(
+        registroOficialEsperado
+          ?.cabecalhoOficial
+      ),
+
+    brutoPermaneceu6:
+      brutoAntes.registros.length ===
+        6 &&
+      brutoDepois.registros.length ===
+        6,
+
+    sistemaPermaneceu6:
+      sistemaAntes.length ===
+        6 &&
+      sistemaDepois.length ===
+        6,
+
+    cacheCorrespondeAoIndexedDBAntes:
+      assinaturaBrutaAntes ===
+      assinaturaSistemaAntes,
+
+    cacheCorrespondeAoIndexedDBDepois:
+      assinaturaBrutaDepois ===
+      assinaturaSistemaDepois,
+
+    tbMedicoesNaoAlterada:
+      assinaturaBrutaAntes ===
+      assinaturaBrutaDepois,
+
+    leituraSistemaNaoAlterada:
+      assinaturaSistemaAntes ===
+      assinaturaSistemaDepois,
+
+    lotesPossuiamZero:
+      lotesAntes.length === 0,
+
+    lotesPermaneceramZero:
+      lotesDepois.length === 0,
+
+    lotesPreservados:
+      assinaturaLotesAntes ===
+      assinaturaLotesDepois,
+
+    filaPossuia45:
+      filaAntes.length === 45,
+
+    filaPermaneceu45:
+      filaDepois.length === 45,
+
+    filaPreservada:
+      assinaturaFilaAntes ===
+      assinaturaFilaDepois
+  };
+
+  const aprovado =
+    Object.values(
+      validacoes
+    ).every(
+      function (valor) {
+        return valor === true;
+      }
+    );
+
+
+  /*
+   * ========================================================
+   * RESULTADO
+   * ========================================================
+   */
+
+  const resultado = {
+    etapa:
+      "UX.19.9.6",
+
+    auditoria:
+      "POS_MESCLAGEM_E_INTEGRIDADE_RELACIONAL_MEDICOES",
+
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+
+    idObra:
+      idObra,
+
+    periodoDias:
+      periodoDias,
+
+    totais: {
+      medicoesServidor:
+        medicoesServidor.length,
+
+      itensServidor:
+        itensServidor.length,
+
+      registrosLocais:
+        registrosLocais.length,
+
+      registrosOficiaisLocais:
+        registrosOficiaisLocais.length,
+
+      registrosOperacionaisLocais:
+        registrosOperacionaisLocais.length,
+
+      duplicadosServidorMedicoes:
+        duplicadosServidorMedicoes.length,
+
+      duplicadosServidorItens:
+        duplicadosServidorItens.length,
+
+      duplicadosChaveLocal:
+        duplicadosChaveLocal.length,
+
+      duplicadosItensOficiaisLocais:
+        duplicadosItensOficiaisLocais.length,
+
+      duplicadosCabecalhosOficiaisLocais:
+        duplicadosCabecalhosOficiaisLocais.length,
+
+      itensFaltantesLocal:
+        itensFaltantesLocal.length,
+
+      itensExtrasLocal:
+        itensExtrasLocal.length,
+
+      cabecalhosServidorAusentes:
+        cabecalhosServidorAusentes.length,
+
+      registrosOficiaisInvalidos:
+        registrosOficiaisInvalidos.length,
+
+      camposSnapshotAusentes:
+        camposSnapshotAusentes.length,
+
+      divergenciasItem:
+        divergenciasItem.length,
+
+      divergenciasSnapshot:
+        divergenciasSnapshot.length,
+
+      metadadosInvalidos:
+        metadadosInvalidos.length
+    },
+
+    integridadeRelacional: {
+      idItemEsperado:
+        idItemEsperado,
+
+      idMedicaoOficialEsperado:
+        idMedicaoOficialEsperado,
+
+      registroOficialEncontrado:
+        Boolean(
+          registroOficialEsperado
+        ),
+
+      chaveLocal:
+        registroOficialEsperado
+          ?.idMedicao || "",
+
+      idItemMedicao:
+        registroOficialEsperado
+          ?.idItemMedicao || "",
+
+      idMedicaoOficial:
+        registroOficialEsperado
+          ?.idMedicaoOficial || "",
+
+      snapshotPresente:
+        Boolean(
+          registroOficialEsperado
+            ?.cabecalhoOficial
+        )
+    },
+
+    registrosOperacionais: {
+      esperados:
+        chavesOperacionaisEsperadas,
+
+      encontrados:
+        chavesOperacionaisAtuais,
+
+      faltantes:
+        chavesOperacionaisFaltantes,
+
+      extras:
+        chavesOperacionaisExtras
+    },
+
+    stores: {
+      TB_MEDICOES: {
+        brutoAntes:
+          brutoAntes.registros.length,
+
+        brutoDepois:
+          brutoDepois.registros.length,
+
+        sistemaAntes:
+          sistemaAntes.length,
+
+        sistemaDepois:
+          sistemaDepois.length,
+
+        cacheSincronizado:
+          assinaturaBrutaDepois ===
+          assinaturaSistemaDepois,
+
+        preservada:
+          assinaturaBrutaAntes ===
+          assinaturaBrutaDepois
+      },
+
+      TB_LOTES_MEDICAO: {
+        antes:
+          lotesAntes.length,
+
+        depois:
+          lotesDepois.length,
+
+        preservada:
+          assinaturaLotesAntes ===
+          assinaturaLotesDepois
+      },
+
+      TB_SYNC_QUEUE: {
+        antes:
+          filaAntes.length,
+
+        depois:
+          filaDepois.length,
+
+        preservada:
+          assinaturaFilaAntes ===
+          assinaturaFilaDepois
+      }
+    },
+
+    problemas: {
+      duplicadosServidorMedicoes:
+        duplicadosServidorMedicoes,
+
+      duplicadosServidorItens:
+        duplicadosServidorItens,
+
+      duplicadosChaveLocal:
+        duplicadosChaveLocal,
+
+      duplicadosItensOficiaisLocais:
+        duplicadosItensOficiaisLocais,
+
+      duplicadosCabecalhosOficiaisLocais:
+        duplicadosCabecalhosOficiaisLocais,
+
+      itensFaltantesLocal:
+        itensFaltantesLocal,
+
+      itensExtrasLocal:
+        itensExtrasLocal,
+
+      cabecalhosServidorAusentes:
+        cabecalhosServidorAusentes,
+
+      registrosOficiaisInvalidos:
+        registrosOficiaisInvalidos,
+
+      camposSnapshotAusentes:
+        camposSnapshotAusentes,
+
+      divergenciasItem:
+        divergenciasItem,
+
+      divergenciasSnapshot:
+        divergenciasSnapshot,
+
+      metadadosInvalidos:
+        metadadosInvalidos
+    },
+
+    registroOficial:
+      registroOficialEsperado
+        ? {
+            idMedicao:
+              registroOficialEsperado
+                .idMedicao,
+
+            idItemMedicao:
+              registroOficialEsperado
+                .idItemMedicao,
+
+            idMedicaoOficial:
+              registroOficialEsperado
+                .idMedicaoOficial,
+
+            idObra:
+              registroOficialEsperado
+                .idObra,
+
+            numeroMedicao:
+              registroOficialEsperado
+                .numeroMedicao,
+
+            idAtividade:
+              registroOficialEsperado
+                .idAtividade,
+
+            qtdeMedida:
+              registroOficialEsperado
+                .qtdeMedida,
+
+            statusItem:
+              registroOficialEsperado
+                .statusItem,
+
+            statusMedicao:
+              registroOficialEsperado
+                .statusMedicao,
+
+            registroOficial:
+              registroOficialEsperado
+                .registroOficial,
+
+            tipoRegistro:
+              registroOficialEsperado
+                .tipoRegistro,
+
+            fonteRegistro:
+              registroOficialEsperado
+                .fonteRegistro,
+
+            statusSync:
+              registroOficialEsperado
+                .statusSync,
+
+            origemReidratacao:
+              registroOficialEsperado
+                .origemReidratacao,
+
+            dataSync:
+              registroOficialEsperado
+                .dataSync,
+
+            snapshot: {
+              idMedicao:
+                registroOficialEsperado
+                  .cabecalhoOficial
+                  ?.idMedicao,
+
+              numeroMedicao:
+                registroOficialEsperado
+                  .cabecalhoOficial
+                  ?.numeroMedicao,
+
+              statusMedicao:
+                registroOficialEsperado
+                  .cabecalhoOficial
+                  ?.statusMedicao,
+
+              periodoInicio:
+                registroOficialEsperado
+                  .cabecalhoOficial
+                  ?.periodoInicio,
+
+              periodoFim:
+                registroOficialEsperado
+                  .cabecalhoOficial
+                  ?.periodoFim,
+
+              responsavel:
+                registroOficialEsperado
+                  .cabecalhoOficial
+                  ?.responsavel
+            }
+          }
+        : null,
+
+    validacoes:
+      validacoes,
+
+    aprovado:
+      aprovado
+  };
+
+  console.log(
+    JSON.stringify(
+      resultado,
+      null,
+      2
+    )
+  );
+
+  if (!aprovado) {
+    throw new Error(
+      "UX.19.9.6 REPROVADA. Consulte as validações no console."
+    );
+  }
+
+  console.log(
+    "UX.19.9.6 — INTEGRIDADE RELACIONAL DE MEDIÇÕES OFICIAIS APROVADA."
+  );
+
+  return {
+    auditoria:
+      resultado,
+
+    pacote:
+      pacote
+  };
+}
