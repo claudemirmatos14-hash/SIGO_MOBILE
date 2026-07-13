@@ -38493,3 +38493,1683 @@ async function testarClienteMedicoesMobileUX1994_() {
       pacote
   };
 }
+
+/**
+ * ============================================================
+ * UX.19.9.5 — MESCLAGEM PROTEGIDA DE MEDIÇÕES OFICIAIS
+ * ============================================================
+ *
+ * Destino:
+ *
+ * - TB_MEDICOES.
+ *
+ * Não altera:
+ *
+ * - TB_LOTES_MEDICAO;
+ * - TB_SYNC_QUEUE;
+ * - PLANEJAMENTO_ATIVO.
+ *
+ * Não utiliza salvarRegistroSIGO(), pois essa função poderia
+ * criar novas pendências na fila.
+ */
+
+
+/**
+ * Normalização textual da mesclagem.
+ */
+function normalizarTextoMedicoesUX1995_(valor) {
+  return String(
+    valor === undefined ||
+    valor === null
+      ? ""
+      : valor
+  ).trim();
+}
+
+
+/**
+ * Normalização para comparações.
+ */
+function normalizarMaiusculoMedicoesUX1995_(valor) {
+  return normalizarTextoMedicoesUX1995_(
+    valor
+  )
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+}
+
+
+/**
+ * Identifica estados concluídos da fila.
+ *
+ * Registros históricos concluídos permanecem na fila,
+ * mas não bloqueiam uma reidratação.
+ */
+function filaMedicaoConcluidaUX1995_(registroFila) {
+  const status =
+    normalizarMaiusculoMedicoesUX1995_(
+      registroFila?.statusSync ??
+      registroFila?.status ??
+      registroFila?.situacao
+    );
+
+  return [
+    "SINCRONIZADO",
+    "CONCLUIDO",
+    "PROCESSADO",
+    "ENVIADO",
+    "SUCESSO",
+    "OK",
+    "CANCELADO"
+  ].includes(status);
+}
+
+
+/**
+ * Obtém a store referenciada por uma entrada da fila.
+ */
+function obterStoreFilaMedicoesUX1995_(registroFila) {
+  return normalizarMaiusculoMedicoesUX1995_(
+    registroFila?.storeOrigem ??
+    registroFila?.store ??
+    registroFila?.tabela ??
+    registroFila?.payload?.storeOrigem ??
+    registroFila?.dados?.storeOrigem
+  );
+}
+
+
+/**
+ * Obtém o ID referenciado por uma entrada da fila.
+ */
+function obterIdFilaMedicoesUX1995_(registroFila) {
+  return normalizarTextoMedicoesUX1995_(
+    registroFila?.idRegistro ??
+    registroFila?.registroId ??
+    registroFila?.idMedicao ??
+    registroFila?.payload?.idRegistro ??
+    registroFila?.payload?.idMedicao ??
+    registroFila?.dados?.idRegistro ??
+    registroFila?.dados?.idMedicao
+  );
+}
+
+
+/**
+ * Identifica a operação da fila.
+ */
+function obterOperacaoFilaMedicoesUX1995_(registroFila) {
+  const operacao =
+    normalizarMaiusculoMedicoesUX1995_(
+      registroFila?.operacao ??
+      registroFila?.acao ??
+      registroFila?.tipoOperacao ??
+      registroFila?.tipo
+    );
+
+  if (
+    operacao.includes("DELETE") ||
+    operacao.includes("EXCLUIR") ||
+    operacao.includes("EXCLUSAO") ||
+    operacao.includes("REMOVER")
+  ) {
+    return "DELETE";
+  }
+
+  if (
+    operacao.includes("INSERT") ||
+    operacao.includes("CREATE") ||
+    operacao.includes("CRIAR") ||
+    operacao.includes("NOVO")
+  ) {
+    return "INSERT";
+  }
+
+  if (
+    operacao.includes("UPDATE") ||
+    operacao.includes("ALTERAR") ||
+    operacao.includes("EDITAR") ||
+    operacao.includes("UPSERT")
+  ) {
+    return "UPDATE";
+  }
+
+  return "DESCONHECIDA";
+}
+
+
+/**
+ * Verifica se uma entrada da fila pertence à TB_MEDICOES.
+ *
+ * Algumas versões antigas utilizavam tipo: "MEDICAO"
+ * sem preencher corretamente storeOrigem.
+ */
+function filaReferenciaMedicaoUX1995_(
+  registroFila,
+  idMedicaoLocal
+) {
+  if (
+    filaMedicaoConcluidaUX1995_(
+      registroFila
+    )
+  ) {
+    return false;
+  }
+
+  const idFila =
+    obterIdFilaMedicoesUX1995_(
+      registroFila
+    );
+
+  if (
+    !idFila ||
+    idFila !== idMedicaoLocal
+  ) {
+    return false;
+  }
+
+  const store =
+    obterStoreFilaMedicoesUX1995_(
+      registroFila
+    );
+
+  if (
+    store === "TB_MEDICOES"
+  ) {
+    return true;
+  }
+
+  const tipo =
+    normalizarMaiusculoMedicoesUX1995_(
+      registroFila?.tipo
+    );
+
+  return (
+    !store &&
+    tipo.includes("MEDICAO")
+  );
+}
+
+
+/**
+ * Localiza proteção pendente para um registro.
+ */
+function localizarProtecaoFilaMedicoesUX1995_(
+  fila,
+  idMedicaoLocal
+) {
+  const correspondentes =
+    (
+      Array.isArray(fila)
+        ? fila
+        : []
+    ).filter(
+      function (registroFila) {
+        return filaReferenciaMedicaoUX1995_(
+          registroFila,
+          idMedicaoLocal
+        );
+      }
+    );
+
+  if (!correspondentes.length) {
+    return {
+      protegida:
+        false,
+
+      motivo:
+        "",
+
+      quantidade:
+        0
+    };
+  }
+
+  const operacoes =
+    correspondentes.map(
+      obterOperacaoFilaMedicoesUX1995_
+    );
+
+  if (
+    operacoes.includes("DELETE")
+  ) {
+    return {
+      protegida:
+        true,
+
+      motivo:
+        "DELETE",
+
+      quantidade:
+        correspondentes.length
+    };
+  }
+
+  if (
+    operacoes.includes("INSERT") ||
+    operacoes.includes("UPDATE")
+  ) {
+    return {
+      protegida:
+        true,
+
+      motivo:
+        "UPSERT",
+
+      quantidade:
+        correspondentes.length
+    };
+  }
+
+  return {
+    protegida:
+      true,
+
+    motivo:
+      "FILA_DESCONHECIDA",
+
+    quantidade:
+      correspondentes.length
+  };
+}
+
+
+/**
+ * Verifica se o registro local ainda possui
+ * alteração operacional pendente.
+ */
+function registroMedicaoLocalPendenteUX1995_(
+  registro
+) {
+  if (
+    !registro ||
+    typeof registro !== "object"
+  ) {
+    return false;
+  }
+
+  const statusSync =
+    normalizarMaiusculoMedicoesUX1995_(
+      registro.statusSync
+    );
+
+  if (!statusSync) {
+    return false;
+  }
+
+  return ![
+    "SINCRONIZADO",
+    "CONCLUIDO",
+    "PROCESSADO",
+    "ENVIADO",
+    "SUCESSO",
+    "OK"
+  ].includes(statusSync);
+}
+
+
+/**
+ * Verifica marcação local de tombstone.
+ */
+function registroMedicaoTombstoneUX1995_(
+  registro
+) {
+  if (
+    !registro ||
+    typeof registro !== "object"
+  ) {
+    return false;
+  }
+
+  if (
+    registro.excluido === true ||
+    registro.deleted === true ||
+    registro.tombstone === true
+  ) {
+    return true;
+  }
+
+  const operacao =
+    normalizarMaiusculoMedicoesUX1995_(
+      registro.operacao ??
+      registro.acao ??
+      registro.tipoOperacao
+    );
+
+  return (
+    operacao.includes("DELETE") ||
+    operacao.includes("EXCLUIR") ||
+    operacao.includes("REMOVER")
+  );
+}
+
+
+/**
+ * Indexa os cabeçalhos oficiais por ID.
+ */
+function mapearCabecalhosMedicoesUX1995_(
+  medicoes
+) {
+  const mapa =
+    new Map();
+
+  (
+    Array.isArray(medicoes)
+      ? medicoes
+      : []
+  ).forEach(
+    function (medicao) {
+      const idMedicao =
+        normalizarTextoMedicoesUX1995_(
+          medicao?.idMedicao
+        );
+
+      if (idMedicao) {
+        mapa.set(
+          idMedicao,
+          medicao
+        );
+      }
+    }
+  );
+
+  return mapa;
+}
+
+
+/**
+ * Cria um registro compatível com a keyPath atual
+ * de TB_MEDICOES.
+ *
+ * A chave local passa a ser idItemMedicao.
+ * O ID do cabeçalho permanece em idMedicaoOficial.
+ */
+function prepararRegistroMedicaoOficialUX1995_(
+  item,
+  cabecalho,
+  registroLocal
+) {
+  const idItemMedicao =
+    normalizarTextoMedicoesUX1995_(
+      item.idItemMedicao
+    );
+
+  const idMedicaoOficial =
+    normalizarTextoMedicoesUX1995_(
+      item.idMedicao
+    );
+
+  const dataSync =
+    normalizarTextoMedicoesUX1995_(
+      item.dataSync ||
+      cabecalho.dataSync
+    ) ||
+    new Date().toISOString();
+
+  /*
+   * O spread inicial preserva campos locais que não
+   * pertencem ao contrato oficial.
+   */
+  const registro = {
+    ...(
+      registroLocal &&
+      typeof registroLocal === "object"
+        ? registroLocal
+        : {}
+    ),
+
+    /*
+     * Chave real da TB_MEDICOES.
+     */
+    idMedicao:
+      idItemMedicao,
+
+    /*
+     * Relação oficial.
+     */
+    idItemMedicao:
+      idItemMedicao,
+
+    idMedicaoOficial:
+      idMedicaoOficial,
+
+    idObra:
+      normalizarTextoMedicoesUX1995_(
+        item.idObra
+      ),
+
+    numeroMedicao:
+      normalizarTextoMedicoesUX1995_(
+        item.numeroMedicao ||
+        cabecalho.numeroMedicao
+      ),
+
+    idAtividade:
+      normalizarTextoMedicoesUX1995_(
+        item.idAtividade
+      ),
+
+    /*
+     * Compatibilidade com o modelo Mobile já existente.
+     */
+    atividade:
+      normalizarTextoMedicoesUX1995_(
+        item.idAtividade
+      ),
+
+    qtdeExecutada:
+      Number(item.qtdeMedida),
+
+    qtdeMedida:
+      Number(item.qtdeMedida),
+
+    justificativa:
+      normalizarTextoMedicoesUX1995_(
+        item.justificativa
+      ),
+
+    statusItem:
+      normalizarTextoMedicoesUX1995_(
+        item.statusItem
+      ),
+
+    statusMedicao:
+      normalizarTextoMedicoesUX1995_(
+        cabecalho.statusMedicao
+      ),
+
+    statusMedicaoOficial:
+      normalizarTextoMedicoesUX1995_(
+        cabecalho.statusMedicao
+      ),
+
+    nomeObra:
+      normalizarTextoMedicoesUX1995_(
+        cabecalho.nomeObra
+      ),
+
+    periodoInicio:
+      normalizarTextoMedicoesUX1995_(
+        cabecalho.periodoInicio
+      ),
+
+    periodoFim:
+      normalizarTextoMedicoesUX1995_(
+        cabecalho.periodoFim
+      ),
+
+    dataCriacao:
+      normalizarTextoMedicoesUX1995_(
+        cabecalho.dataCriacao
+      ),
+
+    responsavel:
+      normalizarTextoMedicoesUX1995_(
+        cabecalho.responsavel
+      ),
+
+    observacoes:
+      normalizarTextoMedicoesUX1995_(
+        cabecalho.observacoes
+      ),
+
+    dataAprovacao:
+      normalizarTextoMedicoesUX1995_(
+        cabecalho.dataAprovacao
+      ),
+
+    usuarioAprovacao:
+      normalizarTextoMedicoesUX1995_(
+        cabecalho.usuarioAprovacao
+      ),
+
+    valorTotalMedicao:
+      Number(
+        cabecalho.valorTotalMedicao || 0
+      ),
+
+    registroOficial:
+      true,
+
+    tipoRegistro:
+      "ITEM_MEDICAO_OFICIAL",
+
+    fonteRegistro:
+      "MEDICOES_ITENS",
+
+    origem:
+      normalizarTextoMedicoesUX1995_(
+        item.origem ||
+        cabecalho.origem
+      ),
+
+    origemReidratacao:
+      "SERVIDOR",
+
+    statusSync:
+      "SINCRONIZADO",
+
+    criadoEm:
+      normalizarTextoMedicoesUX1995_(
+        item.criadoEm ||
+        cabecalho.criadoEm
+      ) ||
+      dataSync,
+
+    atualizadoEm:
+      normalizarTextoMedicoesUX1995_(
+        item.atualizadoEm ||
+        cabecalho.atualizadoEm
+      ) ||
+      dataSync,
+
+    dataSync:
+      dataSync,
+
+    /*
+     * Snapshot completo do cabeçalho oficial.
+     */
+    cabecalhoOficial: {
+      idMedicao:
+        idMedicaoOficial,
+
+      idObra:
+        normalizarTextoMedicoesUX1995_(
+          cabecalho.idObra
+        ),
+
+      nomeObra:
+        normalizarTextoMedicoesUX1995_(
+          cabecalho.nomeObra
+        ),
+
+      numeroMedicao:
+        normalizarTextoMedicoesUX1995_(
+          cabecalho.numeroMedicao
+        ),
+
+      periodoInicio:
+        normalizarTextoMedicoesUX1995_(
+          cabecalho.periodoInicio
+        ),
+
+      periodoFim:
+        normalizarTextoMedicoesUX1995_(
+          cabecalho.periodoFim
+        ),
+
+      dataCriacao:
+        normalizarTextoMedicoesUX1995_(
+          cabecalho.dataCriacao
+        ),
+
+      responsavel:
+        normalizarTextoMedicoesUX1995_(
+          cabecalho.responsavel
+        ),
+
+      statusMedicao:
+        normalizarTextoMedicoesUX1995_(
+          cabecalho.statusMedicao
+        ),
+
+      observacoes:
+        normalizarTextoMedicoesUX1995_(
+          cabecalho.observacoes
+        ),
+
+      dataAprovacao:
+        normalizarTextoMedicoesUX1995_(
+          cabecalho.dataAprovacao
+        ),
+
+      usuarioAprovacao:
+        normalizarTextoMedicoesUX1995_(
+          cabecalho.usuarioAprovacao
+        ),
+
+      valorTotalMedicao:
+        Number(
+          cabecalho.valorTotalMedicao || 0
+        ),
+
+      origem:
+        normalizarTextoMedicoesUX1995_(
+          cabecalho.origem
+        ),
+
+      criadoEm:
+        normalizarTextoMedicoesUX1995_(
+          cabecalho.criadoEm
+        ),
+
+      atualizadoEm:
+        normalizarTextoMedicoesUX1995_(
+          cabecalho.atualizadoEm
+        )
+    }
+  };
+
+  /*
+   * Um tombstone sincronizado que reaparece no servidor
+   * deixa de ser tombstone.
+   */
+  delete registro.excluido;
+  delete registro.excluidoEm;
+  delete registro.deleted;
+  delete registro.deletedAt;
+  delete registro.tombstone;
+
+  return registro;
+}
+
+
+/**
+ * Grava diretamente na TB_MEDICOES.
+ *
+ * Não chama salvarRegistroSIGO().
+ * Portanto, não cria entrada em TB_SYNC_QUEUE.
+ */
+async function gravarRegistrosMedicoesUX1995_(
+  registros
+) {
+  const lista =
+    Array.isArray(registros)
+      ? registros
+      : [];
+
+  if (!lista.length) {
+    return 0;
+  }
+
+  const db =
+    await abrirBancoLocalSIGO();
+
+  return new Promise(
+    function (resolve, reject) {
+      const transacao =
+        db.transaction(
+          ["TB_MEDICOES"],
+          "readwrite"
+        );
+
+      const store =
+        transacao.objectStore(
+          "TB_MEDICOES"
+        );
+
+      transacao.oncomplete =
+        function () {
+          resolve(lista.length);
+        };
+
+      transacao.onerror =
+        function () {
+          reject(
+            transacao.error ||
+            new Error(
+              "Falha ao gravar Medições oficiais."
+            )
+          );
+        };
+
+      transacao.onabort =
+        function () {
+          reject(
+            transacao.error ||
+            new Error(
+              "A gravação das Medições oficiais foi abortada."
+            )
+          );
+        };
+
+      lista.forEach(
+        function (registro) {
+          store.put(registro);
+        }
+      );
+    }
+  );
+}
+
+
+/**
+ * ============================================================
+ * MESCLAGEM PROTEGIDA
+ * ============================================================
+ */
+async function mesclarMedicoesOficiaisReidratacaoSIGO_(
+  pacote,
+  opcoes
+) {
+  const configuracao = {
+    simular:
+      opcoes?.simular !== false
+  };
+
+  if (
+    !pacote ||
+    typeof pacote !== "object"
+  ) {
+    throw new Error(
+      "Pacote de Medições oficiais inválido."
+    );
+  }
+
+  if (
+    pacote.auditoriaContrato &&
+    pacote.auditoriaContrato.aprovado !== true
+  ) {
+    throw new Error(
+      "O contrato das Medições oficiais não está aprovado."
+    );
+  }
+
+  const idObra =
+    normalizarTextoMedicoesUX1995_(
+      pacote.idObra
+    );
+
+  const medicoesServidor =
+    Array.isArray(pacote.medicoes)
+      ? pacote.medicoes
+      : [];
+
+  const itensServidor =
+    Array.isArray(pacote.itensMedicao)
+      ? pacote.itensMedicao
+      : [];
+
+  const mapaCabecalhos =
+    mapearCabecalhosMedicoesUX1995_(
+      medicoesServidor
+    );
+
+
+  /*
+   * ========================================================
+   * ESTADO ANTERIOR
+   * ========================================================
+   */
+
+  const medicoesAntes =
+    await listarRegistrosSIGO(
+      "TB_MEDICOES"
+    );
+
+  const lotesAntes =
+    await listarRegistrosSIGO(
+      "TB_LOTES_MEDICAO"
+    );
+
+  const filaAntes =
+    await listarRegistrosSIGO(
+      "TB_SYNC_QUEUE"
+    );
+
+  const assinaturaMedicoesAntes =
+    criarAssinaturaStoreMedicoesUX1994_(
+      medicoesAntes
+    );
+
+  const assinaturaLotesAntes =
+    criarAssinaturaStoreMedicoesUX1994_(
+      lotesAntes
+    );
+
+  const assinaturaFilaAntes =
+    criarAssinaturaStoreMedicoesUX1994_(
+      filaAntes
+    );
+
+  const mapaLocal =
+    new Map();
+
+  medicoesAntes.forEach(
+    function (registro) {
+      const id =
+        normalizarTextoMedicoesUX1995_(
+          registro?.idMedicao
+        );
+
+      if (id) {
+        mapaLocal.set(
+          id,
+          registro
+        );
+      }
+    }
+  );
+
+
+  /*
+   * ========================================================
+   * PLANO DE MESCLAGEM
+   * ========================================================
+   */
+
+  const registrosParaGravar = [];
+
+  const idsItensVistos =
+    new Set();
+
+  const conflitos = [];
+
+  let inseridos = 0;
+  let atualizados = 0;
+
+  let preservadosUpsert = 0;
+  let preservadosDelete = 0;
+  let preservadosStatusLocal = 0;
+  let preservadosFilaDesconhecida = 0;
+
+  let rejeitadosInvalidos = 0;
+  let rejeitadosOutraObra = 0;
+  let rejeitadosOrfaos = 0;
+  let rejeitadosDuplicados = 0;
+
+
+  for (const item of itensServidor) {
+    const idItemMedicao =
+      normalizarTextoMedicoesUX1995_(
+        item?.idItemMedicao
+      );
+
+    const idMedicaoOficial =
+      normalizarTextoMedicoesUX1995_(
+        item?.idMedicao
+      );
+
+    const idObraItem =
+      normalizarTextoMedicoesUX1995_(
+        item?.idObra
+      );
+
+    const qtdeMedida =
+      Number(item?.qtdeMedida);
+
+
+    /*
+     * Validação mínima defensiva.
+     */
+    if (
+      !idItemMedicao ||
+      !idMedicaoOficial ||
+      !idObraItem ||
+      !normalizarTextoMedicoesUX1995_(
+        item?.idAtividade
+      ) ||
+      !Number.isFinite(qtdeMedida) ||
+      qtdeMedida < 0
+    ) {
+      rejeitadosInvalidos++;
+
+      conflitos.push({
+        tipo:
+          "ITEM_INVALIDO",
+
+        idItemMedicao:
+          idItemMedicao ||
+          "SEM_ID"
+      });
+
+      continue;
+    }
+
+
+    /*
+     * Duplicidade no próprio pacote.
+     */
+    if (
+      idsItensVistos.has(
+        idItemMedicao
+      )
+    ) {
+      rejeitadosDuplicados++;
+
+      conflitos.push({
+        tipo:
+          "ITEM_DUPLICADO_PACOTE",
+
+        idItemMedicao:
+          idItemMedicao
+      });
+
+      continue;
+    }
+
+    idsItensVistos.add(
+      idItemMedicao
+    );
+
+
+    /*
+     * Proteção multiobra.
+     */
+    if (
+      idObraItem !== idObra
+    ) {
+      rejeitadosOutraObra++;
+
+      conflitos.push({
+        tipo:
+          "OUTRA_OBRA",
+
+        idItemMedicao:
+          idItemMedicao,
+
+        idObraItem:
+          idObraItem,
+
+        idObraPacote:
+          idObra
+      });
+
+      continue;
+    }
+
+
+    /*
+     * Cabeçalho obrigatório.
+     */
+    const cabecalho =
+      mapaCabecalhos.get(
+        idMedicaoOficial
+      );
+
+    if (!cabecalho) {
+      rejeitadosOrfaos++;
+
+      conflitos.push({
+        tipo:
+          "CABECALHO_NAO_ENCONTRADO",
+
+        idItemMedicao:
+          idItemMedicao,
+
+        idMedicaoOficial:
+          idMedicaoOficial
+      });
+
+      continue;
+    }
+
+
+    /*
+     * A keyPath local é idMedicao.
+     *
+     * Para itens oficiais ela recebe idItemMedicao.
+     */
+    const idMedicaoLocal =
+      idItemMedicao;
+
+    const registroLocal =
+      mapaLocal.get(
+        idMedicaoLocal
+      );
+
+
+    /*
+     * Proteção por fila.
+     */
+    const protecaoFila =
+      localizarProtecaoFilaMedicoesUX1995_(
+        filaAntes,
+        idMedicaoLocal
+      );
+
+    if (protecaoFila.protegida) {
+      if (
+        protecaoFila.motivo ===
+        "DELETE"
+      ) {
+        preservadosDelete++;
+
+      } else if (
+        protecaoFila.motivo ===
+        "UPSERT"
+      ) {
+        preservadosUpsert++;
+
+      } else {
+        preservadosFilaDesconhecida++;
+      }
+
+      conflitos.push({
+        tipo:
+          "PRESERVADO_PELA_FILA",
+
+        motivo:
+          protecaoFila.motivo,
+
+        idMedicaoLocal:
+          idMedicaoLocal,
+
+        idMedicaoOficial:
+          idMedicaoOficial
+      });
+
+      continue;
+    }
+
+
+    /*
+     * Proteção por status local.
+     */
+    if (
+      registroLocal &&
+      registroMedicaoLocalPendenteUX1995_(
+        registroLocal
+      )
+    ) {
+      if (
+        registroMedicaoTombstoneUX1995_(
+          registroLocal
+        )
+      ) {
+        preservadosDelete++;
+
+      } else {
+        preservadosStatusLocal++;
+      }
+
+      conflitos.push({
+        tipo:
+          "PRESERVADO_STATUS_LOCAL",
+
+        idMedicaoLocal:
+          idMedicaoLocal,
+
+        statusSync:
+          registroLocal.statusSync
+      });
+
+      continue;
+    }
+
+
+    /*
+     * Registro liberado para INSERT ou UPDATE.
+     */
+    const registroPreparado =
+      prepararRegistroMedicaoOficialUX1995_(
+        item,
+        cabecalho,
+        registroLocal
+      );
+
+    registrosParaGravar.push(
+      registroPreparado
+    );
+
+    if (registroLocal) {
+      atualizados++;
+
+    } else {
+      inseridos++;
+    }
+  }
+
+
+  /*
+   * Cabeçalhos oficiais sem nenhum item.
+   *
+   * Não são gravados isoladamente na TB_MEDICOES porque
+   * a store possui keyPath de item operacional.
+   */
+  const idsCabecalhosComItens =
+    new Set(
+      itensServidor.map(
+        function (item) {
+          return normalizarTextoMedicoesUX1995_(
+            item?.idMedicao
+          );
+        }
+      )
+    );
+
+  const cabecalhosSemItens =
+    medicoesServidor
+      .filter(
+        function (medicao) {
+          return !idsCabecalhosComItens.has(
+            normalizarTextoMedicoesUX1995_(
+              medicao?.idMedicao
+            )
+          );
+        }
+      )
+      .map(
+        function (medicao) {
+          return {
+            idMedicao:
+              medicao.idMedicao,
+
+            numeroMedicao:
+              medicao.numeroMedicao
+          };
+        }
+      );
+
+
+  /*
+   * ========================================================
+   * GRAVAÇÃO REAL
+   * ========================================================
+   */
+
+  let gravacoesExecutadas = 0;
+
+  if (
+    !configuracao.simular &&
+    registrosParaGravar.length
+  ) {
+    gravacoesExecutadas =
+      await gravarRegistrosMedicoesUX1995_(
+        registrosParaGravar
+      );
+  }
+
+
+  /*
+   * ========================================================
+   * ESTADO POSTERIOR
+   * ========================================================
+   */
+
+  const medicoesDepois =
+    await listarRegistrosSIGO(
+      "TB_MEDICOES"
+    );
+
+  const lotesDepois =
+    await listarRegistrosSIGO(
+      "TB_LOTES_MEDICAO"
+    );
+
+  const filaDepois =
+    await listarRegistrosSIGO(
+      "TB_SYNC_QUEUE"
+    );
+
+  const assinaturaMedicoesDepois =
+    criarAssinaturaStoreMedicoesUX1994_(
+      medicoesDepois
+    );
+
+  const assinaturaLotesDepois =
+    criarAssinaturaStoreMedicoesUX1994_(
+      lotesDepois
+    );
+
+  const assinaturaFilaDepois =
+    criarAssinaturaStoreMedicoesUX1994_(
+      filaDepois
+    );
+
+
+  /*
+   * TB_LOTES_MEDICAO e TB_SYNC_QUEUE nunca podem mudar.
+   */
+  const lotesPreservados =
+    lotesAntes.length ===
+      lotesDepois.length &&
+    assinaturaLotesAntes ===
+      assinaturaLotesDepois;
+
+  const filaPreservada =
+    filaAntes.length ===
+      filaDepois.length &&
+    assinaturaFilaAntes ===
+      assinaturaFilaDepois;
+
+  if (!lotesPreservados) {
+    throw new Error(
+      "A TB_LOTES_MEDICAO foi alterada durante a mesclagem."
+    );
+  }
+
+  if (!filaPreservada) {
+    throw new Error(
+      "A TB_SYNC_QUEUE foi alterada durante a mesclagem."
+    );
+  }
+
+
+  /*
+   * Em simulação, TB_MEDICOES também deve permanecer intacta.
+   */
+  const medicoesPreservadasNaSimulacao =
+    medicoesAntes.length ===
+      medicoesDepois.length &&
+    assinaturaMedicoesAntes ===
+      assinaturaMedicoesDepois;
+
+  if (
+    configuracao.simular &&
+    !medicoesPreservadasNaSimulacao
+  ) {
+    throw new Error(
+      "A TB_MEDICOES foi alterada durante a simulação."
+    );
+  }
+
+
+  const totalPreservados =
+    preservadosUpsert +
+    preservadosDelete +
+    preservadosStatusLocal +
+    preservadosFilaDesconhecida;
+
+  const totalRejeitados =
+    rejeitadosInvalidos +
+    rejeitadosOutraObra +
+    rejeitadosOrfaos +
+    rejeitadosDuplicados;
+
+  const totalClassificado =
+    inseridos +
+    atualizados +
+    totalPreservados +
+    totalRejeitados;
+
+  const resultado = {
+    etapa:
+      "UX.19.9.5",
+
+    operacao:
+      "MESCLAGEM_PROTEGIDA_MEDICOES_OFICIAIS",
+
+    modo:
+      configuracao.simular
+        ? "SIMULACAO"
+        : "REAL",
+
+    idObra:
+      idObra,
+
+    periodoDias:
+      Number(
+        pacote.periodoDias || 0
+      ),
+
+    dataInicio:
+      pacote.dataInicio || "",
+
+    dataFim:
+      pacote.dataFim || "",
+
+    medicoes: {
+      cabecalhosRecebidos:
+        medicoesServidor.length,
+
+      itensRecebidos:
+        itensServidor.length,
+
+      inseridos:
+        inseridos,
+
+      atualizados:
+        atualizados,
+
+      preservadosUpsert:
+        preservadosUpsert,
+
+      preservadosDelete:
+        preservadosDelete,
+
+      preservadosStatusLocal:
+        preservadosStatusLocal,
+
+      preservadosFilaDesconhecida:
+        preservadosFilaDesconhecida,
+
+      rejeitadosInvalidos:
+        rejeitadosInvalidos,
+
+      rejeitadosOutraObra:
+        rejeitadosOutraObra,
+
+      rejeitadosOrfaos:
+        rejeitadosOrfaos,
+
+      rejeitadosDuplicados:
+        rejeitadosDuplicados,
+
+      totalPreservados:
+        totalPreservados,
+
+      totalRejeitados:
+        totalRejeitados,
+
+      totalClassificado:
+        totalClassificado,
+
+      gravacoesPlanejadas:
+        registrosParaGravar.length,
+
+      gravacoesExecutadas:
+        gravacoesExecutadas,
+
+      cabecalhosSemItens:
+        cabecalhosSemItens.length
+    },
+
+    tbMedicoes: {
+      totalAntes:
+        medicoesAntes.length,
+
+      totalDepois:
+        medicoesDepois.length,
+
+      preservadaNaSimulacao:
+        configuracao.simular
+          ? medicoesPreservadasNaSimulacao
+          : null
+    },
+
+    tbLotesMedicao: {
+      totalAntes:
+        lotesAntes.length,
+
+      totalDepois:
+        lotesDepois.length,
+
+      preservada:
+        lotesPreservados
+    },
+
+    fila: {
+      totalAntes:
+        filaAntes.length,
+
+      totalDepois:
+        filaDepois.length,
+
+      preservada:
+        filaPreservada
+    },
+
+    totalConflitosEvitados:
+      totalPreservados,
+
+    conflitos:
+      conflitos,
+
+    cabecalhosSemItens:
+      cabecalhosSemItens,
+
+    executadoEm:
+      new Date().toISOString()
+  };
+
+  console.log(
+    JSON.stringify(
+      resultado,
+      null,
+      2
+    )
+  );
+
+  return resultado;
+}
+
+
+/**
+ * ============================================================
+ * TESTE EM SIMULAÇÃO
+ * ============================================================
+ *
+ * Não grava nenhum registro.
+ */
+async function testarMesclagemMedicoesUX1995_() {
+  console.log(
+    "[UX.19.9.5] Iniciando simulação da mesclagem protegida..."
+  );
+
+  const pacote =
+    await obterMedicoesOficiaisObraMobile_(
+      "OBR002",
+      30
+    );
+
+  const resultado =
+    await mesclarMedicoesOficiaisReidratacaoSIGO_(
+      pacote,
+      {
+        simular:
+          true
+      }
+    );
+
+  const resumo =
+    resultado.medicoes || {};
+
+  const totalClassificado =
+    Number(
+      resumo.inseridos || 0
+    ) +
+    Number(
+      resumo.atualizados || 0
+    ) +
+    Number(
+      resumo.totalPreservados || 0
+    ) +
+    Number(
+      resumo.totalRejeitados || 0
+    );
+
+  const validacoes = {
+    modoSimulacao:
+      resultado.modo ===
+      "SIMULACAO",
+
+    obraCorreta:
+      resultado.idObra ===
+      "OBR002",
+
+    recebeu1Cabecalho:
+      resumo.cabecalhosRecebidos ===
+      1,
+
+    recebeu1Item:
+      resumo.itensRecebidos ===
+      1,
+
+    itemFoiClassificado:
+      totalClassificado ===
+      1,
+
+    nenhumItemInvalido:
+      resumo.rejeitadosInvalidos ===
+      0,
+
+    nenhumaOutraObra:
+      resumo.rejeitadosOutraObra ===
+      0,
+
+    nenhumItemOrfao:
+      resumo.rejeitadosOrfaos ===
+      0,
+
+    nenhumItemDuplicado:
+      resumo.rejeitadosDuplicados ===
+      0,
+
+    nenhumCabecalhoSemItem:
+      resumo.cabecalhosSemItens ===
+      0,
+
+    nenhumaGravacaoExecutada:
+      resumo.gravacoesExecutadas ===
+      0,
+
+    tbMedicoesPossuia5:
+      resultado.tbMedicoes
+        .totalAntes === 5,
+
+    tbMedicoesPermaneceu5:
+      resultado.tbMedicoes
+        .totalDepois === 5,
+
+    tbMedicoesPreservada:
+      resultado.tbMedicoes
+        .preservadaNaSimulacao ===
+      true,
+
+    tbLotesPossuiaZero:
+      resultado.tbLotesMedicao
+        .totalAntes === 0,
+
+    tbLotesPermaneceuZero:
+      resultado.tbLotesMedicao
+        .totalDepois === 0,
+
+    tbLotesPreservada:
+      resultado.tbLotesMedicao
+        .preservada === true,
+
+    filaPossuia45:
+      resultado.fila
+        .totalAntes === 45,
+
+    filaPermaneceu45:
+      resultado.fila
+        .totalDepois === 45,
+
+    filaPreservada:
+      resultado.fila
+        .preservada === true
+  };
+
+  const aprovado =
+    Object.values(
+      validacoes
+    ).every(
+      function (valor) {
+        return valor === true;
+      }
+    );
+
+  const auditoria = {
+    etapa:
+      "UX.19.9.5",
+
+    teste:
+      "SIMULACAO_MESCLAGEM_PROTEGIDA_MEDICOES",
+
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+
+    idObra:
+      resultado.idObra,
+
+    periodoDias:
+      resultado.periodoDias,
+
+    totais: {
+      cabecalhosRecebidos:
+        resumo.cabecalhosRecebidos,
+
+      itensRecebidos:
+        resumo.itensRecebidos,
+
+      inseriria:
+        resumo.inseridos,
+
+      atualizaria:
+        resumo.atualizados,
+
+      preservaria:
+        resumo.totalPreservados,
+
+      rejeitaria:
+        resumo.totalRejeitados,
+
+      conflitos:
+        resultado.totalConflitosEvitados,
+
+      gravacoesPlanejadas:
+        resumo.gravacoesPlanejadas,
+
+      gravacoesExecutadas:
+        resumo.gravacoesExecutadas
+    },
+
+    stores: {
+      TB_MEDICOES:
+        resultado.tbMedicoes,
+
+      TB_LOTES_MEDICAO:
+        resultado.tbLotesMedicao,
+
+      TB_SYNC_QUEUE:
+        resultado.fila
+    },
+
+    validacoes:
+      validacoes,
+
+    conflitos:
+      resultado.conflitos,
+
+    aprovado:
+      aprovado
+  };
+
+  console.log(
+    JSON.stringify(
+      auditoria,
+      null,
+      2
+    )
+  );
+
+  if (!aprovado) {
+    throw new Error(
+      "UX.19.9.5 REPROVADA. Consulte as validações no console."
+    );
+  }
+
+  console.log(
+    "UX.19.9.5 — SIMULAÇÃO DA MESCLAGEM DE MEDIÇÕES APROVADA."
+  );
+
+  return {
+    teste:
+      auditoria,
+
+    mesclagem:
+      resultado,
+
+    pacote:
+      pacote
+  };
+}
+
+
+/**
+ * ============================================================
+ * EXECUÇÃO REAL
+ * ============================================================
+ *
+ * Não executar antes da aprovação da simulação.
+ */
+async function executarMesclagemRealMedicoesUX1995_() {
+  const pacote =
+    await obterMedicoesOficiaisObraMobile_(
+      "OBR002",
+      30
+    );
+
+  return mesclarMedicoesOficiaisReidratacaoSIGO_(
+    pacote,
+    {
+      simular:
+        false
+    }
+  );
+}
