@@ -1,5 +1,5 @@
 const SIGO_DB_NAME = "SIGO_OFFLINE_DB";
-const SIGO_DB_VERSION = 17;
+const SIGO_DB_VERSION = 18;
 
 let SIGO_DB = null;
 
@@ -9,6 +9,12 @@ function abrirBancoLocalSIGO() {
 
     request.onerror = () => {
       reject("Erro ao abrir o banco local SIGO.");
+    };
+
+    request.onblocked = () => {
+      console.warn(
+        "Atualização do banco bloqueada. Feche as outras abas do SIGO Mobile."
+      );
     };
 
     request.onsuccess = (event) => {
@@ -23,7 +29,6 @@ function abrirBancoLocalSIGO() {
     };
   });
 }
-
 function criarStoresSIGO_(db) {
 
   if (!db.objectStoreNames.contains("TB_OBRAS")) {
