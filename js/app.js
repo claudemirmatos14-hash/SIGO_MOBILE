@@ -36519,3 +36519,1977 @@ async function testarIntegracaoVisualReidratacaoUX1987_() {
 
   return resultado;
 }
+
+/**
+ * ============================================================
+ * UX.19.9.4 — CLIENTE MOBILE DA API
+ * DE MEDIÇÕES OFICIAIS
+ * ============================================================
+ *
+ * Ação:
+ *
+ * OBTER_MEDICOES_OFICIAIS_OBRA
+ *
+ * Esta etapa:
+ *
+ * - consulta a API publicada;
+ * - normaliza o contrato;
+ * - valida cabeçalhos e itens;
+ * - não grava no IndexedDB;
+ * - não altera TB_MEDICOES;
+ * - não altera TB_LOTES_MEDICAO;
+ * - não altera TB_SYNC_QUEUE.
+ */
+
+
+/**
+ * Normaliza textos do contrato.
+ */
+function normalizarTextoMedicoesMobileUX1994_(valor) {
+  return String(
+    valor === undefined ||
+    valor === null
+      ? ""
+      : valor
+  ).trim();
+}
+
+
+/**
+ * Converte valores numéricos.
+ */
+function normalizarNumeroMedicoesMobileUX1994_(valor) {
+  if (
+    valor === undefined ||
+    valor === null ||
+    valor === ""
+  ) {
+    return null;
+  }
+
+  const numero =
+    Number(valor);
+
+  return Number.isFinite(numero)
+    ? numero
+    : null;
+}
+
+
+/**
+ * Valida datas yyyy-MM-dd.
+ *
+ * Campos opcionais podem permanecer vazios.
+ */
+function validarDataContratoMedicoesUX1994_(
+  valor,
+  permitirVazio
+) {
+  const texto =
+    normalizarTextoMedicoesMobileUX1994_(
+      valor
+    );
+
+  if (!texto) {
+    return permitirVazio === true;
+  }
+
+  const correspondencia =
+    texto.match(
+      /^(\d{4})-(\d{2})-(\d{2})$/
+    );
+
+  if (!correspondencia) {
+    return false;
+  }
+
+  const ano =
+    Number(correspondencia[1]);
+
+  const mes =
+    Number(correspondencia[2]);
+
+  const dia =
+    Number(correspondencia[3]);
+
+  const data =
+    new Date(
+      ano,
+      mes - 1,
+      dia
+    );
+
+  return (
+    data.getFullYear() === ano &&
+    data.getMonth() === mes - 1 &&
+    data.getDate() === dia
+  );
+}
+
+
+/**
+ * Valida timestamps ISO ou valores reconhecidos
+ * pelo navegador.
+ */
+function validarDataHoraContratoMedicoesUX1994_(
+  valor,
+  permitirVazio
+) {
+  const texto =
+    normalizarTextoMedicoesMobileUX1994_(
+      valor
+    );
+
+  if (!texto) {
+    return permitirVazio === true;
+  }
+
+  return !Number.isNaN(
+    new Date(texto).getTime()
+  );
+}
+
+
+/**
+ * Extrai um valor textual de uma resposta de contexto.
+ */
+function extrairValorContextoMedicoesUX1994_(
+  valor,
+  campos
+) {
+  if (
+    valor === undefined ||
+    valor === null
+  ) {
+    return "";
+  }
+
+  if (
+    typeof valor === "string" ||
+    typeof valor === "number"
+  ) {
+    return normalizarTextoMedicoesMobileUX1994_(
+      valor
+    );
+  }
+
+  if (
+    typeof valor === "object"
+  ) {
+    for (const campo of campos) {
+      const candidato =
+        normalizarTextoMedicoesMobileUX1994_(
+          valor[campo]
+        );
+
+      if (candidato) {
+        return candidato;
+      }
+    }
+  }
+
+  return "";
+}
+
+
+/**
+ * Chama a primeira função de contexto disponível.
+ */
+async function chamarFuncaoContextoMedicoesUX1994_(
+  nomes,
+  campos
+) {
+  for (const nome of nomes) {
+    const funcao =
+      window[nome];
+
+    if (
+      typeof funcao !== "function"
+    ) {
+      continue;
+    }
+
+    try {
+      const resposta =
+        await funcao();
+
+      const valor =
+        extrairValorContextoMedicoesUX1994_(
+          resposta,
+          campos
+        );
+
+      if (valor) {
+        return valor;
+      }
+
+    } catch (erro) {
+      console.warn(
+        "[UX.19.9.4] Função de contexto ignorada:",
+        nome,
+        erro
+      );
+    }
+  }
+
+  return "";
+}
+
+
+/**
+ * Procura um valor no localStorage.
+ */
+function procurarStorageMedicoesUX1994_(
+  chavesDiretas,
+  padraoChave,
+  padraoValor
+) {
+  try {
+    for (const chave of chavesDiretas) {
+      const valor =
+        normalizarTextoMedicoesMobileUX1994_(
+          localStorage.getItem(chave)
+        );
+
+      if (
+        valor &&
+        (
+          !padraoValor ||
+          padraoValor.test(valor)
+        )
+      ) {
+        return valor;
+      }
+    }
+
+    for (
+      let indice = 0;
+      indice < localStorage.length;
+      indice++
+    ) {
+      const chave =
+        localStorage.key(indice);
+
+      if (
+        !chave ||
+        !padraoChave.test(chave)
+      ) {
+        continue;
+      }
+
+      const valor =
+        normalizarTextoMedicoesMobileUX1994_(
+          localStorage.getItem(chave)
+        );
+
+      if (
+        valor &&
+        (
+          !padraoValor ||
+          padraoValor.test(valor)
+        )
+      ) {
+        return valor;
+      }
+    }
+
+  } catch (erro) {
+    console.warn(
+      "[UX.19.9.4] localStorage não pôde ser consultado:",
+      erro
+    );
+  }
+
+  return "";
+}
+
+
+/**
+ * Resolve URL, token, dispositivo e usuário
+ * sem expor o token no console.
+ */
+async function resolverContextoApiMedicoesUX1994_() {
+  let urlApi = "";
+
+  if (
+    typeof SIGO_API_URL !==
+    "undefined"
+  ) {
+    urlApi =
+      normalizarTextoMedicoesMobileUX1994_(
+        SIGO_API_URL
+      );
+  }
+
+  if (
+    !urlApi &&
+    typeof URL_API_SIGO !==
+    "undefined"
+  ) {
+    urlApi =
+      normalizarTextoMedicoesMobileUX1994_(
+        URL_API_SIGO
+      );
+  }
+
+  urlApi =
+    urlApi ||
+    normalizarTextoMedicoesMobileUX1994_(
+      window.SIGO_CONFIG?.apiUrl
+    ) ||
+    normalizarTextoMedicoesMobileUX1994_(
+      window.SIGO_CONFIG?.webAppUrl
+    ) ||
+    normalizarTextoMedicoesMobileUX1994_(
+      window.CONFIG_API?.url
+    );
+
+  if (!urlApi) {
+    urlApi =
+      procurarStorageMedicoesUX1994_(
+        [
+          "SIGO_API_URL",
+          "URL_API_SIGO",
+          "sigo_api_url",
+          "webAppUrl"
+        ],
+        /(sigo|api|webapp).*(url)|url.*(sigo|api|webapp)/i,
+        /^https:\/\/script\.google\.com\//i
+      );
+  }
+
+  /*
+   * URL oficial atualmente publicada.
+   */
+  if (!urlApi) {
+    urlApi =
+      "https://script.google.com/macros/s/AKfycbzVE7tdTSwHvKgLkrdcaQtGAm_muqNPo6n0wQZBDpmRwtAJuySfWyh6gdef0R6g_drKRw/exec";
+  }
+
+
+  /*
+   * TOKEN
+   */
+
+  let token =
+    await chamarFuncaoContextoMedicoesUX1994_(
+      [
+        "obterTokenOfflineSIGO_",
+        "obterTokenOfflineMobile_",
+        "obterTokenApiMobile_",
+        "obterTokenSIGO_"
+      ],
+      [
+        "token",
+        "tokenOffline",
+        "valor"
+      ]
+    );
+
+  if (
+    !token &&
+    typeof SIGO_TOKEN_OFFLINE !==
+      "undefined"
+  ) {
+    token =
+      normalizarTextoMedicoesMobileUX1994_(
+        SIGO_TOKEN_OFFLINE
+      );
+  }
+
+  token =
+    token ||
+    normalizarTextoMedicoesMobileUX1994_(
+      window.SIGO_CONFIG?.tokenOffline
+    ) ||
+    normalizarTextoMedicoesMobileUX1994_(
+      window.SIGO_CONFIG?.token
+    ) ||
+    normalizarTextoMedicoesMobileUX1994_(
+      window.CONFIG_API?.token
+    );
+
+  if (!token) {
+    token =
+      procurarStorageMedicoesUX1994_(
+        [
+          "SIGO_TOKEN_OFFLINE",
+          "sigo_token_offline",
+          "TOKEN_OFFLINE_SIGO",
+          "tokenOffline"
+        ],
+        /(sigo|offline).*(token)|token.*(sigo|offline)/i,
+        null
+      );
+  }
+
+  if (!token) {
+    throw new Error(
+      "O token de acesso offline não foi encontrado."
+    );
+  }
+
+
+  /*
+   * DISPOSITIVO
+   */
+
+  let idDispositivo =
+    await chamarFuncaoContextoMedicoesUX1994_(
+      [
+        "obterIdDispositivoSIGO_",
+        "obterIdDispositivoMobile_",
+        "obterDispositivoSIGO_"
+      ],
+      [
+        "idDispositivo",
+        "deviceId",
+        "id"
+      ]
+    );
+
+  idDispositivo =
+    idDispositivo ||
+    normalizarTextoMedicoesMobileUX1994_(
+      window.SIGO_CONTEXTO?.idDispositivo
+    ) ||
+    normalizarTextoMedicoesMobileUX1994_(
+      window.SIGO_CONFIG?.idDispositivo
+    );
+
+  if (!idDispositivo) {
+    idDispositivo =
+      procurarStorageMedicoesUX1994_(
+        [
+          "SIGO_ID_DISPOSITIVO",
+          "sigo_id_dispositivo",
+          "ID_DISPOSITIVO",
+          "idDispositivo",
+          "deviceId"
+        ],
+        /(sigo|mobile).*(dispositivo|device)|(dispositivo|device).*(sigo|mobile)/i,
+        /^DISP-/i
+      );
+  }
+
+  if (!idDispositivo) {
+    /*
+     * Procura pelo próprio padrão do valor.
+     */
+    idDispositivo =
+      procurarStorageMedicoesUX1994_(
+        [],
+        /.*/,
+        /^DISP-/i
+      );
+  }
+
+  if (!idDispositivo) {
+    throw new Error(
+      "O identificador do dispositivo não foi encontrado."
+    );
+  }
+
+
+  /*
+   * USUÁRIO
+   */
+
+  let idUsuario =
+    await chamarFuncaoContextoMedicoesUX1994_(
+      [
+        "obterIdUsuarioSIGO_",
+        "obterIdUsuarioMobile_",
+        "obterUsuarioMobile_"
+      ],
+      [
+        "idUsuario",
+        "usuario",
+        "id"
+      ]
+    );
+
+  idUsuario =
+    idUsuario ||
+    normalizarTextoMedicoesMobileUX1994_(
+      window.SIGO_CONTEXTO?.idUsuario
+    ) ||
+    normalizarTextoMedicoesMobileUX1994_(
+      window.SIGO_CONFIG?.idUsuario
+    );
+
+  if (!idUsuario) {
+    idUsuario =
+      procurarStorageMedicoesUX1994_(
+        [
+          "SIGO_ID_USUARIO",
+          "sigo_id_usuario",
+          "ID_USUARIO",
+          "idUsuario"
+        ],
+        /(sigo|mobile).*(usuario|user)|(usuario|user).*(sigo|mobile)/i,
+        null
+      );
+  }
+
+  if (!idUsuario) {
+    idUsuario =
+      "USUARIO_MOBILE";
+  }
+
+  return {
+    urlApi:
+      urlApi,
+
+    token:
+      token,
+
+    idDispositivo:
+      idDispositivo,
+
+    idUsuario:
+      idUsuario
+  };
+}
+
+
+/**
+ * Normaliza o envelope retornado pelo Apps Script.
+ */
+function normalizarRespostaMedicoesMobileUX1994_(
+  resposta,
+  codigoHttp
+) {
+  if (
+    !resposta ||
+    typeof resposta !== "object"
+  ) {
+    throw new Error(
+      "A API de Medições retornou uma resposta inválida."
+    );
+  }
+
+  const detalhes =
+    resposta.detalhes &&
+    typeof resposta.detalhes === "object"
+      ? resposta.detalhes
+      : resposta.dados &&
+        typeof resposta.dados === "object"
+        ? resposta.dados
+        : resposta;
+
+  const medicoesOriginais =
+    Array.isArray(
+      detalhes.medicoes
+    )
+      ? detalhes.medicoes
+      : [];
+
+  const itensOriginais =
+    Array.isArray(
+      detalhes.itensMedicao
+    )
+      ? detalhes.itensMedicao
+      : [];
+
+  const medicoes =
+    medicoesOriginais.map(
+      function (registro) {
+        return {
+          idMedicao:
+            normalizarTextoMedicoesMobileUX1994_(
+              registro.idMedicao
+            ),
+
+          idObra:
+            normalizarTextoMedicoesMobileUX1994_(
+              registro.idObra
+            ),
+
+          nomeObra:
+            normalizarTextoMedicoesMobileUX1994_(
+              registro.nomeObra
+            ),
+
+          numeroMedicao:
+            normalizarTextoMedicoesMobileUX1994_(
+              registro.numeroMedicao
+            ),
+
+          periodoInicio:
+            normalizarTextoMedicoesMobileUX1994_(
+              registro.periodoInicio
+            ),
+
+          periodoFim:
+            normalizarTextoMedicoesMobileUX1994_(
+              registro.periodoFim
+            ),
+
+          dataCriacao:
+            normalizarTextoMedicoesMobileUX1994_(
+              registro.dataCriacao
+            ),
+
+          responsavel:
+            normalizarTextoMedicoesMobileUX1994_(
+              registro.responsavel
+            ),
+
+          statusMedicao:
+            normalizarTextoMedicoesMobileUX1994_(
+              registro.statusMedicao
+            ),
+
+          observacoes:
+            normalizarTextoMedicoesMobileUX1994_(
+              registro.observacoes
+            ),
+
+          dataAprovacao:
+            normalizarTextoMedicoesMobileUX1994_(
+              registro.dataAprovacao
+            ),
+
+          usuarioAprovacao:
+            normalizarTextoMedicoesMobileUX1994_(
+              registro.usuarioAprovacao
+            ),
+
+          valorTotalMedicao:
+            normalizarNumeroMedicoesMobileUX1994_(
+              registro.valorTotalMedicao
+            ),
+
+          statusSync:
+            normalizarTextoMedicoesMobileUX1994_(
+              registro.statusSync
+            ),
+
+          origem:
+            normalizarTextoMedicoesMobileUX1994_(
+              registro.origem
+            ),
+
+          criadoEm:
+            normalizarTextoMedicoesMobileUX1994_(
+              registro.criadoEm
+            ),
+
+          atualizadoEm:
+            normalizarTextoMedicoesMobileUX1994_(
+              registro.atualizadoEm
+            ),
+
+          dataSync:
+            normalizarTextoMedicoesMobileUX1994_(
+              registro.dataSync
+            ),
+
+          origemReidratacao:
+            normalizarTextoMedicoesMobileUX1994_(
+              registro.origemReidratacao
+            )
+        };
+      }
+    );
+
+  const itensMedicao =
+    itensOriginais.map(
+      function (registro) {
+        return {
+          idItemMedicao:
+            normalizarTextoMedicoesMobileUX1994_(
+              registro.idItemMedicao
+            ),
+
+          idMedicao:
+            normalizarTextoMedicoesMobileUX1994_(
+              registro.idMedicao
+            ),
+
+          idObra:
+            normalizarTextoMedicoesMobileUX1994_(
+              registro.idObra
+            ),
+
+          numeroMedicao:
+            normalizarTextoMedicoesMobileUX1994_(
+              registro.numeroMedicao
+            ),
+
+          idAtividade:
+            normalizarTextoMedicoesMobileUX1994_(
+              registro.idAtividade
+            ),
+
+          qtdeMedida:
+            normalizarNumeroMedicoesMobileUX1994_(
+              registro.qtdeMedida
+            ),
+
+          justificativa:
+            normalizarTextoMedicoesMobileUX1994_(
+              registro.justificativa
+            ),
+
+          statusItem:
+            normalizarTextoMedicoesMobileUX1994_(
+              registro.statusItem
+            ),
+
+          statusSync:
+            normalizarTextoMedicoesMobileUX1994_(
+              registro.statusSync
+            ),
+
+          origem:
+            normalizarTextoMedicoesMobileUX1994_(
+              registro.origem
+            ),
+
+          criadoEm:
+            normalizarTextoMedicoesMobileUX1994_(
+              registro.criadoEm
+            ),
+
+          atualizadoEm:
+            normalizarTextoMedicoesMobileUX1994_(
+              registro.atualizadoEm
+            ),
+
+          dataSync:
+            normalizarTextoMedicoesMobileUX1994_(
+              registro.dataSync
+            ),
+
+          origemReidratacao:
+            normalizarTextoMedicoesMobileUX1994_(
+              registro.origemReidratacao
+            )
+        };
+      }
+    );
+
+  return {
+    codigoHttp:
+      Number(codigoHttp || 0),
+
+    status:
+      normalizarTextoMedicoesMobileUX1994_(
+        resposta.status ||
+        detalhes.status
+      ),
+
+    mensagem:
+      normalizarTextoMedicoesMobileUX1994_(
+        resposta.mensagem ||
+        detalhes.mensagem
+      ),
+
+    dataResposta:
+      normalizarTextoMedicoesMobileUX1994_(
+        resposta.dataResposta ||
+        detalhes.dataResposta
+      ),
+
+    versaoContrato:
+      normalizarTextoMedicoesMobileUX1994_(
+        detalhes.versaoContrato
+      ),
+
+    idObra:
+      normalizarTextoMedicoesMobileUX1994_(
+        detalhes.idObra
+      ),
+
+    periodoDias:
+      Number(
+        detalhes.periodoDias || 0
+      ),
+
+    dataInicio:
+      normalizarTextoMedicoesMobileUX1994_(
+        detalhes.dataInicio
+      ),
+
+    dataFim:
+      normalizarTextoMedicoesMobileUX1994_(
+        detalhes.dataFim
+      ),
+
+    dataSync:
+      normalizarTextoMedicoesMobileUX1994_(
+        detalhes.dataSync
+      ),
+
+    arquitetura:
+      detalhes.arquitetura &&
+      typeof detalhes.arquitetura === "object"
+        ? {
+            fonteCabecalho:
+              normalizarTextoMedicoesMobileUX1994_(
+                detalhes.arquitetura
+                  .fonteCabecalho
+              ),
+
+            fonteItens:
+              normalizarTextoMedicoesMobileUX1994_(
+                detalhes.arquitetura
+                  .fonteItens
+              ),
+
+            lotesMobileIncluidos:
+              detalhes.arquitetura
+                .lotesMobileIncluidos === true,
+
+            planejamentoAlterado:
+              detalhes.arquitetura
+                .planejamentoAlterado === true
+          }
+        : {},
+
+    totais: {
+      medicoes:
+        Number(
+          detalhes.totais?.medicoes || 0
+        ),
+
+      itensMedicao:
+        Number(
+          detalhes.totais
+            ?.itensMedicao || 0
+        )
+    },
+
+    medicoes:
+      medicoes,
+
+    itensMedicao:
+      itensMedicao
+  };
+}
+
+
+/**
+ * Valida integralmente o pacote publicado.
+ */
+function validarPacoteMedicoesMobileUX1994_(
+  pacote,
+  idObraEsperado,
+  periodoEsperado
+) {
+  const medicoes =
+    Array.isArray(pacote.medicoes)
+      ? pacote.medicoes
+      : [];
+
+  const itens =
+    Array.isArray(pacote.itensMedicao)
+      ? pacote.itensMedicao
+      : [];
+
+  const idsMedicoes =
+    new Set();
+
+  const idsItens =
+    new Set();
+
+  const mapaMedicoes =
+    new Map();
+
+  const duplicadosMedicoes = [];
+  const duplicadosItens = [];
+  const medicoesInvalidas = [];
+  const itensInvalidos = [];
+  const datasInvalidas = [];
+  const timestampsInvalidos = [];
+  const itensOrfaos = [];
+  const divergenciasDeObra = [];
+  const divergenciasNumeroMedicao = [];
+  const misturaDeObras = [];
+  const statusSyncIncorreto = [];
+  const origemReidratacaoIncorreta = [];
+  const dataSyncAusente = [];
+
+
+  medicoes.forEach(
+    function (medicao) {
+      const idMedicao =
+        medicao.idMedicao;
+
+      if (
+        !idMedicao ||
+        !medicao.idObra ||
+        !medicao.numeroMedicao ||
+        !medicao.statusMedicao ||
+        medicao.valorTotalMedicao ===
+          null ||
+        medicao.valorTotalMedicao < 0
+      ) {
+        medicoesInvalidas.push(
+          idMedicao || "SEM_ID"
+        );
+      }
+
+      if (
+        idsMedicoes.has(
+          idMedicao
+        )
+      ) {
+        duplicadosMedicoes.push(
+          idMedicao
+        );
+
+      } else {
+        idsMedicoes.add(
+          idMedicao
+        );
+
+        mapaMedicoes.set(
+          idMedicao,
+          medicao
+        );
+      }
+
+      [
+        {
+          campo: "periodoInicio",
+          valor: medicao.periodoInicio
+        },
+        {
+          campo: "periodoFim",
+          valor: medicao.periodoFim
+        },
+        {
+          campo: "dataCriacao",
+          valor: medicao.dataCriacao
+        },
+        {
+          campo: "dataAprovacao",
+          valor: medicao.dataAprovacao
+        }
+      ].forEach(
+        function (configuracao) {
+          if (
+            !validarDataContratoMedicoesUX1994_(
+              configuracao.valor,
+              true
+            )
+          ) {
+            datasInvalidas.push({
+              tipo:
+                "MEDICAO",
+
+              id:
+                idMedicao,
+
+              campo:
+                configuracao.campo,
+
+              valor:
+                configuracao.valor
+            });
+          }
+        }
+      );
+
+      [
+        {
+          campo: "criadoEm",
+          valor: medicao.criadoEm,
+          permitirVazio: false
+        },
+        {
+          campo: "atualizadoEm",
+          valor: medicao.atualizadoEm,
+          permitirVazio: true
+        },
+        {
+          campo: "dataSync",
+          valor: medicao.dataSync,
+          permitirVazio: false
+        }
+      ].forEach(
+        function (configuracao) {
+          if (
+            !validarDataHoraContratoMedicoesUX1994_(
+              configuracao.valor,
+              configuracao.permitirVazio
+            )
+          ) {
+            timestampsInvalidos.push({
+              tipo:
+                "MEDICAO",
+
+              id:
+                idMedicao,
+
+              campo:
+                configuracao.campo,
+
+              valor:
+                configuracao.valor
+            });
+          }
+        }
+      );
+
+      if (
+        medicao.idObra !==
+        idObraEsperado
+      ) {
+        misturaDeObras.push({
+          tipo:
+            "MEDICAO",
+
+          id:
+            idMedicao,
+
+          idObra:
+            medicao.idObra
+        });
+      }
+
+      if (
+        medicao.statusSync !==
+        "SINCRONIZADO"
+      ) {
+        statusSyncIncorreto.push({
+          tipo:
+            "MEDICAO",
+
+          id:
+            idMedicao
+        });
+      }
+
+      if (
+        medicao.origemReidratacao !==
+        "SERVIDOR"
+      ) {
+        origemReidratacaoIncorreta.push({
+          tipo:
+            "MEDICAO",
+
+          id:
+            idMedicao
+        });
+      }
+
+      if (!medicao.dataSync) {
+        dataSyncAusente.push({
+          tipo:
+            "MEDICAO",
+
+          id:
+            idMedicao
+        });
+      }
+    }
+  );
+
+
+  itens.forEach(
+    function (item) {
+      const idItem =
+        item.idItemMedicao;
+
+      if (
+        !idItem ||
+        !item.idMedicao ||
+        !item.idObra ||
+        !item.numeroMedicao ||
+        !item.idAtividade ||
+        !item.statusItem ||
+        item.qtdeMedida === null ||
+        item.qtdeMedida < 0
+      ) {
+        itensInvalidos.push(
+          idItem || "SEM_ID"
+        );
+      }
+
+      if (
+        idsItens.has(
+          idItem
+        )
+      ) {
+        duplicadosItens.push(
+          idItem
+        );
+
+      } else {
+        idsItens.add(
+          idItem
+        );
+      }
+
+      const cabecalho =
+        mapaMedicoes.get(
+          item.idMedicao
+        );
+
+      if (!cabecalho) {
+        itensOrfaos.push({
+          idItemMedicao:
+            idItem,
+
+          idMedicao:
+            item.idMedicao
+        });
+
+      } else {
+        if (
+          cabecalho.idObra !==
+          item.idObra
+        ) {
+          divergenciasDeObra.push({
+            idItemMedicao:
+              idItem,
+
+            idMedicao:
+              item.idMedicao
+          });
+        }
+
+        if (
+          cabecalho.numeroMedicao !==
+          item.numeroMedicao
+        ) {
+          divergenciasNumeroMedicao.push({
+            idItemMedicao:
+              idItem,
+
+            idMedicao:
+              item.idMedicao
+          });
+        }
+      }
+
+      [
+        {
+          campo: "criadoEm",
+          valor: item.criadoEm,
+          permitirVazio: false
+        },
+        {
+          campo: "atualizadoEm",
+          valor: item.atualizadoEm,
+          permitirVazio: true
+        },
+        {
+          campo: "dataSync",
+          valor: item.dataSync,
+          permitirVazio: false
+        }
+      ].forEach(
+        function (configuracao) {
+          if (
+            !validarDataHoraContratoMedicoesUX1994_(
+              configuracao.valor,
+              configuracao.permitirVazio
+            )
+          ) {
+            timestampsInvalidos.push({
+              tipo:
+                "ITEM",
+
+              id:
+                idItem,
+
+              campo:
+                configuracao.campo,
+
+              valor:
+                configuracao.valor
+            });
+          }
+        }
+      );
+
+      if (
+        item.idObra !==
+        idObraEsperado
+      ) {
+        misturaDeObras.push({
+          tipo:
+            "ITEM",
+
+          id:
+            idItem,
+
+          idObra:
+            item.idObra
+        });
+      }
+
+      if (
+        item.statusSync !==
+        "SINCRONIZADO"
+      ) {
+        statusSyncIncorreto.push({
+          tipo:
+            "ITEM",
+
+          id:
+            idItem
+        });
+      }
+
+      if (
+        item.origemReidratacao !==
+        "SERVIDOR"
+      ) {
+        origemReidratacaoIncorreta.push({
+          tipo:
+            "ITEM",
+
+          id:
+            idItem
+        });
+      }
+
+      if (!item.dataSync) {
+        dataSyncAusente.push({
+          tipo:
+            "ITEM",
+
+          id:
+            idItem
+        });
+      }
+    }
+  );
+
+
+  const validacoes = {
+    codigoHttp200:
+      pacote.codigoHttp === 200,
+
+    statusOK:
+      pacote.status === "OK",
+
+    contratoVersao1:
+      pacote.versaoContrato ===
+      "1.0",
+
+    obraCorreta:
+      pacote.idObra ===
+      idObraEsperado,
+
+    periodoCorreto:
+      pacote.periodoDias ===
+      periodoEsperado,
+
+    dataInicioValida:
+      validarDataContratoMedicoesUX1994_(
+        pacote.dataInicio,
+        false
+      ),
+
+    dataFimValida:
+      validarDataContratoMedicoesUX1994_(
+        pacote.dataFim,
+        false
+      ),
+
+    fonteCabecalhoCorreta:
+      pacote.arquitetura
+        ?.fonteCabecalho ===
+      "MEDICOES_CABECALHO",
+
+    fonteItensCorreta:
+      pacote.arquitetura
+        ?.fonteItens ===
+      "MEDICOES_ITENS",
+
+    lotesNaoIncluidos:
+      pacote.arquitetura
+        ?.lotesMobileIncluidos ===
+      false,
+
+    planejamentoNaoAlterado:
+      pacote.arquitetura
+        ?.planejamentoAlterado ===
+      false,
+
+    listasValidas:
+      Array.isArray(
+        pacote.medicoes
+      ) &&
+      Array.isArray(
+        pacote.itensMedicao
+      ),
+
+    totalMedicoesCoerente:
+      pacote.totais.medicoes ===
+      medicoes.length,
+
+    totalItensCoerente:
+      pacote.totais.itensMedicao ===
+      itens.length,
+
+    nenhumaMedicaoDuplicada:
+      duplicadosMedicoes.length ===
+      0,
+
+    nenhumItemDuplicado:
+      duplicadosItens.length ===
+      0,
+
+    nenhumaMedicaoInvalida:
+      medicoesInvalidas.length ===
+      0,
+
+    nenhumItemInvalido:
+      itensInvalidos.length ===
+      0,
+
+    nenhumaDataInvalida:
+      datasInvalidas.length === 0,
+
+    nenhumTimestampInvalido:
+      timestampsInvalidos.length ===
+      0,
+
+    nenhumItemOrfao:
+      itensOrfaos.length === 0,
+
+    nenhumaDivergenciaDeObra:
+      divergenciasDeObra.length ===
+      0,
+
+    nenhumaDivergenciaNumeroMedicao:
+      divergenciasNumeroMedicao.length ===
+      0,
+
+    nenhumaMisturaDeObras:
+      misturaDeObras.length === 0,
+
+    todosStatusSyncCorretos:
+      statusSyncIncorreto.length ===
+      0,
+
+    todasOrigensCorretas:
+      origemReidratacaoIncorreta
+        .length === 0,
+
+    todosPossuemDataSync:
+      dataSyncAusente.length === 0
+  };
+
+  const aprovado =
+    Object.values(
+      validacoes
+    ).every(
+      function (valor) {
+        return valor === true;
+      }
+    );
+
+  return {
+    aprovado:
+      aprovado,
+
+    validacoes:
+      validacoes,
+
+    problemas: {
+      duplicadosMedicoes:
+        duplicadosMedicoes,
+
+      duplicadosItens:
+        duplicadosItens,
+
+      medicoesInvalidas:
+        medicoesInvalidas,
+
+      itensInvalidos:
+        itensInvalidos,
+
+      datasInvalidas:
+        datasInvalidas,
+
+      timestampsInvalidos:
+        timestampsInvalidos,
+
+      itensOrfaos:
+        itensOrfaos,
+
+      divergenciasDeObra:
+        divergenciasDeObra,
+
+      divergenciasNumeroMedicao:
+        divergenciasNumeroMedicao,
+
+      misturaDeObras:
+        misturaDeObras,
+
+      statusSyncIncorreto:
+        statusSyncIncorreto,
+
+      origemReidratacaoIncorreta:
+        origemReidratacaoIncorreta,
+
+      dataSyncAusente:
+        dataSyncAusente
+    }
+  };
+}
+
+
+/**
+ * ============================================================
+ * CLIENTE PUBLICADO
+ * ============================================================
+ */
+async function obterMedicoesOficiaisObraMobile_(
+  idObra,
+  periodoDias
+) {
+  const obra =
+    normalizarTextoMedicoesMobileUX1994_(
+      idObra
+    );
+
+  const dias =
+    Number(periodoDias || 30);
+
+  if (!obra) {
+    throw new Error(
+      "A obra é obrigatória para consultar as Medições."
+    );
+  }
+
+  if (
+    ![15, 30, 60, 90].includes(
+      dias
+    )
+  ) {
+    throw new Error(
+      "Período inválido. Utilize 15, 30, 60 ou 90 dias."
+    );
+  }
+
+  const contexto =
+    await resolverContextoApiMedicoesUX1994_();
+
+  const payload = {
+    token:
+      contexto.token,
+
+    acao:
+      "OBTER_MEDICOES_OFICIAIS_OBRA",
+
+    idDispositivo:
+      contexto.idDispositivo,
+
+    idUsuario:
+      contexto.idUsuario,
+
+    idObra:
+      obra,
+
+    diasHistorico:
+      dias
+  };
+
+  /*
+   * O token não é exibido no log.
+   */
+  console.log(
+    "[UX.19.9.4] Solicitando Medições oficiais:",
+    {
+      acao:
+        payload.acao,
+
+      idDispositivo:
+        payload.idDispositivo,
+
+      idUsuario:
+        payload.idUsuario,
+
+      idObra:
+        payload.idObra,
+
+      diasHistorico:
+        payload.diasHistorico
+    }
+  );
+
+  const respostaHttp =
+    await fetch(
+      contexto.urlApi,
+      {
+        method:
+          "POST",
+
+        headers: {
+          "Content-Type":
+            "text/plain;charset=UTF-8"
+        },
+
+        body:
+          JSON.stringify(payload),
+
+        cache:
+          "no-store",
+
+        redirect:
+          "follow"
+      }
+    );
+
+  const textoResposta =
+    await respostaHttp.text();
+
+  let respostaJson;
+
+  try {
+    respostaJson =
+      JSON.parse(
+        textoResposta
+      );
+
+  } catch (erroJson) {
+    console.error(
+      "[UX.19.9.4] Resposta recebida:",
+      textoResposta
+    );
+
+    throw new Error(
+      "A API de Medições não retornou JSON válido."
+    );
+  }
+
+  if (
+    !respostaHttp.ok ||
+    String(
+      respostaJson.status || ""
+    ).toUpperCase() !== "OK"
+  ) {
+    throw new Error(
+      respostaJson.mensagem ||
+      "A API não conseguiu carregar as Medições oficiais."
+    );
+  }
+
+  const pacote =
+    normalizarRespostaMedicoesMobileUX1994_(
+      respostaJson,
+      respostaHttp.status
+    );
+
+  const auditoria =
+    validarPacoteMedicoesMobileUX1994_(
+      pacote,
+      obra,
+      dias
+    );
+
+  if (!auditoria.aprovado) {
+    console.error(
+      "[UX.19.9.4] Contrato reprovado:",
+      auditoria
+    );
+
+    throw new Error(
+      "O pacote publicado de Medições não passou na validação do contrato."
+    );
+  }
+
+  pacote.auditoriaContrato =
+    auditoria;
+
+  return pacote;
+}
+
+
+/**
+ * Normaliza objetos para uma assinatura estável.
+ */
+function normalizarAssinaturaMedicoesUX1994_(valor) {
+  if (
+    valor === null ||
+    valor === undefined
+  ) {
+    return valor;
+  }
+
+  if (Array.isArray(valor)) {
+    return valor.map(
+      normalizarAssinaturaMedicoesUX1994_
+    );
+  }
+
+  if (
+    Object.prototype.toString.call(valor) ===
+      "[object Date]"
+  ) {
+    return valor.toISOString();
+  }
+
+  if (
+    typeof valor === "object"
+  ) {
+    const objeto = {};
+
+    Object.keys(valor)
+      .sort()
+      .forEach(
+        function (chave) {
+          objeto[chave] =
+            normalizarAssinaturaMedicoesUX1994_(
+              valor[chave]
+            );
+        }
+      );
+
+    return objeto;
+  }
+
+  return valor;
+}
+
+
+/**
+ * Cria uma assinatura independente da ordem
+ * dos registros da store.
+ */
+function criarAssinaturaStoreMedicoesUX1994_(
+  registros
+) {
+  const assinaturas =
+    (
+      Array.isArray(registros)
+        ? registros
+        : []
+    )
+      .map(
+        function (registro) {
+          return JSON.stringify(
+            normalizarAssinaturaMedicoesUX1994_(
+              registro
+            )
+          );
+        }
+      )
+      .sort();
+
+  return JSON.stringify(
+    assinaturas
+  );
+}
+
+
+/**
+ * Captura as stores que não podem ser alteradas
+ * pelo cliente desta etapa.
+ */
+async function capturarStoresClienteMedicoesUX1994_() {
+  const stores = [
+    "TB_MEDICOES",
+    "TB_LOTES_MEDICAO",
+    "TB_SYNC_QUEUE"
+  ];
+
+  const resultado = {};
+
+  for (const store of stores) {
+    const registros =
+      await listarRegistrosSIGO(
+        store
+      );
+
+    resultado[store] = {
+      quantidade:
+        registros.length,
+
+      assinatura:
+        criarAssinaturaStoreMedicoesUX1994_(
+          registros
+        )
+    };
+  }
+
+  return resultado;
+}
+
+
+/**
+ * ============================================================
+ * TESTE DO CLIENTE MOBILE
+ * ============================================================
+ */
+async function testarClienteMedicoesMobileUX1994_() {
+  console.log(
+    "[UX.19.9.4] Iniciando teste do cliente Mobile de Medições oficiais..."
+  );
+
+  const storesAntes =
+    await capturarStoresClienteMedicoesUX1994_();
+
+  const pacote =
+    await obterMedicoesOficiaisObraMobile_(
+      "OBR002",
+      30
+    );
+
+  const storesDepois =
+    await capturarStoresClienteMedicoesUX1994_();
+
+  const medicoes =
+    pacote.medicoes || [];
+
+  const itens =
+    pacote.itensMedicao || [];
+
+  const storesPreservadas = {
+    TB_MEDICOES:
+      storesAntes.TB_MEDICOES
+        .quantidade ===
+      storesDepois.TB_MEDICOES
+        .quantidade &&
+      storesAntes.TB_MEDICOES
+        .assinatura ===
+      storesDepois.TB_MEDICOES
+        .assinatura,
+
+    TB_LOTES_MEDICAO:
+      storesAntes.TB_LOTES_MEDICAO
+        .quantidade ===
+      storesDepois.TB_LOTES_MEDICAO
+        .quantidade &&
+      storesAntes.TB_LOTES_MEDICAO
+        .assinatura ===
+      storesDepois.TB_LOTES_MEDICAO
+        .assinatura,
+
+    TB_SYNC_QUEUE:
+      storesAntes.TB_SYNC_QUEUE
+        .quantidade ===
+      storesDepois.TB_SYNC_QUEUE
+        .quantidade &&
+      storesAntes.TB_SYNC_QUEUE
+        .assinatura ===
+      storesDepois.TB_SYNC_QUEUE
+        .assinatura
+  };
+
+  const validacoes = {
+    codigoHttp200:
+      pacote.codigoHttp === 200,
+
+    statusOK:
+      pacote.status === "OK",
+
+    contratoVersao1:
+      pacote.versaoContrato ===
+      "1.0",
+
+    obraCorreta:
+      pacote.idObra === "OBR002",
+
+    periodoCorreto:
+      pacote.periodoDias === 30,
+
+    retornou1Medicao:
+      medicoes.length === 1,
+
+    retornou1Item:
+      itens.length === 1,
+
+    statusMedicaoConsolidada:
+      medicoes.length === 1 &&
+      medicoes[0]
+        .statusMedicao ===
+        "CONSOLIDADA",
+
+    statusItemAprovada:
+      itens.length === 1 &&
+      itens[0]
+        .statusItem ===
+        "APROVADA",
+
+    atividadeCorreta:
+      itens.length === 1 &&
+      itens[0].idAtividade ===
+        "1.1",
+
+    quantidadeCorreta:
+      itens.length === 1 &&
+      itens[0].qtdeMedida === 1,
+
+    contratoInternoAprovado:
+      pacote.auditoriaContrato
+        ?.aprovado === true,
+
+    tbMedicoesPreservada:
+      storesPreservadas
+        .TB_MEDICOES === true,
+
+    tbLotesPreservada:
+      storesPreservadas
+        .TB_LOTES_MEDICAO === true,
+
+    filaPreservada:
+      storesPreservadas
+        .TB_SYNC_QUEUE === true,
+
+    filaPossui45:
+      storesDepois
+        .TB_SYNC_QUEUE
+        .quantidade === 45
+  };
+
+  const aprovado =
+    Object.values(
+      validacoes
+    ).every(
+      function (valor) {
+        return valor === true;
+      }
+    );
+
+  const resultado = {
+    etapa:
+      "UX.19.9.4",
+
+    teste:
+      "CLIENTE_MOBILE_MEDICOES_OFICIAIS",
+
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+
+    codigoHttp:
+      pacote.codigoHttp,
+
+    respostaStatus:
+      pacote.status,
+
+    versaoContrato:
+      pacote.versaoContrato,
+
+    idObra:
+      pacote.idObra,
+
+    periodoDias:
+      pacote.periodoDias,
+
+    dataInicio:
+      pacote.dataInicio,
+
+    dataFim:
+      pacote.dataFim,
+
+    arquitetura:
+      pacote.arquitetura,
+
+    totais: {
+      medicoes:
+        medicoes.length,
+
+      itensMedicao:
+        itens.length
+    },
+
+    stores: {
+      TB_MEDICOES: {
+        antes:
+          storesAntes
+            .TB_MEDICOES
+            .quantidade,
+
+        depois:
+          storesDepois
+            .TB_MEDICOES
+            .quantidade,
+
+        preservada:
+          storesPreservadas
+            .TB_MEDICOES
+      },
+
+      TB_LOTES_MEDICAO: {
+        antes:
+          storesAntes
+            .TB_LOTES_MEDICAO
+            .quantidade,
+
+        depois:
+          storesDepois
+            .TB_LOTES_MEDICAO
+            .quantidade,
+
+        preservada:
+          storesPreservadas
+            .TB_LOTES_MEDICAO
+      },
+
+      TB_SYNC_QUEUE: {
+        antes:
+          storesAntes
+            .TB_SYNC_QUEUE
+            .quantidade,
+
+        depois:
+          storesDepois
+            .TB_SYNC_QUEUE
+            .quantidade,
+
+        preservada:
+          storesPreservadas
+            .TB_SYNC_QUEUE
+      }
+    },
+
+    validacoes:
+      validacoes,
+
+    primeiraMedicao:
+      medicoes.length
+        ? medicoes[0]
+        : null,
+
+    primeiroItem:
+      itens.length
+        ? itens[0]
+        : null,
+
+    problemasContrato:
+      pacote.auditoriaContrato
+        ?.problemas || {},
+
+    aprovado:
+      aprovado
+  };
+
+  console.log(
+    JSON.stringify(
+      resultado,
+      null,
+      2
+    )
+  );
+
+  if (!aprovado) {
+    throw new Error(
+      "UX.19.9.4 REPROVADA. Consulte as validações no console."
+    );
+  }
+
+  console.log(
+    "UX.19.9.4 — CLIENTE MOBILE DE MEDIÇÕES OFICIAIS APROVADO."
+  );
+
+  return {
+    teste:
+      resultado,
+
+    pacote:
+      pacote
+  };
+}
