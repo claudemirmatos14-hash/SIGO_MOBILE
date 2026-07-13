@@ -22500,6 +22500,875 @@ async function testarClienteOcorrenciasMobileUX1964_() {
 
 /**
  * ============================================================
+ * UX.19.7.4 — CLIENTE MOBILE DA API DE CLIMA
+ * ============================================================
+ *
+ * Responsabilidades:
+ *
+ * - chamar OBTER_CLIMAS_OPERACIONAIS_OBRA;
+ * - reconhecer o envelope "detalhes";
+ * - validar contrato, obra, período e totais;
+ * - validar a estrutura dos registros;
+ * - devolver a lista de Climas;
+ * - não gravar no IndexedDB;
+ * - não alterar TB_CLIMA;
+ * - não alterar TB_SYNC_QUEUE.
+ */
+
+
+/**
+ * Normaliza e valida a resposta da API publicada.
+ */
+function normalizarRespostaClimaMobileUX1974_(
+  respostaJson
+) {
+  if (
+    !respostaJson ||
+    typeof respostaJson !== "object"
+  ) {
+    throw new Error(
+      "A API de Clima retornou uma resposta vazia ou inválida."
+    );
+  }
+
+  const statusResposta =
+    String(
+      respostaJson.status || ""
+    )
+      .trim()
+      .toUpperCase();
+
+  if (
+    statusResposta !== "OK"
+  ) {
+    throw new Error(
+      respostaJson.mensagem ||
+      respostaJson.erro ||
+      "A API não aprovou a consulta de Clima."
+    );
+  }
+
+  /*
+   * Compatibilidade com:
+   *
+   * - respostaJson.detalhes;
+   * - respostaJson.dados;
+   * - contrato diretamente na raiz.
+   */
+  const detalhes =
+    respostaJson.detalhes &&
+    typeof respostaJson.detalhes ===
+      "object"
+      ? respostaJson.detalhes
+      : respostaJson.dados &&
+        typeof respostaJson.dados ===
+          "object"
+        ? respostaJson.dados
+        : respostaJson;
+
+  const climas =
+    Array.isArray(
+      detalhes.climas
+    )
+      ? detalhes.climas
+      : [];
+
+  const totaisRecebidos =
+    detalhes.totais &&
+    typeof detalhes.totais ===
+      "object"
+      ? detalhes.totais
+      : {};
+
+  const totalClimas =
+    Number(
+      totaisRecebidos.climas !==
+        undefined
+        ? totaisRecebidos.climas
+        : climas.length
+    );
+
+  if (
+    !Number.isFinite(
+      totalClimas
+    )
+  ) {
+    throw new Error(
+      "O total de registros de Clima informado pela API é inválido."
+    );
+  }
+
+  if (
+    totalClimas !==
+    climas.length
+  ) {
+    throw new Error(
+      "O total de registros de Clima informado pela API " +
+      "não corresponde à quantidade recebida."
+    );
+  }
+
+  return {
+    status:
+      statusResposta,
+
+    mensagem:
+      String(
+        respostaJson.mensagem || ""
+      ),
+
+    dataResposta:
+      String(
+        respostaJson.dataResposta || ""
+      ),
+
+    versaoContrato:
+      String(
+        detalhes.versaoContrato || ""
+      ),
+
+    idObra:
+      String(
+        detalhes.idObra || ""
+      ).trim(),
+
+    periodoDias:
+      Number(
+        detalhes.periodoDias || 0
+      ),
+
+    dataInicio:
+      String(
+        detalhes.dataInicio || ""
+      ).trim(),
+
+    dataFim:
+      String(
+        detalhes.dataFim || ""
+      ).trim(),
+
+    dataSync:
+      String(
+        detalhes.dataSync || ""
+      ).trim(),
+
+    totais: {
+      climas:
+        totalClimas
+    },
+
+    climas:
+      climas
+  };
+}
+
+
+/**
+ * Verifica se uma data utiliza o contrato yyyy-MM-dd.
+ */
+function validarDataContratoClimaUX1974_(
+  valor
+) {
+  const texto =
+    String(valor || "").trim();
+
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(
+      texto
+    )
+  ) {
+    return false;
+  }
+
+  const partes =
+    texto.split("-");
+
+  const data =
+    new Date(
+      Number(partes[0]),
+      Number(partes[1]) - 1,
+      Number(partes[2])
+    );
+
+  if (
+    isNaN(data.getTime())
+  ) {
+    return false;
+  }
+
+  return (
+    data.getFullYear() ===
+      Number(partes[0]) &&
+    data.getMonth() ===
+      Number(partes[1]) - 1 &&
+    data.getDate() ===
+      Number(partes[2])
+  );
+}
+
+
+/**
+ * Consulta os registros operacionais de Clima da obra.
+ *
+ * IMPORTANTE:
+ *
+ * Esta função somente consulta, valida e devolve os dados.
+ * Ela não grava nada no IndexedDB.
+ */
+async function obterClimasOperacionaisObraMobile_(
+  idObra,
+  diasHistorico
+) {
+  const obraNormalizada =
+    String(
+      idObra || ""
+    ).trim();
+
+  const periodoNormalizado =
+    Number(
+      diasHistorico || 30
+    );
+
+  const periodosPermitidos =
+    [15, 30, 60, 90];
+
+  if (!obraNormalizada) {
+    throw new Error(
+      "Informe o ID da obra para consultar os registros de Clima."
+    );
+  }
+
+  if (
+    !periodosPermitidos.includes(
+      periodoNormalizado
+    )
+  ) {
+    throw new Error(
+      "Período inválido. Utilize 15, 30, 60 ou 90 dias."
+    );
+  }
+
+  /*
+   * Auxiliares aprovados na UX.19.5.5.
+   */
+  if (
+    typeof obterTokenReidratacaoMobileUX1955_ !==
+    "function"
+  ) {
+    throw new Error(
+      "O auxiliar de token da UX.19.5.5 não foi encontrado."
+    );
+  }
+
+  if (
+    typeof obterIdDispositivoReidratacaoUX1955_ !==
+    "function"
+  ) {
+    throw new Error(
+      "O auxiliar de dispositivo da UX.19.5.5 não foi encontrado."
+    );
+  }
+
+  if (
+    typeof obterIdUsuarioReidratacaoUX1955_ !==
+    "function"
+  ) {
+    throw new Error(
+      "O auxiliar de usuário da UX.19.5.5 não foi encontrado."
+    );
+  }
+
+  const urlApi =
+    "https://script.google.com/macros/s/AKfycbzVE7tdTSwHvKgLkrdcaQtGAm_muqNPo6n0wQZBDpmRwtAJuySfWyh6gdef0R6g_drKRw/exec";
+
+  const payload = {
+    token:
+      obterTokenReidratacaoMobileUX1955_(),
+
+    acao:
+      "OBTER_CLIMAS_OPERACIONAIS_OBRA",
+
+    idDispositivo:
+      obterIdDispositivoReidratacaoUX1955_(),
+
+    idUsuario:
+      obterIdUsuarioReidratacaoUX1955_(),
+
+    idObra:
+      obraNormalizada,
+
+    diasHistorico:
+      periodoNormalizado
+  };
+
+  console.log(
+    "[UX.19.7.4] Solicitando registros operacionais de Clima:",
+    {
+      acao:
+        payload.acao,
+
+      idDispositivo:
+        payload.idDispositivo,
+
+      idUsuario:
+        payload.idUsuario,
+
+      idObra:
+        payload.idObra,
+
+      diasHistorico:
+        payload.diasHistorico
+    }
+  );
+
+  let respostaHttp;
+
+  try {
+    respostaHttp =
+      await fetch(
+        urlApi,
+        {
+          method:
+            "POST",
+
+          headers: {
+            "Content-Type":
+              "text/plain;charset=UTF-8"
+          },
+
+          body:
+            JSON.stringify(
+              payload
+            ),
+
+          redirect:
+            "follow",
+
+          cache:
+            "no-store"
+        }
+      );
+
+  } catch (erroRede) {
+    throw new Error(
+      "Não foi possível acessar a API de Clima. " +
+      (
+        erroRede &&
+        erroRede.message
+          ? erroRede.message
+          : String(erroRede)
+      )
+    );
+  }
+
+  const codigoHttp =
+    respostaHttp.status;
+
+  const textoResposta =
+    await respostaHttp.text();
+
+  let respostaJson;
+
+  try {
+    respostaJson =
+      JSON.parse(
+        textoResposta
+      );
+
+  } catch (erroJson) {
+    console.error(
+      "[UX.19.7.4] Resposta não JSON:",
+      textoResposta
+    );
+
+    throw new Error(
+      "A API de Clima não retornou JSON válido. " +
+      "HTTP: " +
+      codigoHttp
+    );
+  }
+
+  if (
+    !respostaHttp.ok
+  ) {
+    throw new Error(
+      respostaJson.mensagem ||
+      respostaJson.erro ||
+      (
+        "Falha HTTP ao consultar Clima: " +
+        codigoHttp
+      )
+    );
+  }
+
+  const dadosNormalizados =
+    normalizarRespostaClimaMobileUX1974_(
+      respostaJson
+    );
+
+  if (
+    dadosNormalizados.idObra !==
+    obraNormalizada
+  ) {
+    throw new Error(
+      "A API retornou registros de Clima de outra obra. " +
+      "Solicitada: " +
+      obraNormalizada +
+      ". Recebida: " +
+      dadosNormalizados.idObra +
+      "."
+    );
+  }
+
+  if (
+    dadosNormalizados.periodoDias !==
+    periodoNormalizado
+  ) {
+    throw new Error(
+      "A API retornou um período diferente do solicitado."
+    );
+  }
+
+  if (
+    dadosNormalizados.versaoContrato !==
+    "1.0"
+  ) {
+    throw new Error(
+      "Versão do contrato de Clima não suportada: " +
+      dadosNormalizados.versaoContrato
+    );
+  }
+
+  if (
+    !validarDataContratoClimaUX1974_(
+      dadosNormalizados.dataInicio
+    ) ||
+    !validarDataContratoClimaUX1974_(
+      dadosNormalizados.dataFim
+    )
+  ) {
+    throw new Error(
+      "A API retornou um intervalo de datas inválido."
+    );
+  }
+
+  return {
+    codigoHttp:
+      codigoHttp,
+
+    ...dadosNormalizados
+  };
+}
+
+
+/**
+ * ============================================================
+ * TESTE ISOLADO DO CLIENTE MOBILE DE CLIMA
+ * ============================================================
+ *
+ * Não grava em:
+ *
+ * - TB_CLIMA;
+ * - TB_SYNC_QUEUE;
+ * - qualquer outra store.
+ */
+async function testarClienteClimaMobileUX1974_() {
+  console.log(
+    "[UX.19.7.4] Iniciando teste do cliente Mobile de Clima..."
+  );
+
+  const resposta =
+    await obterClimasOperacionaisObraMobile_(
+      "OBR002",
+      30
+    );
+
+  const camposContrato = [
+    "idClima",
+    "data",
+    "idObra",
+    "periodo",
+    "condicaoClimatica",
+    "intensidade",
+    "impactoExecucao",
+    "atividadeAfetada",
+    "observacao",
+    "statusClima",
+    "statusSync",
+    "dataSync",
+    "origemReidratacao"
+  ];
+
+  const idsVistos =
+    new Set();
+
+  const duplicados =
+    [];
+
+  const invalidos =
+    [];
+
+  const camposAusentes =
+    [];
+
+  const outraObra =
+    [];
+
+  const foraPeriodo =
+    [];
+
+  const statusSyncIncorreto =
+    [];
+
+  const origemIncorreta =
+    [];
+
+  const dataSyncAusente =
+    [];
+
+  resposta.climas.forEach(
+    function (clima) {
+      const idClima =
+        String(
+          clima.idClima || ""
+        ).trim();
+
+      const idObra =
+        String(
+          clima.idObra || ""
+        ).trim();
+
+      const data =
+        String(
+          clima.data || ""
+        ).trim();
+
+
+      /*
+       * Campos essenciais.
+       */
+      if (
+        !idClima ||
+        !idObra ||
+        !data ||
+        !validarDataContratoClimaUX1974_(
+          data
+        )
+      ) {
+        invalidos.push({
+          idClima:
+            idClima || "SEM_ID",
+
+          motivo:
+            "CAMPO_ESSENCIAL_OU_DATA_INVALIDA"
+        });
+      }
+
+
+      /*
+       * Todos os campos devem existir.
+       *
+       * Alguns podem estar vazios, de acordo com a fonte.
+       */
+      const ausentes =
+        camposContrato.filter(
+          function (campo) {
+            return !Object.prototype
+              .hasOwnProperty.call(
+                clima,
+                campo
+              );
+          }
+        );
+
+      if (
+        ausentes.length
+      ) {
+        camposAusentes.push({
+          idClima:
+            idClima || "SEM_ID",
+
+          campos:
+            ausentes
+        });
+      }
+
+
+      /*
+       * Duplicidade.
+       */
+      if (
+        idsVistos.has(
+          idClima
+        )
+      ) {
+        duplicados.push(
+          idClima
+        );
+
+      } else {
+        idsVistos.add(
+          idClima
+        );
+      }
+
+
+      /*
+       * Obra.
+       */
+      if (
+        idObra !== "OBR002"
+      ) {
+        outraObra.push({
+          idClima:
+            idClima,
+
+          idObra:
+            idObra
+        });
+      }
+
+
+      /*
+       * Intervalo.
+       *
+       * Datas ISO yyyy-MM-dd podem ser comparadas
+       * lexicalmente com segurança.
+       */
+      if (
+        data <
+          resposta.dataInicio ||
+        data >
+          resposta.dataFim
+      ) {
+        foraPeriodo.push({
+          idClima:
+            idClima,
+
+          data:
+            data
+        });
+      }
+
+
+      /*
+       * Metadados de reidratação.
+       */
+      if (
+        clima.statusSync !==
+        "SINCRONIZADO"
+      ) {
+        statusSyncIncorreto.push(
+          idClima
+        );
+      }
+
+      if (
+        clima.origemReidratacao !==
+        "SERVIDOR"
+      ) {
+        origemIncorreta.push(
+          idClima
+        );
+      }
+
+      if (
+        !String(
+          clima.dataSync || ""
+        ).trim()
+      ) {
+        dataSyncAusente.push(
+          idClima
+        );
+      }
+    }
+  );
+
+  const validacoes = {
+    codigoHttp200:
+      resposta.codigoHttp === 200,
+
+    statusOK:
+      resposta.status ===
+      "OK",
+
+    contratoVersao1:
+      resposta.versaoContrato ===
+      "1.0",
+
+    obraCorreta:
+      resposta.idObra ===
+      "OBR002",
+
+    periodoCorreto:
+      resposta.periodoDias ===
+      30,
+
+    intervaloValido:
+      validarDataContratoClimaUX1974_(
+        resposta.dataInicio
+      ) &&
+      validarDataContratoClimaUX1974_(
+        resposta.dataFim
+      ),
+
+    listaClimasValida:
+      Array.isArray(
+        resposta.climas
+      ),
+
+    retornou8Registros:
+      resposta.climas.length ===
+      8,
+
+    totalCoerente:
+      resposta.totais.climas ===
+      resposta.climas.length,
+
+    nenhumaDuplicidade:
+      duplicados.length === 0,
+
+    nenhumRegistroInvalido:
+      invalidos.length === 0,
+
+    nenhumCampoDoContratoAusente:
+      camposAusentes.length === 0,
+
+    nenhumaMisturaDeObras:
+      outraObra.length === 0,
+
+    nenhumRegistroForaPeriodo:
+      foraPeriodo.length === 0,
+
+    todosStatusSyncCorretos:
+      statusSyncIncorreto.length ===
+      0,
+
+    todasOrigensCorretas:
+      origemIncorreta.length ===
+      0,
+
+    todosPossuemDataSync:
+      dataSyncAusente.length ===
+      0
+  };
+
+  const aprovado =
+    Object.values(
+      validacoes
+    ).every(
+      function (resultado) {
+        return resultado === true;
+      }
+    );
+
+  const resultadoAuditoria = {
+    etapa:
+      "UX.19.7.4",
+
+    teste:
+      "CLIENTE_MOBILE_CLIMA",
+
+    codigoHttp:
+      resposta.codigoHttp,
+
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+
+    respostaStatus:
+      resposta.status,
+
+    versaoContrato:
+      resposta.versaoContrato,
+
+    idObra:
+      resposta.idObra,
+
+    periodoDias:
+      resposta.periodoDias,
+
+    dataInicio:
+      resposta.dataInicio,
+
+    dataFim:
+      resposta.dataFim,
+
+    dataSync:
+      resposta.dataSync,
+
+    climas:
+      resposta.totais.climas,
+
+    problemas: {
+      duplicados:
+        duplicados,
+
+      invalidos:
+        invalidos,
+
+      camposAusentes:
+        camposAusentes,
+
+      outraObra:
+        outraObra,
+
+      foraPeriodo:
+        foraPeriodo,
+
+      statusSyncIncorreto:
+        statusSyncIncorreto,
+
+      origemIncorreta:
+        origemIncorreta,
+
+      dataSyncAusente:
+        dataSyncAusente
+    },
+
+    validacoes:
+      validacoes,
+
+    primeiroRegistro:
+      resposta.climas.length
+        ? resposta.climas[0]
+        : null,
+
+    aprovado:
+      aprovado
+  };
+
+  console.log(
+    JSON.stringify(
+      resultadoAuditoria,
+      null,
+      2
+    )
+  );
+
+  if (!aprovado) {
+    throw new Error(
+      "UX.19.7.4 REPROVADA. " +
+      "Consulte as validações no console."
+    );
+  }
+
+  console.log(
+    "UX.19.7.4 — CLIENTE MOBILE DE CLIMA APROVADO."
+  );
+
+  return {
+    auditoria:
+      resultadoAuditoria,
+
+    dados:
+      resposta
+  };
+}
+
+/**
+ * ============================================================
  * UX.19.6.5 — MESCLAGEM PROTEGIDA DE OCORRÊNCIAS
  * ============================================================
  *
