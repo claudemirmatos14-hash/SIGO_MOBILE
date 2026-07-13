@@ -43974,12 +43974,18 @@ async function confirmarReidratacaoInterfaceUX1997_() {
     /*
      * Notificação consolidada.
      */
-    const totaisBase =
-      obterTotaisBaseVisualUX1997_(
-        estadoCapturado,
-        resultadoBase
-      );
-
+   const totaisBaseOriginais =
+    obterTotaisBaseVisualUX1997_(
+      estadoCapturado,
+      resultadoBase
+    );
+  
+  const totaisBase =
+    corrigirTotaisBaseVisualUX1997A_(
+      totaisBaseOriginais,
+      estadoCapturado,
+      resultadoBase
+    );
     const mensagemNotificacao =
       montarMensagemNotificacaoMedicoesUX1997_(
         totaisBase,
@@ -44619,3 +44625,1003 @@ if (
   instalarIntegracaoVisualMedicoesUX1997_();
 }
 
+/**
+ * ============================================================
+ * UX.19.9.7A — TOTAL CONSOLIDADO DE CLIMA
+ * ============================================================
+ *
+ * Resolve o total usando:
+ *
+ * 1. resultado da confirmação;
+ * 2. pacotes preservados no estado;
+ * 3. arrays de registros;
+ * 4. KPI já renderizado no modal.
+ */
+
+
+/**
+ * Lê um número de um KPI exibido no modal.
+ */
+function lerKpiReidratacaoUX1997A_(
+  rotulos
+) {
+  const procurados =
+    (
+      Array.isArray(rotulos)
+        ? rotulos
+        : [rotulos]
+    ).map(
+      function (rotulo) {
+        return normalizarRotuloVisualMedicoesUX1997_(
+          rotulo
+        );
+      }
+    );
+
+  const cards =
+    Array.from(
+      document.querySelectorAll(
+        "#resumoReidratacaoUX1958 " +
+        ".sigo-reidratacao-kpi"
+      )
+    );
+
+  for (const card of cards) {
+    const span =
+      card.querySelector("span");
+
+    const strong =
+      card.querySelector("strong");
+
+    const rotuloAtual =
+      normalizarRotuloVisualMedicoesUX1997_(
+        span?.textContent
+      );
+
+    const corresponde =
+      procurados.some(
+        function (rotulo) {
+          return (
+            rotuloAtual === rotulo ||
+            rotuloAtual.includes(rotulo)
+          );
+        }
+      );
+
+    if (!corresponde || !strong) {
+      continue;
+    }
+
+    const numero =
+      Number(
+        normalizarTextoVisualMedicoesUX1997_(
+          strong.textContent
+        ).replace(/[^\d.-]/g, "")
+      );
+
+    if (Number.isFinite(numero)) {
+      return numero;
+    }
+  }
+
+  return null;
+}
+
+
+/**
+ * Retorna a quantidade de um array válido.
+ */
+function contarArrayClimaUX1997A_(
+  valor
+) {
+  return Array.isArray(valor)
+    ? valor.length
+    : null;
+}
+
+
+/**
+ * Resolve o total de Clima por todas as estruturas
+ * conhecidas nas etapas anteriores.
+ */
+function resolverTotalClimaUX1997A_(
+  estadoCapturado,
+  resultadoBase,
+  totaisBase
+) {
+  const pacoteClima =
+    estadoCapturado?.pacoteClima ||
+    estadoCapturado?.pacoteClimas ||
+    estadoCapturado
+      ?.pacoteClimaOperacional ||
+    estadoCapturado
+      ?.pacoteClimasOperacionais ||
+    estadoCapturado
+      ?.pacoteRegistrosClima ||
+    {};
+
+  const candidatos = [
+    totaisBase?.clima,
+
+    resultadoBase?.clima?.recebidos,
+    resultadoBase?.clima?.recebidas,
+    resultadoBase?.clima?.total,
+
+    resultadoBase?.climas?.recebidos,
+    resultadoBase?.climas?.recebidas,
+    resultadoBase?.climas?.total,
+
+    resultadoBase
+      ?.registrosClima?.recebidos,
+
+    resultadoBase
+      ?.registrosClima?.recebidas,
+
+    resultadoBase
+      ?.totais?.clima,
+
+    resultadoBase
+      ?.totais?.climas,
+
+    resultadoBase
+      ?.totais?.registrosClima,
+
+    resultadoBase
+      ?.resultadoClima?.recebidos,
+
+    resultadoBase
+      ?.resultadoClima?.recebidas,
+
+    pacoteClima?.totais?.clima,
+    pacoteClima?.totais?.climas,
+    pacoteClima
+      ?.totais?.registrosClima,
+
+    contarArrayClimaUX1997A_(
+      pacoteClima?.clima
+    ),
+
+    contarArrayClimaUX1997A_(
+      pacoteClima?.climas
+    ),
+
+    contarArrayClimaUX1997A_(
+      pacoteClima?.registrosClima
+    ),
+
+    contarArrayClimaUX1997A_(
+      resultadoBase?.clima
+    ),
+
+    contarArrayClimaUX1997A_(
+      resultadoBase?.climas
+    ),
+
+    contarArrayClimaUX1997A_(
+      resultadoBase?.registrosClima
+    ),
+
+    lerKpiReidratacaoUX1997A_(
+      [
+        "Registros de Clima",
+        "Clima recuperado",
+        "Climas recuperados"
+      ]
+    )
+  ];
+
+  /*
+   * Prefere o primeiro valor positivo.
+   *
+   * Isso evita que um campo incompleto contendo zero
+   * impeça a leitura correta do KPI visual, que possui 8.
+   */
+  for (const candidato of candidatos) {
+    if (
+      candidato === undefined ||
+      candidato === null ||
+      candidato === ""
+    ) {
+      continue;
+    }
+
+    const numero =
+      Number(candidato);
+
+    if (
+      Number.isFinite(numero) &&
+      numero > 0
+    ) {
+      return numero;
+    }
+  }
+
+  /*
+   * Se realmente não houver Clima, o resultado válido é zero.
+   */
+  return 0;
+}
+
+
+/**
+ * Corrige o objeto consolidado antes de montar
+ * a mensagem da notificação.
+ */
+function corrigirTotaisBaseVisualUX1997A_(
+  totaisBase,
+  estadoCapturado,
+  resultadoBase
+) {
+  const totaisCorrigidos = {
+    ...(
+      totaisBase &&
+      typeof totaisBase === "object"
+        ? totaisBase
+        : {}
+    )
+  };
+
+  totaisCorrigidos.clima =
+    resolverTotalClimaUX1997A_(
+      estadoCapturado,
+      resultadoBase,
+      totaisCorrigidos
+    );
+
+  console.log(
+    "[UX.19.9.7A] Total de Clima resolvido:",
+    totaisCorrigidos.clima
+  );
+
+  return totaisCorrigidos;
+}
+
+/**
+ * ============================================================
+ * UX.19.9.7A — ACESSO BRUTO ÀS STORES
+ * ============================================================
+ */
+
+
+/**
+ * Lê uma store diretamente do IndexedDB,
+ * ignorando completamente o cache.
+ */
+async function lerStoreBrutaUX1997A_(
+  nomeStore
+) {
+  const db =
+    await abrirBancoLocalSIGO();
+
+  return new Promise(
+    function (resolve, reject) {
+      const transacao =
+        db.transaction(
+          [nomeStore],
+          "readonly"
+        );
+
+      const store =
+        transacao.objectStore(
+          nomeStore
+        );
+
+      const requisicao =
+        store.getAll();
+
+      requisicao.onsuccess =
+        function () {
+          resolve(
+            requisicao.result || []
+          );
+        };
+
+      requisicao.onerror =
+        function () {
+          reject(
+            requisicao.error ||
+            new Error(
+              "Falha ao ler " +
+              nomeStore +
+              "."
+            )
+          );
+        };
+    }
+  );
+}
+
+
+/**
+ * Grava diretamente uma notificação existente.
+ *
+ * Não cria entrada na TB_SYNC_QUEUE.
+ */
+async function gravarNotificacaoBrutaUX1997A_(
+  registro
+) {
+  const db =
+    await abrirBancoLocalSIGO();
+
+  await new Promise(
+    function (resolve, reject) {
+      const transacao =
+        db.transaction(
+          ["TB_NOTIFICACOES"],
+          "readwrite"
+        );
+
+      const store =
+        transacao.objectStore(
+          "TB_NOTIFICACOES"
+        );
+
+      store.put(registro);
+
+      transacao.oncomplete =
+        function () {
+          resolve();
+        };
+
+      transacao.onerror =
+        function () {
+          reject(
+            transacao.error ||
+            new Error(
+              "Falha ao atualizar a notificação."
+            )
+          );
+        };
+
+      transacao.onabort =
+        function () {
+          reject(
+            transacao.error ||
+            new Error(
+              "Atualização da notificação abortada."
+            )
+          );
+        };
+    }
+  );
+}
+
+
+/**
+ * Obtém uma data utilizável para ordenar notificações.
+ */
+function obterTimestampNotificacaoUX1997A_(
+  registro
+) {
+  const campos = [
+    registro?.atualizadoEm,
+    registro?.criadoEm,
+    registro?.dataCriacao,
+    registro?.data,
+    registro?.timestamp
+  ];
+
+  for (const valor of campos) {
+    if (!valor) {
+      continue;
+    }
+
+    const timestamp =
+      new Date(valor).getTime();
+
+    if (!Number.isNaN(timestamp)) {
+      return timestamp;
+    }
+
+    const numero =
+      Number(valor);
+
+    if (Number.isFinite(numero)) {
+      return numero;
+    }
+  }
+
+  return 0;
+}
+
+
+/**
+ * Localiza a última notificação de reidratação
+ * que contém a Medição oficial.
+ */
+function localizarNotificacaoClimaUX1997A_(
+  notificacoes
+) {
+  const correspondentes =
+    (
+      Array.isArray(notificacoes)
+        ? notificacoes
+        : []
+    )
+      .filter(
+        function (registro) {
+          return (
+            registro?.idObra ===
+              "OBR002" &&
+
+            registro?.tipo ===
+              "REIDRATACAO" &&
+
+            registro?.titulo ===
+              "Obra atualizada"
+          );
+        }
+      )
+      .sort(
+        function (a, b) {
+          return (
+            obterTimestampNotificacaoUX1997A_(b) -
+            obterTimestampNotificacaoUX1997A_(a)
+          );
+        }
+      );
+
+  const contendoMedicao =
+    correspondentes.find(
+      function (registro) {
+        return /Medi[cç][aã]o oficial/i.test(
+          String(
+            registro?.mensagem || ""
+          )
+        );
+      }
+    );
+
+  return (
+    contendoMedicao ||
+    correspondentes[0] ||
+    null
+  );
+}
+
+
+/**
+ * Invalida cache e atualiza a Central de Notificações.
+ */
+async function finalizarCorrecaoNotificacaoUX1997A_(
+  registro
+) {
+  if (
+    typeof SIGODataCache !==
+      "undefined" &&
+    SIGODataCache &&
+    typeof SIGODataCache.invalidate ===
+      "function"
+  ) {
+    SIGODataCache.invalidate(
+      "TB_NOTIFICACOES"
+    );
+  }
+
+  if (
+    typeof invalidarCacheObraSIGO_ ===
+      "function"
+  ) {
+    await Promise.resolve(
+      invalidarCacheObraSIGO_(
+        "TB_NOTIFICACOES",
+        registro.idObra
+      )
+    );
+  }
+
+  if (
+    typeof SIGODataBinding !==
+      "undefined" &&
+    SIGODataBinding &&
+    typeof SIGODataBinding.notify ===
+      "function"
+  ) {
+    try {
+      await SIGODataBinding.notify(
+        "TB_NOTIFICACOES",
+        {
+          acao:
+            "UPDATE",
+
+          store:
+            "TB_NOTIFICACOES",
+
+          registro:
+            registro,
+
+          idObra:
+            registro.idObra,
+
+          origem:
+            "UX.19.9.7A",
+
+          quantidade:
+            1
+        }
+      );
+
+    } catch (erroDataBinding) {
+      console.warn(
+        "[UX.19.9.7A] DataBinding da notificação não pôde ser atualizado:",
+        erroDataBinding
+      );
+    }
+  }
+
+  const atualizacoesVisuais = [
+    "atualizarBadgeNotificacoes_",
+    "listarNotificacoesSIGO_",
+    "renderizarNotificacoesSIGO_"
+  ];
+
+  for (const nomeFuncao of atualizacoesVisuais) {
+    if (
+      typeof window[nomeFuncao] !==
+      "function"
+    ) {
+      continue;
+    }
+
+    try {
+      await window[nomeFuncao]();
+
+    } catch (erroVisual) {
+      console.warn(
+        "[UX.19.9.7A] Atualização visual ignorada:",
+        nomeFuncao,
+        erroVisual
+      );
+    }
+  }
+}
+
+
+/**
+ * Corrige apenas a última notificação criada.
+ *
+ * Não executa reidratação.
+ * Não executa mesclagem.
+ */
+async function corrigirUltimaNotificacaoClimaUX1997A_() {
+  const mensagemCorreta =
+    "36 Diários, 6 itens, 14 ocorrências, " +
+    "8 registros de Clima, 7 Evidências e " +
+    "1 Medição oficial recuperados.";
+
+  const notificacoes =
+    await lerStoreBrutaUX1997A_(
+      "TB_NOTIFICACOES"
+    );
+
+  const notificacao =
+    localizarNotificacaoClimaUX1997A_(
+      notificacoes
+    );
+
+  if (!notificacao) {
+    throw new Error(
+      "A notificação de reidratação não foi encontrada."
+    );
+  }
+
+  const mensagemAnterior =
+    String(
+      notificacao.mensagem || ""
+    );
+
+  if (
+    mensagemAnterior ===
+    mensagemCorreta
+  ) {
+    console.log(
+      "[UX.19.9.7A] A notificação já possui a mensagem correta."
+    );
+
+    return {
+      alterada:
+        false,
+
+      idNotificacao:
+        notificacao.idNotificacao,
+
+      mensagemAnterior:
+        mensagemAnterior,
+
+      mensagemAtual:
+        mensagemAnterior
+    };
+  }
+
+  const registroAtualizado = {
+    ...notificacao,
+
+    mensagem:
+      mensagemCorreta,
+
+    atualizadoEm:
+      new Date().toISOString()
+  };
+
+  await gravarNotificacaoBrutaUX1997A_(
+    registroAtualizado
+  );
+
+  await finalizarCorrecaoNotificacaoUX1997A_(
+    registroAtualizado
+  );
+
+  return {
+    alterada:
+      true,
+
+    idNotificacao:
+      registroAtualizado.idNotificacao,
+
+    mensagemAnterior:
+      mensagemAnterior,
+
+    mensagemAtual:
+      mensagemCorreta
+  };
+}
+
+/**
+ * ============================================================
+ * UX.19.9.7A — AUDITORIA DA CORREÇÃO
+ * ============================================================
+ */
+async function auditarCorrecaoClimaUX1997A_() {
+  console.log(
+    "[UX.19.9.7A] Iniciando correção e auditoria da mensagem..."
+  );
+
+  const mensagemEsperada =
+    "36 Diários, 6 itens, 14 ocorrências, " +
+    "8 registros de Clima, 7 Evidências e " +
+    "1 Medição oficial recuperados.";
+
+
+  /*
+   * ========================================================
+   * ESTADO ANTERIOR
+   * ========================================================
+   */
+
+  const notificacoesAntes =
+    await lerStoreBrutaUX1997A_(
+      "TB_NOTIFICACOES"
+    );
+
+  const medicoesAntes =
+    await lerStoreBrutaUX1997A_(
+      "TB_MEDICOES"
+    );
+
+  const lotesAntes =
+    await lerStoreBrutaUX1997A_(
+      "TB_LOTES_MEDICAO"
+    );
+
+  const filaAntes =
+    await lerStoreBrutaUX1997A_(
+      "TB_SYNC_QUEUE"
+    );
+
+  const assinaturaMedicoesAntes =
+    criarAssinaturaStoreMedicoesUX1994_(
+      medicoesAntes
+    );
+
+  const assinaturaLotesAntes =
+    criarAssinaturaStoreMedicoesUX1994_(
+      lotesAntes
+    );
+
+  const assinaturaFilaAntes =
+    criarAssinaturaStoreMedicoesUX1994_(
+      filaAntes
+    );
+
+
+  /*
+   * ========================================================
+   * CORREÇÃO ÚNICA
+   * ========================================================
+   */
+
+  const correcao =
+    await corrigirUltimaNotificacaoClimaUX1997A_();
+
+
+  /*
+   * ========================================================
+   * ESTADO POSTERIOR
+   * ========================================================
+   */
+
+  const notificacoesDepois =
+    await lerStoreBrutaUX1997A_(
+      "TB_NOTIFICACOES"
+    );
+
+  const medicoesDepois =
+    await lerStoreBrutaUX1997A_(
+      "TB_MEDICOES"
+    );
+
+  const lotesDepois =
+    await lerStoreBrutaUX1997A_(
+      "TB_LOTES_MEDICAO"
+    );
+
+  const filaDepois =
+    await lerStoreBrutaUX1997A_(
+      "TB_SYNC_QUEUE"
+    );
+
+  const assinaturaMedicoesDepois =
+    criarAssinaturaStoreMedicoesUX1994_(
+      medicoesDepois
+    );
+
+  const assinaturaLotesDepois =
+    criarAssinaturaStoreMedicoesUX1994_(
+      lotesDepois
+    );
+
+  const assinaturaFilaDepois =
+    criarAssinaturaStoreMedicoesUX1994_(
+      filaDepois
+    );
+
+  const notificacaoAtualizada =
+    notificacoesDepois.find(
+      function (registro) {
+        return (
+          registro.idNotificacao ===
+          correcao.idNotificacao
+        );
+      }
+    ) || null;
+
+  const outrasAntes =
+    notificacoesAntes.filter(
+      function (registro) {
+        return (
+          registro.idNotificacao !==
+          correcao.idNotificacao
+        );
+      }
+    );
+
+  const outrasDepois =
+    notificacoesDepois.filter(
+      function (registro) {
+        return (
+          registro.idNotificacao !==
+          correcao.idNotificacao
+        );
+      }
+    );
+
+  const outrasNotificacoesPreservadas =
+    criarAssinaturaStoreMedicoesUX1994_(
+      outrasAntes
+    ) ===
+    criarAssinaturaStoreMedicoesUX1994_(
+      outrasDepois
+    );
+
+
+  /*
+   * Teste do novo resolvedor para uso futuro.
+   */
+  const totalClimaResolvido =
+    corrigirTotaisBaseVisualUX1997A_(
+      {
+        diarios:
+          36,
+
+        itens:
+          6,
+
+        ocorrencias:
+          14,
+
+        clima:
+          0,
+
+        evidencias:
+          7
+      },
+      {},
+      {}
+    ).clima;
+
+
+  const validacoes = {
+    notificacaoEncontrada:
+      Boolean(
+        notificacaoAtualizada
+      ),
+
+    mensagemCorrigida:
+      notificacaoAtualizada
+        ?.mensagem ===
+      mensagemEsperada,
+
+    mensagemPossui8Climas:
+      String(
+        notificacaoAtualizada
+          ?.mensagem || ""
+      ).includes(
+        "8 registros de Clima"
+      ),
+
+    mensagemPossui1Medicao:
+      String(
+        notificacaoAtualizada
+          ?.mensagem || ""
+      ).includes(
+        "1 Medição oficial"
+      ),
+
+    quantidadeNotificacoesPreservada:
+      notificacoesAntes.length ===
+      notificacoesDepois.length,
+
+    outrasNotificacoesPreservadas:
+      outrasNotificacoesPreservadas,
+
+    resolvedorFuturoEncontrou8:
+      totalClimaResolvido === 8,
+
+    tbMedicoesPossuia6:
+      medicoesAntes.length === 6,
+
+    tbMedicoesPermaneceu6:
+      medicoesDepois.length === 6,
+
+    tbMedicoesPreservada:
+      assinaturaMedicoesAntes ===
+      assinaturaMedicoesDepois,
+
+    lotesPossuiamZero:
+      lotesAntes.length === 0,
+
+    lotesPermaneceramZero:
+      lotesDepois.length === 0,
+
+    lotesPreservados:
+      assinaturaLotesAntes ===
+      assinaturaLotesDepois,
+
+    filaPossuia45:
+      filaAntes.length === 45,
+
+    filaPermaneceu45:
+      filaDepois.length === 45,
+
+    filaPreservada:
+      assinaturaFilaAntes ===
+      assinaturaFilaDepois
+  };
+
+  const aprovado =
+    Object.values(
+      validacoes
+    ).every(
+      function (valor) {
+        return valor === true;
+      }
+    );
+
+  const resultado = {
+    etapa:
+      "UX.19.9.7A",
+
+    auditoria:
+      "CORRECAO_TOTAL_CLIMA_NOTIFICACAO",
+
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+
+    correcao:
+      correcao,
+
+    totalClimaResolvido:
+      totalClimaResolvido,
+
+    notificacao: {
+      idNotificacao:
+        notificacaoAtualizada
+          ?.idNotificacao || "",
+
+      titulo:
+        notificacaoAtualizada
+          ?.titulo || "",
+
+      mensagem:
+        notificacaoAtualizada
+          ?.mensagem || ""
+    },
+
+    stores: {
+      TB_NOTIFICACOES: {
+        antes:
+          notificacoesAntes.length,
+
+        depois:
+          notificacoesDepois.length,
+
+        outrasPreservadas:
+          outrasNotificacoesPreservadas
+      },
+
+      TB_MEDICOES: {
+        antes:
+          medicoesAntes.length,
+
+        depois:
+          medicoesDepois.length,
+
+        preservada:
+          assinaturaMedicoesAntes ===
+          assinaturaMedicoesDepois
+      },
+
+      TB_LOTES_MEDICAO: {
+        antes:
+          lotesAntes.length,
+
+        depois:
+          lotesDepois.length,
+
+        preservada:
+          assinaturaLotesAntes ===
+          assinaturaLotesDepois
+      },
+
+      TB_SYNC_QUEUE: {
+        antes:
+          filaAntes.length,
+
+        depois:
+          filaDepois.length,
+
+        preservada:
+          assinaturaFilaAntes ===
+          assinaturaFilaDepois
+      }
+    },
+
+    validacoes:
+      validacoes,
+
+    aprovado:
+      aprovado
+  };
+
+  console.log(
+    JSON.stringify(
+      resultado,
+      null,
+      2
+    )
+  );
+
+  if (!aprovado) {
+    throw new Error(
+      "UX.19.9.7A REPROVADA. Consulte as validações no console."
+    );
+  }
+
+  console.log(
+    "UX.19.9.7A — TOTAL DE CLIMA E NOTIFICAÇÃO CORRIGIDOS."
+  );
+
+  return resultado;
+}
