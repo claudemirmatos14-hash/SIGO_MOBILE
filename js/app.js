@@ -28852,3 +28852,1518 @@ async function auditarMesclagemClimaUX1976_() {
       resultadoIdempotencia
   };
 }
+
+/**
+ * ============================================================
+ * UX.19.7.7 — INTEGRAÇÃO VISUAL DE CLIMA
+ * ============================================================
+ *
+ * Entidades consolidadas:
+ *
+ * - TB_DIARIOS;
+ * - TB_DIARIO_ITENS;
+ * - TB_OCORRENCIAS;
+ * - TB_CLIMA.
+ */
+
+
+/**
+ * Converte valores em número seguro.
+ */
+function numeroSeguroReidratacaoUX1977_(
+  valor
+) {
+  const numero =
+    Number(valor);
+
+  return Number.isFinite(numero)
+    ? numero
+    : 0;
+}
+
+
+/**
+ * Escapa conteúdo utilizado no HTML.
+ */
+function escaparHtmlReidratacaoUX1977_(
+  valor
+) {
+  if (
+    typeof escaparHtmlUX1958_ ===
+    "function"
+  ) {
+    return escaparHtmlUX1958_(
+      valor
+    );
+  }
+
+  return String(
+    valor === undefined ||
+    valor === null
+      ? ""
+      : valor
+  )
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+
+/**
+ * Soma as diferentes categorias de proteção
+ * usadas pelas mesclagens.
+ */
+function calcularPreservadosEntidadeUX1977_(
+  resumo
+) {
+  const origem =
+    resumo &&
+    typeof resumo === "object"
+      ? resumo
+      : {};
+
+  if (
+    Object.prototype.hasOwnProperty.call(
+      origem,
+      "preservados"
+    )
+  ) {
+    return numeroSeguroReidratacaoUX1977_(
+      origem.preservados
+    );
+  }
+
+  return (
+    numeroSeguroReidratacaoUX1977_(
+      origem.preservadosUpsert
+    ) +
+    numeroSeguroReidratacaoUX1977_(
+      origem.preservadosDelete
+    ) +
+    numeroSeguroReidratacaoUX1977_(
+      origem.preservadosStatusLocal
+    ) +
+    numeroSeguroReidratacaoUX1977_(
+      origem.preservadosFilaDesconhecida
+    )
+  );
+}
+
+
+/**
+ * Normaliza o resumo de uma entidade.
+ */
+function normalizarResumoEntidadeUX1977_(
+  resultado,
+  chave
+) {
+  const origem =
+    resultado &&
+    resultado[chave] &&
+    typeof resultado[chave] === "object"
+      ? resultado[chave]
+      : {};
+
+  return {
+    recebidos:
+      numeroSeguroReidratacaoUX1977_(
+        origem.recebidos
+      ),
+
+    inseridos:
+      numeroSeguroReidratacaoUX1977_(
+        origem.inseridos
+      ),
+
+    atualizados:
+      numeroSeguroReidratacaoUX1977_(
+        origem.atualizados
+      ),
+
+    preservados:
+      calcularPreservadosEntidadeUX1977_(
+        origem
+      ),
+
+    rejeitados:
+      numeroSeguroReidratacaoUX1977_(
+        origem.rejeitados
+      ),
+
+    gravacoesExecutadas:
+      numeroSeguroReidratacaoUX1977_(
+        origem.gravacoesExecutadas
+      )
+  };
+}
+
+
+/**
+ * Obtém a quantidade da fila em diferentes
+ * contratos já utilizados pelo SIGO.
+ */
+function obterTotalFilaResultadoUX1977_(
+  resultado
+) {
+  const fila =
+    resultado &&
+    resultado.fila &&
+    typeof resultado.fila === "object"
+      ? resultado.fila
+      : {};
+
+  const candidatos = [
+    fila.totalDepois,
+    fila.totalRegistros,
+    fila.totalAntes
+  ];
+
+  for (
+    const valor of candidatos
+  ) {
+    const numero =
+      Number(valor);
+
+    if (
+      Number.isFinite(numero)
+    ) {
+      return numero;
+    }
+  }
+
+  return 0;
+}
+
+
+/**
+ * Consolida as três mesclagens em um único
+ * resultado para a interface.
+ */
+function consolidarResultadosReidratacaoUX1977_(
+  resultadoDados,
+  resultadoOcorrencias,
+  resultadoClimas
+) {
+  const diarios =
+    normalizarResumoEntidadeUX1977_(
+      resultadoDados,
+      "diarios"
+    );
+
+  const diarioItens =
+    normalizarResumoEntidadeUX1977_(
+      resultadoDados,
+      "diarioItens"
+    );
+
+  const ocorrencias =
+    normalizarResumoEntidadeUX1977_(
+      resultadoOcorrencias,
+      "ocorrencias"
+    );
+
+  const climas =
+    normalizarResumoEntidadeUX1977_(
+      resultadoClimas,
+      "climas"
+    );
+
+  const resultados = [
+    resultadoDados,
+    resultadoOcorrencias,
+    resultadoClimas
+  ];
+
+  const totaisFila =
+    resultados
+      .map(
+        obterTotalFilaResultadoUX1977_
+      )
+      .filter(
+        function (total) {
+          return total > 0;
+        }
+      );
+
+  const filasComValidacao =
+    resultados
+      .map(
+        function (resultado) {
+          return resultado?.fila;
+        }
+      )
+      .filter(
+        function (fila) {
+          return (
+            fila &&
+            typeof fila === "object" &&
+            typeof fila.preservada ===
+              "boolean"
+          );
+        }
+      );
+
+  const totalConflitos =
+    resultados.reduce(
+      function (
+        total,
+        resultado
+      ) {
+        return (
+          total +
+          numeroSeguroReidratacaoUX1977_(
+            resultado
+              ?.totalConflitosEvitados
+          )
+        );
+      },
+      0
+    );
+
+  const entidades = [
+    diarios,
+    diarioItens,
+    ocorrencias,
+    climas
+  ];
+
+  const totais = entidades.reduce(
+    function (
+      acumulado,
+      entidade
+    ) {
+      acumulado.recebidos +=
+        entidade.recebidos;
+
+      acumulado.inseridos +=
+        entidade.inseridos;
+
+      acumulado.atualizados +=
+        entidade.atualizados;
+
+      acumulado.preservados +=
+        entidade.preservados;
+
+      acumulado.rejeitados +=
+        entidade.rejeitados;
+
+      acumulado.gravacoesExecutadas +=
+        entidade.gravacoesExecutadas;
+
+      return acumulado;
+    },
+    {
+      recebidos:
+        0,
+
+      inseridos:
+        0,
+
+      atualizados:
+        0,
+
+      preservados:
+        0,
+
+      rejeitados:
+        0,
+
+      gravacoesExecutadas:
+        0
+    }
+  );
+
+  totais.conflitos =
+    totalConflitos;
+
+  return {
+    etapa:
+      "UX.19.7.7",
+
+    operacao:
+      "REIDRATACAO_VISUAL_CONSOLIDADA",
+
+    modo:
+      String(
+        resultadoClimas?.modo ||
+        resultadoOcorrencias?.modo ||
+        resultadoDados?.modo ||
+        ""
+      ),
+
+    idObra:
+      String(
+        resultadoClimas?.idObra ||
+        resultadoOcorrencias?.idObra ||
+        resultadoDados?.idObra ||
+        ""
+      ),
+
+    periodoDias:
+      Number(
+        resultadoClimas?.periodoDias ||
+        resultadoOcorrencias?.periodoDias ||
+        resultadoDados?.periodoDias ||
+        0
+      ),
+
+    diarios:
+      diarios,
+
+    diarioItens:
+      diarioItens,
+
+    ocorrencias:
+      ocorrencias,
+
+    climas:
+      climas,
+
+    totais:
+      totais,
+
+    totalConflitosEvitados:
+      totalConflitos,
+
+    fila: {
+      totalRegistros:
+        totaisFila.length
+          ? Math.max(
+              ...totaisFila
+            )
+          : 0,
+
+      preservada:
+        filasComValidacao.length
+          ? filasComValidacao.every(
+              function (fila) {
+                return (
+                  fila.preservada ===
+                  true
+                );
+              }
+            )
+          : true
+    },
+
+    executadoEm:
+      resultadoClimas?.executadoEm ||
+      resultadoOcorrencias?.executadoEm ||
+      resultadoDados?.executadoEm ||
+      new Date().toISOString(),
+
+    resultados: {
+      dadosOperacionais:
+        resultadoDados,
+
+      ocorrencias:
+        resultadoOcorrencias,
+
+      climas:
+        resultadoClimas
+    }
+  };
+}
+
+
+/**
+ * ============================================================
+ * CARD DA REIDRATAÇÃO
+ * ============================================================
+ */
+async function instalarAcaoReidratacaoUX1958_() {
+  const area =
+    document.getElementById(
+      "telaApp"
+    );
+
+  if (!area) {
+    return;
+  }
+
+  let card =
+    document.getElementById(
+      "cardReidratacaoUX1958"
+    );
+
+  if (!card) {
+    card =
+      document.createElement(
+        "section"
+      );
+
+    card.id =
+      "cardReidratacaoUX1958";
+
+    card.className =
+      "sigo-reidratacao-card";
+
+    area.appendChild(
+      card
+    );
+  }
+
+  card.innerHTML = `
+    <div class="sigo-reidratacao-card__conteudo">
+      <h3 class="sigo-reidratacao-card__titulo">
+        Atualizar histórico da obra
+      </h3>
+
+      <p class="sigo-reidratacao-card__texto">
+        Recupere Diários, itens, ocorrências e registros
+        de Clima sincronizados em outros dispositivos.
+      </p>
+
+      <span
+        id="metaReidratacaoUX1958"
+        class="sigo-reidratacao-card__meta"
+      >
+        Verificando última atualização...
+      </span>
+    </div>
+
+    <button
+      class="sigo-reidratacao-card__botao"
+      type="button"
+      onclick="abrirReidratacaoUX1958_()"
+    >
+      Atualizar dados
+    </button>
+  `;
+
+  garantirModalReidratacaoUX1958_();
+
+  await atualizarCardReidratacaoUX1958_();
+}
+
+
+/**
+ * ============================================================
+ * PRÉ-VISUALIZAÇÃO
+ * ============================================================
+ */
+async function prepararReidratacaoInterfaceUX1958_() {
+  const estado =
+    window.SIGO_REIDRATACAO_UX1958;
+
+  if (
+    !estado ||
+    estado.emAndamento
+  ) {
+    return;
+  }
+
+  if (!navigator.onLine) {
+    definirStatusReidratacaoUX1958_(
+      "A reidratação precisa de conexão com a internet.",
+      "error"
+    );
+
+    return;
+  }
+
+  try {
+    estado.emAndamento =
+      true;
+
+    bloquearInterfaceReidratacaoUX1958_(
+      true
+    );
+
+    const obraAtual =
+      await resolverObraAtivaUX1958_();
+
+    const periodo =
+      Number(
+        document.getElementById(
+          "periodoReidratacaoUX1958"
+        ).value
+      );
+
+    estado.idObra =
+      obraAtual.idObra;
+
+    estado.nomeObra =
+      obraAtual.nomeObra;
+
+    estado.periodoDias =
+      periodo;
+
+    definirStatusReidratacaoUX1958_(
+      "Consultando Diários, ocorrências e Clima no servidor...",
+      "loading"
+    );
+
+
+    /*
+     * ========================================================
+     * CONSULTA DOS TRÊS PACOTES
+     * ========================================================
+     */
+
+    const [
+      pacoteDados,
+      pacoteOcorrencias,
+      pacoteClimas
+    ] = await Promise.all([
+      obterDadosOperacionaisObraMobile_(
+        estado.idObra,
+        periodo
+      ),
+
+      obterOcorrenciasOperacionaisObraMobile_(
+        estado.idObra,
+        periodo
+      ),
+
+      obterClimasOperacionaisObraMobile_(
+        estado.idObra,
+        periodo
+      )
+    ]);
+
+
+    definirStatusReidratacaoUX1958_(
+      "Analisando os dados locais e protegendo pendências...",
+      "loading"
+    );
+
+
+    /*
+     * ========================================================
+     * SIMULAÇÕES — NENHUMA GRAVAÇÃO
+     * ========================================================
+     */
+
+    const [
+      simulacaoDados,
+      simulacaoOcorrencias,
+      simulacaoClimas
+    ] = await Promise.all([
+      mesclarDadosOperacionaisReidratacaoSIGO_(
+        pacoteDados,
+        {
+          simular:
+            true
+        }
+      ),
+
+      mesclarOcorrenciasReidratacaoSIGO_(
+        pacoteOcorrencias,
+        {
+          simular:
+            true
+        }
+      ),
+
+      mesclarClimasReidratacaoSIGO_(
+        pacoteClimas,
+        {
+          simular:
+            true
+        }
+      )
+    ]);
+
+    const simulacaoConsolidada =
+      consolidarResultadosReidratacaoUX1977_(
+        simulacaoDados,
+        simulacaoOcorrencias,
+        simulacaoClimas
+      );
+
+
+    /*
+     * O estado armazena os três pacotes para que
+     * a confirmação utilize exatamente os dados
+     * que foram pré-visualizados.
+     */
+    estado.pacote = {
+      dadosOperacionais:
+        pacoteDados,
+
+      ocorrencias:
+        pacoteOcorrencias,
+
+      climas:
+        pacoteClimas
+    };
+
+    estado.simulacao =
+      simulacaoConsolidada;
+
+    estado.criadoEm =
+      Date.now();
+
+    renderizarSimulacaoUX1958_(
+      simulacaoConsolidada
+    );
+
+    definirStatusReidratacaoUX1958_(
+      "Pré-visualização concluída. Confirme para gravar no dispositivo.",
+      "success"
+    );
+
+    document.getElementById(
+      "confirmarReidratacaoUX1958"
+    ).disabled = false;
+
+  } catch (erro) {
+    estado.pacote =
+      null;
+
+    estado.simulacao =
+      null;
+
+    definirStatusReidratacaoUX1958_(
+      erro?.message ||
+      "Não foi possível preparar a reidratação.",
+      "error"
+    );
+
+  } finally {
+    estado.emAndamento =
+      false;
+
+    bloquearInterfaceReidratacaoUX1958_(
+      false
+    );
+
+    document.getElementById(
+      "confirmarReidratacaoUX1958"
+    ).disabled =
+      !estado.pacote;
+  }
+}
+
+
+/**
+ * ============================================================
+ * CONFIRMAÇÃO REAL
+ * ============================================================
+ */
+async function confirmarReidratacaoInterfaceUX1958_() {
+  const estado =
+    window.SIGO_REIDRATACAO_UX1958;
+
+  if (
+    !estado ||
+    estado.emAndamento ||
+    !estado.pacote
+  ) {
+    return;
+  }
+
+  try {
+    estado.emAndamento =
+      true;
+
+    bloquearInterfaceReidratacaoUX1958_(
+      true
+    );
+
+
+    /*
+     * A pré-visualização expira após cinco minutos.
+     */
+    if (
+      Date.now() -
+        estado.criadoEm >
+      5 * 60 * 1000
+    ) {
+      throw new Error(
+        "A pré-visualização expirou. Faça uma nova consulta."
+      );
+    }
+
+    const obraAtual =
+      await resolverObraAtivaUX1958_();
+
+    if (
+      obraAtual.idObra !==
+      estado.idObra
+    ) {
+      throw new Error(
+        "A obra ativa foi alterada. Faça uma nova pré-visualização."
+      );
+    }
+
+    const pacotes =
+      estado.pacote;
+
+    if (
+      !pacotes.dadosOperacionais ||
+      !pacotes.ocorrencias ||
+      !pacotes.climas
+    ) {
+      throw new Error(
+        "A pré-visualização não possui todos os pacotes necessários."
+      );
+    }
+
+    definirStatusReidratacaoUX1958_(
+      "Gravando Diários, itens, ocorrências e Clima com proteção local...",
+      "loading"
+    );
+
+
+    /*
+     * As operações são executadas sequencialmente.
+     *
+     * Cada entidade possui mesclagem idempotente
+     * e preserva TB_SYNC_QUEUE.
+     */
+
+    const resultadoDados =
+      await mesclarDadosOperacionaisReidratacaoSIGO_(
+        pacotes.dadosOperacionais,
+        {
+          simular:
+            false
+        }
+      );
+
+    const resultadoOcorrencias =
+      await mesclarOcorrenciasReidratacaoSIGO_(
+        pacotes.ocorrencias,
+        {
+          simular:
+            false
+        }
+      );
+
+    const resultadoClimas =
+      await mesclarClimasReidratacaoSIGO_(
+        pacotes.climas,
+        {
+          simular:
+            false
+        }
+      );
+
+    const resultadoConsolidado =
+      consolidarResultadosReidratacaoUX1977_(
+        resultadoDados,
+        resultadoOcorrencias,
+        resultadoClimas
+      );
+
+
+    /*
+     * ========================================================
+     * METADADOS DA ÚLTIMA ATUALIZAÇÃO
+     * ========================================================
+     */
+
+    const meta = {
+      idObra:
+        estado.idObra,
+
+      nomeObra:
+        estado.nomeObra,
+
+      periodoDias:
+        estado.periodoDias,
+
+      diarios:
+        resultadoConsolidado
+          .diarios
+          .recebidos,
+
+      diarioItens:
+        resultadoConsolidado
+          .diarioItens
+          .recebidos,
+
+      ocorrencias:
+        resultadoConsolidado
+          .ocorrencias
+          .recebidos,
+
+      climas:
+        resultadoConsolidado
+          .climas
+          .recebidos,
+
+      recebidos:
+        resultadoConsolidado
+          .totais
+          .recebidos,
+
+      inseridos:
+        resultadoConsolidado
+          .totais
+          .inseridos,
+
+      atualizados:
+        resultadoConsolidado
+          .totais
+          .atualizados,
+
+      preservados:
+        resultadoConsolidado
+          .totais
+          .preservados,
+
+      conflitosEvitados:
+        resultadoConsolidado
+          .totalConflitosEvitados,
+
+      dataAtualizacao:
+        resultadoConsolidado
+          .executadoEm
+    };
+
+    salvarMetaReidratacaoUX1958_(
+      estado.idObra,
+      meta
+    );
+
+
+    /*
+     * ========================================================
+     * INTERFACE
+     * ========================================================
+     */
+
+    renderizarResultadoReidratacaoUX1958_(
+      resultadoConsolidado
+    );
+
+    definirStatusReidratacaoUX1958_(
+      "Diários, itens, ocorrências e Clima atualizados com sucesso.",
+      "success"
+    );
+
+
+    /*
+     * ========================================================
+     * NOTIFICAÇÃO
+     * ========================================================
+     */
+
+    if (
+      typeof criarNotificacaoSIGO_ ===
+      "function"
+    ) {
+      try {
+        await criarNotificacaoSIGO_({
+          idObra:
+            estado.idObra,
+
+          categoria:
+            "SISTEMA",
+
+          tipo:
+            "REIDRATACAO",
+
+          titulo:
+            "Obra atualizada",
+
+          mensagem:
+            resultadoConsolidado
+              .diarios
+              .recebidos +
+            " Diários, " +
+            resultadoConsolidado
+              .diarioItens
+              .recebidos +
+            " itens, " +
+            resultadoConsolidado
+              .ocorrencias
+              .recebidos +
+            " ocorrências e " +
+            resultadoConsolidado
+              .climas
+              .recebidos +
+            " registros de Clima recuperados.",
+
+          icone:
+            "🔄"
+        });
+
+      } catch (
+        erroNotificacao
+      ) {
+        console.warn(
+          "[UX.19.7.7] Notificação não criada:",
+          erroNotificacao
+        );
+      }
+    }
+
+
+    /*
+     * ========================================================
+     * ATUALIZAÇÕES VISUAIS
+     * ========================================================
+     */
+
+    await atualizarCardReidratacaoUX1958_();
+
+    const funcoesAtualizacao = [
+      "listarDiariosOffline_",
+      "listarOcorrenciasOffline_",
+      "listarClimasOffline_",
+      "atualizarHomeMobile_",
+      "atualizarPainelSaudeSync_",
+      "atualizarBadgeNotificacoes_"
+    ];
+
+    for (
+      const nomeFuncao of
+      funcoesAtualizacao
+    ) {
+      if (
+        typeof window[nomeFuncao] ===
+        "function"
+      ) {
+        try {
+          await window[
+            nomeFuncao
+          ]();
+
+        } catch (
+          erroAtualizacao
+        ) {
+          console.warn(
+            "[UX.19.7.7] Atualização visual ignorada:",
+            nomeFuncao,
+            erroAtualizacao
+          );
+        }
+      }
+    }
+
+    estado.pacote =
+      null;
+
+    estado.simulacao =
+      null;
+
+  } catch (erro) {
+    definirStatusReidratacaoUX1958_(
+      erro?.message ||
+      "A reidratação não pôde ser concluída.",
+      "error"
+    );
+
+  } finally {
+    estado.emAndamento =
+      false;
+
+    bloquearInterfaceReidratacaoUX1958_(
+      false
+    );
+
+    document.getElementById(
+      "confirmarReidratacaoUX1958"
+    ).disabled = true;
+  }
+}
+
+
+/**
+ * ============================================================
+ * RENDERIZAÇÃO DA SIMULAÇÃO
+ * ============================================================
+ */
+function renderizarSimulacaoUX1958_(
+  resultado
+) {
+  const elemento =
+    document.getElementById(
+      "resumoReidratacaoUX1958"
+    );
+
+  if (!elemento) {
+    return;
+  }
+
+  const totais =
+    resultado.totais || {};
+
+  elemento.innerHTML = `
+    <h3 class="sigo-reidratacao-resumo__titulo">
+      Pré-visualização segura
+    </h3>
+
+    <div class="sigo-reidratacao-grid">
+      <div class="sigo-reidratacao-kpi">
+        <strong>
+          ${numeroSeguroReidratacaoUX1977_(
+            totais.recebidos
+          )}
+        </strong>
+        <span>Registros recebidos</span>
+      </div>
+
+      <div class="sigo-reidratacao-kpi">
+        <strong>
+          ${numeroSeguroReidratacaoUX1977_(
+            totais.inseridos
+          )}
+        </strong>
+        <span>Novos registros</span>
+      </div>
+
+      <div class="sigo-reidratacao-kpi">
+        <strong>
+          ${numeroSeguroReidratacaoUX1977_(
+            totais.atualizados
+          )}
+        </strong>
+        <span>Registros atualizados</span>
+      </div>
+
+      <div class="sigo-reidratacao-kpi">
+        <strong>
+          ${numeroSeguroReidratacaoUX1977_(
+            totais.preservados
+          )}
+        </strong>
+        <span>Registros locais protegidos</span>
+      </div>
+
+      <div class="sigo-reidratacao-kpi">
+        <strong>
+          ${resultado.diarios.recebidos}
+        </strong>
+        <span>Diários recuperados</span>
+      </div>
+
+      <div class="sigo-reidratacao-kpi">
+        <strong>
+          ${resultado.diarioItens.recebidos}
+        </strong>
+        <span>Itens recuperados</span>
+      </div>
+
+      <div class="sigo-reidratacao-kpi">
+        <strong>
+          ${resultado.ocorrencias.recebidos}
+        </strong>
+        <span>Ocorrências recuperadas</span>
+      </div>
+
+      <div class="sigo-reidratacao-kpi">
+        <strong>
+          ${resultado.climas.recebidos}
+        </strong>
+        <span>Registros de Clima</span>
+      </div>
+    </div>
+
+    <p class="sigo-reidratacao-observacao">
+      Conflitos evitados:
+      <strong>
+        ${numeroSeguroReidratacaoUX1977_(
+          resultado.totalConflitosEvitados
+        )}
+      </strong>.
+
+      A fila de sincronização possui
+      <strong>
+        ${numeroSeguroReidratacaoUX1977_(
+          resultado.fila.totalRegistros
+        )}
+      </strong>
+      registros e será preservada.
+    </p>
+  `;
+
+  elemento.classList.add(
+    "is-visible"
+  );
+}
+
+
+/**
+ * ============================================================
+ * RENDERIZAÇÃO DO RESULTADO REAL
+ * ============================================================
+ */
+function renderizarResultadoReidratacaoUX1958_(
+  resultado
+) {
+  const elemento =
+    document.getElementById(
+      "resumoReidratacaoUX1958"
+    );
+
+  if (!elemento) {
+    return;
+  }
+
+  const totais =
+    resultado.totais || {};
+
+  elemento.innerHTML = `
+    <h3 class="sigo-reidratacao-resumo__titulo">
+      Atualização concluída
+    </h3>
+
+    <div class="sigo-reidratacao-grid">
+      <div class="sigo-reidratacao-kpi">
+        <strong>
+          ${resultado.diarios.recebidos}
+        </strong>
+        <span>Diários recuperados</span>
+      </div>
+
+      <div class="sigo-reidratacao-kpi">
+        <strong>
+          ${resultado.diarioItens.recebidos}
+        </strong>
+        <span>Itens recuperados</span>
+      </div>
+
+      <div class="sigo-reidratacao-kpi">
+        <strong>
+          ${resultado.ocorrencias.recebidos}
+        </strong>
+        <span>Ocorrências recuperadas</span>
+      </div>
+
+      <div class="sigo-reidratacao-kpi">
+        <strong>
+          ${resultado.climas.recebidos}
+        </strong>
+        <span>Registros de Clima</span>
+      </div>
+
+      <div class="sigo-reidratacao-kpi">
+        <strong>
+          ${numeroSeguroReidratacaoUX1977_(
+            totais.inseridos
+          )}
+        </strong>
+        <span>Novos registros</span>
+      </div>
+
+      <div class="sigo-reidratacao-kpi">
+        <strong>
+          ${numeroSeguroReidratacaoUX1977_(
+            totais.atualizados
+          )}
+        </strong>
+        <span>Registros atualizados</span>
+      </div>
+
+      <div class="sigo-reidratacao-kpi">
+        <strong>
+          ${numeroSeguroReidratacaoUX1977_(
+            totais.preservados
+          )}
+        </strong>
+        <span>Registros preservados</span>
+      </div>
+
+      <div class="sigo-reidratacao-kpi">
+        <strong>
+          ${numeroSeguroReidratacaoUX1977_(
+            resultado.totalConflitosEvitados
+          )}
+        </strong>
+        <span>Conflitos evitados</span>
+      </div>
+    </div>
+
+    <p class="sigo-reidratacao-observacao">
+      Foram processados
+      <strong>
+        ${numeroSeguroReidratacaoUX1977_(
+          totais.recebidos
+        )}
+      </strong>
+      registros.
+
+      Atualizado em
+      <strong>
+        ${escaparHtmlReidratacaoUX1977_(
+          formatarDataHoraUX1958_(
+            resultado.executadoEm
+          )
+        )}
+      </strong>.
+
+      A TB_SYNC_QUEUE foi preservada integralmente.
+    </p>
+  `;
+
+  elemento.classList.add(
+    "is-visible"
+  );
+}
+
+
+/**
+ * ============================================================
+ * TESTE DA INTEGRAÇÃO VISUAL
+ * ============================================================
+ *
+ * Executa somente a pré-visualização.
+ *
+ * Não grava nas stores operacionais.
+ */
+async function testarIntegracaoVisualReidratacaoUX1977_() {
+  console.log(
+    "[UX.19.7.7] Iniciando teste da integração visual de Clima..."
+  );
+
+  const filaAntes =
+    await listarRegistrosSIGO(
+      "TB_SYNC_QUEUE"
+    );
+
+  const assinaturaFilaAntes =
+    typeof criarAssinaturaColecaoClimaUX1975_ ===
+      "function"
+      ? criarAssinaturaColecaoClimaUX1975_(
+          filaAntes,
+          "idSyncLocal"
+        )
+      : JSON.stringify(
+          filaAntes
+        );
+
+  await instalarAcaoReidratacaoUX1958_();
+
+  await abrirReidratacaoUX1958_();
+
+  const seletor =
+    document.getElementById(
+      "periodoReidratacaoUX1958"
+    );
+
+  seletor.value =
+    "30";
+
+  await prepararReidratacaoInterfaceUX1958_();
+
+  const estado =
+    window.SIGO_REIDRATACAO_UX1958;
+
+  const simulacao =
+    estado?.simulacao || {};
+
+  const filaDepois =
+    await listarRegistrosSIGO(
+      "TB_SYNC_QUEUE"
+    );
+
+  const assinaturaFilaDepois =
+    typeof criarAssinaturaColecaoClimaUX1975_ ===
+      "function"
+      ? criarAssinaturaColecaoClimaUX1975_(
+          filaDepois,
+          "idSyncLocal"
+        )
+      : JSON.stringify(
+          filaDepois
+        );
+
+  const confirmar =
+    document.getElementById(
+      "confirmarReidratacaoUX1958"
+    );
+
+  const resumo =
+    document.getElementById(
+      "resumoReidratacaoUX1958"
+    );
+
+  const validacoes = {
+    possuiPacoteDadosOperacionais:
+      Boolean(
+        estado?.pacote
+          ?.dadosOperacionais
+      ),
+
+    possuiPacoteOcorrencias:
+      Boolean(
+        estado?.pacote
+          ?.ocorrencias
+      ),
+
+    possuiPacoteClimas:
+      Boolean(
+        estado?.pacote
+          ?.climas
+      ),
+
+    simulacaoConsolidada:
+      simulacao.etapa ===
+      "UX.19.7.7",
+
+    modoSimulacao:
+      simulacao.modo ===
+      "SIMULACAO",
+
+    recebeu36Diarios:
+      simulacao.diarios
+        ?.recebidos === 36,
+
+    recebeu6Itens:
+      simulacao.diarioItens
+        ?.recebidos === 6,
+
+    recebeu14Ocorrencias:
+      simulacao.ocorrencias
+        ?.recebidos === 14,
+
+    recebeu8Climas:
+      simulacao.climas
+        ?.recebidos === 8,
+
+    recebeu64Registros:
+      simulacao.totais
+        ?.recebidos === 64,
+
+    inseririaZero:
+      simulacao.totais
+        ?.inseridos === 0,
+
+    atualizaria64:
+      simulacao.totais
+        ?.atualizados === 64,
+
+    nenhumProtegido:
+      simulacao.totais
+        ?.preservados === 0,
+
+    nenhumConflito:
+      simulacao
+        .totalConflitosEvitados === 0,
+
+    filaPossui45:
+      filaDepois.length === 45,
+
+    filaPreservada:
+      filaAntes.length ===
+        filaDepois.length &&
+      assinaturaFilaAntes ===
+        assinaturaFilaDepois,
+
+    filaConfirmadaPelosResultados:
+      simulacao.fila
+        ?.preservada === true,
+
+    confirmacaoHabilitada:
+      Boolean(
+        confirmar &&
+        confirmar.disabled === false
+      ),
+
+    resumoMostraClima:
+      Boolean(
+        resumo &&
+        /Clima/i.test(
+          resumo.textContent
+        )
+      )
+  };
+
+  const aprovado =
+    Object.values(
+      validacoes
+    ).every(
+      function (valor) {
+        return valor === true;
+      }
+    );
+
+  const resultado = {
+    etapa:
+      "UX.19.7.7",
+
+    teste:
+      "INTEGRACAO_VISUAL_CLIMA",
+
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+
+    idObra:
+      estado?.idObra || "",
+
+    periodoDias:
+      estado?.periodoDias || 0,
+
+    totais: {
+      diarios:
+        simulacao.diarios
+          ?.recebidos || 0,
+
+      itens:
+        simulacao.diarioItens
+          ?.recebidos || 0,
+
+      ocorrencias:
+        simulacao.ocorrencias
+          ?.recebidos || 0,
+
+      climas:
+        simulacao.climas
+          ?.recebidos || 0,
+
+      recebidos:
+        simulacao.totais
+          ?.recebidos || 0,
+
+      inseridos:
+        simulacao.totais
+          ?.inseridos || 0,
+
+      atualizados:
+        simulacao.totais
+          ?.atualizados || 0,
+
+      preservados:
+        simulacao.totais
+          ?.preservados || 0,
+
+      conflitos:
+        simulacao
+          .totalConflitosEvitados || 0
+    },
+
+    fila: {
+      totalRegistros:
+        filaDepois.length,
+
+      preservada:
+        assinaturaFilaAntes ===
+        assinaturaFilaDepois
+    },
+
+    validacoes:
+      validacoes,
+
+    aprovado:
+      aprovado
+  };
+
+  console.log(
+    JSON.stringify(
+      resultado,
+      null,
+      2
+    )
+  );
+
+  if (!aprovado) {
+    throw new Error(
+      "UX.19.7.7 REPROVADA. Consulte as validações no console."
+    );
+  }
+
+  console.log(
+    "UX.19.7.7 — INTEGRAÇÃO VISUAL DE CLIMA APROVADA."
+  );
+
+  return resultado;
+}
