@@ -39170,9 +39170,17 @@ function prepararRegistroMedicaoOficialUX1995_(
  *
  * Não chama salvarRegistroSIGO().
  * Portanto, não cria entrada em TB_SYNC_QUEUE.
+ *
+ * UX.19.9.5A:
+ *
+ * - invalida o cache após o commit;
+ * - invalida o cache por obra;
+ * - comunica o DataBinding;
+ * - somente resolve depois da finalização.
  */
 async function gravarRegistrosMedicoesUX1995_(
-  registros
+  registros,
+  idObra
 ) {
   const lista =
     Array.isArray(registros)
@@ -39186,7 +39194,7 @@ async function gravarRegistrosMedicoesUX1995_(
   const db =
     await abrirBancoLocalSIGO();
 
-  return new Promise(
+  await new Promise(
     function (resolve, reject) {
       const transacao =
         db.transaction(
@@ -39199,9 +39207,15 @@ async function gravarRegistrosMedicoesUX1995_(
           "TB_MEDICOES"
         );
 
+      lista.forEach(
+        function (registro) {
+          store.put(registro);
+        }
+      );
+
       transacao.oncomplete =
         function () {
-          resolve(lista.length);
+          resolve();
         };
 
       transacao.onerror =
@@ -39223,14 +39237,19 @@ async function gravarRegistrosMedicoesUX1995_(
             )
           );
         };
-
-      lista.forEach(
-        function (registro) {
-          store.put(registro);
-        }
-      );
     }
   );
+
+  /*
+   * A transação já foi confirmada pelo IndexedDB.
+   * Agora os caches e a interface são atualizados.
+   */
+  await finalizarGravacaoDiretaMedicoesUX1995A_(
+    lista,
+    idObra
+  );
+
+  return lista.length;
 }
 
 
@@ -39667,7 +39686,8 @@ async function mesclarMedicoesOficiaisReidratacaoSIGO_(
   ) {
     gravacoesExecutadas =
       await gravarRegistrosMedicoesUX1995_(
-        registrosParaGravar
+        registrosParaGravar,
+        idObra
       );
   }
 
@@ -40172,4 +40192,887 @@ async function executarMesclagemRealMedicoesUX1995_() {
         false
     }
   );
+}
+
+/**
+ * ============================================================
+ * UX.19.9.5A — FINALIZAÇÃO DA GRAVAÇÃO DIRETA
+ * ============================================================
+ *
+ * Deve ser chamada somente depois de a transação IndexedDB
+ * concluir com sucesso.
+ *
+ * Responsabilidades:
+ *
+ * - invalidar o cache geral da TB_MEDICOES;
+ * - invalidar o cache da obra;
+ * - comunicar o DataBinding;
+ * - não adicionar registros à TB_SYNC_QUEUE.
+ */
+async function finalizarGravacaoDiretaMedicoesUX1995A_(
+  registros,
+  idObra
+) {
+  const lista =
+    Array.isArray(registros)
+      ? registros
+      : [];
+
+  const obra =
+    normalizarTextoMedicoesUX1995_(
+      idObra
+    );
+
+  /*
+   * ========================================================
+   * CACHE GERAL
+   * ========================================================
+   */
+
+  if (
+    typeof SIGODataCache !== "undefined" &&
+    SIGODataCache &&
+    typeof SIGODataCache.invalidate === "function"
+  ) {
+    SIGODataCache.invalidate(
+      "TB_MEDICOES"
+    );
+  }
+
+
+  /*
+   * ========================================================
+   * CACHE POR OBRA
+   * ========================================================
+   */
+
+  if (
+    obra &&
+    typeof invalidarCacheObraSIGO_ === "function"
+  ) {
+    await Promise.resolve(
+      invalidarCacheObraSIGO_(
+        "TB_MEDICOES",
+        obra
+      )
+    );
+  }
+
+
+  /*
+   * ========================================================
+   * DATABINDING
+   * ========================================================
+   *
+   * Esta notificação não grava na fila.
+   * Apenas informa que a store foi atualizada diretamente.
+   */
+
+  if (
+    typeof SIGODataBinding !== "undefined" &&
+    SIGODataBinding &&
+    typeof SIGODataBinding.notify === "function"
+  ) {
+    try {
+      await SIGODataBinding.notify(
+        "TB_MEDICOES",
+        {
+          acao:
+            "UPDATE",
+
+          store:
+            "TB_MEDICOES",
+
+          registro:
+            lista.length
+              ? lista[
+                  lista.length - 1
+                ]
+              : null,
+
+          idObra:
+            obra,
+
+          origem:
+            "REIDRATACAO",
+
+          quantidade:
+            lista.length
+        }
+      );
+
+    } catch (erroDataBinding) {
+      /*
+       * A gravação já foi concluída.
+       * Uma falha visual não pode desfazer a persistência.
+       */
+      console.warn(
+        "[UX.19.9.5A] DataBinding de Medições não pôde ser atualizado:",
+        erroDataBinding
+      );
+    }
+  }
+}
+
+/**
+ * ============================================================
+ * UX.19.9.5A — LEITURA BRUTA DA TB_MEDICOES
+ * ============================================================
+ *
+ * Não utiliza o cache do SIGO.
+ */
+async function lerTbMedicoesBrutaUX1995A_() {
+  const db =
+    await abrirBancoLocalSIGO();
+
+  return new Promise(
+    function (resolve, reject) {
+      const transacao =
+        db.transaction(
+          ["TB_MEDICOES"],
+          "readonly"
+        );
+
+      const store =
+        transacao.objectStore(
+          "TB_MEDICOES"
+        );
+
+      const requisicaoRegistros =
+        store.getAll();
+
+      const requisicaoChaves =
+        store.getAllKeys();
+
+      let registros = [];
+      let chaves = [];
+
+      requisicaoRegistros.onsuccess =
+        function () {
+          registros =
+            requisicaoRegistros.result ||
+            [];
+        };
+
+      requisicaoChaves.onsuccess =
+        function () {
+          chaves =
+            requisicaoChaves.result ||
+            [];
+        };
+
+      transacao.oncomplete =
+        function () {
+          resolve({
+            keyPath:
+              store.keyPath,
+
+            autoIncrement:
+              store.autoIncrement,
+
+            registros:
+              registros,
+
+            chaves:
+              chaves
+          });
+        };
+
+      transacao.onerror =
+        function () {
+          reject(
+            transacao.error ||
+            new Error(
+              "Falha na leitura bruta da TB_MEDICOES."
+            )
+          );
+        };
+
+      transacao.onabort =
+        function () {
+          reject(
+            transacao.error ||
+            new Error(
+              "Leitura bruta da TB_MEDICOES abortada."
+            )
+          );
+        };
+    }
+  );
+}
+
+/**
+ * ============================================================
+ * UX.19.9.5A — REPARAÇÃO DO CACHE ATUAL
+ * ============================================================
+ *
+ * Não grava no IndexedDB.
+ * Não altera TB_SYNC_QUEUE.
+ */
+async function repararCacheMedicoesUX1995A_() {
+  const idObra =
+    "OBR002";
+
+  /*
+   * Esta primeira leitura pode retornar os cinco registros
+   * antigos que ainda estavam no cache.
+   */
+  const leituraSistemaAntes =
+    await listarRegistrosSIGO(
+      "TB_MEDICOES"
+    );
+
+  const leituraBruta =
+    await lerTbMedicoesBrutaUX1995A_();
+
+
+  /*
+   * Invalidação geral.
+   */
+  if (
+    typeof SIGODataCache !== "undefined" &&
+    SIGODataCache &&
+    typeof SIGODataCache.invalidate === "function"
+  ) {
+    SIGODataCache.invalidate(
+      "TB_MEDICOES"
+    );
+  }
+
+
+  /*
+   * Invalidação por obra.
+   */
+  if (
+    typeof invalidarCacheObraSIGO_ === "function"
+  ) {
+    await Promise.resolve(
+      invalidarCacheObraSIGO_(
+        "TB_MEDICOES",
+        idObra
+      )
+    );
+  }
+
+
+  /*
+   * Atualização visual.
+   */
+  if (
+    typeof SIGODataBinding !== "undefined" &&
+    SIGODataBinding &&
+    typeof SIGODataBinding.notify === "function"
+  ) {
+    try {
+      await SIGODataBinding.notify(
+        "TB_MEDICOES",
+        {
+          acao:
+            "UPDATE",
+
+          store:
+            "TB_MEDICOES",
+
+          registro:
+            null,
+
+          idObra:
+            idObra,
+
+          origem:
+            "REIDRATACAO",
+
+          quantidade:
+            leituraBruta.registros.length
+        }
+      );
+
+    } catch (erroDataBinding) {
+      console.warn(
+        "[UX.19.9.5A] DataBinding ignorado durante a reparação:",
+        erroDataBinding
+      );
+    }
+  }
+
+
+  /*
+   * Agora esta leitura deve consultar o IndexedDB novamente.
+   */
+  const leituraSistemaDepois =
+    await listarRegistrosSIGO(
+      "TB_MEDICOES"
+    );
+
+  const resultado = {
+    etapa:
+      "UX.19.9.5A",
+
+    operacao:
+      "REPARACAO_CACHE_TB_MEDICOES",
+
+    idObra:
+      idObra,
+
+    totalSistemaAntes:
+      leituraSistemaAntes.length,
+
+    totalBrutoIndexedDB:
+      leituraBruta.registros.length,
+
+    totalSistemaDepois:
+      leituraSistemaDepois.length,
+
+    cacheEstavaDesatualizado:
+      leituraSistemaAntes.length !==
+      leituraBruta.registros.length,
+
+    cacheSincronizadoDepois:
+      leituraSistemaDepois.length ===
+      leituraBruta.registros.length,
+
+    esperado:
+      6,
+
+    aprovado:
+      leituraBruta.registros.length === 6 &&
+      leituraSistemaDepois.length === 6
+  };
+
+  console.log(
+    JSON.stringify(
+      resultado,
+      null,
+      2
+    )
+  );
+
+  if (!resultado.aprovado) {
+    throw new Error(
+      "UX.19.9.5A — O cache da TB_MEDICOES não foi sincronizado."
+    );
+  }
+
+  console.log(
+    "UX.19.9.5A — CACHE DA TB_MEDICOES REPARADO."
+  );
+
+  return resultado;
+}
+
+/**
+ * ============================================================
+ * UX.19.9.5A — AUDITORIA DE IDEMPOTÊNCIA
+ * ============================================================
+ *
+ * Executa somente uma nova simulação.
+ *
+ * Não grava na TB_MEDICOES.
+ */
+async function auditarIdempotenciaMedicoesUX1995A_() {
+  console.log(
+    "[UX.19.9.5A] Iniciando auditoria de idempotência..."
+  );
+
+  const idItemEsperado =
+    "803a96ef-ac02-4336-bdc8-5fa418304aac";
+
+  const idMedicaoOficialEsperado =
+    "MED-OBR002-MED01-20260629175311";
+
+
+  /*
+   * ========================================================
+   * GARANTIA DE CACHE ATUALIZADO
+   * ========================================================
+   */
+
+  const reparacao =
+    await repararCacheMedicoesUX1995A_();
+
+
+  /*
+   * ========================================================
+   * ESTADO ANTES
+   * ========================================================
+   */
+
+  const brutoAntes =
+    await lerTbMedicoesBrutaUX1995A_();
+
+  const sistemaAntes =
+    await listarRegistrosSIGO(
+      "TB_MEDICOES"
+    );
+
+  const lotesAntes =
+    await listarRegistrosSIGO(
+      "TB_LOTES_MEDICAO"
+    );
+
+  const filaAntes =
+    await listarRegistrosSIGO(
+      "TB_SYNC_QUEUE"
+    );
+
+  const assinaturaBrutaAntes =
+    criarAssinaturaStoreMedicoesUX1994_(
+      brutoAntes.registros
+    );
+
+  const assinaturaSistemaAntes =
+    criarAssinaturaStoreMedicoesUX1994_(
+      sistemaAntes
+    );
+
+  const assinaturaLotesAntes =
+    criarAssinaturaStoreMedicoesUX1994_(
+      lotesAntes
+    );
+
+  const assinaturaFilaAntes =
+    criarAssinaturaStoreMedicoesUX1994_(
+      filaAntes
+    );
+
+
+  /*
+   * ========================================================
+   * NOVO PACOTE DO SERVIDOR
+   * ========================================================
+   */
+
+  const pacote =
+    await obterMedicoesOficiaisObraMobile_(
+      "OBR002",
+      30
+    );
+
+
+  /*
+   * ========================================================
+   * SOMENTE SIMULAÇÃO
+   * ========================================================
+   */
+
+  const simulacao =
+    await mesclarMedicoesOficiaisReidratacaoSIGO_(
+      pacote,
+      {
+        simular:
+          true
+      }
+    );
+
+
+  /*
+   * ========================================================
+   * ESTADO DEPOIS
+   * ========================================================
+   */
+
+  const brutoDepois =
+    await lerTbMedicoesBrutaUX1995A_();
+
+  const sistemaDepois =
+    await listarRegistrosSIGO(
+      "TB_MEDICOES"
+    );
+
+  const lotesDepois =
+    await listarRegistrosSIGO(
+      "TB_LOTES_MEDICAO"
+    );
+
+  const filaDepois =
+    await listarRegistrosSIGO(
+      "TB_SYNC_QUEUE"
+    );
+
+  const assinaturaBrutaDepois =
+    criarAssinaturaStoreMedicoesUX1994_(
+      brutoDepois.registros
+    );
+
+  const assinaturaSistemaDepois =
+    criarAssinaturaStoreMedicoesUX1994_(
+      sistemaDepois
+    );
+
+  const assinaturaLotesDepois =
+    criarAssinaturaStoreMedicoesUX1994_(
+      lotesDepois
+    );
+
+  const assinaturaFilaDepois =
+    criarAssinaturaStoreMedicoesUX1994_(
+      filaDepois
+    );
+
+
+  /*
+   * ========================================================
+   * REGISTRO OFICIAL
+   * ========================================================
+   */
+
+  const registroOficial =
+    brutoDepois.registros.find(
+      function (registro) {
+        return (
+          registro?.idMedicao ===
+            idItemEsperado &&
+          registro?.idItemMedicao ===
+            idItemEsperado &&
+          registro?.idMedicaoOficial ===
+            idMedicaoOficialEsperado
+        );
+      }
+    ) || null;
+
+  const resumo =
+    simulacao.medicoes || {};
+
+
+  /*
+   * ========================================================
+   * VALIDAÇÕES
+   * ========================================================
+   */
+
+  const validacoes = {
+    reparacaoCacheAprovada:
+      reparacao.aprovado === true,
+
+    modoSimulacao:
+      simulacao.modo ===
+      "SIMULACAO",
+
+    obraCorreta:
+      simulacao.idObra ===
+      "OBR002",
+
+    recebeu1Cabecalho:
+      resumo.cabecalhosRecebidos ===
+      1,
+
+    recebeu1Item:
+      resumo.itensRecebidos ===
+      1,
+
+    naoInseririaNovamente:
+      resumo.inseridos ===
+      0,
+
+    reconheceu1Atualizacao:
+      resumo.atualizados ===
+      1,
+
+    nenhumPreservado:
+      resumo.totalPreservados ===
+      0,
+
+    nenhumRejeitado:
+      resumo.totalRejeitados ===
+      0,
+
+    nenhumConflito:
+      simulacao
+        .totalConflitosEvitados === 0,
+
+    planejou1Gravacao:
+      resumo.gravacoesPlanejadas ===
+      1,
+
+    naoExecutouGravacao:
+      resumo.gravacoesExecutadas ===
+      0,
+
+    brutoPossuia6:
+      brutoAntes.registros.length ===
+      6,
+
+    brutoPermaneceu6:
+      brutoDepois.registros.length ===
+      6,
+
+    sistemaPossuia6:
+      sistemaAntes.length === 6,
+
+    sistemaPermaneceu6:
+      sistemaDepois.length === 6,
+
+    brutoNaoAlterado:
+      assinaturaBrutaAntes ===
+      assinaturaBrutaDepois,
+
+    leituraSistemaNaoAlterada:
+      assinaturaSistemaAntes ===
+      assinaturaSistemaDepois,
+
+    cacheCorrespondenteAoIndexedDBAntes:
+      assinaturaBrutaAntes ===
+      assinaturaSistemaAntes,
+
+    cacheCorrespondenteAoIndexedDBDepois:
+      assinaturaBrutaDepois ===
+      assinaturaSistemaDepois,
+
+    registroOficialEncontrado:
+      Boolean(
+        registroOficial
+      ),
+
+    chaveLocalCorreta:
+      registroOficial?.idMedicao ===
+      idItemEsperado,
+
+    idItemCorreto:
+      registroOficial?.idItemMedicao ===
+      idItemEsperado,
+
+    vinculoCabecalhoCorreto:
+      registroOficial
+        ?.idMedicaoOficial ===
+      idMedicaoOficialEsperado,
+
+    atividadeCorreta:
+      registroOficial?.idAtividade ===
+      "1.1",
+
+    quantidadeCorreta:
+      Number(
+        registroOficial?.qtdeMedida
+      ) === 1,
+
+    registroOficialMarcado:
+      registroOficial
+        ?.registroOficial === true,
+
+    tipoRegistroCorreto:
+      registroOficial
+        ?.tipoRegistro ===
+      "ITEM_MEDICAO_OFICIAL",
+
+    statusSyncCorreto:
+      registroOficial?.statusSync ===
+      "SINCRONIZADO",
+
+    origemReidratacaoCorreta:
+      registroOficial
+        ?.origemReidratacao ===
+      "SERVIDOR",
+
+    lotesPossuiamZero:
+      lotesAntes.length === 0,
+
+    lotesPermaneceramZero:
+      lotesDepois.length === 0,
+
+    lotesPreservados:
+      assinaturaLotesAntes ===
+      assinaturaLotesDepois,
+
+    filaPossuia45:
+      filaAntes.length === 45,
+
+    filaPermaneceu45:
+      filaDepois.length === 45,
+
+    filaPreservada:
+      assinaturaFilaAntes ===
+      assinaturaFilaDepois
+  };
+
+  const aprovado =
+    Object.values(
+      validacoes
+    ).every(
+      function (valor) {
+        return valor === true;
+      }
+    );
+
+
+  /*
+   * ========================================================
+   * RESULTADO
+   * ========================================================
+   */
+
+  const resultado = {
+    etapa:
+      "UX.19.9.5A",
+
+    auditoria:
+      "CACHE_E_IDEMPOTENCIA_MEDICOES_OFICIAIS",
+
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+
+    idObra:
+      "OBR002",
+
+    periodoDias:
+      30,
+
+    reparacaoCache:
+      reparacao,
+
+    idempotencia: {
+      modo:
+        simulacao.modo,
+
+      cabecalhosRecebidos:
+        resumo.cabecalhosRecebidos,
+
+      itensRecebidos:
+        resumo.itensRecebidos,
+
+      inseriria:
+        resumo.inseridos,
+
+      atualizaria:
+        resumo.atualizados,
+
+      preservaria:
+        resumo.totalPreservados,
+
+      rejeitaria:
+        resumo.totalRejeitados,
+
+      conflitos:
+        simulacao
+          .totalConflitosEvitados,
+
+      gravacoesPlanejadas:
+        resumo.gravacoesPlanejadas,
+
+      gravacoesExecutadas:
+        resumo.gravacoesExecutadas
+    },
+
+    stores: {
+      TB_MEDICOES: {
+        brutoAntes:
+          brutoAntes.registros.length,
+
+        brutoDepois:
+          brutoDepois.registros.length,
+
+        sistemaAntes:
+          sistemaAntes.length,
+
+        sistemaDepois:
+          sistemaDepois.length,
+
+        cacheSincronizado:
+          assinaturaBrutaDepois ===
+          assinaturaSistemaDepois,
+
+        preservada:
+          assinaturaBrutaAntes ===
+          assinaturaBrutaDepois
+      },
+
+      TB_LOTES_MEDICAO: {
+        antes:
+          lotesAntes.length,
+
+        depois:
+          lotesDepois.length,
+
+        preservada:
+          assinaturaLotesAntes ===
+          assinaturaLotesDepois
+      },
+
+      TB_SYNC_QUEUE: {
+        antes:
+          filaAntes.length,
+
+        depois:
+          filaDepois.length,
+
+        preservada:
+          assinaturaFilaAntes ===
+          assinaturaFilaDepois
+      }
+    },
+
+    registroOficial:
+      registroOficial
+        ? {
+            idMedicao:
+              registroOficial.idMedicao,
+
+            idItemMedicao:
+              registroOficial.idItemMedicao,
+
+            idMedicaoOficial:
+              registroOficial.idMedicaoOficial,
+
+            idObra:
+              registroOficial.idObra,
+
+            numeroMedicao:
+              registroOficial.numeroMedicao,
+
+            idAtividade:
+              registroOficial.idAtividade,
+
+            qtdeMedida:
+              registroOficial.qtdeMedida,
+
+            registroOficial:
+              registroOficial.registroOficial,
+
+            tipoRegistro:
+              registroOficial.tipoRegistro,
+
+            statusSync:
+              registroOficial.statusSync,
+
+            origemReidratacao:
+              registroOficial.origemReidratacao
+          }
+        : null,
+
+    validacoes:
+      validacoes,
+
+    aprovado:
+      aprovado
+  };
+
+  console.log(
+    JSON.stringify(
+      resultado,
+      null,
+      2
+    )
+  );
+
+  if (!aprovado) {
+    throw new Error(
+      "UX.19.9.5A REPROVADA. Consulte as validações no console."
+    );
+  }
+
+  console.log(
+    "UX.19.9.5A — CACHE E IDEMPOTÊNCIA DE MEDIÇÕES APROVADOS."
+  );
+
+  return {
+    auditoria:
+      resultado,
+
+    simulacao:
+      simulacao,
+
+    pacote:
+      pacote
+  };
 }
