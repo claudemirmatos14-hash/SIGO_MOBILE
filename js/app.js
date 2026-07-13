@@ -65852,3 +65852,2027 @@ async function auditarIdentidadeTransicaoUX214_() {
 
   return resultado;
 }
+
+/**
+ * ============================================================
+ * UX.21.5 — ATIVAÇÃO AUTOMÁTICA DA IDENTIDADE
+ * NO CARREGAMENTO DO PWA
+ * ============================================================
+ *
+ * Dependências:
+ *
+ * - UX.21.2 — contratos;
+ * - UX.21.3 — persistência;
+ * - UX.21.4 — identidade técnica de transição.
+ *
+ * Esta etapa:
+ *
+ * - restaura a identidade automaticamente;
+ * - inicializa ou renova somente quando necessário;
+ * - impede inicializações concorrentes;
+ * - protege telas operacionais;
+ * - trata carregamento online e offline;
+ * - mostra o estado da identidade;
+ * - não altera os payloads operacionais;
+ * - não substitui USUARIO_MOBILE.
+ */
+
+const ESTADOS_IDENTIDADE_UX215 =
+  Object.freeze({
+    naoIniciada:
+      "NAO_INICIADA",
+
+    carregando:
+      "CARREGANDO",
+
+    ativa:
+      "ATIVA",
+
+    aguardandoConexao:
+      "AGUARDANDO_CONEXAO",
+
+    erro:
+      "ERRO"
+  });
+
+
+const TELAS_PROTEGIDAS_IDENTIDADE_UX215 =
+  new Set([
+    "diario",
+    "medicoes",
+    "medição",
+    "medicao",
+    "ocorrencias",
+    "ocorrências",
+    "clima",
+    "evidencias",
+    "evidências"
+  ]);
+
+
+/**
+ * Estado central em memória.
+ */
+function obterEstadoInternoIdentidadeUX215_() {
+  window.SIGO_UX215 =
+    window.SIGO_UX215 || {};
+
+  if (
+    !window.SIGO_UX215.estado
+  ) {
+    window.SIGO_UX215.estado =
+      ESTADOS_IDENTIDADE_UX215
+        .naoIniciada;
+  }
+
+  if (
+    !Object.prototype.hasOwnProperty.call(
+      window.SIGO_UX215,
+      "promessa"
+    )
+  ) {
+    window.SIGO_UX215.promessa =
+      null;
+  }
+
+  window.SIGO_UX215.erro =
+    window.SIGO_UX215.erro ||
+    null;
+
+  window.SIGO_UX215.resultado =
+    window.SIGO_UX215.resultado ||
+    null;
+
+  window.SIGO_UX215.iniciadoEm =
+    window.SIGO_UX215.iniciadoEm ||
+    "";
+
+  window.SIGO_UX215.concluidoEm =
+    window.SIGO_UX215.concluidoEm ||
+    "";
+
+  return window.SIGO_UX215;
+}
+
+
+function textoUX215_(valor) {
+  return String(
+    valor === undefined ||
+    valor === null
+      ? ""
+      : valor
+  ).trim();
+}
+
+
+function escaparHtmlUX215_(valor) {
+  return textoUX215_(valor)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+
+function normalizarTelaUX215_(tela) {
+  return textoUX215_(tela)
+    .normalize("NFD")
+    .replace(
+      /[\u0300-\u036f]/g,
+      ""
+    )
+    .toLowerCase();
+}
+
+
+function resolverEstadoOnlineUX215_(
+  onlineOverride
+) {
+  if (
+    typeof onlineOverride ===
+    "boolean"
+  ) {
+    return onlineOverride;
+  }
+
+  return navigator.onLine !== false;
+}
+
+
+/**
+ * Aguarda as dependências anteriores ficarem disponíveis.
+ */
+async function aguardarDependenciasIdentidadeUX215_(
+  timeoutMs = 15000
+) {
+  const inicio =
+    Date.now();
+
+  const dependencias = [
+    "restaurarIdentidadeTransicaoUX214_",
+    "inicializarIdentidadeTransicaoUX214_",
+    "obterIdentidadeAtualUX214_",
+    "validarSessaoContratoUX212_"
+  ];
+
+  while (
+    Date.now() - inicio <
+    timeoutMs
+  ) {
+    const prontas =
+      dependencias.every(
+        function (nome) {
+          return (
+            typeof window[nome] ===
+            "function"
+          );
+        }
+      );
+
+    if (prontas) {
+      return true;
+    }
+
+    await new Promise(
+      function (resolve) {
+        setTimeout(
+          resolve,
+          50
+        );
+      }
+    );
+  }
+
+  throw new Error(
+    "UX215_DEPENDENCIAS_NAO_CARREGADAS"
+  );
+}
+
+
+/**
+ * ============================================================
+ * INDICADOR VISUAL
+ * ============================================================
+ */
+
+function instalarEstilosIndicadorIdentidadeUX215_() {
+  if (
+    document.getElementById(
+      "estilosIdentidadeUX215"
+    )
+  ) {
+    return;
+  }
+
+  const estilo =
+    document.createElement(
+      "style"
+    );
+
+  estilo.id =
+    "estilosIdentidadeUX215";
+
+  estilo.textContent = `
+    #statusIdentidadeUX215 {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 30px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, .35);
+      background: rgba(241, 245, 249, .94);
+      color: #475569;
+      font-size: 11px;
+      font-weight: 800;
+      line-height: 1;
+      white-space: nowrap;
+      box-sizing: border-box;
+      transition:
+        background .2s ease,
+        color .2s ease,
+        border-color .2s ease;
+    }
+
+    #statusIdentidadeUX215 .ux215-ponto {
+      width: 8px;
+      height: 8px;
+      flex: 0 0 8px;
+      border-radius: 50%;
+      background: #94a3b8;
+    }
+
+    #statusIdentidadeUX215[data-estado="CARREGANDO"] {
+      background: #fffbeb;
+      border-color: #fde68a;
+      color: #92400e;
+    }
+
+    #statusIdentidadeUX215[data-estado="CARREGANDO"]
+    .ux215-ponto {
+      background: #f59e0b;
+      animation: ux215Pulso 1s infinite;
+    }
+
+    #statusIdentidadeUX215[data-estado="ATIVA"] {
+      background: #ecfdf5;
+      border-color: #bbf7d0;
+      color: #166534;
+    }
+
+    #statusIdentidadeUX215[data-estado="ATIVA"]
+    .ux215-ponto {
+      background: #22c55e;
+    }
+
+    #statusIdentidadeUX215[data-estado="AGUARDANDO_CONEXAO"] {
+      background: #fff7ed;
+      border-color: #fed7aa;
+      color: #9a3412;
+    }
+
+    #statusIdentidadeUX215[data-estado="AGUARDANDO_CONEXAO"]
+    .ux215-ponto {
+      background: #f97316;
+    }
+
+    #statusIdentidadeUX215[data-estado="ERRO"] {
+      background: #fef2f2;
+      border-color: #fecaca;
+      color: #991b1b;
+    }
+
+    #statusIdentidadeUX215[data-estado="ERRO"]
+    .ux215-ponto {
+      background: #ef4444;
+    }
+
+    #statusIdentidadeUX215.ux215-fixo {
+      position: fixed;
+      top: 12px;
+      right: 58px;
+      z-index: 9998;
+      box-shadow: 0 8px 22px rgba(15, 23, 42, .12);
+    }
+
+    .avisoIdentidadeUX215 {
+      position: fixed;
+      right: 16px;
+      bottom: 18px;
+      z-index: 10050;
+      max-width: min(360px, calc(100vw - 32px));
+      padding: 12px 14px;
+      border-radius: 13px;
+      background: #0f172a;
+      color: #ffffff;
+      box-shadow: 0 18px 45px rgba(15, 23, 42, .28);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.45;
+    }
+
+    @keyframes ux215Pulso {
+      0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: .45;
+        transform: scale(.78);
+      }
+    }
+  `;
+
+  document.head.appendChild(
+    estilo
+  );
+}
+
+
+function localizarAncoraIndicadorIdentidadeUX215_() {
+  const seletores = [
+    ".header-actions",
+    ".topbar-actions",
+    ".home-header-actions",
+    ".app-header-actions",
+    ".hero-actions",
+    "header .actions",
+    "header"
+  ];
+
+  for (
+    const seletor of
+    seletores
+  ) {
+    const elemento =
+      document.querySelector(
+        seletor
+      );
+
+    if (elemento) {
+      return elemento;
+    }
+  }
+
+  return null;
+}
+
+
+function montarIndicadorIdentidadeUX215_() {
+  instalarEstilosIndicadorIdentidadeUX215_();
+
+  let indicador =
+    document.getElementById(
+      "statusIdentidadeUX215"
+    );
+
+  if (indicador) {
+    return indicador;
+  }
+
+  indicador =
+    document.createElement(
+      "div"
+    );
+
+  indicador.id =
+    "statusIdentidadeUX215";
+
+  indicador.dataset.estado =
+    ESTADOS_IDENTIDADE_UX215
+      .naoIniciada;
+
+  indicador.setAttribute(
+    "role",
+    "status"
+  );
+
+  indicador.setAttribute(
+    "aria-live",
+    "polite"
+  );
+
+  indicador.innerHTML = `
+    <span class="ux215-ponto"></span>
+    <span class="ux215-texto">
+      Identidade não iniciada
+    </span>
+  `;
+
+  const ancora =
+    localizarAncoraIndicadorIdentidadeUX215_();
+
+  if (ancora) {
+    ancora.appendChild(
+      indicador
+    );
+
+  } else {
+    indicador.classList.add(
+      "ux215-fixo"
+    );
+
+    document.body.appendChild(
+      indicador
+    );
+  }
+
+  return indicador;
+}
+
+
+function atualizarIndicadorIdentidadeUX215_(
+  estado,
+  detalhes = {}
+) {
+  const indicador =
+    montarIndicadorIdentidadeUX215_();
+
+  indicador.dataset.estado =
+    estado;
+
+  const texto =
+    indicador.querySelector(
+      ".ux215-texto"
+    );
+
+  const online =
+    detalhes.online !== false;
+
+  const rotulos = {
+    NAO_INICIADA:
+      "Identidade não iniciada",
+
+    CARREGANDO:
+      "Carregando identidade...",
+
+    ATIVA:
+      online
+        ? "Identidade ativa"
+        : "Identidade ativa • offline",
+
+    AGUARDANDO_CONEXAO:
+      "Identidade aguardando conexão",
+
+    ERRO:
+      "Falha na identidade"
+  };
+
+  texto.textContent =
+    rotulos[estado] ||
+    estado;
+
+  const partesTitulo = [
+    "Estado: " + estado
+  ];
+
+  if (
+    detalhes.idUsuario
+  ) {
+    partesTitulo.push(
+      "Usuário: " +
+      detalhes.idUsuario
+    );
+  }
+
+  if (
+    detalhes.idDispositivo
+  ) {
+    partesTitulo.push(
+      "Dispositivo: " +
+      detalhes.idDispositivo
+    );
+  }
+
+  if (
+    detalhes.idSessao
+  ) {
+    partesTitulo.push(
+      "Sessão: " +
+      detalhes.idSessao
+    );
+  }
+
+  if (
+    detalhes.mensagem
+  ) {
+    partesTitulo.push(
+      detalhes.mensagem
+    );
+  }
+
+  indicador.title =
+    partesTitulo.join("\n");
+}
+
+
+function mostrarAvisoIdentidadeUX215_(
+  mensagem
+) {
+  const anterior =
+    document.querySelector(
+      ".avisoIdentidadeUX215"
+    );
+
+  anterior?.remove();
+
+  const aviso =
+    document.createElement(
+      "div"
+    );
+
+  aviso.className =
+    "avisoIdentidadeUX215";
+
+  aviso.textContent =
+    textoUX215_(mensagem);
+
+  document.body.appendChild(
+    aviso
+  );
+
+  setTimeout(
+    function () {
+      aviso.remove();
+    },
+    4500
+  );
+}
+
+
+/**
+ * ============================================================
+ * CONTROLE DE ESTADO
+ * ============================================================
+ */
+
+function definirEstadoIdentidadeUX215_(
+  estado,
+  detalhes = {}
+) {
+  const interno =
+    obterEstadoInternoIdentidadeUX215_();
+
+  interno.estado =
+    estado;
+
+  interno.erro =
+    detalhes.erro || null;
+
+  interno.resultado =
+    detalhes.resultado ||
+    interno.resultado ||
+    null;
+
+  if (
+    estado ===
+    ESTADOS_IDENTIDADE_UX215
+      .carregando
+  ) {
+    interno.iniciadoEm =
+      new Date().toISOString();
+
+    interno.concluidoEm =
+      "";
+  }
+
+  if (
+    estado ===
+      ESTADOS_IDENTIDADE_UX215
+        .ativa ||
+    estado ===
+      ESTADOS_IDENTIDADE_UX215
+        .erro ||
+    estado ===
+      ESTADOS_IDENTIDADE_UX215
+        .aguardandoConexao
+  ) {
+    interno.concluidoEm =
+      new Date().toISOString();
+  }
+
+  document.documentElement.dataset
+    .sigoIdentidade =
+      estado;
+
+  atualizarIndicadorIdentidadeUX215_(
+    estado,
+    detalhes
+  );
+
+  window.dispatchEvent(
+    new CustomEvent(
+      "SIGO_IDENTIDADE_ESTADO",
+      {
+        detail: {
+          estado:
+            estado,
+
+          online:
+            detalhes.online,
+
+          idUsuario:
+            detalhes.idUsuario || "",
+
+          idDispositivo:
+            detalhes.idDispositivo || "",
+
+          idSessao:
+            detalhes.idSessao || "",
+
+          origem:
+            detalhes.origem || "",
+
+          mensagem:
+            detalhes.mensagem || ""
+        }
+      }
+    )
+  );
+
+  if (
+    estado ===
+    ESTADOS_IDENTIDADE_UX215
+      .carregando
+  ) {
+    window.dispatchEvent(
+      new CustomEvent(
+        "SIGO_IDENTIDADE_CARREGANDO"
+      )
+    );
+  }
+
+  if (
+    estado ===
+    ESTADOS_IDENTIDADE_UX215
+      .ativa
+  ) {
+    window.dispatchEvent(
+      new CustomEvent(
+        "SIGO_IDENTIDADE_ATIVA",
+        {
+          detail:
+            detalhes.resultado ||
+            null
+        }
+      )
+    );
+  }
+
+  if (
+    estado ===
+    ESTADOS_IDENTIDADE_UX215
+      .erro
+  ) {
+    window.dispatchEvent(
+      new CustomEvent(
+        "SIGO_IDENTIDADE_ERRO",
+        {
+          detail: {
+            mensagem:
+              detalhes.mensagem || "",
+
+            erro:
+              detalhes.erro || null
+          }
+        }
+      )
+    );
+  }
+
+  return interno;
+}
+
+
+function obterEstadoIdentidadeUX215_() {
+  const interno =
+    obterEstadoInternoIdentidadeUX215_();
+
+  return {
+    estado:
+      interno.estado,
+
+    carregando:
+      Boolean(
+        interno.promessa
+      ),
+
+    iniciadoEm:
+      interno.iniciadoEm,
+
+    concluidoEm:
+      interno.concluidoEm,
+
+    erro:
+      interno.erro
+        ? {
+          name:
+            interno.erro.name || "",
+
+          message:
+            interno.erro.message || ""
+        }
+        : null,
+
+    resultado:
+      interno.resultado
+        ? {
+          status:
+            interno.resultado.status,
+
+          origem:
+            interno.resultado.origem,
+
+          modoConexao:
+            interno.resultado
+              .modoConexao,
+
+          idUsuario:
+            interno.resultado
+              .contexto
+              ?.usuario
+              ?.idUsuario || "",
+
+          idDispositivo:
+            interno.resultado
+              .contexto
+              ?.dispositivo
+              ?.idDispositivo || "",
+
+          idSessao:
+            interno.resultado
+              .contexto
+              ?.sessao
+              ?.idSessao || ""
+        }
+        : null
+  };
+}
+
+
+/**
+ * ============================================================
+ * ATIVAÇÃO AUTOMÁTICA
+ * ============================================================
+ *
+ * A função não é async propositalmente.
+ * Assim, chamadas concorrentes recebem exatamente
+ * a mesma Promise.
+ */
+function ativarIdentidadeAutomaticamenteUX215_(
+  opcoes = {}
+) {
+  const interno =
+    obterEstadoInternoIdentidadeUX215_();
+
+  const contextoAtual =
+    window.SIGO_IDENTIDADE_ATUAL ||
+    (
+      typeof obterIdentidadeAtualUX214_ ===
+        "function"
+        ? obterIdentidadeAtualUX214_()
+        : null
+    );
+
+
+  if (
+    opcoes.forcar !== true &&
+    interno.estado ===
+      ESTADOS_IDENTIDADE_UX215
+        .ativa &&
+    contextoAtual
+  ) {
+    return Promise.resolve({
+      status:
+        "ATIVA",
+
+      origem:
+        "MEMORIA",
+
+      modoConexao:
+        resolverEstadoOnlineUX215_(
+          opcoes.onlineOverride
+        )
+          ? "ONLINE"
+          : "OFFLINE",
+
+      contexto:
+        contextoAtual
+    });
+  }
+
+
+  if (
+    interno.promessa
+  ) {
+    return interno.promessa;
+  }
+
+
+  const online =
+    resolverEstadoOnlineUX215_(
+      opcoes.onlineOverride
+    );
+
+
+  definirEstadoIdentidadeUX215_(
+    ESTADOS_IDENTIDADE_UX215
+      .carregando,
+    {
+      online:
+        online,
+
+      mensagem:
+        "Restaurando a identidade persistida."
+    }
+  );
+
+
+  const promessa = (
+    async function () {
+      await aguardarDependenciasIdentidadeUX215_();
+
+
+      let contexto =
+        await restaurarIdentidadeTransicaoUX214_();
+
+      let origem =
+        "RESTAURADA";
+
+
+      if (!contexto) {
+        if (!online) {
+          const resultadoEspera = {
+            status:
+              "AGUARDANDO_CONEXAO",
+
+            origem:
+              "SEM_SESSAO_OFFLINE",
+
+            modoConexao:
+              "OFFLINE",
+
+            contexto:
+              null
+          };
+
+
+          definirEstadoIdentidadeUX215_(
+            ESTADOS_IDENTIDADE_UX215
+              .aguardandoConexao,
+            {
+              online:
+                false,
+
+              resultado:
+                resultadoEspera,
+
+              mensagem:
+                "Não existe uma sessão válida para uso offline."
+            }
+          );
+
+
+          return resultadoEspera;
+        }
+
+
+        contexto =
+          await inicializarIdentidadeTransicaoUX214_();
+
+        origem =
+          "INICIALIZADA";
+      }
+
+
+      if (
+        !contexto?.usuario ||
+        !contexto?.dispositivo ||
+        !contexto?.sessao
+      ) {
+        throw new Error(
+          "UX215_CONTEXTO_IDENTIDADE_INCOMPLETO"
+        );
+      }
+
+
+      const validacaoSessao =
+        validarSessaoContratoUX212_(
+          contexto.sessao
+        );
+
+      if (
+        !validacaoSessao.valido
+      ) {
+        throw new Error(
+          "UX215_SESSAO_INVALIDA: " +
+          validacaoSessao.erros.join(", ")
+        );
+      }
+
+
+      const resultado = {
+        status:
+          "ATIVA",
+
+        origem:
+          origem,
+
+        modoConexao:
+          online
+            ? "ONLINE"
+            : "OFFLINE",
+
+        contexto:
+          contexto,
+
+        ativadoEm:
+          new Date().toISOString()
+      };
+
+
+      definirEstadoIdentidadeUX215_(
+        ESTADOS_IDENTIDADE_UX215
+          .ativa,
+        {
+          online:
+            online,
+
+          idUsuario:
+            contexto.usuario
+              .idUsuario,
+
+          idDispositivo:
+            contexto.dispositivo
+              .idDispositivo,
+
+          idSessao:
+            contexto.sessao
+              .idSessao,
+
+          origem:
+            origem,
+
+          resultado:
+            resultado
+        }
+      );
+
+
+      console.log(
+        "[UX.21.5] Identidade ativada automaticamente.",
+        {
+          origem:
+            origem,
+
+          modoConexao:
+            resultado.modoConexao,
+
+          idUsuario:
+            contexto.usuario
+              .idUsuario,
+
+          idDispositivo:
+            contexto.dispositivo
+              .idDispositivo,
+
+          idSessao:
+            contexto.sessao
+              .idSessao,
+
+          obras:
+            contexto.sessao
+              .obrasAutorizadas
+        }
+      );
+
+
+      return resultado;
+    }
+  )();
+
+
+  interno.promessa =
+    promessa;
+
+
+  promessa.then(
+    function () {
+      if (
+        interno.promessa ===
+        promessa
+      ) {
+        interno.promessa =
+          null;
+      }
+    },
+    function (erro) {
+      if (
+        interno.promessa ===
+        promessa
+      ) {
+        interno.promessa =
+          null;
+      }
+
+      definirEstadoIdentidadeUX215_(
+        ESTADOS_IDENTIDADE_UX215
+          .erro,
+        {
+          online:
+            online,
+
+          erro:
+            erro,
+
+          mensagem:
+            erro?.message ||
+            "Não foi possível ativar a identidade."
+        }
+      );
+    }
+  );
+
+
+  return promessa;
+}
+
+
+/**
+ * Garante identidade ativa antes de uma operação.
+ */
+async function aguardarIdentidadeAtivaUX215_(
+  opcoes = {}
+) {
+  const resultado =
+    await ativarIdentidadeAutomaticamenteUX215_(
+      opcoes
+    );
+
+  if (
+    resultado.status !==
+      "ATIVA" ||
+    !resultado.contexto
+  ) {
+    throw new Error(
+      resultado.status ===
+        "AGUARDANDO_CONEXAO"
+        ? "IDENTIDADE_AGUARDANDO_CONEXAO"
+        : "IDENTIDADE_NAO_ATIVA"
+    );
+  }
+
+  return resultado.contexto;
+}
+
+
+/**
+ * ============================================================
+ * PROTEÇÃO DAS TELAS OPERACIONAIS
+ * ============================================================
+ */
+
+function instalarProtecaoNavegacaoIdentidadeUX215_() {
+  const interno =
+    obterEstadoInternoIdentidadeUX215_();
+
+  if (
+    interno.navegacaoProtegida ===
+    true
+  ) {
+    return true;
+  }
+
+  if (
+    typeof window.navegarPara !==
+    "function"
+  ) {
+    return false;
+  }
+
+  if (
+    window.navegarPara
+      .__protegidaUX215 ===
+    true
+  ) {
+    interno.navegacaoProtegida =
+      true;
+
+    return true;
+  }
+
+
+  const navegarOriginal =
+    window.navegarPara;
+
+
+  const navegarProtegido =
+    async function (
+      tela,
+      ...argumentos
+    ) {
+      const telaNormalizada =
+        normalizarTelaUX215_(
+          tela
+        );
+
+
+      if (
+        TELAS_PROTEGIDAS_IDENTIDADE_UX215
+          .has(
+            telaNormalizada
+          )
+      ) {
+        try {
+          await aguardarIdentidadeAtivaUX215_();
+
+        } catch (erro) {
+          console.error(
+            "[UX.21.5] Navegação bloqueada:",
+            tela,
+            erro
+          );
+
+          mostrarAvisoIdentidadeUX215_(
+            erro?.message ===
+              "IDENTIDADE_AGUARDANDO_CONEXAO"
+              ? (
+                "Conecte o dispositivo à internet para validar a identidade antes de abrir esta tela."
+              )
+              : (
+                "A identidade do dispositivo ainda não está disponível."
+              )
+          );
+
+          return false;
+        }
+      }
+
+
+      return navegarOriginal.apply(
+        this,
+        [
+          tela,
+          ...argumentos
+        ]
+      );
+    };
+
+
+  navegarProtegido
+    .__protegidaUX215 =
+      true;
+
+  navegarProtegido
+    .originalUX215 =
+      navegarOriginal;
+
+
+  window.navegarPara =
+    navegarProtegido;
+
+  interno.navegacaoProtegida =
+    true;
+
+  console.log(
+    "[UX.21.5] Navegação operacional protegida."
+  );
+
+  return true;
+}
+
+
+/**
+ * ============================================================
+ * INSTALAÇÃO AUTOMÁTICA
+ * ============================================================
+ */
+
+function instalarAtivacaoAutomaticaIdentidadeUX215_() {
+  const interno =
+    obterEstadoInternoIdentidadeUX215_();
+
+  montarIndicadorIdentidadeUX215_();
+
+
+  instalarProtecaoNavegacaoIdentidadeUX215_();
+
+
+  if (
+    interno.listenersInstalados !==
+    true
+  ) {
+    interno.listenersInstalados =
+      true;
+
+
+    window.addEventListener(
+      "online",
+      function () {
+        const estado =
+          obterEstadoInternoIdentidadeUX215_();
+
+        if (
+          estado.estado ===
+            ESTADOS_IDENTIDADE_UX215
+              .aguardandoConexao ||
+          estado.estado ===
+            ESTADOS_IDENTIDADE_UX215
+              .erro ||
+          !window.SIGO_IDENTIDADE_ATUAL
+        ) {
+          ativarIdentidadeAutomaticamenteUX215_({
+            forcar:
+              true
+          }).catch(
+            function (erro) {
+              console.error(
+                "[UX.21.5] Falha ao reativar após conexão:",
+                erro
+              );
+            }
+          );
+
+        } else {
+          atualizarIndicadorIdentidadeUX215_(
+            ESTADOS_IDENTIDADE_UX215
+              .ativa,
+            {
+              online:
+                true,
+
+              idUsuario:
+                window.SIGO_IDENTIDADE_ATUAL
+                  ?.usuario
+                  ?.idUsuario,
+
+              idDispositivo:
+                window.SIGO_IDENTIDADE_ATUAL
+                  ?.dispositivo
+                  ?.idDispositivo,
+
+              idSessao:
+                window.SIGO_IDENTIDADE_ATUAL
+                  ?.sessao
+                  ?.idSessao
+            }
+          );
+        }
+      }
+    );
+
+
+    window.addEventListener(
+      "offline",
+      function () {
+        if (
+          window.SIGO_IDENTIDADE_ATUAL
+        ) {
+          atualizarIndicadorIdentidadeUX215_(
+            ESTADOS_IDENTIDADE_UX215
+              .ativa,
+            {
+              online:
+                false,
+
+              idUsuario:
+                window.SIGO_IDENTIDADE_ATUAL
+                  ?.usuario
+                  ?.idUsuario,
+
+              idDispositivo:
+                window.SIGO_IDENTIDADE_ATUAL
+                  ?.dispositivo
+                  ?.idDispositivo,
+
+              idSessao:
+                window.SIGO_IDENTIDADE_ATUAL
+                  ?.sessao
+                  ?.idSessao
+            }
+          );
+        }
+      }
+    );
+
+
+    window.addEventListener(
+      "pageshow",
+      function () {
+        if (
+          !window.SIGO_IDENTIDADE_ATUAL
+        ) {
+          ativarIdentidadeAutomaticamenteUX215_()
+            .catch(
+              function (erro) {
+                console.error(
+                  "[UX.21.5] Falha no pageshow:",
+                  erro
+                );
+              }
+            );
+        }
+      }
+    );
+
+
+    document.addEventListener(
+      "visibilitychange",
+      function () {
+        if (
+          document.visibilityState ===
+            "visible" &&
+          !window.SIGO_IDENTIDADE_ATUAL
+        ) {
+          ativarIdentidadeAutomaticamenteUX215_()
+            .catch(
+              function (erro) {
+                console.error(
+                  "[UX.21.5] Falha ao restaurar a página:",
+                  erro
+                );
+              }
+            );
+        }
+      }
+    );
+  }
+
+
+  /*
+   * Segunda tentativa de proteção, caso a função navegarPara
+   * tenha sido declarada depois deste bloco.
+   */
+  setTimeout(
+    instalarProtecaoNavegacaoIdentidadeUX215_,
+    200
+  );
+
+  setTimeout(
+    instalarProtecaoNavegacaoIdentidadeUX215_,
+    800
+  );
+
+
+  ativarIdentidadeAutomaticamenteUX215_()
+    .catch(
+      function (erro) {
+        console.error(
+          "[UX.21.5] Falha na ativação automática:",
+          erro
+        );
+      }
+    );
+
+
+  interno.instalado =
+    true;
+
+  console.log(
+    "UX.21.5 — Ativação automática da identidade instalada."
+  );
+
+
+  return {
+    instalado:
+      true,
+
+    navegacaoProtegida:
+      Boolean(
+        obterEstadoInternoIdentidadeUX215_()
+          .navegacaoProtegida
+      ),
+
+    estado:
+      obterEstadoInternoIdentidadeUX215_()
+        .estado
+  };
+}
+
+
+/**
+ * Instalação durante o carregamento do PWA.
+ */
+if (
+  document.readyState ===
+  "loading"
+) {
+  document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+      instalarAtivacaoAutomaticaIdentidadeUX215_();
+    },
+    {
+      once:
+        true
+    }
+  );
+
+} else {
+  instalarAtivacaoAutomaticaIdentidadeUX215_();
+}
+
+/**
+ * ============================================================
+ * UX.21.5 — AUDITORIA DA ATIVAÇÃO AUTOMÁTICA
+ * ============================================================
+ *
+ * A auditoria:
+ *
+ * - remove somente o contexto em memória;
+ * - não remove usuário, dispositivo ou sessão;
+ * - testa chamadas concorrentes;
+ * - testa restauração com modo offline simulado;
+ * - confirma que nenhuma store operacional foi alterada.
+ */
+
+async function auditarAtivacaoAutomaticaIdentidadeUX215_() {
+  console.log(
+    "[UX.21.5] Iniciando auditoria da ativação automática..."
+  );
+
+
+  const assinaturaStorageAntes =
+    assinarLocalStorageIdentidadeUX211_();
+
+  const storesExistentes =
+    await listarStoresIdentidadeUX211_();
+
+  const estadoOperacionalAntes =
+    await capturarEstadoIdentidadeUX211_(
+      storesExistentes
+    );
+
+  const identidadeAntes =
+    await capturarEstadoStoresIdentidadeUX213_();
+
+
+  const eventos = {
+    carregando:
+      0,
+
+    ativa:
+      0,
+
+    erro:
+      0
+  };
+
+
+  const aoCarregar =
+    function () {
+      eventos.carregando++;
+    };
+
+  const aoAtivar =
+    function () {
+      eventos.ativa++;
+    };
+
+  const aoErro =
+    function () {
+      eventos.erro++;
+    };
+
+
+  window.addEventListener(
+    "SIGO_IDENTIDADE_CARREGANDO",
+    aoCarregar
+  );
+
+  window.addEventListener(
+    "SIGO_IDENTIDADE_ATIVA",
+    aoAtivar
+  );
+
+  window.addEventListener(
+    "SIGO_IDENTIDADE_ERRO",
+    aoErro
+  );
+
+
+  /*
+   * ========================================================
+   * TESTE 1 — DUAS CHAMADAS CONCORRENTES
+   * ========================================================
+   */
+
+  delete window.SIGO_IDENTIDADE_ATUAL;
+
+  if (
+    window.SIGO_UX214
+  ) {
+    window.SIGO_UX214.contexto =
+      null;
+  }
+
+
+  const interno =
+    obterEstadoInternoIdentidadeUX215_();
+
+  interno.estado =
+    ESTADOS_IDENTIDADE_UX215
+      .naoIniciada;
+
+  interno.promessa =
+    null;
+
+  interno.resultado =
+    null;
+
+  interno.erro =
+    null;
+
+
+  const promessa1 =
+    ativarIdentidadeAutomaticamenteUX215_({
+      forcar:
+        true,
+
+      onlineOverride:
+        true
+    });
+
+  const promessaReferencia =
+    obterEstadoInternoIdentidadeUX215_()
+      .promessa;
+
+  const promessa2 =
+    ativarIdentidadeAutomaticamenteUX215_({
+      onlineOverride:
+        true
+    });
+
+
+  const chamadasCompartilharamPromessa =
+    promessa1 === promessa2 &&
+    promessaReferencia === promessa1;
+
+
+  const [
+    resultado1,
+    resultado2
+  ] =
+    await Promise.all([
+      promessa1,
+      promessa2
+    ]);
+
+
+  const idSessaoOnline =
+    resultado1.contexto
+      .sessao
+      .idSessao;
+
+
+  /*
+   * ========================================================
+   * TESTE 2 — RESTAURAÇÃO COM MODO OFFLINE SIMULADO
+   * ========================================================
+   */
+
+  delete window.SIGO_IDENTIDADE_ATUAL;
+
+  if (
+    window.SIGO_UX214
+  ) {
+    window.SIGO_UX214.contexto =
+      null;
+  }
+
+  interno.estado =
+    ESTADOS_IDENTIDADE_UX215
+      .naoIniciada;
+
+  interno.promessa =
+    null;
+
+  interno.resultado =
+    null;
+
+  interno.erro =
+    null;
+
+
+  const resultadoOffline =
+    await ativarIdentidadeAutomaticamenteUX215_({
+      forcar:
+        true,
+
+      onlineOverride:
+        false
+    });
+
+
+  const idSessaoOffline =
+    resultadoOffline.contexto
+      ?.sessao
+      ?.idSessao || "";
+
+
+  const sessaoOfflineValida =
+    sessaoOfflineValidaUX212_(
+      resultadoOffline.contexto
+        ?.sessao
+    );
+
+
+  /*
+   * ========================================================
+   * ESTADO FINAL
+   * ========================================================
+   */
+
+  instalarProtecaoNavegacaoIdentidadeUX215_();
+
+
+  const identidadeDepois =
+    await capturarEstadoStoresIdentidadeUX213_();
+
+  const estadoOperacionalDepois =
+    await capturarEstadoIdentidadeUX211_(
+      storesExistentes
+    );
+
+  const assinaturaStorageDepois =
+    assinarLocalStorageIdentidadeUX211_();
+
+
+  const storesOperacionaisAlteradas =
+    compararEstadoIdentidadeUX211_(
+      estadoOperacionalAntes,
+      estadoOperacionalDepois
+    );
+
+
+  const storesIdentidadeAlteradas =
+    Object.keys(
+      identidadeAntes
+    ).filter(
+      function (nomeStore) {
+        return (
+          identidadeAntes[
+            nomeStore
+          ].assinatura !==
+          identidadeDepois[
+            nomeStore
+          ].assinatura
+        );
+      }
+    );
+
+
+  const indicador =
+    document.getElementById(
+      "statusIdentidadeUX215"
+    );
+
+
+  const estadoFinal =
+    obterEstadoIdentidadeUX215_();
+
+
+  const validacoes = {
+    instalacaoAutomaticaAtiva:
+      obterEstadoInternoIdentidadeUX215_()
+        .instalado === true,
+
+    chamadasCompartilharamPromessa:
+      chamadasCompartilharamPromessa ===
+      true,
+
+    primeiraChamadaAtiva:
+      resultado1.status ===
+      "ATIVA",
+
+    segundaChamadaAtiva:
+      resultado2.status ===
+      "ATIVA",
+
+    mesmaSessaoNasChamadas:
+      resultado1.contexto
+        .sessao
+        .idSessao ===
+      resultado2.contexto
+        .sessao
+        .idSessao,
+
+    restauracaoOnlineCorreta:
+      resultado1.origem ===
+      "RESTAURADA",
+
+    restauracaoOfflineCorreta:
+      resultadoOffline.status ===
+        "ATIVA" &&
+      resultadoOffline.modoConexao ===
+        "OFFLINE",
+
+    mesmaSessaoOnlineOffline:
+      idSessaoOnline ===
+      idSessaoOffline,
+
+    sessaoOfflineDentroDaValidade:
+      sessaoOfflineValida ===
+      true,
+
+    usuarioCorreto:
+      resultadoOffline.contexto
+        .usuario
+        .idUsuario ===
+      "USR-TRANSICAO-MOBILE-V1",
+
+    dispositivoRealCorreto:
+      resultadoOffline.contexto
+        .dispositivo
+        .idDispositivo ===
+      "DISP-MOBILE-10355705-c01d-4dbe-9012-f43283628e3b",
+
+    identidadePublicadaEmMemoria:
+      Boolean(
+        window.SIGO_IDENTIDADE_ATUAL
+      ),
+
+    eventoCarregandoEmitido:
+      eventos.carregando >= 2,
+
+    eventoAtivaEmitido:
+      eventos.ativa >= 2,
+
+    nenhumEventoErro:
+      eventos.erro === 0,
+
+    indicadorCriado:
+      Boolean(indicador),
+
+    indicadorAtivo:
+      indicador?.dataset
+        ?.estado ===
+      "ATIVA",
+
+    navegacaoProtegida:
+      obterEstadoInternoIdentidadeUX215_()
+        .navegacaoProtegida ===
+      true,
+
+    estadoFinalAtivo:
+      estadoFinal.estado ===
+      "ATIVA",
+
+    nenhumaStoreIdentidadeAlterada:
+      storesIdentidadeAlteradas.length ===
+      0,
+
+    storesOperacionaisPreservadas:
+      storesOperacionaisAlteradas.length ===
+      0,
+
+    localStoragePreservado:
+      assinaturaStorageAntes ===
+      assinaturaStorageDepois,
+
+    filaPreservada:
+      !storesOperacionaisAlteradas
+        .some(
+          function (item) {
+            return (
+              item.store ===
+              "TB_SYNC_QUEUE"
+            );
+          }
+        ),
+
+    lotesPreservados:
+      !storesOperacionaisAlteradas
+        .some(
+          function (item) {
+            return (
+              item.store ===
+              "TB_LOTES_MEDICAO"
+            );
+          }
+        ),
+
+    notificacoesPreservadas:
+      !storesOperacionaisAlteradas
+        .some(
+          function (item) {
+            return (
+              item.store ===
+              "TB_NOTIFICACOES"
+            );
+          }
+        )
+  };
+
+
+  const aprovado =
+    Object.values(
+      validacoes
+    ).every(
+      function (valor) {
+        return valor === true;
+      }
+    );
+
+
+  const resultado = {
+    etapa:
+      "UX.21.5",
+
+    auditoria:
+      "ATIVACAO_AUTOMATICA_IDENTIDADE_PWA",
+
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+
+    identidade: {
+      idUsuario:
+        resultadoOffline.contexto
+          ?.usuario
+          ?.idUsuario || "",
+
+      idDispositivo:
+        resultadoOffline.contexto
+          ?.dispositivo
+          ?.idDispositivo || "",
+
+      idSessao:
+        idSessaoOffline,
+
+      obrasAutorizadas:
+        resultadoOffline.contexto
+          ?.sessao
+          ?.obrasAutorizadas || []
+    },
+
+    ativacaoConcorrente: {
+      promessaCompartilhada:
+        chamadasCompartilharamPromessa,
+
+      resultadoPrimeira:
+        resultado1.status,
+
+      resultadoSegunda:
+        resultado2.status,
+
+      idSessaoPrimeira:
+        resultado1.contexto
+          .sessao
+          .idSessao,
+
+      idSessaoSegunda:
+        resultado2.contexto
+          .sessao
+          .idSessao
+    },
+
+    restauracaoOffline: {
+      status:
+        resultadoOffline.status,
+
+      origem:
+        resultadoOffline.origem,
+
+      modoConexao:
+        resultadoOffline
+          .modoConexao,
+
+      idSessao:
+        idSessaoOffline,
+
+      sessaoOfflineValida:
+        sessaoOfflineValida
+    },
+
+    eventos: {
+      carregando:
+        eventos.carregando,
+
+      ativa:
+        eventos.ativa,
+
+      erro:
+        eventos.erro
+    },
+
+    interface: {
+      indicadorEncontrado:
+        Boolean(indicador),
+
+      estadoIndicador:
+        indicador
+          ?.dataset
+          ?.estado || "",
+
+      textoIndicador:
+        indicador
+          ?.textContent
+          ?.trim() || "",
+
+      navegacaoProtegida:
+        obterEstadoInternoIdentidadeUX215_()
+          .navegacaoProtegida ===
+        true
+    },
+
+    preservacao: {
+      storesIdentidadeAlteradas:
+        storesIdentidadeAlteradas,
+
+      storesOperacionaisAlteradas:
+        storesOperacionaisAlteradas,
+
+      localStorageAlterado:
+        assinaturaStorageAntes !==
+        assinaturaStorageDepois,
+
+      filaPreservada:
+        validacoes
+          .filaPreservada,
+
+      lotesPreservados:
+        validacoes
+          .lotesPreservados,
+
+      notificacoesPreservadas:
+        validacoes
+          .notificacoesPreservadas
+    },
+
+    transicao: {
+      ativacaoAutomatica:
+        true,
+
+      restauracaoPrimeiro:
+        true,
+
+      inicializacaoSomenteQuandoNecessario:
+        true,
+
+      navegacaoOperacionalProtegida:
+        true,
+
+      usuarioMobileSubstituido:
+        false,
+
+      payloadsOperacionaisAlterados:
+        false,
+
+      registrosLegadosMigrados:
+        false
+    },
+
+    validacoes:
+      validacoes,
+
+    aprovado:
+      aprovado,
+
+    prontoParaUX216:
+      aprovado
+  };
+
+
+  window.removeEventListener(
+    "SIGO_IDENTIDADE_CARREGANDO",
+    aoCarregar
+  );
+
+  window.removeEventListener(
+    "SIGO_IDENTIDADE_ATIVA",
+    aoAtivar
+  );
+
+  window.removeEventListener(
+    "SIGO_IDENTIDADE_ERRO",
+    aoErro
+  );
+
+
+  console.log(
+    JSON.stringify(
+      resultado,
+      null,
+      2
+    )
+  );
+
+
+  if (!aprovado) {
+    throw new Error(
+      "UX.21.5 REPROVADA. Consulte as validações da ativação automática."
+    );
+  }
+
+
+  console.log(
+    "UX.21.5 — ATIVAÇÃO AUTOMÁTICA DA IDENTIDADE APROVADA."
+  );
+
+
+  return resultado;
+}
