@@ -58444,3 +58444,2759 @@ async function auditarIdentidadeAtualUX211_() {
 
   return resultado;
 }
+
+/**
+ * ============================================================
+ * UX.21.2 — CONTRATO OFICIAL DE USUÁRIO,
+ * DISPOSITIVO, SESSÃO E AUTORIA
+ * ============================================================
+ *
+ * Esta etapa define contratos e validadores.
+ *
+ * Não:
+ *
+ * - cria stores no IndexedDB;
+ * - grava no localStorage;
+ * - autentica usuários;
+ * - altera registros legados;
+ * - altera a fila;
+ * - chama APIs.
+ */
+
+const VERSAO_CONTRATO_IDENTIDADE_UX212 =
+  "1.0";
+
+
+/**
+ * Stores que serão implantadas na UX.21.3.
+ *
+ * Nesta etapa são apenas nomes contratuais.
+ */
+const STORES_IDENTIDADE_FUTURAS_UX212 =
+  Object.freeze({
+    usuarios:
+      "TB_USUARIOS",
+
+    dispositivos:
+      "TB_DISPOSITIVOS",
+
+    sessao:
+      "TB_SESSAO",
+
+    auditoria:
+      "TB_AUDITORIA_IDENTIDADE"
+  });
+
+
+/**
+ * Perfis corporativos oficiais.
+ */
+const PERFIS_USUARIO_UX212 =
+  Object.freeze([
+    "ADMINISTRADOR",
+    "GESTOR",
+    "ENGENHEIRO",
+    "ENCARREGADO",
+    "APONTADOR",
+    "CONSULTA"
+  ]);
+
+
+/**
+ * Status oficiais de usuário.
+ */
+const STATUS_USUARIO_UX212 =
+  Object.freeze([
+    "ATIVO",
+    "BLOQUEADO",
+    "REVOGADO",
+    "INATIVO"
+  ]);
+
+
+/**
+ * Status oficiais de dispositivo.
+ */
+const STATUS_DISPOSITIVO_UX212 =
+  Object.freeze([
+    "PENDENTE",
+    "ATIVO",
+    "BLOQUEADO",
+    "REVOGADO"
+  ]);
+
+
+/**
+ * Status oficiais da sessão.
+ */
+const STATUS_SESSAO_UX212 =
+  Object.freeze([
+    "ATIVA",
+    "EXPIRADA",
+    "BLOQUEADA",
+    "REVOGADA",
+    "ENCERRADA"
+  ]);
+
+
+/**
+ * Status do vínculo usuário × obra.
+ */
+const STATUS_VINCULO_OBRA_UX212 =
+  Object.freeze([
+    "ATIVO",
+    "SUSPENSO",
+    "REVOGADO"
+  ]);
+
+
+/**
+ * Modos de conexão usados na autoria.
+ */
+const MODOS_CONEXAO_UX212 =
+  Object.freeze([
+    "ONLINE",
+    "OFFLINE"
+  ]);
+
+
+/**
+ * Comandos remotos oficiais.
+ */
+const COMANDOS_REMOTOS_UX212 =
+  Object.freeze([
+    "NENHUM",
+    "BLOQUEAR",
+    "LIMPAR_DADOS"
+  ]);
+
+
+/**
+ * Catálogo oficial de permissões.
+ */
+const PERMISSOES_SIGO_UX212 =
+  Object.freeze([
+    "OBRA_CONSULTAR",
+
+    "DIARIO_CRIAR",
+    "DIARIO_ALTERAR",
+    "DIARIO_EXCLUIR",
+
+    "OCORRENCIA_CRIAR",
+    "OCORRENCIA_ALTERAR",
+    "OCORRENCIA_EXCLUIR",
+
+    "CLIMA_REGISTRAR",
+    "CLIMA_ALTERAR",
+    "CLIMA_EXCLUIR",
+
+    "EVIDENCIA_CRIAR",
+    "EVIDENCIA_ALTERAR",
+    "EVIDENCIA_EXCLUIR",
+
+    "MEDICAO_CRIAR",
+    "MEDICAO_ALTERAR",
+    "MEDICAO_APROVAR",
+    "MEDICAO_CONSOLIDAR",
+
+    "REIDRATACAO_EXECUTAR",
+
+    "RETENCAO_SIMULAR",
+    "RETENCAO_EXECUTAR",
+
+    "AUDITORIA_CONSULTAR",
+
+    "USUARIO_GERENCIAR",
+    "DISPOSITIVO_GERENCIAR"
+  ]);
+
+
+/**
+ * Matriz inicial de permissões por perfil.
+ *
+ * O vínculo por obra poderá reduzir ou ampliar
+ * as permissões dentro das regras da API.
+ */
+const PERMISSOES_PADRAO_PERFIL_UX212 =
+  Object.freeze({
+    CONSULTA: [
+      "OBRA_CONSULTAR",
+      "REIDRATACAO_EXECUTAR",
+      "RETENCAO_SIMULAR"
+    ],
+
+    APONTADOR: [
+      "OBRA_CONSULTAR",
+
+      "DIARIO_CRIAR",
+      "DIARIO_ALTERAR",
+
+      "OCORRENCIA_CRIAR",
+
+      "CLIMA_REGISTRAR",
+      "CLIMA_ALTERAR",
+
+      "EVIDENCIA_CRIAR",
+
+      "REIDRATACAO_EXECUTAR",
+      "RETENCAO_SIMULAR"
+    ],
+
+    ENCARREGADO: [
+      "OBRA_CONSULTAR",
+
+      "DIARIO_CRIAR",
+      "DIARIO_ALTERAR",
+
+      "OCORRENCIA_CRIAR",
+      "OCORRENCIA_ALTERAR",
+
+      "CLIMA_REGISTRAR",
+      "CLIMA_ALTERAR",
+
+      "EVIDENCIA_CRIAR",
+      "EVIDENCIA_ALTERAR",
+
+      "MEDICAO_CRIAR",
+      "MEDICAO_ALTERAR",
+
+      "REIDRATACAO_EXECUTAR",
+      "RETENCAO_SIMULAR"
+    ],
+
+    ENGENHEIRO: [
+      "OBRA_CONSULTAR",
+
+      "DIARIO_CRIAR",
+      "DIARIO_ALTERAR",
+      "DIARIO_EXCLUIR",
+
+      "OCORRENCIA_CRIAR",
+      "OCORRENCIA_ALTERAR",
+      "OCORRENCIA_EXCLUIR",
+
+      "CLIMA_REGISTRAR",
+      "CLIMA_ALTERAR",
+      "CLIMA_EXCLUIR",
+
+      "EVIDENCIA_CRIAR",
+      "EVIDENCIA_ALTERAR",
+      "EVIDENCIA_EXCLUIR",
+
+      "MEDICAO_CRIAR",
+      "MEDICAO_ALTERAR",
+      "MEDICAO_APROVAR",
+
+      "REIDRATACAO_EXECUTAR",
+
+      "RETENCAO_SIMULAR",
+      "RETENCAO_EXECUTAR",
+
+      "AUDITORIA_CONSULTAR"
+    ],
+
+    GESTOR: [
+      "OBRA_CONSULTAR",
+
+      "DIARIO_CRIAR",
+      "DIARIO_ALTERAR",
+      "DIARIO_EXCLUIR",
+
+      "OCORRENCIA_CRIAR",
+      "OCORRENCIA_ALTERAR",
+      "OCORRENCIA_EXCLUIR",
+
+      "CLIMA_REGISTRAR",
+      "CLIMA_ALTERAR",
+      "CLIMA_EXCLUIR",
+
+      "EVIDENCIA_CRIAR",
+      "EVIDENCIA_ALTERAR",
+      "EVIDENCIA_EXCLUIR",
+
+      "MEDICAO_CRIAR",
+      "MEDICAO_ALTERAR",
+      "MEDICAO_APROVAR",
+      "MEDICAO_CONSOLIDAR",
+
+      "REIDRATACAO_EXECUTAR",
+
+      "RETENCAO_SIMULAR",
+      "RETENCAO_EXECUTAR",
+
+      "AUDITORIA_CONSULTAR"
+    ],
+
+    ADMINISTRADOR: [
+      ...PERMISSOES_SIGO_UX212
+    ]
+  });
+
+
+/**
+ * Campos secretos proibidos em contratos persistidos.
+ */
+const CAMPOS_SECRETOS_PROIBIDOS_UX212 =
+  Object.freeze([
+    "senha",
+    "password",
+    "token",
+    "authToken",
+    "accessToken",
+    "refreshToken",
+    "tokenAcesso",
+    "tokenSessao",
+    "segredo",
+    "secret"
+  ]);
+
+
+/**
+ * Normalização textual.
+ */
+function textoUX212_(valor) {
+  return String(
+    valor === undefined ||
+    valor === null
+      ? ""
+      : valor
+  ).trim();
+}
+
+
+/**
+ * Normalização em maiúsculas e sem acentos.
+ */
+function maiusculoUX212_(valor) {
+  return textoUX212_(valor)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+}
+
+
+/**
+ * Retorna data/hora ISO válida.
+ */
+function dataHoraIsoUX212_(
+  valor = null
+) {
+  const data =
+    valor
+      ? new Date(valor)
+      : new Date();
+
+  if (
+    Number.isNaN(
+      data.getTime()
+    )
+  ) {
+    return "";
+  }
+
+  return data.toISOString();
+}
+
+
+/**
+ * Verifica uma data ISO.
+ */
+function dataHoraValidaUX212_(
+  valor
+) {
+  if (!valor) {
+    return false;
+  }
+
+  return !Number.isNaN(
+    new Date(valor).getTime()
+  );
+}
+
+
+/**
+ * Remove valores duplicados e vazios.
+ */
+function listaUnicaUX212_(
+  valores
+) {
+  return Array.from(
+    new Set(
+      (
+        Array.isArray(valores)
+          ? valores
+          : []
+      )
+        .map(textoUX212_)
+        .filter(Boolean)
+    )
+  );
+}
+
+
+/**
+ * Clone simples do contrato.
+ */
+function clonarContratoUX212_(
+  valor
+) {
+  return JSON.parse(
+    JSON.stringify(valor)
+  );
+}
+
+
+/**
+ * Verifica valor pertencente a enum.
+ */
+function validarEnumUX212_(
+  valor,
+  permitidos
+) {
+  return permitidos.includes(
+    maiusculoUX212_(valor)
+  );
+}
+
+
+/**
+ * Normaliza perfil.
+ */
+function normalizarPerfilUX212_(
+  perfil
+) {
+  const normalizado =
+    maiusculoUX212_(perfil);
+
+  return PERFIS_USUARIO_UX212.includes(
+    normalizado
+  )
+    ? normalizado
+    : "";
+}
+
+
+/**
+ * Normaliza uma lista de permissões.
+ */
+function normalizarPermissoesUX212_(
+  permissoes
+) {
+  return listaUnicaUX212_(
+    permissoes
+  )
+    .map(maiusculoUX212_)
+    .filter(
+      function (permissao) {
+        return PERMISSOES_SIGO_UX212.includes(
+          permissao
+        );
+      }
+    );
+}
+
+
+/**
+ * Obtém as permissões padrão de um perfil.
+ */
+function obterPermissoesPerfilUX212_(
+  perfil
+) {
+  const perfilNormalizado =
+    normalizarPerfilUX212_(
+      perfil
+    );
+
+  return [
+    ...(
+      PERMISSOES_PADRAO_PERFIL_UX212[
+        perfilNormalizado
+      ] || []
+    )
+  ];
+}
+
+
+/**
+ * Verifica formato do ID de usuário.
+ */
+function idUsuarioValidoUX212_(
+  idUsuario
+) {
+  return /^USR-[A-Z0-9][A-Z0-9_-]{5,}$/i.test(
+    textoUX212_(idUsuario)
+  );
+}
+
+
+/**
+ * Verifica formato do dispositivo.
+ *
+ * Compatível com os IDs atuais DISP-MOBILE-*.
+ */
+function idDispositivoValidoUX212_(
+  idDispositivo
+) {
+  return /^DISP-[A-Z0-9][A-Z0-9_-]{5,}$/i.test(
+    textoUX212_(idDispositivo)
+  );
+}
+
+
+/**
+ * Verifica formato da sessão.
+ */
+function idSessaoValidoUX212_(
+  idSessao
+) {
+  return /^SES-[A-Z0-9][A-Z0-9_-]{5,}$/i.test(
+    textoUX212_(idSessao)
+  );
+}
+
+
+/**
+ * Validação básica de e-mail.
+ */
+function emailValidoUX212_(
+  email
+) {
+  const texto =
+    textoUX212_(email);
+
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+    texto
+  );
+}
+
+
+/**
+ * Localiza campos secretos em qualquer nível.
+ */
+function localizarCamposSecretosUX212_(
+  objeto
+) {
+  const encontrados = [];
+
+  function visitar_(
+    valor,
+    caminho,
+    profundidade
+  ) {
+    if (
+      valor === null ||
+      valor === undefined ||
+      profundidade > 8
+    ) {
+      return;
+    }
+
+    if (
+      typeof valor !== "object"
+    ) {
+      return;
+    }
+
+    if (Array.isArray(valor)) {
+      valor.forEach(
+        function (item, indice) {
+          visitar_(
+            item,
+            caminho +
+              "[" +
+              indice +
+              "]",
+            profundidade + 1
+          );
+        }
+      );
+
+      return;
+    }
+
+    Object.entries(valor)
+      .forEach(
+        function ([campo, conteudo]) {
+          const caminhoAtual =
+            caminho
+              ? caminho + "." + campo
+              : campo;
+
+          const proibido =
+            CAMPOS_SECRETOS_PROIBIDOS_UX212
+              .some(
+                function (nomeProibido) {
+                  return (
+                    campo.toLowerCase() ===
+                    nomeProibido.toLowerCase()
+                  );
+                }
+              );
+
+          if (
+            proibido &&
+            conteudo !== "" &&
+            conteudo !== null &&
+            conteudo !== undefined
+          ) {
+            encontrados.push(
+              caminhoAtual
+            );
+          }
+
+          visitar_(
+            conteudo,
+            caminhoAtual,
+            profundidade + 1
+          );
+        }
+      );
+  }
+
+  visitar_(
+    objeto,
+    "",
+    0
+  );
+
+  return encontrados;
+}
+
+
+/**
+ * ============================================================
+ * CONTRATO USUÁRIO × OBRA
+ * ============================================================
+ */
+function criarVinculoObraUsuarioUX212_(
+  dados = {}
+) {
+  const perfil =
+    normalizarPerfilUX212_(
+      dados.perfil
+    );
+
+  const permissoesInformadas =
+    normalizarPermissoesUX212_(
+      dados.permissoes
+    );
+
+  const permissoes =
+    permissoesInformadas.length
+      ? permissoesInformadas
+      : obterPermissoesPerfilUX212_(
+          perfil
+        );
+
+  return {
+    versaoContrato:
+      VERSAO_CONTRATO_IDENTIDADE_UX212,
+
+    tipoRegistro:
+      "VINCULO_USUARIO_OBRA",
+
+    idObra:
+      textoUX212_(
+        dados.idObra
+      ),
+
+    perfil:
+      perfil,
+
+    permissoes:
+      permissoes,
+
+    statusVinculo:
+      validarEnumUX212_(
+        dados.statusVinculo ||
+          "ATIVO",
+        STATUS_VINCULO_OBRA_UX212
+      )
+        ? maiusculoUX212_(
+            dados.statusVinculo ||
+              "ATIVO"
+          )
+        : "",
+
+    autorizadoEm:
+      dataHoraIsoUX212_(
+        dados.autorizadoEm
+      ),
+
+    autorizadoPor:
+      textoUX212_(
+        dados.autorizadoPor
+      ),
+
+    revogadoEm:
+      dados.revogadoEm
+        ? dataHoraIsoUX212_(
+            dados.revogadoEm
+          )
+        : "",
+
+    motivoRevogacao:
+      textoUX212_(
+        dados.motivoRevogacao
+      )
+  };
+}
+
+
+/**
+ * ============================================================
+ * CONTRATO DE USUÁRIO
+ * ============================================================
+ */
+function criarUsuarioContratoUX212_(
+  dados = {}
+) {
+  const obrasAutorizadas =
+    (
+      Array.isArray(
+        dados.obrasAutorizadas
+      )
+        ? dados.obrasAutorizadas
+        : []
+    ).map(
+      function (vinculo) {
+        return criarVinculoObraUsuarioUX212_(
+          vinculo
+        );
+      }
+    );
+
+  return {
+    versaoContrato:
+      VERSAO_CONTRATO_IDENTIDADE_UX212,
+
+    tipoRegistro:
+      "USUARIO",
+
+    idUsuario:
+      textoUX212_(
+        dados.idUsuario
+      ),
+
+    nomeUsuario:
+      textoUX212_(
+        dados.nomeUsuario
+      ),
+
+    email:
+      textoUX212_(
+        dados.email
+      ).toLowerCase(),
+
+    perfilGlobal:
+      dados.perfilGlobal
+        ? normalizarPerfilUX212_(
+            dados.perfilGlobal
+          )
+        : "",
+
+    statusUsuario:
+      validarEnumUX212_(
+        dados.statusUsuario ||
+          "ATIVO",
+        STATUS_USUARIO_UX212
+      )
+        ? maiusculoUX212_(
+            dados.statusUsuario ||
+              "ATIVO"
+          )
+        : "",
+
+    obrasAutorizadas:
+      obrasAutorizadas,
+
+    criadoEm:
+      dataHoraIsoUX212_(
+        dados.criadoEm
+      ),
+
+    criadoPor:
+      textoUX212_(
+        dados.criadoPor
+      ),
+
+    atualizadoEm:
+      dataHoraIsoUX212_(
+        dados.atualizadoEm
+      ),
+
+    origemCadastro:
+      textoUX212_(
+        dados.origemCadastro ||
+          "SIGO_CORPORATIVO"
+      ),
+
+    ultimoAcessoEm:
+      dados.ultimoAcessoEm
+        ? dataHoraIsoUX212_(
+            dados.ultimoAcessoEm
+          )
+        : "",
+
+    revogadoEm:
+      dados.revogadoEm
+        ? dataHoraIsoUX212_(
+            dados.revogadoEm
+          )
+        : "",
+
+    motivoRevogacao:
+      textoUX212_(
+        dados.motivoRevogacao
+      )
+  };
+}
+
+
+/**
+ * ============================================================
+ * CONTRATO DE DISPOSITIVO
+ * ============================================================
+ */
+function criarDispositivoContratoUX212_(
+  dados = {}
+) {
+  const comando =
+    validarEnumUX212_(
+      dados.comandoRemoto?.tipo ||
+        "NENHUM",
+      COMANDOS_REMOTOS_UX212
+    )
+      ? maiusculoUX212_(
+          dados.comandoRemoto?.tipo ||
+            "NENHUM"
+        )
+      : "";
+
+  return {
+    versaoContrato:
+      VERSAO_CONTRATO_IDENTIDADE_UX212,
+
+    tipoRegistro:
+      "DISPOSITIVO",
+
+    idDispositivo:
+      textoUX212_(
+        dados.idDispositivo
+      ),
+
+    idUsuarioVinculado:
+      textoUX212_(
+        dados.idUsuarioVinculado
+      ),
+
+    nomeDispositivo:
+      textoUX212_(
+        dados.nomeDispositivo
+      ),
+
+    plataforma:
+      textoUX212_(
+        dados.plataforma
+      ),
+
+    navegador:
+      textoUX212_(
+        dados.navegador
+      ),
+
+    statusDispositivo:
+      validarEnumUX212_(
+        dados.statusDispositivo ||
+          "PENDENTE",
+        STATUS_DISPOSITIVO_UX212
+      )
+        ? maiusculoUX212_(
+            dados.statusDispositivo ||
+              "PENDENTE"
+          )
+        : "",
+
+    autorizadoEm:
+      dados.autorizadoEm
+        ? dataHoraIsoUX212_(
+            dados.autorizadoEm
+          )
+        : "",
+
+    autorizadoPor:
+      textoUX212_(
+        dados.autorizadoPor
+      ),
+
+    ultimaValidacaoEm:
+      dados.ultimaValidacaoEm
+        ? dataHoraIsoUX212_(
+            dados.ultimaValidacaoEm
+          )
+        : "",
+
+    ultimaConexaoEm:
+      dados.ultimaConexaoEm
+        ? dataHoraIsoUX212_(
+            dados.ultimaConexaoEm
+          )
+        : "",
+
+    revogadoEm:
+      dados.revogadoEm
+        ? dataHoraIsoUX212_(
+            dados.revogadoEm
+          )
+        : "",
+
+    motivoRevogacao:
+      textoUX212_(
+        dados.motivoRevogacao
+      ),
+
+    comandoRemoto: {
+      tipo:
+        comando,
+
+      solicitadoEm:
+        dados.comandoRemoto
+          ?.solicitadoEm
+          ? dataHoraIsoUX212_(
+              dados.comandoRemoto
+                .solicitadoEm
+            )
+          : "",
+
+      solicitadoPor:
+        textoUX212_(
+          dados.comandoRemoto
+            ?.solicitadoPor
+        ),
+
+      executadoEm:
+        dados.comandoRemoto
+          ?.executadoEm
+          ? dataHoraIsoUX212_(
+              dados.comandoRemoto
+                .executadoEm
+            )
+          : "",
+
+      status:
+        textoUX212_(
+          dados.comandoRemoto
+            ?.status ||
+            "PENDENTE"
+        )
+    },
+
+    criadoEm:
+      dataHoraIsoUX212_(
+        dados.criadoEm
+      ),
+
+    atualizadoEm:
+      dataHoraIsoUX212_(
+        dados.atualizadoEm
+      )
+  };
+}
+
+
+/**
+ * Cria snapshot das permissões por obra.
+ */
+function criarPermissoesSessaoPorObraUX212_(
+  usuario
+) {
+  return (
+    Array.isArray(
+      usuario?.obrasAutorizadas
+    )
+      ? usuario.obrasAutorizadas
+      : []
+  )
+    .filter(
+      function (vinculo) {
+        return (
+          vinculo.statusVinculo ===
+          "ATIVO"
+        );
+      }
+    )
+    .map(
+      function (vinculo) {
+        return {
+          idObra:
+            vinculo.idObra,
+
+          perfil:
+            vinculo.perfil,
+
+          permissoes: [
+            ...vinculo.permissoes
+          ]
+        };
+      }
+    );
+}
+
+
+/**
+ * ============================================================
+ * CONTRATO DE SESSÃO
+ * ============================================================
+ *
+ * O contrato persistido nunca contém senha ou token secreto.
+ *
+ * idAutenticacaoServidor é uma referência opaca,
+ * não uma credencial utilizável.
+ */
+function criarSessaoContratoUX212_(
+  dados = {}
+) {
+  const usuario =
+    dados.usuario || {};
+
+  const dispositivo =
+    dados.dispositivo || {};
+
+  const permissoesPorObra =
+    Array.isArray(
+      dados.permissoesPorObra
+    )
+      ? dados.permissoesPorObra.map(
+          function (item) {
+            return {
+              idObra:
+                textoUX212_(
+                  item.idObra
+                ),
+
+              perfil:
+                normalizarPerfilUX212_(
+                  item.perfil
+                ),
+
+              permissoes:
+                normalizarPermissoesUX212_(
+                  item.permissoes
+                )
+            };
+          }
+        )
+      : criarPermissoesSessaoPorObraUX212_(
+          usuario
+        );
+
+  return {
+    versaoContrato:
+      VERSAO_CONTRATO_IDENTIDADE_UX212,
+
+    tipoRegistro:
+      "SESSAO",
+
+    idSessao:
+      textoUX212_(
+        dados.idSessao
+      ),
+
+    idUsuario:
+      textoUX212_(
+        dados.idUsuario ||
+          usuario.idUsuario
+      ),
+
+    nomeUsuario:
+      textoUX212_(
+        dados.nomeUsuario ||
+          usuario.nomeUsuario
+      ),
+
+    email:
+      textoUX212_(
+        dados.email ||
+          usuario.email
+      ).toLowerCase(),
+
+    idDispositivo:
+      textoUX212_(
+        dados.idDispositivo ||
+          dispositivo.idDispositivo
+      ),
+
+    statusSessao:
+      validarEnumUX212_(
+        dados.statusSessao ||
+          "ATIVA",
+        STATUS_SESSAO_UX212
+      )
+        ? maiusculoUX212_(
+            dados.statusSessao ||
+              "ATIVA"
+          )
+        : "",
+
+    iniciadoEm:
+      dataHoraIsoUX212_(
+        dados.iniciadoEm
+      ),
+
+    validadoEm:
+      dataHoraIsoUX212_(
+        dados.validadoEm
+      ),
+
+    expiraEm:
+      dataHoraIsoUX212_(
+        dados.expiraEm
+      ),
+
+    validadeOfflineAte:
+      dataHoraIsoUX212_(
+        dados.validadeOfflineAte
+      ),
+
+    idAutenticacaoServidor:
+      textoUX212_(
+        dados.idAutenticacaoServidor
+      ),
+
+    permissoesPorObra:
+      permissoesPorObra,
+
+    obrasAutorizadas:
+      permissoesPorObra.map(
+        function (item) {
+          return item.idObra;
+        }
+      ),
+
+    ultimaVerificacaoRevogacaoEm:
+      dados.ultimaVerificacaoRevogacaoEm
+        ? dataHoraIsoUX212_(
+            dados.ultimaVerificacaoRevogacaoEm
+          )
+        : "",
+
+    motivoEncerramento:
+      textoUX212_(
+        dados.motivoEncerramento
+      ),
+
+    criadoEm:
+      dataHoraIsoUX212_(
+        dados.criadoEm
+      ),
+
+    atualizadoEm:
+      dataHoraIsoUX212_(
+        dados.atualizadoEm
+      )
+  };
+}
+
+
+/**
+ * ============================================================
+ * CONTEXTO DE AUTORIA
+ * ============================================================
+ *
+ * Será incorporado aos novos registros operacionais
+ * nas etapas posteriores.
+ */
+function criarContextoAutoriaUX212_({
+  sessao,
+  idObra,
+  modoConexao = "OFFLINE",
+  ocorridoEm = null,
+  origem = "APP_MOBILE"
+} = {}) {
+  const vinculo =
+    (
+      Array.isArray(
+        sessao?.permissoesPorObra
+      )
+        ? sessao.permissoesPorObra
+        : []
+    ).find(
+      function (item) {
+        return (
+          item.idObra ===
+          idObra
+        );
+      }
+    ) || null;
+
+  return {
+    versaoContrato:
+      VERSAO_CONTRATO_IDENTIDADE_UX212,
+
+    idUsuario:
+      textoUX212_(
+        sessao?.idUsuario
+      ),
+
+    nomeUsuario:
+      textoUX212_(
+        sessao?.nomeUsuario
+      ),
+
+    emailUsuario:
+      textoUX212_(
+        sessao?.email
+      ),
+
+    idDispositivo:
+      textoUX212_(
+        sessao?.idDispositivo
+      ),
+
+    idSessao:
+      textoUX212_(
+        sessao?.idSessao
+      ),
+
+    idObra:
+      textoUX212_(
+        idObra
+      ),
+
+    perfil:
+      vinculo?.perfil || "",
+
+    modoConexao:
+      validarEnumUX212_(
+        modoConexao,
+        MODOS_CONEXAO_UX212
+      )
+        ? maiusculoUX212_(
+            modoConexao
+          )
+        : "",
+
+    ocorridoEm:
+      dataHoraIsoUX212_(
+        ocorridoEm
+      ),
+
+    origem:
+      textoUX212_(
+        origem
+      )
+  };
+}
+
+
+/**
+ * ============================================================
+ * VALIDAÇÃO DO VÍNCULO POR OBRA
+ * ============================================================
+ */
+function validarVinculoObraUsuarioUX212_(
+  vinculo
+) {
+  const erros = [];
+  const avisos = [];
+
+  if (
+    vinculo?.versaoContrato !==
+    VERSAO_CONTRATO_IDENTIDADE_UX212
+  ) {
+    erros.push(
+      "VERSAO_CONTRATO_INVALIDA"
+    );
+  }
+
+  if (
+    vinculo?.tipoRegistro !==
+    "VINCULO_USUARIO_OBRA"
+  ) {
+    erros.push(
+      "TIPO_REGISTRO_INVALIDO"
+    );
+  }
+
+  if (
+    !/^OBR[A-Z0-9_-]+$/i.test(
+      textoUX212_(
+        vinculo?.idObra
+      )
+    )
+  ) {
+    erros.push(
+      "ID_OBRA_INVALIDO"
+    );
+  }
+
+  if (
+    !PERFIS_USUARIO_UX212.includes(
+      vinculo?.perfil
+    )
+  ) {
+    erros.push(
+      "PERFIL_INVALIDO"
+    );
+  }
+
+  if (
+    !STATUS_VINCULO_OBRA_UX212.includes(
+      vinculo?.statusVinculo
+    )
+  ) {
+    erros.push(
+      "STATUS_VINCULO_INVALIDO"
+    );
+  }
+
+  if (
+    !Array.isArray(
+      vinculo?.permissoes
+    )
+  ) {
+    erros.push(
+      "PERMISSOES_INVALIDAS"
+    );
+
+  } else {
+    const desconhecidas =
+      vinculo.permissoes.filter(
+        function (permissao) {
+          return (
+            !PERMISSOES_SIGO_UX212.includes(
+              permissao
+            )
+          );
+        }
+      );
+
+    if (desconhecidas.length) {
+      erros.push(
+        "PERMISSOES_DESCONHECIDAS"
+      );
+    }
+
+    if (
+      vinculo.statusVinculo ===
+        "ATIVO" &&
+      vinculo.permissoes.length === 0
+    ) {
+      avisos.push(
+        "VINCULO_ATIVO_SEM_PERMISSAO"
+      );
+    }
+  }
+
+  if (
+    !dataHoraValidaUX212_(
+      vinculo?.autorizadoEm
+    )
+  ) {
+    erros.push(
+      "DATA_AUTORIZACAO_INVALIDA"
+    );
+  }
+
+  return {
+    valido:
+      erros.length === 0,
+
+    erros:
+      erros,
+
+    avisos:
+      avisos
+  };
+}
+
+
+/**
+ * ============================================================
+ * VALIDAÇÃO DO USUÁRIO
+ * ============================================================
+ */
+function validarUsuarioContratoUX212_(
+  usuario
+) {
+  const erros = [];
+  const avisos = [];
+
+  if (
+    usuario?.versaoContrato !==
+    VERSAO_CONTRATO_IDENTIDADE_UX212
+  ) {
+    erros.push(
+      "VERSAO_CONTRATO_INVALIDA"
+    );
+  }
+
+  if (
+    usuario?.tipoRegistro !==
+    "USUARIO"
+  ) {
+    erros.push(
+      "TIPO_REGISTRO_INVALIDO"
+    );
+  }
+
+  if (
+    !idUsuarioValidoUX212_(
+      usuario?.idUsuario
+    )
+  ) {
+    erros.push(
+      "ID_USUARIO_INVALIDO"
+    );
+  }
+
+  if (
+    textoUX212_(
+      usuario?.nomeUsuario
+    ).length < 3
+  ) {
+    erros.push(
+      "NOME_USUARIO_INVALIDO"
+    );
+  }
+
+  if (
+    !emailValidoUX212_(
+      usuario?.email
+    )
+  ) {
+    erros.push(
+      "EMAIL_INVALIDO"
+    );
+  }
+
+  if (
+    !STATUS_USUARIO_UX212.includes(
+      usuario?.statusUsuario
+    )
+  ) {
+    erros.push(
+      "STATUS_USUARIO_INVALIDO"
+    );
+  }
+
+  if (
+    usuario?.perfilGlobal &&
+    !PERFIS_USUARIO_UX212.includes(
+      usuario.perfilGlobal
+    )
+  ) {
+    erros.push(
+      "PERFIL_GLOBAL_INVALIDO"
+    );
+  }
+
+  if (
+    !Array.isArray(
+      usuario?.obrasAutorizadas
+    )
+  ) {
+    erros.push(
+      "OBRAS_AUTORIZADAS_INVALIDAS"
+    );
+
+  } else {
+    const idsObras =
+      usuario.obrasAutorizadas.map(
+        function (vinculo) {
+          return vinculo.idObra;
+        }
+      );
+
+    if (
+      idsObras.length !==
+      new Set(idsObras).size
+    ) {
+      erros.push(
+        "OBRAS_AUTORIZADAS_DUPLICADAS"
+      );
+    }
+
+    usuario.obrasAutorizadas.forEach(
+      function (vinculo, indice) {
+        const validacao =
+          validarVinculoObraUsuarioUX212_(
+            vinculo
+          );
+
+        validacao.erros.forEach(
+          function (erro) {
+            erros.push(
+              "OBRA_" +
+              indice +
+              "_" +
+              erro
+            );
+          }
+        );
+
+        validacao.avisos.forEach(
+          function (aviso) {
+            avisos.push(
+              "OBRA_" +
+              indice +
+              "_" +
+              aviso
+            );
+          }
+        );
+      }
+    );
+  }
+
+  if (
+    usuario?.statusUsuario ===
+      "ATIVO" &&
+    usuario?.perfilGlobal !==
+      "ADMINISTRADOR" &&
+    usuario?.obrasAutorizadas
+      ?.length === 0
+  ) {
+    avisos.push(
+      "USUARIO_ATIVO_SEM_OBRA"
+    );
+  }
+
+  if (
+    localizarCamposSecretosUX212_(
+      usuario
+    ).length
+  ) {
+    erros.push(
+      "CONTRATO_CONTEM_CAMPO_SECRETO"
+    );
+  }
+
+  return {
+    valido:
+      erros.length === 0,
+
+    erros:
+      erros,
+
+    avisos:
+      avisos
+  };
+}
+
+
+/**
+ * ============================================================
+ * VALIDAÇÃO DO DISPOSITIVO
+ * ============================================================
+ */
+function validarDispositivoContratoUX212_(
+  dispositivo
+) {
+  const erros = [];
+  const avisos = [];
+
+  if (
+    dispositivo?.versaoContrato !==
+    VERSAO_CONTRATO_IDENTIDADE_UX212
+  ) {
+    erros.push(
+      "VERSAO_CONTRATO_INVALIDA"
+    );
+  }
+
+  if (
+    dispositivo?.tipoRegistro !==
+    "DISPOSITIVO"
+  ) {
+    erros.push(
+      "TIPO_REGISTRO_INVALIDO"
+    );
+  }
+
+  if (
+    !idDispositivoValidoUX212_(
+      dispositivo?.idDispositivo
+    )
+  ) {
+    erros.push(
+      "ID_DISPOSITIVO_INVALIDO"
+    );
+  }
+
+  if (
+    !idUsuarioValidoUX212_(
+      dispositivo?.idUsuarioVinculado
+    )
+  ) {
+    erros.push(
+      "USUARIO_VINCULADO_INVALIDO"
+    );
+  }
+
+  if (
+    !STATUS_DISPOSITIVO_UX212.includes(
+      dispositivo?.statusDispositivo
+    )
+  ) {
+    erros.push(
+      "STATUS_DISPOSITIVO_INVALIDO"
+    );
+  }
+
+  if (
+    dispositivo?.statusDispositivo ===
+      "ATIVO" &&
+    !dataHoraValidaUX212_(
+      dispositivo?.autorizadoEm
+    )
+  ) {
+    erros.push(
+      "DISPOSITIVO_ATIVO_SEM_AUTORIZACAO"
+    );
+  }
+
+  if (
+    !COMANDOS_REMOTOS_UX212.includes(
+      dispositivo
+        ?.comandoRemoto
+        ?.tipo
+    )
+  ) {
+    erros.push(
+      "COMANDO_REMOTO_INVALIDO"
+    );
+  }
+
+  if (
+    dispositivo?.statusDispositivo ===
+      "REVOGADO" &&
+    !dispositivo?.revogadoEm
+  ) {
+    avisos.push(
+      "DISPOSITIVO_REVOGADO_SEM_DATA"
+    );
+  }
+
+  if (
+    localizarCamposSecretosUX212_(
+      dispositivo
+    ).length
+  ) {
+    erros.push(
+      "CONTRATO_CONTEM_CAMPO_SECRETO"
+    );
+  }
+
+  return {
+    valido:
+      erros.length === 0,
+
+    erros:
+      erros,
+
+    avisos:
+      avisos
+  };
+}
+
+
+/**
+ * ============================================================
+ * VALIDAÇÃO DA SESSÃO
+ * ============================================================
+ */
+function validarSessaoContratoUX212_(
+  sessao
+) {
+  const erros = [];
+  const avisos = [];
+
+  if (
+    sessao?.versaoContrato !==
+    VERSAO_CONTRATO_IDENTIDADE_UX212
+  ) {
+    erros.push(
+      "VERSAO_CONTRATO_INVALIDA"
+    );
+  }
+
+  if (
+    sessao?.tipoRegistro !==
+    "SESSAO"
+  ) {
+    erros.push(
+      "TIPO_REGISTRO_INVALIDO"
+    );
+  }
+
+  if (
+    !idSessaoValidoUX212_(
+      sessao?.idSessao
+    )
+  ) {
+    erros.push(
+      "ID_SESSAO_INVALIDO"
+    );
+  }
+
+  if (
+    !idUsuarioValidoUX212_(
+      sessao?.idUsuario
+    )
+  ) {
+    erros.push(
+      "ID_USUARIO_INVALIDO"
+    );
+  }
+
+  if (
+    !idDispositivoValidoUX212_(
+      sessao?.idDispositivo
+    )
+  ) {
+    erros.push(
+      "ID_DISPOSITIVO_INVALIDO"
+    );
+  }
+
+  if (
+    !STATUS_SESSAO_UX212.includes(
+      sessao?.statusSessao
+    )
+  ) {
+    erros.push(
+      "STATUS_SESSAO_INVALIDO"
+    );
+  }
+
+  [
+    "iniciadoEm",
+    "validadoEm",
+    "expiraEm",
+    "validadeOfflineAte",
+    "criadoEm",
+    "atualizadoEm"
+  ].forEach(
+    function (campo) {
+      if (
+        !dataHoraValidaUX212_(
+          sessao?.[campo]
+        )
+      ) {
+        erros.push(
+          campo.toUpperCase() +
+          "_INVALIDO"
+        );
+      }
+    }
+  );
+
+  if (
+    dataHoraValidaUX212_(
+      sessao?.iniciadoEm
+    ) &&
+    dataHoraValidaUX212_(
+      sessao?.expiraEm
+    ) &&
+    new Date(
+      sessao.expiraEm
+    ) <=
+    new Date(
+      sessao.iniciadoEm
+    )
+  ) {
+    erros.push(
+      "EXPIRACAO_ANTERIOR_AO_INICIO"
+    );
+  }
+
+  if (
+    dataHoraValidaUX212_(
+      sessao?.expiraEm
+    ) &&
+    dataHoraValidaUX212_(
+      sessao?.validadeOfflineAte
+    ) &&
+    new Date(
+      sessao.validadeOfflineAte
+    ) >
+    new Date(
+      sessao.expiraEm
+    )
+  ) {
+    erros.push(
+      "VALIDADE_OFFLINE_SUPERIOR_A_SESSAO"
+    );
+  }
+
+  if (
+    !Array.isArray(
+      sessao?.permissoesPorObra
+    )
+  ) {
+    erros.push(
+      "PERMISSOES_POR_OBRA_INVALIDAS"
+    );
+
+  } else {
+    const obras =
+      sessao.permissoesPorObra
+        .map(
+          function (item) {
+            return item.idObra;
+          }
+        );
+
+    if (
+      obras.length !==
+      new Set(obras).size
+    ) {
+      erros.push(
+        "OBRAS_DUPLICADAS_NA_SESSAO"
+      );
+    }
+
+    sessao.permissoesPorObra
+      .forEach(
+        function (item, indice) {
+          if (
+            !/^OBR[A-Z0-9_-]+$/i.test(
+              textoUX212_(
+                item.idObra
+              )
+            )
+          ) {
+            erros.push(
+              "OBRA_" +
+              indice +
+              "_INVALIDA"
+            );
+          }
+
+          if (
+            !PERFIS_USUARIO_UX212.includes(
+              item.perfil
+            )
+          ) {
+            erros.push(
+              "PERFIL_OBRA_" +
+              indice +
+              "_INVALIDO"
+            );
+          }
+
+          const desconhecidas =
+            (
+              Array.isArray(
+                item.permissoes
+              )
+                ? item.permissoes
+                : []
+            ).filter(
+              function (permissao) {
+                return (
+                  !PERMISSOES_SIGO_UX212.includes(
+                    permissao
+                  )
+                );
+              }
+            );
+
+          if (desconhecidas.length) {
+            erros.push(
+              "PERMISSOES_OBRA_" +
+              indice +
+              "_INVALIDAS"
+            );
+          }
+        }
+      );
+  }
+
+  const camposSecretos =
+    localizarCamposSecretosUX212_(
+      sessao
+    );
+
+  if (camposSecretos.length) {
+    erros.push(
+      "SESSAO_CONTEM_CREDENCIAL_SECRETA"
+    );
+  }
+
+  if (
+    sessao?.statusSessao ===
+      "ATIVA" &&
+    sessao?.permissoesPorObra
+      ?.length === 0
+  ) {
+    avisos.push(
+      "SESSAO_ATIVA_SEM_OBRA"
+    );
+  }
+
+  return {
+    valido:
+      erros.length === 0,
+
+    erros:
+      erros,
+
+    avisos:
+      avisos,
+
+    camposSecretos:
+      camposSecretos
+  };
+}
+
+
+/**
+ * Valida contexto de autoria.
+ */
+function validarContextoAutoriaUX212_(
+  autoria
+) {
+  const erros = [];
+
+  if (
+    autoria?.versaoContrato !==
+    VERSAO_CONTRATO_IDENTIDADE_UX212
+  ) {
+    erros.push(
+      "VERSAO_CONTRATO_INVALIDA"
+    );
+  }
+
+  if (
+    !idUsuarioValidoUX212_(
+      autoria?.idUsuario
+    )
+  ) {
+    erros.push(
+      "ID_USUARIO_INVALIDO"
+    );
+  }
+
+  if (
+    !idDispositivoValidoUX212_(
+      autoria?.idDispositivo
+    )
+  ) {
+    erros.push(
+      "ID_DISPOSITIVO_INVALIDO"
+    );
+  }
+
+  if (
+    !idSessaoValidoUX212_(
+      autoria?.idSessao
+    )
+  ) {
+    erros.push(
+      "ID_SESSAO_INVALIDO"
+    );
+  }
+
+  if (
+    !/^OBR[A-Z0-9_-]+$/i.test(
+      textoUX212_(
+        autoria?.idObra
+      )
+    )
+  ) {
+    erros.push(
+      "ID_OBRA_INVALIDO"
+    );
+  }
+
+  if (
+    !PERFIS_USUARIO_UX212.includes(
+      autoria?.perfil
+    )
+  ) {
+    erros.push(
+      "PERFIL_INVALIDO"
+    );
+  }
+
+  if (
+    !MODOS_CONEXAO_UX212.includes(
+      autoria?.modoConexao
+    )
+  ) {
+    erros.push(
+      "MODO_CONEXAO_INVALIDO"
+    );
+  }
+
+  if (
+    !dataHoraValidaUX212_(
+      autoria?.ocorridoEm
+    )
+  ) {
+    erros.push(
+      "DATA_AUTORIA_INVALIDA"
+    );
+  }
+
+  return {
+    valido:
+      erros.length === 0,
+
+    erros:
+      erros
+  };
+}
+
+
+/**
+ * ============================================================
+ * AUTORIZAÇÃO POR OBRA
+ * ============================================================
+ */
+function obterVinculoSessaoObraUX212_(
+  sessao,
+  idObra
+) {
+  return (
+    Array.isArray(
+      sessao?.permissoesPorObra
+    )
+      ? sessao.permissoesPorObra
+      : []
+  ).find(
+    function (vinculo) {
+      return (
+        vinculo.idObra ===
+        idObra
+      );
+    }
+  ) || null;
+}
+
+
+/**
+ * Verifica se a sessão possui uma permissão.
+ */
+function sessaoPossuiPermissaoUX212_(
+  sessao,
+  idObra,
+  permissao
+) {
+  if (
+    sessao?.statusSessao !==
+    "ATIVA"
+  ) {
+    return false;
+  }
+
+  const permissaoNormalizada =
+    maiusculoUX212_(
+      permissao
+    );
+
+  if (
+    !PERMISSOES_SIGO_UX212.includes(
+      permissaoNormalizada
+    )
+  ) {
+    return false;
+  }
+
+  const vinculo =
+    obterVinculoSessaoObraUX212_(
+      sessao,
+      idObra
+    );
+
+  return Boolean(
+    vinculo &&
+    vinculo.permissoes.includes(
+      permissaoNormalizada
+    )
+  );
+}
+
+
+/**
+ * Verifica se a sessão ainda pode operar offline.
+ */
+function sessaoOfflineValidaUX212_(
+  sessao,
+  agora = null
+) {
+  if (
+    sessao?.statusSessao !==
+    "ATIVA"
+  ) {
+    return false;
+  }
+
+  const referencia =
+    agora
+      ? new Date(agora)
+      : new Date();
+
+  const validade =
+    new Date(
+      sessao.validadeOfflineAte
+    );
+
+  return (
+    !Number.isNaN(
+      referencia.getTime()
+    ) &&
+    !Number.isNaN(
+      validade.getTime()
+    ) &&
+    referencia <= validade
+  );
+}
+
+
+/**
+ * Verifica se usuário e dispositivo podem abrir sessão.
+ */
+function validarElegibilidadeSessaoUX212_(
+  usuario,
+  dispositivo
+) {
+  const erros = [];
+
+  if (
+    usuario?.statusUsuario !==
+    "ATIVO"
+  ) {
+    erros.push(
+      "USUARIO_NAO_ATIVO"
+    );
+  }
+
+  if (
+    dispositivo?.statusDispositivo !==
+    "ATIVO"
+  ) {
+    erros.push(
+      "DISPOSITIVO_NAO_ATIVO"
+    );
+  }
+
+  if (
+    usuario?.idUsuario !==
+    dispositivo?.idUsuarioVinculado
+  ) {
+    erros.push(
+      "USUARIO_DISPOSITIVO_DIVERGENTES"
+    );
+  }
+
+  if (
+    dispositivo
+      ?.comandoRemoto
+      ?.tipo ===
+    "BLOQUEAR"
+  ) {
+    erros.push(
+      "COMANDO_REMOTO_BLOQUEAR"
+    );
+  }
+
+  if (
+    dispositivo
+      ?.comandoRemoto
+      ?.tipo ===
+    "LIMPAR_DADOS"
+  ) {
+    erros.push(
+      "COMANDO_REMOTO_LIMPAR_DADOS"
+    );
+  }
+
+  return {
+    elegivel:
+      erros.length === 0,
+
+    erros:
+      erros
+  };
+}
+
+
+/**
+ * ============================================================
+ * AUDITORIA DO CONTRATO
+ * ============================================================
+ *
+ * Somente memória.
+ * Não cria stores nem persiste contratos.
+ */
+async function auditarContratoIdentidadeUX212_() {
+  console.log(
+    "[UX.21.2] Iniciando auditoria do contrato oficial..."
+  );
+
+  const storesExistentes =
+    typeof listarStoresIdentidadeUX211_ ===
+      "function"
+      ? await listarStoresIdentidadeUX211_()
+      : [];
+
+  const estadoAntes =
+    typeof capturarEstadoIdentidadeUX211_ ===
+      "function"
+      ? await capturarEstadoIdentidadeUX211_(
+          storesExistentes
+        )
+      : {};
+
+  const assinaturaStorageAntes =
+    typeof assinarLocalStorageIdentidadeUX211_ ===
+      "function"
+      ? assinarLocalStorageIdentidadeUX211_()
+      : "";
+
+
+  const agora =
+    new Date();
+
+  const expiraEm =
+    new Date(
+      agora.getTime() +
+      24 * 60 * 60 * 1000
+    ).toISOString();
+
+  const offlineAte =
+    new Date(
+      agora.getTime() +
+      12 * 60 * 60 * 1000
+    ).toISOString();
+
+
+  const usuarioTeste =
+    criarUsuarioContratoUX212_({
+      idUsuario:
+        "USR-UX212-TESTE01",
+
+      nomeUsuario:
+        "Usuário de Teste UX 21.2",
+
+      email:
+        "ux212.teste@sigo.local",
+
+      statusUsuario:
+        "ATIVO",
+
+      obrasAutorizadas: [
+        {
+          idObra:
+            "OBR002",
+
+          perfil:
+            "ENGENHEIRO",
+
+          statusVinculo:
+            "ATIVO",
+
+          autorizadoPor:
+            "USR-ADMIN-TESTE01"
+        }
+      ],
+
+      criadoPor:
+        "USR-ADMIN-TESTE01",
+
+      origemCadastro:
+        "AUDITORIA_UX212"
+    });
+
+
+  const dispositivoTeste =
+    criarDispositivoContratoUX212_({
+      idDispositivo:
+        "DISP-MOBILE-UX212-TESTE01",
+
+      idUsuarioVinculado:
+        usuarioTeste.idUsuario,
+
+      nomeDispositivo:
+        "Dispositivo de Teste UX 21.2",
+
+      plataforma:
+        "PWA",
+
+      navegador:
+        "TESTE",
+
+      statusDispositivo:
+        "ATIVO",
+
+      autorizadoEm:
+        agora.toISOString(),
+
+      autorizadoPor:
+        "USR-ADMIN-TESTE01",
+
+      ultimaValidacaoEm:
+        agora.toISOString(),
+
+      ultimaConexaoEm:
+        agora.toISOString(),
+
+      comandoRemoto: {
+        tipo:
+          "NENHUM",
+
+        status:
+          "SEM_COMANDO"
+      }
+    });
+
+
+  const sessaoTeste =
+    criarSessaoContratoUX212_({
+      idSessao:
+        "SES-UX212-TESTE01",
+
+      usuario:
+        usuarioTeste,
+
+      dispositivo:
+        dispositivoTeste,
+
+      statusSessao:
+        "ATIVA",
+
+      iniciadoEm:
+        agora.toISOString(),
+
+      validadoEm:
+        agora.toISOString(),
+
+      expiraEm:
+        expiraEm,
+
+      validadeOfflineAte:
+        offlineAte,
+
+      idAutenticacaoServidor:
+        "AUTH-REFERENCIA-UX212-TESTE"
+    });
+
+
+  const autoriaTeste =
+    criarContextoAutoriaUX212_({
+      sessao:
+        sessaoTeste,
+
+      idObra:
+        "OBR002",
+
+      modoConexao:
+        "OFFLINE",
+
+      ocorridoEm:
+        agora.toISOString(),
+
+      origem:
+        "AUDITORIA_UX212"
+    });
+
+
+  const validacaoUsuario =
+    validarUsuarioContratoUX212_(
+      usuarioTeste
+    );
+
+  const validacaoDispositivo =
+    validarDispositivoContratoUX212_(
+      dispositivoTeste
+    );
+
+  const validacaoSessao =
+    validarSessaoContratoUX212_(
+      sessaoTeste
+    );
+
+  const validacaoAutoria =
+    validarContextoAutoriaUX212_(
+      autoriaTeste
+    );
+
+  const elegibilidade =
+    validarElegibilidadeSessaoUX212_(
+      usuarioTeste,
+      dispositivoTeste
+    );
+
+
+  /*
+   * Testes negativos.
+   */
+  const usuarioInvalido =
+    clonarContratoUX212_(
+      usuarioTeste
+    );
+
+  usuarioInvalido.statusUsuario =
+    "QUALQUER";
+
+
+  const sessaoComToken =
+    {
+      ...clonarContratoUX212_(
+        sessaoTeste
+      ),
+
+      accessToken:
+        "SEGREDO_PROIBIDO"
+    };
+
+
+  const dispositivoRevogado =
+    {
+      ...clonarContratoUX212_(
+        dispositivoTeste
+      ),
+
+      statusDispositivo:
+        "REVOGADO",
+
+      revogadoEm:
+        agora.toISOString()
+    };
+
+
+  const validacaoUsuarioInvalido =
+    validarUsuarioContratoUX212_(
+      usuarioInvalido
+    );
+
+  const validacaoSessaoComToken =
+    validarSessaoContratoUX212_(
+      sessaoComToken
+    );
+
+  const elegibilidadeRevogado =
+    validarElegibilidadeSessaoUX212_(
+      usuarioTeste,
+      dispositivoRevogado
+    );
+
+
+  /*
+   * Permissões.
+   */
+  const podeCriarDiario =
+    sessaoPossuiPermissaoUX212_(
+      sessaoTeste,
+      "OBR002",
+      "DIARIO_CRIAR"
+    );
+
+  const podeGerenciarUsuarios =
+    sessaoPossuiPermissaoUX212_(
+      sessaoTeste,
+      "OBR002",
+      "USUARIO_GERENCIAR"
+    );
+
+  const sessaoOfflineValida =
+    sessaoOfflineValidaUX212_(
+      sessaoTeste,
+      agora
+    );
+
+
+  /*
+   * Preservação.
+   */
+  const estadoDepois =
+    typeof capturarEstadoIdentidadeUX211_ ===
+      "function"
+      ? await capturarEstadoIdentidadeUX211_(
+          storesExistentes
+        )
+      : {};
+
+  const assinaturaStorageDepois =
+    typeof assinarLocalStorageIdentidadeUX211_ ===
+      "function"
+      ? assinarLocalStorageIdentidadeUX211_()
+      : "";
+
+  const storesAlteradas =
+    typeof compararEstadoIdentidadeUX211_ ===
+      "function"
+      ? compararEstadoIdentidadeUX211_(
+          estadoAntes,
+          estadoDepois
+        )
+      : [];
+
+
+  const validacoes = {
+    contratoVersao1:
+      VERSAO_CONTRATO_IDENTIDADE_UX212 ===
+      "1.0",
+
+    seisPerfisDefinidos:
+      PERFIS_USUARIO_UX212.length ===
+      6,
+
+    catalogoPermissoesDefinido:
+      PERMISSOES_SIGO_UX212.length >
+      15,
+
+    usuarioValido:
+      validacaoUsuario.valido ===
+      true,
+
+    dispositivoValido:
+      validacaoDispositivo.valido ===
+      true,
+
+    sessaoValida:
+      validacaoSessao.valido ===
+      true,
+
+    autoriaValida:
+      validacaoAutoria.valido ===
+      true,
+
+    elegivelParaSessao:
+      elegibilidade.elegivel ===
+      true,
+
+    permissaoDiarioConcedida:
+      podeCriarDiario ===
+      true,
+
+    permissaoAdministrativaNegada:
+      podeGerenciarUsuarios ===
+      false,
+
+    sessaoOfflineValida:
+      sessaoOfflineValida ===
+      true,
+
+    statusUsuarioInvalidoRejeitado:
+      validacaoUsuarioInvalido
+        .valido === false,
+
+    tokenSecretoRejeitado:
+      validacaoSessaoComToken
+        .valido === false &&
+      validacaoSessaoComToken
+        .erros.includes(
+          "SESSAO_CONTEM_CREDENCIAL_SECRETA"
+        ),
+
+    dispositivoRevogadoBloqueado:
+      elegibilidadeRevogado
+        .elegivel === false,
+
+    nenhumaStoreCriada:
+      !storesExistentes.includes(
+        STORES_IDENTIDADE_FUTURAS_UX212
+          .usuarios
+      ) &&
+      !storesExistentes.includes(
+        STORES_IDENTIDADE_FUTURAS_UX212
+          .dispositivos
+      ) &&
+      !storesExistentes.includes(
+        STORES_IDENTIDADE_FUTURAS_UX212
+          .sessao
+      ),
+
+    nenhumaStoreAlterada:
+      storesAlteradas.length ===
+      0,
+
+    localStorageNaoAlterado:
+      assinaturaStorageAntes ===
+      assinaturaStorageDepois
+  };
+
+
+  const aprovado =
+    Object.values(
+      validacoes
+    ).every(
+      function (valor) {
+        return valor === true;
+      }
+    );
+
+
+  const resultado = {
+    etapa:
+      "UX.21.2",
+
+    auditoria:
+      "CONTRATO_OFICIAL_USUARIO_DISPOSITIVO_SESSAO",
+
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+
+    versaoContrato:
+      VERSAO_CONTRATO_IDENTIDADE_UX212,
+
+    contratos: {
+      usuario:
+        usuarioTeste,
+
+      dispositivo:
+        dispositivoTeste,
+
+      sessao:
+        sessaoTeste,
+
+      autoria:
+        autoriaTeste
+    },
+
+    catalogos: {
+      perfis:
+        PERFIS_USUARIO_UX212,
+
+      statusUsuario:
+        STATUS_USUARIO_UX212,
+
+      statusDispositivo:
+        STATUS_DISPOSITIVO_UX212,
+
+      statusSessao:
+        STATUS_SESSAO_UX212,
+
+      statusVinculoObra:
+        STATUS_VINCULO_OBRA_UX212,
+
+      comandosRemotos:
+        COMANDOS_REMOTOS_UX212,
+
+      permissoes:
+        PERMISSOES_SIGO_UX212,
+
+      permissoesPorPerfil:
+        PERMISSOES_PADRAO_PERFIL_UX212
+    },
+
+    validadores: {
+      usuario:
+        validacaoUsuario,
+
+      dispositivo:
+        validacaoDispositivo,
+
+      sessao:
+        validacaoSessao,
+
+      autoria:
+        validacaoAutoria,
+
+      elegibilidade:
+        elegibilidade
+    },
+
+    testesNegativos: {
+      usuarioInvalido:
+        validacaoUsuarioInvalido,
+
+      sessaoComToken:
+        validacaoSessaoComToken,
+
+      dispositivoRevogado:
+        elegibilidadeRevogado
+    },
+
+    autorizacao: {
+      podeCriarDiario:
+        podeCriarDiario,
+
+      podeGerenciarUsuarios:
+        podeGerenciarUsuarios,
+
+      sessaoOfflineValida:
+        sessaoOfflineValida
+    },
+
+    persistencia: {
+      executada:
+        false,
+
+      storesFuturas:
+        STORES_IDENTIDADE_FUTURAS_UX212,
+
+      storesAlteradas:
+        storesAlteradas,
+
+      localStorageAlterado:
+        assinaturaStorageAntes !==
+        assinaturaStorageDepois
+    },
+
+    decisoesArquiteturais: {
+      permissoesPorObra:
+        true,
+
+      usuarioEDispositivoRevogaveisSeparadamente:
+        true,
+
+      validadeOfflineDaSessao:
+        true,
+
+      comandoLimpezaRemota:
+        true,
+
+      autoriaComUsuarioDispositivoSessao:
+        true,
+
+      credencialSecretaPersistida:
+        false,
+
+      registrosLegadosAlterados:
+        false,
+
+      usuarioMobileSubstituido:
+        false
+    },
+
+    validacoes:
+      validacoes,
+
+    aprovado:
+      aprovado,
+
+    prontoParaUX213:
+      aprovado
+  };
+
+
+  console.log(
+    JSON.stringify(
+      resultado,
+      null,
+      2
+    )
+  );
+
+
+  if (!aprovado) {
+    throw new Error(
+      "UX.21.2 REPROVADA. Consulte as validações do contrato."
+    );
+  }
+
+
+  console.log(
+    "UX.21.2 — CONTRATO OFICIAL DE IDENTIDADE APROVADO."
+  );
+
+
+  return resultado;
+}
