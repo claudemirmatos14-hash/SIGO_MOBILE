@@ -1,5 +1,5 @@
 const SIGO_DB_NAME = "SIGO_OFFLINE_DB";
-const SIGO_DB_VERSION = 18;
+const SIGO_DB_VERSION = 19;
 
 let SIGO_DB = null;
 
@@ -657,13 +657,34 @@ function adicionarNaFilaSyncSIGO(
               registro.idDiario || ""
             ).trim(),
 
-          payloadExclusao:
-            registro.payloadExclusao ||
-            registro.exclusao ||
-            null,
-
-          statusSync:
-            "PENDENTE",
+         payloadExclusao:
+          registro.payloadExclusao ||
+          registro.exclusao ||
+          null,
+        
+        /*
+         * UX.21.6 — Snapshot oficial da autoria da operação.
+         *
+         * Estes campos são recebidos pelo wrapper da autoria e
+         * precisam ser copiados para o objeto definitivo da fila.
+         */
+        versaoContratoAutoria:
+          String(
+            registro.versaoContratoAutoria ||
+            ""
+          ).trim(),
+        
+        autoriaOperacao:
+          registro.autoriaOperacao
+            ? JSON.parse(
+                JSON.stringify(
+                  registro.autoriaOperacao
+                )
+              )
+            : null,
+        
+        statusSync:
+          "PENDENTE",
 
           tentativas: 0,
 
