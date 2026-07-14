@@ -77786,3 +77786,469 @@ function auditarPontosOperacionaisUX21964B_() {
 
   return relatorio;
 }
+
+
+/**
+ * ============================================================
+ * UX.21.9.6.4D — TESTE DAS 29 FUNÇÕES REAIS PROTEGIDAS
+ * ============================================================
+ *
+ * As funções são chamadas sem argumentos enquanto existe
+ * um bloqueio simulado.
+ *
+ * O wrapper deve impedir que o código original seja iniciado.
+ * ============================================================
+ */
+
+async function auditarBloqueioFuncoesReaisUX21964D_() {
+
+  const chaveBloqueio =
+    CONFIG_BLOQUEIO_IDENTIDADE_UX2196
+      .chaveLocalStorage;
+
+
+  const valorAnterior =
+    localStorage.getItem(
+      chaveBloqueio
+    );
+
+
+  const filaAntes =
+    await listarRegistrosSIGO(
+      "TB_SYNC_QUEUE"
+    );
+
+
+  const storesAuditadas = [
+    "TB_DIARIOS",
+    "TB_DIARIO_ITENS",
+    "TB_MEDICOES",
+    "TB_LOTES_MEDICAO",
+    "TB_OCORRENCIAS",
+    "TB_CLIMA",
+    "TB_EVIDENCIAS"
+  ];
+
+
+  const quantidadesAntes =
+    {};
+
+
+  for (
+    const store of
+    storesAuditadas
+  ) {
+    const registros =
+      await listarRegistrosSIGO(
+        store
+      );
+
+    quantidadesAntes[
+      store
+    ] =
+      registros.length;
+  }
+
+
+  const bloqueioSimulado = {
+    ativo:
+      true,
+
+    versaoContrato:
+      "1.0",
+
+    codigo:
+      "DISPOSITIVO_NAO_ATIVO",
+
+    mensagem:
+      "Dispositivo simulado bloqueado.",
+
+    idUsuario:
+      "USR-SIMULADO",
+
+    idDispositivo:
+      "DISP-SIMULADO",
+
+    idSessao:
+      "SES-SIMULADA",
+
+    idObra:
+      "OBR002",
+
+    bloqueadaEm:
+      new Date()
+        .toISOString(),
+
+    origem:
+      "AUDITORIA_UX21964D"
+  };
+
+
+  const resultados =
+    [];
+
+
+  try {
+
+    localStorage.setItem(
+      chaveBloqueio,
+      JSON.stringify(
+        bloqueioSimulado
+      )
+    );
+
+
+    for (
+      const alvo of
+      ALVOS_PROTECAO_OPERACIONAL_UX21964C
+    ) {
+
+      const funcao =
+        globalThis[
+          alvo.funcao
+        ];
+
+
+      let retorno;
+      let erro = null;
+
+
+      try {
+
+        retorno =
+          funcao();
+
+
+        if (
+          retorno &&
+          typeof retorno.then ===
+          "function"
+        ) {
+          retorno =
+            await retorno;
+        }
+
+      } catch (falha) {
+
+        erro = {
+          nome:
+            falha?.name || "",
+
+          mensagem:
+            falha?.message ||
+            String(
+              falha
+            )
+        };
+      }
+
+
+      resultados.push({
+        funcao:
+          alvo.funcao,
+
+        operacao:
+          alvo.operacao,
+
+        categoria:
+          alvo.categoria,
+
+        status:
+          retorno?.status || "",
+
+        codigo:
+          retorno?.codigo || "",
+
+        gravacaoExecutada:
+          retorno
+            ?.gravacaoExecutada,
+
+        filaAlterada:
+          retorno
+            ?.filaAlterada,
+
+        bloqueada:
+          retorno?.status ===
+          "BLOQUEADO",
+
+        erro:
+          erro
+      });
+    }
+
+  } finally {
+
+    if (
+      valorAnterior ===
+      null
+    ) {
+
+      localStorage.removeItem(
+        chaveBloqueio
+      );
+
+      removerAvisoVisualBloqueioUX2196_();
+
+    } else {
+
+      localStorage.setItem(
+        chaveBloqueio,
+        valorAnterior
+      );
+
+
+      try {
+
+        const bloqueioAnterior =
+          JSON.parse(
+            valorAnterior
+          );
+
+
+        if (
+          bloqueioAnterior?.ativo ===
+          true
+        ) {
+
+          aplicarAvisoVisualBloqueioUX2196_(
+            bloqueioAnterior
+          );
+        }
+
+      } catch (erroRestauracao) {
+
+        console.error(
+          "[UX.21.9.6.4D] Falha ao restaurar bloqueio anterior:",
+          erroRestauracao
+        );
+      }
+    }
+
+
+    atualizarControlesOperacionaisUX21964_();
+  }
+
+
+  const filaDepois =
+    await listarRegistrosSIGO(
+      "TB_SYNC_QUEUE"
+    );
+
+
+  const quantidadesDepois =
+    {};
+
+
+  for (
+    const store of
+    storesAuditadas
+  ) {
+
+    const registros =
+      await listarRegistrosSIGO(
+        store
+      );
+
+    quantidadesDepois[
+      store
+    ] =
+      registros.length;
+  }
+
+
+  const divergenciasStores =
+    storesAuditadas
+      .filter(
+        store =>
+          quantidadesAntes[
+            store
+          ] !==
+          quantidadesDepois[
+            store
+          ]
+      )
+      .map(
+        store => ({
+          store:
+            store,
+
+          antes:
+            quantidadesAntes[
+              store
+            ],
+
+          depois:
+            quantidadesDepois[
+              store
+            ]
+        })
+      );
+
+
+  const validacoes = {
+
+    todasFuncoesTestadas:
+      resultados.length ===
+      ALVOS_PROTECAO_OPERACIONAL_UX21964C
+        .length,
+
+    todasBloqueadas:
+      resultados.every(
+        item =>
+          item.bloqueada ===
+          true
+      ),
+
+    todosCodigosCorretos:
+      resultados.every(
+        item =>
+          item.codigo ===
+          "DISPOSITIVO_NAO_ATIVO"
+      ),
+
+    nenhumaFuncaoGerouErro:
+      resultados.every(
+        item =>
+          item.erro ===
+          null
+      ),
+
+    nenhumaGravacaoDeclarada:
+      resultados.every(
+        item =>
+          item.gravacaoExecutada ===
+          false
+      ),
+
+    nenhumaFilaDeclaradaAlterada:
+      resultados.every(
+        item =>
+          item.filaAlterada ===
+          false
+      ),
+
+    filaPreservada:
+      filaAntes.length ===
+      filaDepois.length,
+
+    storesPreservadas:
+      divergenciasStores.length ===
+      0,
+
+    bloqueioAnteriorRestaurado:
+      valorAnterior === null
+        ? localStorage.getItem(
+            chaveBloqueio
+          ) === null
+        : localStorage.getItem(
+            chaveBloqueio
+          ) === valorAnterior,
+
+    avisoVisualRestaurado:
+      valorAnterior !== null ||
+      document.getElementById(
+        "avisoIdentidadeBloqueadaUX2196"
+      ) === null
+  };
+
+
+  const aprovado =
+    Object.values(
+      validacoes
+    ).every(
+      valor =>
+        valor === true
+    );
+
+
+  const relatorio = {
+    etapa:
+      "UX.21.9.6.4D",
+
+    auditoria:
+      "BLOQUEIO_DAS_29_FUNCOES_REAIS",
+
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+
+    totalFuncoes:
+      resultados.length,
+
+    quantidadeFilaAntes:
+      filaAntes.length,
+
+    quantidadeFilaDepois:
+      filaDepois.length,
+
+    quantidadesStoresAntes:
+      quantidadesAntes,
+
+    quantidadesStoresDepois:
+      quantidadesDepois,
+
+    divergenciasStores:
+      divergenciasStores,
+
+    resultados:
+      resultados,
+
+    validacoes:
+      validacoes,
+
+    aprovado:
+      aprovado,
+
+    prontoParaBloqueioVisual:
+      aprovado
+  };
+
+
+  console.table(
+    resultados.map(
+      item => ({
+        funcao:
+          item.funcao,
+
+        operacao:
+          item.operacao,
+
+        status:
+          item.status,
+
+        codigo:
+          item.codigo,
+
+        erro:
+          item.erro
+            ?.mensagem || ""
+      })
+    )
+  );
+
+
+  console.log(
+    JSON.stringify(
+      relatorio,
+      null,
+      2
+    )
+  );
+
+
+  if (!aprovado) {
+
+    throw new Error(
+      "UX.21.9.6.4D REPROVADA."
+    );
+  }
+
+
+  console.log(
+    "UX.21.9.6.4D — 29 FUNÇÕES REAIS BLOQUEADAS CORRETAMENTE."
+  );
+
+
+  return relatorio;
+}
