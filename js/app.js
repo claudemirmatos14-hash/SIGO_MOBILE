@@ -73462,9 +73462,45 @@ function criarResultadoBloqueioOperacionalUX21964_(
  * A navegação e os botões de consulta não são alterados.
  */
 function atualizarControlesOperacionaisUX21964_() {
-  return atualizarBloqueioVisualDinamicoUX21964E_();
-}
 
+  const bloqueio =
+    obterBloqueioIdentidadeLocalUX2196_();
+
+
+  const bloqueado =
+    Boolean(
+      bloqueio
+    );
+
+
+  if (bloqueado) {
+
+    document.documentElement
+      .setAttribute(
+        "data-sigo-operacoes",
+        "bloqueadas"
+      );
+
+  } else {
+
+    document.documentElement
+      .removeAttribute(
+        "data-sigo-operacoes"
+      );
+  }
+
+
+  return {
+    bloqueado:
+      bloqueado,
+
+    quantidadeControles:
+      0,
+
+    codigo:
+      bloqueio?.codigo || ""
+  };
+}
 
 /**
  * Intercepta uma operação antes de sua gravação.
@@ -75874,7 +75910,7 @@ document.addEventListener(
 /**
  * Inicialização.
  */
-if (
+/*if (
   document.readyState ===
   "loading"
 ) {
@@ -75889,7 +75925,7 @@ if (
 
 } else {
   iniciarBloqueioVisualDinamicoUX21964E_();
-}
+}*/
 
 
 
