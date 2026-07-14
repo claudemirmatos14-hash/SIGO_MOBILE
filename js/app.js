@@ -3191,6 +3191,61 @@ async function sincronizarSIGO() {
 
   try {
 
+        // =================================================
+        // UX.21.9.6.2 — BLOQUEIO LOCAL PREVENTIVO
+        //
+        // Evita novo envio quando a identidade já foi
+        // bloqueada anteriormente pelo servidor.
+        //
+        // Nenhuma alteração é feita na TB_SYNC_QUEUE.
+        // =================================================
+    
+        const bloqueioLocalUX2196 =
+          obterBloqueioIdentidadeLocalUX2196_();
+    
+    
+        if (bloqueioLocalUX2196) {
+    
+          aplicarAvisoVisualBloqueioUX2196_(
+            bloqueioLocalUX2196
+          );
+    
+    
+          console.warn(
+            "[UX.21.9.6.2] Sincronização não iniciada. " +
+            "A identidade está bloqueada localmente.",
+            bloqueioLocalUX2196
+          );
+    
+    
+          SIGOUI.feedback.error(
+            "Acesso bloqueado",
+            bloqueioLocalUX2196.mensagem ||
+            "Esta identidade não está autorizada a sincronizar."
+          );
+    
+    
+          return {
+            status:
+              "BLOQUEADO",
+    
+            codigo:
+              bloqueioLocalUX2196.codigo || "",
+    
+            mensagem:
+              bloqueioLocalUX2196.mensagem ||
+              "Esta identidade não está autorizada a sincronizar.",
+    
+            filaPreservada:
+              true,
+    
+            origemBloqueio:
+              "CONTROLE_LOCAL",
+    
+            bloqueio:
+              bloqueioLocalUX2196
+          };
+        }
     const obraAtiva =
       String(
         localStorage.getItem(
@@ -3794,28 +3849,145 @@ async function sincronizarSIGO() {
         }
       );
 
-    const resultado =
-      await resposta.json();
-
-    console.log(
-      "Resposta API SIGO:",
-      resultado
-    );
-
-    if (
-      resultado.status !== "OK"
-    ) {
-      throw new Error(
-        resultado.mensagem ||
-        "Erro na API SIGO."
-      );
-    }
+        const resultado =
+          await resposta.json();
     
-     const confirmacaoAutoriaUX217 =
-      validarConfirmacaoAutoriaSyncUX217_(
-        resultado,
-        envelopeAutoriaUX217
-      );
+    
+        console.log(
+          "Resposta API SIGO:",
+          resultado
+        );
+    
+    
+        // =================================================
+        // UX.21.9.6.2 — INTERCEPTAR REVOGAÇÃO
+        //
+        // Precisa acontecer antes de:
+        //
+        // - confirmar autoria;
+        // - alterar a TB_SYNC_QUEUE;
+        // - alterar registros operacionais;
+        // - emitir SYNC_CONCLUIDO;
+        // - lançar o erro genérico da API.
+        // =================================================
+    
+        const tratamentoBloqueioUX2196 =
+          await tratarRespostaBloqueioUX2196_(
+            resultado,
+            {
+              idUsuario:
+                payload.idUsuario,
+    
+              idDispositivo:
+                payload.idDispositivo,
+    
+              idSessao:
+                payload.idSessao,
+    
+              idObra:
+                payload.idObra,
+    
+              origem:
+                "SINCRONIZAR_SIGO"
+            }
+          );
+    
+    
+        if (
+          tratamentoBloqueioUX2196
+            .tratado ===
+          true
+        ) {
+    
+          const bloqueioUX2196 =
+            tratamentoBloqueioUX2196
+              .bloqueio || {};
+    
+    
+          console.warn(
+            "[UX.21.9.6.2] Sincronização interrompida " +
+            "por bloqueio da identidade.",
+            tratamentoBloqueioUX2196
+          );
+    
+    
+          /*
+           * O registro continua PENDENTE.
+           *
+           * Nenhuma confirmação de autoria acontece.
+           * Nenhuma fila é atualizada.
+           * Nenhum registro operacional recebe
+           * status SINCRONIZADO.
+           */
+          SIGOUI.feedback.error(
+            "Acesso bloqueado",
+            bloqueioUX2196.mensagem ||
+            "A identidade atual foi bloqueada pelo servidor."
+          );
+    
+    
+          return {
+            status:
+              "BLOQUEADO",
+    
+            codigo:
+              bloqueioUX2196.codigo || "",
+    
+            mensagem:
+              bloqueioUX2196.mensagem ||
+              "A identidade atual foi bloqueada pelo servidor.",
+    
+            idSyncServidor:
+              bloqueioUX2196
+                .idSyncServidor || "",
+    
+            filaPreservada:
+              tratamentoBloqueioUX2196
+                ?.fila
+                ?.preservada !== false,
+    
+            quantidadeFilaAntes:
+              tratamentoBloqueioUX2196
+                ?.fila
+                ?.quantidadeAntes ?? null,
+    
+            quantidadeFilaDepois:
+              tratamentoBloqueioUX2196
+                ?.fila
+                ?.quantidadeDepois ?? null,
+    
+            origemBloqueio:
+              "RESPOSTA_API",
+    
+            detalhes:
+              tratamentoBloqueioUX2196
+          };
+        }
+    
+    
+        // =================================================
+        // ERROS NORMAIS DA API
+        //
+        // Só chega aqui quando a resposta não representa
+        // um bloqueio reconhecido de identidade.
+        // =================================================
+    
+        if (
+          resultado.status !==
+          "OK"
+        ) {
+          throw new Error(
+            resultado.mensagem ||
+            "Erro na API SIGO."
+          );
+        }
+    
+    
+        const confirmacaoAutoriaUX217 =
+          validarConfirmacaoAutoriaSyncUX217_(
+            resultado,
+            envelopeAutoriaUX217
+          );
     
     console.log(
       "[UX.21.7] Autoria confirmada pela API:",
