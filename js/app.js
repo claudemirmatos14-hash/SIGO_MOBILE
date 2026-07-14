@@ -73176,17 +73176,57 @@ async function auditarSuspensaoRetryUX21963_() {
         "AUDITORIA_UX21963"
       );
 
-  } finally {
+   } finally {
+
     if (valorAnterior === null) {
+
       localStorage.removeItem(
         chave
       );
 
+
+      /*
+       * O bloqueio usado pela auditoria não existia
+       * antes do teste. Portanto, a interface também
+       * deve voltar ao estado normal.
+       */
+      removerAvisoVisualBloqueioUX2196_();
+
     } else {
+
       localStorage.setItem(
         chave,
         valorAnterior
       );
+
+
+      /*
+       * Caso já existisse um bloqueio real antes da
+       * auditoria, ele deve ser restaurado visualmente.
+       */
+      try {
+        const bloqueioAnterior =
+          JSON.parse(
+            valorAnterior
+          );
+
+
+        if (
+          bloqueioAnterior &&
+          bloqueioAnterior.ativo === true
+        ) {
+          aplicarAvisoVisualBloqueioUX2196_(
+            bloqueioAnterior
+          );
+        }
+
+      } catch (erroRestauracaoVisual) {
+
+        console.error(
+          "[UX.21.9.6.3] Falha ao restaurar aviso visual anterior:",
+          erroRestauracaoVisual
+        );
+      }
     }
   }
 
@@ -73222,7 +73262,13 @@ async function auditarSuspensaoRetryUX21963_() {
           ) === null
         : localStorage.getItem(
             chave
-          ) === valorAnterior
+          ) === valorAnterior,
+
+    avisoVisualSimuladoRemovido:
+        valorAnterior !== null ||
+        document.getElementById(
+          "avisoIdentidadeBloqueadaUX2196"
+        ) === null
   };
 
 
@@ -73288,4 +73334,27 @@ async function auditarSuspensaoRetryUX21963_() {
 
 
   return relatorio;
+}
+
+/**
+ * Remove o aviso visual quando não existe
+ * bloqueio ativo persistido.
+ */
+function removerAvisoVisualBloqueioUX2196_() {
+
+  document.documentElement
+    .removeAttribute(
+      "data-sigo-identidade"
+    );
+
+
+  const aviso =
+    document.getElementById(
+      "avisoIdentidadeBloqueadaUX2196"
+    );
+
+
+  if (aviso) {
+    aviso.remove();
+  }
 }
