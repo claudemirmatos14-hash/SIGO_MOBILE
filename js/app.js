@@ -71291,3 +71291,1497 @@ async function auditarPreparacaoEnvioAutoriaUX217_() {
 
   return resultado;
 }
+
+/**
+ * ============================================================
+ * UX.21.9.6 — TRATAMENTO LOCAL DE REVOGAÇÃO
+ * ============================================================
+ *
+ * Este módulo:
+ *
+ * - reconhece bloqueios retornados pela API;
+ * - preserva integralmente a TB_SYNC_QUEUE;
+ * - não remove dados operacionais;
+ * - registra o bloqueio localmente;
+ * - atualiza a sessão local sem apagá-la;
+ * - registra auditoria de identidade;
+ * - prepara o bloqueio visual e operacional.
+ * ============================================================
+ */
+
+
+const CONFIG_BLOQUEIO_IDENTIDADE_UX2196 =
+  Object.freeze({
+    versaoContrato:
+      "1.0",
+
+    chaveLocalStorage:
+      "SIGO_BLOQUEIO_IDENTIDADE_V1",
+
+    nomeBanco:
+      "SIGO_OFFLINE_DB",
+
+    storeSessao:
+      "TB_SESSAO",
+
+    storeAuditoria:
+      "TB_AUDITORIA_IDENTIDADE",
+
+    storeFila:
+      "TB_SYNC_QUEUE",
+
+    codigosBloqueio: [
+      "USUARIO_NAO_ATIVO",
+      "DISPOSITIVO_NAO_ATIVO",
+      "SESSAO_NAO_ATIVA",
+      "SESSAO_EXPIRADA",
+      "VINCULO_OBRA_NAO_ATIVO",
+      "PERMISSAO_SINCRONIZAR_AUSENTE"
+    ]
+  });
+
+
+/**
+ * Normaliza texto.
+ */
+function textoUX2196_(
+  valor
+) {
+  return String(
+    valor === null ||
+    valor === undefined
+      ? ""
+      : valor
+  ).trim();
+}
+
+
+/**
+ * Gera um identificador local de auditoria.
+ */
+function gerarIdAuditoriaUX2196_() {
+  const parteAleatoria =
+    (
+      globalThis.crypto &&
+      typeof globalThis.crypto
+        .randomUUID ===
+      "function"
+    )
+      ? globalThis.crypto
+          .randomUUID()
+          .replace(
+            /-/g,
+            ""
+          )
+          .substring(
+            0,
+            12
+          )
+          .toUpperCase()
+      : Math.random()
+          .toString(16)
+          .substring(2, 14)
+          .toUpperCase();
+
+
+  return (
+    "AUD-REVOGACAO-" +
+    Date.now() +
+    "-" +
+    parteAleatoria
+  );
+}
+
+
+/**
+ * Retorna a descrição amigável do bloqueio.
+ */
+function obterDescricaoBloqueioUX2196_(
+  codigo
+) {
+  const descricoes = {
+    USUARIO_NAO_ATIVO:
+      "O acesso deste usuário foi revogado pelo servidor.",
+
+    DISPOSITIVO_NAO_ATIVO:
+      "Este dispositivo foi bloqueado pelo servidor.",
+
+    SESSAO_NAO_ATIVA:
+      "A sessão atual foi encerrada pelo servidor.",
+
+    SESSAO_EXPIRADA:
+      "A sessão atual expirou e precisa ser renovada.",
+
+    VINCULO_OBRA_NAO_ATIVO:
+      "O acesso do usuário a esta obra foi revogado.",
+
+    PERMISSAO_SINCRONIZAR_AUSENTE:
+      "O usuário não possui mais permissão para sincronizar esta obra."
+  };
+
+
+  return (
+    descricoes[codigo] ||
+    "A identidade atual não está autorizada a sincronizar."
+  );
+}
+
+
+/**
+ * Classifica uma resposta recebida da API.
+ *
+ * Esta função não altera nenhum dado.
+ */
+function classificarBloqueioRespostaUX2196_(
+  resposta
+) {
+  const detalhes =
+    resposta?.detalhes || {};
+
+  const autorizacao =
+    detalhes
+      ?.autorizacaoIdentidade ||
+    {};
+
+  const codigo =
+    textoUX2196_(
+      autorizacao.codigo
+    );
+
+  const status =
+    textoUX2196_(
+      resposta?.status
+    ).toUpperCase();
+
+  const statusFinal =
+    textoUX2196_(
+      detalhes.statusFinal
+    ).toUpperCase();
+
+  const codigoReconhecido =
+    CONFIG_BLOQUEIO_IDENTIDADE_UX2196
+      .codigosBloqueio
+      .includes(
+        codigo
+      );
+
+  const bloqueado =
+    status ===
+      "ERRO" &&
+    statusFinal ===
+      "BLOQUEADO" &&
+    codigoReconhecido;
+
+
+  return {
+    bloqueado:
+      bloqueado,
+
+    codigo:
+      codigo,
+
+    status:
+      status,
+
+    statusFinal:
+      statusFinal,
+
+    mensagem:
+      textoUX2196_(
+        autorizacao.mensagem ||
+        resposta?.mensagem
+      ) ||
+      obterDescricaoBloqueioUX2196_(
+        codigo
+      ),
+
+    perfilServidor:
+      textoUX2196_(
+        autorizacao
+          .perfilServidor
+      ),
+
+    idSyncServidor:
+      textoUX2196_(
+        detalhes.idSync
+      ),
+
+    idUsuario:
+      textoUX2196_(
+        detalhes.idUsuario
+      ),
+
+    idDispositivo:
+      textoUX2196_(
+        detalhes.idDispositivo
+      ),
+
+    idSessao:
+      textoUX2196_(
+        detalhes.idSessao
+      ),
+
+    idObra:
+      textoUX2196_(
+        detalhes.idObra
+      ),
+
+    respostaOriginal:
+      resposta || null
+  };
+}
+
+
+/**
+ * Lê o bloqueio persistido no navegador.
+ */
+function obterBloqueioIdentidadeLocalUX2196_() {
+  try {
+    const conteudo =
+      localStorage.getItem(
+        CONFIG_BLOQUEIO_IDENTIDADE_UX2196
+          .chaveLocalStorage
+      );
+
+    if (!conteudo) {
+      return null;
+    }
+
+
+    const bloqueio =
+      JSON.parse(
+        conteudo
+      );
+
+
+    if (
+      !bloqueio ||
+      bloqueio.ativo !==
+        true
+    ) {
+      return null;
+    }
+
+
+    return bloqueio;
+
+  } catch (erro) {
+    console.error(
+      "[UX.21.9.6] Falha ao ler bloqueio local:",
+      erro
+    );
+
+    return null;
+  }
+}
+
+
+/**
+ * Indica se a identidade está bloqueada localmente.
+ */
+function identidadeBloqueadaUX2196_() {
+  return Boolean(
+    obterBloqueioIdentidadeLocalUX2196_()
+  );
+}
+
+
+/**
+ * Salva o bloqueio no localStorage.
+ *
+ * O localStorage é o controle primário porque pode ser
+ * consultado antes mesmo da abertura do IndexedDB.
+ */
+function salvarBloqueioLocalStorageUX2196_(
+  bloqueio
+) {
+  localStorage.setItem(
+    CONFIG_BLOQUEIO_IDENTIDADE_UX2196
+      .chaveLocalStorage,
+
+    JSON.stringify(
+      bloqueio
+    )
+  );
+}
+
+
+/**
+ * Abre somente a versão já existente do banco.
+ *
+ * Não executa upgrade e não cria novas stores.
+ */
+function abrirBancoExistenteUX2196_() {
+  return new Promise(
+    function (
+      resolve,
+      reject
+    ) {
+      const requisicao =
+        indexedDB.open(
+          CONFIG_BLOQUEIO_IDENTIDADE_UX2196
+            .nomeBanco
+        );
+
+
+      requisicao.onupgradeneeded =
+        function (evento) {
+          evento.target
+            .transaction
+            .abort();
+
+          reject(
+            new Error(
+              "UX2196_BANCO_LOCAL_NAO_EXISTENTE"
+            )
+          );
+        };
+
+
+      requisicao.onsuccess =
+        function () {
+          resolve(
+            requisicao.result
+          );
+        };
+
+
+      requisicao.onerror =
+        function () {
+          reject(
+            requisicao.error ||
+            new Error(
+              "UX2196_FALHA_ABRIR_INDEXEDDB"
+            )
+          );
+        };
+    }
+  );
+}
+
+
+/**
+ * Conta registros de uma store sem alterá-la.
+ */
+function contarStoreUX2196_(
+  banco,
+  nomeStore
+) {
+  return new Promise(
+    function (
+      resolve,
+      reject
+    ) {
+      if (
+        !banco.objectStoreNames
+          .contains(
+            nomeStore
+          )
+      ) {
+        resolve(
+          null
+        );
+
+        return;
+      }
+
+
+      const transacao =
+        banco.transaction(
+          nomeStore,
+          "readonly"
+        );
+
+      const store =
+        transacao.objectStore(
+          nomeStore
+        );
+
+      const requisicao =
+        store.count();
+
+
+      requisicao.onsuccess =
+        function () {
+          resolve(
+            Number(
+              requisicao.result || 0
+            )
+          );
+        };
+
+
+      requisicao.onerror =
+        function () {
+          reject(
+            requisicao.error
+          );
+        };
+    }
+  );
+}
+
+
+/**
+ * Atualiza a sessão correspondente sem apagar seu conteúdo.
+ *
+ * O campo oficial statusSessao não é substituído.
+ * É acrescentado um estado local de autorização.
+ */
+function atualizarSessaoBloqueadaUX2196_(
+  banco,
+  bloqueio
+) {
+  return new Promise(
+    function (
+      resolve,
+      reject
+    ) {
+      const nomeStore =
+        CONFIG_BLOQUEIO_IDENTIDADE_UX2196
+          .storeSessao;
+
+
+      if (
+        !banco.objectStoreNames
+          .contains(
+            nomeStore
+          )
+      ) {
+        resolve({
+          atualizada:
+            false,
+
+          motivo:
+            "STORE_SESSAO_NAO_ENCONTRADA"
+        });
+
+        return;
+      }
+
+
+      const transacao =
+        banco.transaction(
+          nomeStore,
+          "readwrite"
+        );
+
+      const store =
+        transacao.objectStore(
+          nomeStore
+        );
+
+      let encontrada =
+        false;
+
+
+      const cursor =
+        store.openCursor();
+
+
+      cursor.onsuccess =
+        function (evento) {
+          const item =
+            evento.target.result;
+
+
+          if (!item) {
+            return;
+          }
+
+
+          const registro =
+            item.value || {};
+
+          const idSessaoRegistro =
+            textoUX2196_(
+              registro.idSessao ||
+              registro.ID_SESSAO
+            );
+
+
+          if (
+            idSessaoRegistro ===
+            bloqueio.idSessao
+          ) {
+            encontrada =
+              true;
+
+
+            const registroAtualizado = {
+              ...registro,
+
+              statusLocalAutorizacao:
+                "BLOQUEADA",
+
+              bloqueadaPeloServidor:
+                true,
+
+              codigoBloqueioServidor:
+                bloqueio.codigo,
+
+              mensagemBloqueioServidor:
+                bloqueio.mensagem,
+
+              bloqueadaEm:
+                bloqueio.bloqueadaEm,
+
+              idSyncBloqueio:
+                bloqueio.idSyncServidor,
+
+              versaoContratoBloqueio:
+                CONFIG_BLOQUEIO_IDENTIDADE_UX2196
+                  .versaoContrato
+            };
+
+
+            item.update(
+              registroAtualizado
+            );
+
+            return;
+          }
+
+
+          item.continue();
+        };
+
+
+      transacao.oncomplete =
+        function () {
+          resolve({
+            atualizada:
+              encontrada,
+
+            idSessao:
+              bloqueio.idSessao
+          });
+        };
+
+
+      transacao.onerror =
+        function () {
+          reject(
+            transacao.error
+          );
+        };
+
+
+      transacao.onabort =
+        function () {
+          reject(
+            transacao.error ||
+            new Error(
+              "UX2196_ATUALIZACAO_SESSAO_ABORTADA"
+            )
+          );
+        };
+    }
+  );
+}
+
+
+/**
+ * Preenche automaticamente o keyPath real da store.
+ */
+function preencherChaveStoreUX2196_(
+  store,
+  registro,
+  valorPadrao
+) {
+  const keyPath =
+    store.keyPath;
+
+
+  if (
+    typeof keyPath ===
+      "string" &&
+    keyPath &&
+    !registro[keyPath]
+  ) {
+    registro[keyPath] =
+      valorPadrao;
+  }
+
+
+  return registro;
+}
+
+
+/**
+ * Registra o evento em TB_AUDITORIA_IDENTIDADE.
+ */
+function registrarAuditoriaBloqueioUX2196_(
+  banco,
+  bloqueio
+) {
+  return new Promise(
+    function (
+      resolve,
+      reject
+    ) {
+      const nomeStore =
+        CONFIG_BLOQUEIO_IDENTIDADE_UX2196
+          .storeAuditoria;
+
+
+      if (
+        !banco.objectStoreNames
+          .contains(
+            nomeStore
+          )
+      ) {
+        resolve({
+          registrada:
+            false,
+
+          motivo:
+            "STORE_AUDITORIA_NAO_ENCONTRADA"
+        });
+
+        return;
+      }
+
+
+      const transacao =
+        banco.transaction(
+          nomeStore,
+          "readwrite"
+        );
+
+      const store =
+        transacao.objectStore(
+          nomeStore
+        );
+
+      const idEvento =
+        gerarIdAuditoriaUX2196_();
+
+
+      const evento =
+        preencherChaveStoreUX2196_(
+          store,
+          {
+            idEventoAuditoria:
+              idEvento,
+
+            idAuditoria:
+              idEvento,
+
+            tipoEvento:
+              "IDENTIDADE_BLOQUEADA_SERVIDOR",
+
+            categoria:
+              "SEGURANCA",
+
+            resultado:
+              "BLOQUEADO",
+
+            codigo:
+              bloqueio.codigo,
+
+            mensagem:
+              bloqueio.mensagem,
+
+            idUsuario:
+              bloqueio.idUsuario,
+
+            idDispositivo:
+              bloqueio.idDispositivo,
+
+            idSessao:
+              bloqueio.idSessao,
+
+            idObra:
+              bloqueio.idObra,
+
+            idSyncServidor:
+              bloqueio.idSyncServidor,
+
+            perfilServidor:
+              bloqueio.perfilServidor,
+
+            ocorridoEm:
+              bloqueio.bloqueadaEm,
+
+            origem:
+              "API_SYNC_UX2196",
+
+            versaoContrato:
+              CONFIG_BLOQUEIO_IDENTIDADE_UX2196
+                .versaoContrato
+          },
+
+          idEvento
+        );
+
+
+      const requisicao =
+        store.put(
+          evento
+        );
+
+
+      requisicao.onsuccess =
+        function () {
+          resolve({
+            registrada:
+              true,
+
+            idEvento:
+              idEvento
+          });
+        };
+
+
+      requisicao.onerror =
+        function () {
+          reject(
+            requisicao.error
+          );
+        };
+    }
+  );
+}
+
+
+/**
+ * Cria ou atualiza o aviso visual permanente.
+ */
+function aplicarAvisoVisualBloqueioUX2196_(
+  bloqueio
+) {
+  document.documentElement
+    .setAttribute(
+      "data-sigo-identidade",
+      "bloqueada"
+    );
+
+
+  let aviso =
+    document.getElementById(
+      "avisoIdentidadeBloqueadaUX2196"
+    );
+
+
+  if (!aviso) {
+    aviso =
+      document.createElement(
+        "div"
+      );
+
+    aviso.id =
+      "avisoIdentidadeBloqueadaUX2196";
+
+    aviso.setAttribute(
+      "role",
+      "alert"
+    );
+
+    aviso.style.position =
+      "fixed";
+
+    aviso.style.left =
+      "12px";
+
+    aviso.style.right =
+      "12px";
+
+    aviso.style.bottom =
+      "12px";
+
+    aviso.style.zIndex =
+      "99999";
+
+    aviso.style.padding =
+      "14px 16px";
+
+    aviso.style.borderRadius =
+      "14px";
+
+    aviso.style.background =
+      "#7F1D1D";
+
+    aviso.style.color =
+      "#FFFFFF";
+
+    aviso.style.boxShadow =
+      "0 10px 30px rgba(0,0,0,.25)";
+
+    aviso.style.fontFamily =
+      "inherit";
+
+    aviso.style.fontSize =
+      "14px";
+
+    aviso.style.lineHeight =
+      "1.4";
+
+    document.body.appendChild(
+      aviso
+    );
+  }
+
+
+  aviso.innerHTML =
+    "<strong>Acesso bloqueado</strong><br>" +
+    textoUX2196_(
+      bloqueio.mensagem
+    ) +
+    "<br><small>Código: " +
+    textoUX2196_(
+      bloqueio.codigo
+    ) +
+    "</small>";
+}
+
+
+/**
+ * Emite o evento para o restante do PWA.
+ */
+function emitirEventoBloqueioUX2196_(
+  bloqueio
+) {
+  if (
+    globalThis.SIGOEventBus &&
+    typeof globalThis
+      .SIGOEventBus
+      .emit ===
+      "function"
+  ) {
+    globalThis
+      .SIGOEventBus
+      .emit(
+        "IDENTIDADE_BLOQUEADA",
+        {
+          categoria:
+            "SEGURANCA",
+
+          tipo:
+            "ERRO",
+
+          prioridade:
+            "ALTA",
+
+          titulo:
+            "Acesso bloqueado",
+
+          mensagem:
+            bloqueio.mensagem,
+
+          dados:
+            bloqueio
+        }
+      );
+  }
+
+
+  globalThis.dispatchEvent(
+    new CustomEvent(
+      "sigo:identidade-bloqueada",
+      {
+        detail:
+          bloqueio
+      }
+    )
+  );
+}
+
+
+/**
+ * Cria notificação local quando o recurso já existe.
+ */
+async function criarNotificacaoBloqueioUX2196_(
+  bloqueio
+) {
+  if (
+    typeof globalThis
+      .criarNotificacaoSIGO_ !==
+      "function"
+  ) {
+    return {
+      criada:
+        false,
+
+      motivo:
+        "FUNCAO_NOTIFICACAO_NAO_DISPONIVEL"
+    };
+  }
+
+
+  await globalThis
+    .criarNotificacaoSIGO_({
+      tipo:
+        "ERRO",
+
+      titulo:
+        "Acesso bloqueado",
+
+      mensagem:
+        bloqueio.mensagem,
+
+      icone:
+        "🔒"
+    });
+
+
+  return {
+    criada:
+      true
+  };
+}
+
+
+/**
+ * Trata efetivamente o bloqueio retornado pela API.
+ *
+ * IMPORTANTE:
+ *
+ * Esta função não altera nem remove a TB_SYNC_QUEUE.
+ */
+async function registrarBloqueioIdentidadeUX2196_(
+  classificacao,
+  contexto = {}
+) {
+  if (
+    !classificacao ||
+    classificacao.bloqueado !==
+      true
+  ) {
+    return {
+      tratado:
+        false,
+
+      motivo:
+        "RESPOSTA_NAO_REPRESENTA_BLOQUEIO"
+    };
+  }
+
+
+  const bloqueio = {
+    ativo:
+      true,
+
+    versaoContrato:
+      CONFIG_BLOQUEIO_IDENTIDADE_UX2196
+        .versaoContrato,
+
+    codigo:
+      classificacao.codigo,
+
+    mensagem:
+      classificacao.mensagem,
+
+    perfilServidor:
+      classificacao.perfilServidor,
+
+    idSyncServidor:
+      classificacao.idSyncServidor,
+
+    idUsuario:
+      classificacao.idUsuario ||
+      textoUX2196_(
+        contexto.idUsuario
+      ),
+
+    idDispositivo:
+      classificacao.idDispositivo ||
+      textoUX2196_(
+        contexto.idDispositivo
+      ),
+
+    idSessao:
+      classificacao.idSessao ||
+      textoUX2196_(
+        contexto.idSessao
+      ),
+
+    idObra:
+      classificacao.idObra ||
+      textoUX2196_(
+        contexto.idObra
+      ),
+
+    bloqueadaEm:
+      new Date()
+        .toISOString(),
+
+    origem:
+      textoUX2196_(
+        contexto.origem
+      ) ||
+      "SINCRONIZAR_SIGO"
+  };
+
+
+  /*
+   * O bloqueio é salvo primeiro no localStorage.
+   * Mesmo que o IndexedDB falhe, o retry poderá
+   * ser interrompido imediatamente.
+   */
+  salvarBloqueioLocalStorageUX2196_(
+    bloqueio
+  );
+
+
+  let banco =
+    null;
+
+  let quantidadeFilaAntes =
+    null;
+
+  let quantidadeFilaDepois =
+    null;
+
+  let resultadoSessao = {
+    atualizada:
+      false
+  };
+
+  let resultadoAuditoria = {
+    registrada:
+      false
+  };
+
+
+  try {
+    banco =
+      await abrirBancoExistenteUX2196_();
+
+
+    quantidadeFilaAntes =
+      await contarStoreUX2196_(
+        banco,
+        CONFIG_BLOQUEIO_IDENTIDADE_UX2196
+          .storeFila
+      );
+
+
+    resultadoSessao =
+      await atualizarSessaoBloqueadaUX2196_(
+        banco,
+        bloqueio
+      );
+
+
+    resultadoAuditoria =
+      await registrarAuditoriaBloqueioUX2196_(
+        banco,
+        bloqueio
+      );
+
+
+    quantidadeFilaDepois =
+      await contarStoreUX2196_(
+        banco,
+        CONFIG_BLOQUEIO_IDENTIDADE_UX2196
+          .storeFila
+      );
+
+  } catch (erroIndexedDB) {
+    console.error(
+      "[UX.21.9.6] Bloqueio salvo no localStorage, mas houve falha no IndexedDB:",
+      erroIndexedDB
+    );
+
+  } finally {
+    if (banco) {
+      banco.close();
+    }
+  }
+
+
+  const filaPreservada =
+    quantidadeFilaAntes ===
+      null ||
+    quantidadeFilaDepois ===
+      null ||
+    quantidadeFilaAntes ===
+      quantidadeFilaDepois;
+
+
+  aplicarAvisoVisualBloqueioUX2196_(
+    bloqueio
+  );
+
+
+  emitirEventoBloqueioUX2196_(
+    bloqueio
+  );
+
+
+  let resultadoNotificacao = {
+    criada:
+      false
+  };
+
+
+  try {
+    resultadoNotificacao =
+      await criarNotificacaoBloqueioUX2196_(
+        bloqueio
+      );
+
+  } catch (erroNotificacao) {
+    console.error(
+      "[UX.21.9.6] Falha ao criar notificação:",
+      erroNotificacao
+    );
+  }
+
+
+  const resultado = {
+    tratado:
+      true,
+
+    bloqueio:
+      bloqueio,
+
+    fila: {
+      quantidadeAntes:
+        quantidadeFilaAntes,
+
+      quantidadeDepois:
+        quantidadeFilaDepois,
+
+      preservada:
+        filaPreservada
+    },
+
+    sessao:
+      resultadoSessao,
+
+    auditoria:
+      resultadoAuditoria,
+
+    notificacao:
+      resultadoNotificacao
+  };
+
+
+  console.warn(
+    "[UX.21.9.6] Identidade bloqueada:",
+    resultado
+  );
+
+
+  return resultado;
+}
+
+
+/**
+ * Analisa e trata uma resposta da API.
+ */
+async function tratarRespostaBloqueioUX2196_(
+  resposta,
+  contexto = {},
+  opcoes = {}
+) {
+  const classificacao =
+    classificarBloqueioRespostaUX2196_(
+      resposta
+    );
+
+
+  if (!classificacao.bloqueado) {
+    return {
+      tratado:
+        false,
+
+      classificacao:
+        classificacao
+    };
+  }
+
+
+  if (
+    opcoes.modoSimulacao ===
+    true
+  ) {
+    return {
+      tratado:
+        true,
+
+      simulado:
+        true,
+
+      classificacao:
+        classificacao,
+
+      gravacoesExecutadas:
+        false
+    };
+  }
+
+
+  return registrarBloqueioIdentidadeUX2196_(
+    classificacao,
+    contexto
+  );
+}
+
+
+/**
+ * Bloqueia ações operacionais quando a identidade
+ * já foi revogada.
+ */
+function garantirIdentidadeAtivaUX2196_(
+  operacao = ""
+) {
+  const bloqueio =
+    obterBloqueioIdentidadeLocalUX2196_();
+
+
+  if (!bloqueio) {
+    return true;
+  }
+
+
+  const erro =
+    new Error(
+      bloqueio.mensagem ||
+      "A identidade atual está bloqueada."
+    );
+
+
+  erro.name =
+    "SIGOIdentidadeBloqueadaError";
+
+  erro.codigo =
+    bloqueio.codigo;
+
+  erro.operacao =
+    operacao;
+
+  erro.bloqueio =
+    bloqueio;
+
+
+  throw erro;
+}
+
+/**
+ * ============================================================
+ * UX.21.9.6.1 — AUDITORIA DO CONTRATO LOCAL
+ * ============================================================
+ *
+ * Executa apenas classificações simuladas.
+ * Não grava bloqueio no localStorage.
+ * Não altera IndexedDB.
+ * Não altera a fila.
+ */
+async function auditarContratoLocalBloqueioUX21961_() {
+  const codigos =
+    CONFIG_BLOQUEIO_IDENTIDADE_UX2196
+      .codigosBloqueio;
+
+
+  const resultados = [];
+
+
+  for (
+    const codigo of
+    codigos
+  ) {
+    const respostaTeste = {
+      status:
+        "ERRO",
+
+      mensagem:
+        obterDescricaoBloqueioUX2196_(
+          codigo
+        ),
+
+      detalhes: {
+        idSync:
+          "SYNC-SIMULADO-" +
+          codigo,
+
+        idUsuario:
+          "USR-SIMULADO",
+
+        idDispositivo:
+          "DISP-SIMULADO",
+
+        idSessao:
+          "SES-SIMULADA",
+
+        idObra:
+          "OBR002",
+
+        statusFinal:
+          "BLOQUEADO",
+
+        autorizacaoIdentidade: {
+          autorizado:
+            false,
+
+          codigo:
+            codigo,
+
+          mensagem:
+            obterDescricaoBloqueioUX2196_(
+              codigo
+            ),
+
+          perfilServidor:
+            "ENGENHEIRO"
+        }
+      }
+    };
+
+
+    const resultado =
+      await tratarRespostaBloqueioUX2196_(
+        respostaTeste,
+        {},
+        {
+          modoSimulacao:
+            true
+        }
+      );
+
+
+    resultados.push({
+      codigo:
+        codigo,
+
+      tratado:
+        resultado.tratado,
+
+      simulado:
+        resultado.simulado,
+
+      reconhecido:
+        resultado
+          ?.classificacao
+          ?.bloqueado ===
+        true,
+
+      aprovado:
+        resultado.tratado ===
+          true &&
+        resultado.simulado ===
+          true &&
+        resultado
+          .gravacoesExecutadas ===
+          false
+    });
+  }
+
+
+  const respostaAutorizada = {
+    status:
+      "OK",
+
+    detalhes: {
+      statusFinal:
+        "SINCRONIZADO",
+
+      autorizacaoIdentidade: {
+        autorizado:
+          true,
+
+        codigo:
+          "IDENTIDADE_AUTORIZADA"
+      }
+    }
+  };
+
+
+  const resultadoAutorizado =
+    await tratarRespostaBloqueioUX2196_(
+      respostaAutorizada,
+      {},
+      {
+        modoSimulacao:
+          true
+      }
+    );
+
+
+  const validacoes = {
+    todosCodigosReconhecidos:
+      resultados.every(
+        function (item) {
+          return item.reconhecido;
+        }
+      ),
+
+    todasSimulacoesAprovadas:
+      resultados.every(
+        function (item) {
+          return item.aprovado;
+        }
+      ),
+
+    respostaAutorizadaNaoBloqueada:
+      resultadoAutorizado
+        .tratado ===
+      false,
+
+    nenhumBloqueioLocalCriado:
+      obterBloqueioIdentidadeLocalUX2196_() ===
+      null
+  };
+
+
+  const aprovado =
+    Object.values(
+      validacoes
+    ).every(
+      function (valor) {
+        return valor === true;
+      }
+    );
+
+
+  const relatorio = {
+    etapa:
+      "UX.21.9.6.1",
+
+    auditoria:
+      "CONTRATO_LOCAL_TRATAMENTO_REVOGACAO",
+
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+
+    codigosTestados:
+      resultados,
+
+    validacoes:
+      validacoes,
+
+    aprovado:
+      aprovado,
+
+    prontoParaIntegrarSincronizacao:
+      aprovado
+  };
+
+
+  console.log(
+    JSON.stringify(
+      relatorio,
+      null,
+      2
+    )
+  );
+
+
+  if (!aprovado) {
+    throw new Error(
+      "UX.21.9.6.1 REPROVADA. Consulte as validações."
+    );
+  }
+
+
+  console.log(
+    "UX.21.9.6.1 — CONTRATO LOCAL DE REVOGAÇÃO APROVADO."
+  );
+
+
+  return relatorio;
+}
