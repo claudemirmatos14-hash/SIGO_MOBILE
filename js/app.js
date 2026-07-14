@@ -67456,37 +67456,50 @@ async function auditarAtivacaoAutomaticaIdentidadeUX215_() {
     null;
 
 
-  const resultadoOffline =
-    await ativarIdentidadeAutomaticamenteUX215_({
-      forcar:
-        true,
+ const resultadoOffline =
+  await ativarIdentidadeAutomaticamenteUX215_({
+    forcar:
+      true,
 
-      onlineOverride:
-        false
-    });
+    onlineOverride:
+      false
+  });
 
 
   const idSessaoOffline =
     resultadoOffline.contexto
       ?.sessao
       ?.idSessao || "";
-
-
+  
+  
   const sessaoOfflineValida =
     sessaoOfflineValidaUX212_(
       resultadoOffline.contexto
         ?.sessao
     );
-
-
+  
+  
+  /*
+   * Restaura o estado visual para a conexão real
+   * depois do teste offline simulado.
+   */
+  const resultadoConexaoReal =
+    await ativarIdentidadeAutomaticamenteUX215_({
+      forcar:
+        true,
+  
+      onlineOverride:
+        navigator.onLine
+    });
+  
+  
   /*
    * ========================================================
    * ESTADO FINAL
    * ========================================================
    */
-
+  
   instalarProtecaoNavegacaoIdentidadeUX215_();
-
 
   const identidadeDepois =
     await capturarEstadoStoresIdentidadeUX213_();
