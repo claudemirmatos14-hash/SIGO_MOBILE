@@ -75830,3 +75830,841 @@ async function auditarFuncoesGravacaoUX21964_() {
 
   return relatorio;
 }
+
+/**
+ * ============================================================
+ * UX.21.9.6.4B — AUDITORIA DIRIGIDA DOS PONTOS OPERACIONAIS
+ * ============================================================
+ *
+ * Não grava dados.
+ * Não altera IndexedDB.
+ * Não altera a TB_SYNC_QUEUE.
+ * Não adiciona proteção automaticamente.
+ * ============================================================
+ */
+
+const ALVOS_OPERACIONAIS_UX21964B =
+  Object.freeze({
+
+    gravacao: [
+      "salvarDiarioOffline",
+      "salvarDiarioPremium",
+      "salvarItemDiarioOffline",
+      "salvarItemDiarioPremium",
+
+      "salvarOcorrenciaOffline_",
+      "salvarOcorrenciaPremium",
+      "atualizarOcorrenciaOffline_",
+      "excluirOcorrenciaOffline_",
+
+      "salvarClimaOffline_",
+      "salvarClimaPremium",
+      "atualizarClimaOffline_",
+      "excluirClimaOffline_",
+
+      "salvarEvidenciaOffline_",
+      "salvarEvidenciaPremium",
+      "atualizarEvidenciaOffline_",
+      "excluirEvidenciaOffline_",
+
+      "salvarMedicaoOffline",
+      "salvarMedicaoPremium",
+      "salvarLoteMedicaoDrawer_",
+      "atualizarMedicaoOffline_",
+      "excluirMedicaoOffline_",
+
+      "atualizarDiarioOffline_",
+      "atualizarItemDiarioOffline_",
+
+      "excluirDiarioOffline_",
+      "excluirItemDiarioOffline_"
+    ],
+
+    interface: [
+      "iniciarNovoDiarioUnificadoUX19_",
+
+      "editarDiarioOffline_",
+      "editarItemDiarioOffline_",
+      "editarOcorrenciaOffline_",
+      "editarClimaOffline_",
+      "editarEvidenciaOffline_",
+      "editarMedicaoOffline_"
+    ]
+  });
+
+
+function escaparRegexUX21964B_(
+  valor
+) {
+  return String(
+    valor || ""
+  ).replace(
+    /[.*+?^${}()|[\]\\]/g,
+    "\\$&"
+  );
+}
+
+
+/**
+ * Obtém a implementação atual carregada no navegador.
+ */
+function obterFonteFuncaoUX21964B_(
+  nomeFuncao
+) {
+  let funcao;
+
+  try {
+    funcao =
+      globalThis[nomeFuncao];
+
+  } catch (erro) {
+    funcao =
+      null;
+  }
+
+
+  if (
+    typeof funcao !==
+    "function"
+  ) {
+    return {
+      encontrada:
+        false,
+
+      nome:
+        nomeFuncao,
+
+      fonte:
+        ""
+    };
+  }
+
+
+  let fonte =
+    "";
+
+  try {
+    fonte =
+      Function.prototype
+        .toString
+        .call(
+          funcao
+        );
+
+  } catch (erro) {
+    fonte =
+      "";
+  }
+
+
+  return {
+    encontrada:
+      true,
+
+    nome:
+      nomeFuncao,
+
+    fonte:
+      fonte
+  };
+}
+
+
+/**
+ * Procura apenas mecanismos conhecidos do SIGO.
+ *
+ * Não considera genericamente .add(), .delete() ou .put(),
+ * evitando os falsos positivos da auditoria anterior.
+ */
+function detectarGravacoesReaisUX21964B_(
+  fonte
+) {
+  const padroes = [
+    {
+      nome:
+        "salvarRegistroSIGO",
+
+      regex:
+        /\bsalvarRegistroSIGO\s*\(/
+    },
+
+    {
+      nome:
+        "atualizarRegistroSIGO",
+
+      regex:
+        /\batualizarRegistroSIGO\s*\(/
+    },
+
+    {
+      nome:
+        "removerRegistroSIGO",
+
+      regex:
+        /\bremoverRegistroSIGO_?\s*\(/
+    },
+
+    {
+      nome:
+        "removerRegistroPorChaveSIGO",
+
+      regex:
+        /\bremoverRegistroPorChaveSIGO_?\s*\(/
+    },
+
+    {
+      nome:
+        "adicionarNaFilaSyncSIGO",
+
+      regex:
+        /\badicionarNaFilaSyncSIGO_?\s*\(/
+    },
+
+    {
+      nome:
+        "atualizarFilaSync",
+
+      regex:
+        /\b(?:salvar|atualizar)RegistroSIGO\s*\(\s*["']TB_SYNC_QUEUE["']/
+    },
+
+    {
+      nome:
+        "SIGOCRUD.saveOffline",
+
+      regex:
+        /\bSIGOCRUD\s*\.\s*saveOffline\s*\(/
+    },
+
+    {
+      nome:
+        "SIGOCRUD.updateOffline",
+
+      regex:
+        /\bSIGOCRUD\s*\.\s*updateOffline\s*\(/
+    },
+
+    {
+      nome:
+        "SIGOCRUD.deleteOffline",
+
+      regex:
+        /\bSIGOCRUD\s*\.\s*(?:deleteOffline|removeOffline)\s*\(/
+    },
+
+    {
+      nome:
+        "exclusaoDiarioAtomica",
+
+      regex:
+        /\bexcluirDiarioComItensFilaAtomicaSIGO_\s*\(/
+    },
+
+    {
+      nome:
+        "exclusaoItemAtomica",
+
+      regex:
+        /\bexcluirItemDiarioComFilaAtomicaSIGO_\s*\(/
+    },
+
+    {
+      nome:
+        "transacaoClima",
+
+      regex:
+        /\bexecutarTransacaoClimaUX1975_\s*\(/
+    }
+  ];
+
+
+  return padroes
+    .filter(
+      function (padrao) {
+        return padrao.regex.test(
+          fonte
+        );
+      }
+    )
+    .map(
+      function (padrao) {
+        return padrao.nome;
+      }
+    );
+}
+
+
+/**
+ * Verifica se o bloqueio já foi inserido.
+ */
+function detectarProtecaoUX21964B_(
+  fonte
+) {
+  const protecoes = [];
+
+
+  if (
+    /\bbloquearOperacaoSeRevogadaUX21964_\s*\(/
+      .test(
+        fonte
+      )
+  ) {
+    protecoes.push(
+      "bloquearOperacaoSeRevogadaUX21964_"
+    );
+  }
+
+
+  if (
+    /\bgarantirIdentidadeAtivaUX2196_\s*\(/
+      .test(
+        fonte
+      )
+  ) {
+    protecoes.push(
+      "garantirIdentidadeAtivaUX2196_"
+    );
+  }
+
+
+  if (
+    /\bexecutarOperacaoProtegidaUX21964_\s*\(/
+      .test(
+        fonte
+      )
+  ) {
+    protecoes.push(
+      "executarOperacaoProtegidaUX21964_"
+    );
+  }
+
+
+  return protecoes;
+}
+
+
+/**
+ * Descobre se uma função chama outro alvo operacional.
+ */
+function detectarChamadasEntreAlvosUX21964B_(
+  fonte,
+  todosOsAlvos
+) {
+  return todosOsAlvos.filter(
+    function (nomeAlvo) {
+      const regex =
+        new RegExp(
+          "\\b" +
+          escaparRegexUX21964B_(
+            nomeAlvo
+          ) +
+          "\\s*\\("
+        );
+
+
+      return regex.test(
+        fonte
+      );
+    }
+  );
+}
+
+
+/**
+ * Procura referências atuais na interface.
+ */
+function localizarReferenciasDomUX21964B_(
+  nomeFuncao
+) {
+  const referencias = [];
+
+
+  document
+    .querySelectorAll(
+      "[onclick], [onsubmit], [onchange]"
+    )
+    .forEach(
+      function (elemento) {
+        [
+          "onclick",
+          "onsubmit",
+          "onchange"
+        ].forEach(
+          function (atributo) {
+            const expressao =
+              String(
+                elemento.getAttribute(
+                  atributo
+                ) || ""
+              );
+
+
+            if (
+              !expressao.includes(
+                nomeFuncao
+              )
+            ) {
+              return;
+            }
+
+
+            referencias.push({
+              atributo:
+                atributo,
+
+              id:
+                elemento.id || "",
+
+              tag:
+                elemento.tagName,
+
+              rotulo:
+                String(
+                  elemento.textContent ||
+                  elemento.value ||
+                  ""
+                )
+                  .trim()
+                  .slice(
+                    0,
+                    100
+                  ),
+
+              expressao:
+                expressao
+            });
+          }
+        );
+      }
+    );
+
+
+  return referencias;
+}
+
+
+/**
+ * Analisa um alvo.
+ */
+function analisarAlvoOperacionalUX21964B_(
+  nomeFuncao,
+  categoria,
+  todosOsAlvos
+) {
+  const leitura =
+    obterFonteFuncaoUX21964B_(
+      nomeFuncao
+    );
+
+
+  if (!leitura.encontrada) {
+    return {
+      funcao:
+        nomeFuncao,
+
+      categoria:
+        categoria,
+
+      encontrada:
+        false,
+
+      possuiGravacaoDireta:
+        false,
+
+      gravacoes:
+        [],
+
+      protegida:
+        false,
+
+      protecoes:
+        [],
+
+      chamaOutrosAlvos:
+        [],
+
+      referenciasDom:
+        []
+    };
+  }
+
+
+  const gravacoes =
+    detectarGravacoesReaisUX21964B_(
+      leitura.fonte
+    );
+
+  const protecoes =
+    detectarProtecaoUX21964B_(
+      leitura.fonte
+    );
+
+  const chamadas =
+    detectarChamadasEntreAlvosUX21964B_(
+      leitura.fonte,
+      todosOsAlvos
+    )
+      .filter(
+        function (nome) {
+          return nome !==
+            nomeFuncao;
+        }
+      );
+
+
+  return {
+    funcao:
+      nomeFuncao,
+
+    categoria:
+      categoria,
+
+    encontrada:
+      true,
+
+    possuiGravacaoDireta:
+      gravacoes.length > 0,
+
+    gravacoes:
+      gravacoes,
+
+    protegida:
+      protecoes.length > 0,
+
+    protecoes:
+      protecoes,
+
+    chamaOutrosAlvos:
+      chamadas,
+
+    referenciasDom:
+      localizarReferenciasDomUX21964B_(
+        nomeFuncao
+      ),
+
+    tamanhoFonte:
+      leitura.fonte.length,
+
+    trechoInicial:
+      leitura.fonte.slice(
+        0,
+        350
+      )
+  };
+}
+
+
+/**
+ * Auditoria principal.
+ */
+function auditarPontosOperacionaisUX21964B_() {
+  const todosOsAlvos = [
+    ...ALVOS_OPERACIONAIS_UX21964B
+      .gravacao,
+
+    ...ALVOS_OPERACIONAIS_UX21964B
+      .interface
+  ];
+
+
+  const resultados = [
+    ...ALVOS_OPERACIONAIS_UX21964B
+      .gravacao
+      .map(
+        function (nome) {
+          return analisarAlvoOperacionalUX21964B_(
+            nome,
+            "GRAVACAO",
+            todosOsAlvos
+          );
+        }
+      ),
+
+    ...ALVOS_OPERACIONAIS_UX21964B
+      .interface
+      .map(
+        function (nome) {
+          return analisarAlvoOperacionalUX21964B_(
+            nome,
+            "INTERFACE",
+            todosOsAlvos
+          );
+        }
+      )
+  ];
+
+
+  const encontrados =
+    resultados.filter(
+      item =>
+        item.encontrada
+    );
+
+  const inexistentes =
+    resultados.filter(
+      item =>
+        !item.encontrada
+    );
+
+  const gravacoesDiretas =
+    encontrados.filter(
+      item =>
+        item.categoria ===
+          "GRAVACAO" &&
+        item.possuiGravacaoDireta
+    );
+
+  const wrappers =
+    encontrados.filter(
+      item =>
+        item.categoria ===
+          "GRAVACAO" &&
+        !item.possuiGravacaoDireta &&
+        item.chamaOutrosAlvos.length >
+          0
+    );
+
+  const interfaces =
+    encontrados.filter(
+      item =>
+        item.categoria ===
+        "INTERFACE"
+    );
+
+  const semProtecao =
+    encontrados.filter(
+      item =>
+        item.protegida ===
+        false
+    );
+
+  const jaProtegidas =
+    encontrados.filter(
+      item =>
+        item.protegida ===
+        true
+    );
+
+
+  const relatorio = {
+    etapa:
+      "UX.21.9.6.4B",
+
+    auditoria:
+      "PONTOS_REAIS_DE_ENTRADA_OPERACIONAL",
+
+    geradoEm:
+      new Date()
+        .toISOString(),
+
+    totais: {
+      alvosAuditados:
+        resultados.length,
+
+      encontrados:
+        encontrados.length,
+
+      inexistentes:
+        inexistentes.length,
+
+      gravacoesDiretas:
+        gravacoesDiretas.length,
+
+      wrappersOperacionais:
+        wrappers.length,
+
+      entradasInterface:
+        interfaces.length,
+
+      semProtecao:
+        semProtecao.length,
+
+      jaProtegidas:
+        jaProtegidas.length
+    },
+
+    gravacoesDiretas:
+      gravacoesDiretas,
+
+    wrappersOperacionais:
+      wrappers,
+
+    entradasInterface:
+      interfaces,
+
+    semProtecao:
+      semProtecao,
+
+    jaProtegidas:
+      jaProtegidas,
+
+    inexistentes:
+      inexistentes,
+
+    resultados:
+      resultados
+  };
+
+
+  globalThis
+    .SIGO_AUDITORIA_PONTOS_OPERACIONAIS_UX21964B =
+      relatorio;
+
+
+  console.group(
+    "UX.21.9.6.4B — Pontos operacionais reais"
+  );
+
+
+  console.log(
+    "Resumo:",
+    relatorio.totais
+  );
+
+
+  console.log(
+    "Gravações diretas:"
+  );
+
+  console.table(
+    gravacoesDiretas.map(
+      item => ({
+        funcao:
+          item.funcao,
+
+        gravacoes:
+          item.gravacoes.join(
+            ", "
+          ),
+
+        protegida:
+          item.protegida,
+
+        chamadas:
+          item.chamaOutrosAlvos.join(
+            ", "
+          )
+      })
+    )
+  );
+
+
+  console.log(
+    "Wrappers operacionais:"
+  );
+
+  console.table(
+    wrappers.map(
+      item => ({
+        funcao:
+          item.funcao,
+
+        chama:
+          item.chamaOutrosAlvos.join(
+            ", "
+          ),
+
+        protegida:
+          item.protegida
+      })
+    )
+  );
+
+
+  console.log(
+    "Entradas de interface:"
+  );
+
+  console.table(
+    interfaces.map(
+      item => ({
+        funcao:
+          item.funcao,
+
+        referenciasDom:
+          item.referenciasDom.length,
+
+        protegida:
+          item.protegida,
+
+        chama:
+          item.chamaOutrosAlvos.join(
+            ", "
+          )
+      })
+    )
+  );
+
+
+  console.log(
+    "Funções inexistentes:"
+  );
+
+  console.table(
+    inexistentes.map(
+      item => ({
+        funcao:
+          item.funcao,
+
+        categoria:
+          item.categoria
+      })
+    )
+  );
+
+
+  console.groupEnd();
+
+
+  console.log(
+    JSON.stringify(
+      {
+        etapa:
+          relatorio.etapa,
+
+        totais:
+          relatorio.totais,
+
+        gravacoesDiretas:
+          gravacoesDiretas.map(
+            item =>
+              item.funcao
+          ),
+
+        wrappersOperacionais:
+          wrappers.map(
+            item => ({
+              funcao:
+                item.funcao,
+
+              chama:
+                item.chamaOutrosAlvos
+            })
+          ),
+
+        entradasInterface:
+          interfaces.map(
+            item =>
+              item.funcao
+          ),
+
+        jaProtegidas:
+          jaProtegidas.map(
+            item =>
+              item.funcao
+          ),
+
+        inexistentes:
+          inexistentes.map(
+            item =>
+              item.funcao
+          )
+      },
+      null,
+      2
+    )
+  );
+
+
+  return relatorio;
+}
