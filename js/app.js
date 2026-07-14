@@ -73462,110 +73462,7 @@ function criarResultadoBloqueioOperacionalUX21964_(
  * A navegação e os botões de consulta não são alterados.
  */
 function atualizarControlesOperacionaisUX21964_() {
-  const bloqueio =
-    obterBloqueioIdentidadeLocalUX2196_();
-
-  const bloqueado =
-    Boolean(
-      bloqueio
-    );
-
-
-  if (bloqueado) {
-    document.documentElement
-      .setAttribute(
-        CONFIG_BLOQUEIO_OPERACIONAL_UX21964
-          .atributoDocumento,
-
-        "bloqueadas"
-      );
-
-  } else {
-    document.documentElement
-      .removeAttribute(
-        CONFIG_BLOQUEIO_OPERACIONAL_UX21964
-          .atributoDocumento
-      );
-  }
-
-
-  const controles =
-    document.querySelectorAll(
-      CONFIG_BLOQUEIO_OPERACIONAL_UX21964
-        .seletorControles
-    );
-
-
-  controles.forEach(
-    function (controle) {
-      if (bloqueado) {
-
-        controle.setAttribute(
-          "aria-disabled",
-          "true"
-        );
-
-        controle.setAttribute(
-          "data-sigo-bloqueado",
-          "true"
-        );
-
-        controle.setAttribute(
-          "title",
-          bloqueio.mensagem ||
-          "Operação bloqueada pelo servidor."
-        );
-
-
-        /*
-         * Apenas elementos que possuem suporte real
-         * à propriedade disabled são desabilitados.
-         */
-        if (
-          "disabled" in
-          controle
-        ) {
-          controle.disabled =
-            true;
-        }
-
-      } else {
-
-        controle.removeAttribute(
-          "aria-disabled"
-        );
-
-        controle.removeAttribute(
-          "data-sigo-bloqueado"
-        );
-
-        controle.removeAttribute(
-          "title"
-        );
-
-
-        if (
-          "disabled" in
-          controle
-        ) {
-          controle.disabled =
-            false;
-        }
-      }
-    }
-  );
-
-
-  return {
-    bloqueado:
-      bloqueado,
-
-    quantidadeControles:
-      controles.length,
-
-    codigo:
-      bloqueio?.codigo || ""
-  };
+  return atualizarBloqueioVisualDinamicoUX21964E_();
 }
 
 
@@ -74823,12 +74720,1650 @@ async function auditarProtecoesOperacionaisUX21964C_() {
   return relatorio;
 }
 
+/**
+ * ============================================================
+ * UX.21.9.6.4E — BLOQUEIO VISUAL DINÂMICO
+ * ============================================================
+ *
+ * Segurança real:
+ * - wrappers das 29 funções operacionais.
+ *
+ * Complemento visual:
+ * - desabilita os controles correspondentes;
+ * - acompanha controles criados dinamicamente;
+ * - preserva o estado original;
+ * - mantém consultas e navegação liberadas.
+ * ============================================================
+ */
+
+
+const CONFIG_BLOQUEIO_VISUAL_UX21964E =
+  Object.freeze({
+
+    atributoExplicito:
+      "data-sigo-requer-identidade",
+
+    atributoBloqueado:
+      "data-sigo-bloqueado",
+
+    atributoGerenciado:
+      "data-sigo-ux21964e-gerenciado",
+
+    atributoDisabledOriginal:
+      "data-sigo-ux21964e-disabled-original",
+
+    atributoAriaOriginal:
+      "data-sigo-ux21964e-aria-original",
+
+    atributoTitleOriginal:
+      "data-sigo-ux21964e-title-original",
+
+    atributoTabindexOriginal:
+      "data-sigo-ux21964e-tabindex-original",
+
+    atributoOperacao:
+      "data-sigo-operacao",
+
+    valorAusente:
+      "__SIGO_AUSENTE__",
+
+    classeBloqueado:
+      "sigo-ux21964e-controle-bloqueado",
+
+    idEstilo:
+      "estiloBloqueioVisualUX21964E",
+
+    seletoresCandidatos: [
+      "button",
+      "input[type='button']",
+      "input[type='submit']",
+      "input[type='image']",
+      "a",
+      "[role='button']",
+      "[onclick]",
+      "[data-action]",
+      "[data-acao]",
+      "[data-sigo-operacao]",
+      "[data-sigo-requer-identidade]"
+    ].join(",")
+  });
+
+
+let observadorBloqueioVisualUX21964E_ =
+  null;
+
+
+let atualizacaoVisualAgendadaUX21964E_ =
+  false;
+
+
+let aplicandoBloqueioVisualUX21964E_ =
+  false;
+
+
+let ultimaMensagemBloqueioVisualUX21964E_ =
+  0;
+
+
+/**
+ * Lista das funções protegidas na UX.21.9.6.4C.
+ */
+function obterNomesFuncoesProtegidasUX21964E_() {
+  if (
+    !Array.isArray(
+      globalThis
+        .ALVOS_PROTECAO_OPERACIONAL_UX21964C
+    )
+  ) {
+    return [];
+  }
+
+
+  return globalThis
+    .ALVOS_PROTECAO_OPERACIONAL_UX21964C
+    .map(
+      alvo =>
+        String(
+          alvo?.funcao || ""
+        ).trim()
+    )
+    .filter(
+      Boolean
+    );
+}
+
+
+/**
+ * Lista das operações oficiais protegidas.
+ */
+function obterNomesOperacoesProtegidasUX21964E_() {
+  if (
+    !Array.isArray(
+      globalThis
+        .ALVOS_PROTECAO_OPERACIONAL_UX21964C
+    )
+  ) {
+    return [];
+  }
+
+
+  return globalThis
+    .ALVOS_PROTECAO_OPERACIONAL_UX21964C
+    .map(
+      alvo =>
+        String(
+          alvo?.operacao || ""
+        )
+          .trim()
+          .toUpperCase()
+    )
+    .filter(
+      Boolean
+    );
+}
+
+
+/**
+ * Escapa um nome para uso em expressão regular.
+ */
+function escaparRegexUX21964E_(
+  valor
+) {
+  return String(
+    valor || ""
+  ).replace(
+    /[.*+?^${}()|[\]\\]/g,
+    "\\$&"
+  );
+}
+
+
+/**
+ * Verifica se uma expressão chama uma das 29 funções.
+ */
+function expressaoReferenciaFuncaoProtegidaUX21964E_(
+  expressao
+) {
+  const texto =
+    String(
+      expressao || ""
+    );
+
+
+  if (!texto.trim()) {
+    return false;
+  }
+
+
+  return obterNomesFuncoesProtegidasUX21964E_()
+    .some(
+      function (nomeFuncao) {
+        const regex =
+          new RegExp(
+            "\\b" +
+            escaparRegexUX21964E_(
+              nomeFuncao
+            ) +
+            "\\s*\\("
+          );
+
+
+        return regex.test(
+          texto
+        );
+      }
+    );
+}
+
+
+/**
+ * Obtém todas as expressões de ação ligadas ao controle.
+ */
+function obterExpressoesControleUX21964E_(
+  controle
+) {
+  const expressoes =
+    [];
+
+
+  [
+    "onclick",
+    "onsubmit",
+    "data-action",
+    "data-acao",
+    "x-on:click",
+    "@click"
+  ].forEach(
+    function (atributo) {
+      const valor =
+        controle.getAttribute?.(
+          atributo
+        );
+
+
+      if (valor) {
+        expressoes.push(
+          valor
+        );
+      }
+    }
+  );
+
+
+  try {
+    if (
+      typeof controle.onclick ===
+      "function"
+    ) {
+      expressoes.push(
+        Function.prototype
+          .toString
+          .call(
+            controle.onclick
+          )
+      );
+    }
+  } catch (erro) {
+    // Apenas diagnóstico visual.
+  }
+
+
+  const formulario =
+    controle.closest?.(
+      "form"
+    );
+
+
+  if (formulario) {
+    const onsubmit =
+      formulario.getAttribute(
+        "onsubmit"
+      );
+
+
+    if (onsubmit) {
+      expressoes.push(
+        onsubmit
+      );
+    }
+
+
+    try {
+      if (
+        typeof formulario.onsubmit ===
+        "function"
+      ) {
+        expressoes.push(
+          Function.prototype
+            .toString
+            .call(
+              formulario.onsubmit
+            )
+        );
+      }
+    } catch (erro) {
+      // Apenas diagnóstico visual.
+    }
+  }
+
+
+  const ancestralComAcao =
+    controle.parentElement
+      ?.closest?.(
+        "[onclick], [data-action], [data-acao]"
+      );
+
+
+  if (ancestralComAcao) {
+    [
+      "onclick",
+      "data-action",
+      "data-acao"
+    ].forEach(
+      function (atributo) {
+        const valor =
+          ancestralComAcao.getAttribute(
+            atributo
+          );
+
+
+        if (valor) {
+          expressoes.push(
+            valor
+          );
+        }
+      }
+    );
+  }
+
+
+  return expressoes;
+}
+
+
+/**
+ * Identifica se o controle representa uma operação
+ * protegida.
+ *
+ * Não usa somente o texto visual do botão.
+ */
+function ehControleOperacionalUX21964E_(
+  controle
+) {
+  if (
+    !(controle instanceof Element)
+  ) {
+    return false;
+  }
+
+
+  if (
+    controle.getAttribute(
+      CONFIG_BLOQUEIO_VISUAL_UX21964E
+        .atributoExplicito
+    ) ===
+    "true"
+  ) {
+    return true;
+  }
+
+
+  const operacaoDeclarada =
+    String(
+      controle.getAttribute(
+        CONFIG_BLOQUEIO_VISUAL_UX21964E
+          .atributoOperacao
+      ) || ""
+    )
+      .trim()
+      .toUpperCase();
+
+
+  if (
+    operacaoDeclarada &&
+    obterNomesOperacoesProtegidasUX21964E_()
+      .includes(
+        operacaoDeclarada
+      )
+  ) {
+    return true;
+  }
+
+
+  const expressoes =
+    obterExpressoesControleUX21964E_(
+      controle
+    );
+
+
+  return expressoes.some(
+    expressaoReferenciaFuncaoProtegidaUX21964E_
+  );
+}
+
+
+/**
+ * Salva um atributo antes da primeira alteração visual.
+ */
+function salvarAtributoOriginalUX21964E_(
+  controle,
+  nomeAtributo,
+  atributoDestino
+) {
+  if (
+    controle.hasAttribute(
+      atributoDestino
+    )
+  ) {
+    return;
+  }
+
+
+  const valor =
+    controle.hasAttribute(
+      nomeAtributo
+    )
+      ? controle.getAttribute(
+          nomeAtributo
+        )
+      : CONFIG_BLOQUEIO_VISUAL_UX21964E
+          .valorAusente;
+
+
+  controle.setAttribute(
+    atributoDestino,
+    valor
+  );
+}
+
+
+/**
+ * Restaura um atributo salvo anteriormente.
+ */
+function restaurarAtributoOriginalUX21964E_(
+  controle,
+  nomeAtributo,
+  atributoOrigem
+) {
+  if (
+    !controle.hasAttribute(
+      atributoOrigem
+    )
+  ) {
+    return;
+  }
+
+
+  const valor =
+    controle.getAttribute(
+      atributoOrigem
+    );
+
+
+  if (
+    valor ===
+    CONFIG_BLOQUEIO_VISUAL_UX21964E
+      .valorAusente
+  ) {
+    controle.removeAttribute(
+      nomeAtributo
+    );
+
+  } else {
+    controle.setAttribute(
+      nomeAtributo,
+      valor
+    );
+  }
+
+
+  controle.removeAttribute(
+    atributoOrigem
+  );
+}
+
+
+/**
+ * Guarda o estado anterior do controle.
+ */
+function salvarEstadoOriginalControleUX21964E_(
+  controle
+) {
+  if (
+    controle.getAttribute(
+      CONFIG_BLOQUEIO_VISUAL_UX21964E
+        .atributoGerenciado
+    ) ===
+    "true"
+  ) {
+    return;
+  }
+
+
+  controle.setAttribute(
+    CONFIG_BLOQUEIO_VISUAL_UX21964E
+      .atributoGerenciado,
+    "true"
+  );
+
+
+  const disabledOriginal =
+    "disabled" in controle
+      ? Boolean(
+          controle.disabled
+        )
+      : false;
+
+
+  controle.setAttribute(
+    CONFIG_BLOQUEIO_VISUAL_UX21964E
+      .atributoDisabledOriginal,
+
+    disabledOriginal
+      ? "true"
+      : "false"
+  );
+
+
+  salvarAtributoOriginalUX21964E_(
+    controle,
+    "aria-disabled",
+    CONFIG_BLOQUEIO_VISUAL_UX21964E
+      .atributoAriaOriginal
+  );
+
+
+  salvarAtributoOriginalUX21964E_(
+    controle,
+    "title",
+    CONFIG_BLOQUEIO_VISUAL_UX21964E
+      .atributoTitleOriginal
+  );
+
+
+  salvarAtributoOriginalUX21964E_(
+    controle,
+    "tabindex",
+    CONFIG_BLOQUEIO_VISUAL_UX21964E
+      .atributoTabindexOriginal
+  );
+}
+
+
+/**
+ * Aplica o estado de bloqueio a um controle.
+ */
+function bloquearControleVisualUX21964E_(
+  controle,
+  bloqueio
+) {
+  salvarEstadoOriginalControleUX21964E_(
+    controle
+  );
+
+
+  controle.setAttribute(
+    CONFIG_BLOQUEIO_VISUAL_UX21964E
+      .atributoBloqueado,
+    "true"
+  );
+
+
+  controle.setAttribute(
+    "aria-disabled",
+    "true"
+  );
+
+
+  controle.setAttribute(
+    "title",
+    bloqueio?.mensagem ||
+    "Operação bloqueada pelo servidor."
+  );
+
+
+  controle.classList.add(
+    CONFIG_BLOQUEIO_VISUAL_UX21964E
+      .classeBloqueado
+  );
+
+
+  if (
+    "disabled" in controle
+  ) {
+    controle.disabled =
+      true;
+
+  } else {
+    controle.setAttribute(
+      "tabindex",
+      "-1"
+    );
+  }
+}
+
+
+/**
+ * Restaura exatamente o estado anterior do controle.
+ */
+function restaurarControleVisualUX21964E_(
+  controle
+) {
+  if (
+    controle.getAttribute(
+      CONFIG_BLOQUEIO_VISUAL_UX21964E
+        .atributoGerenciado
+    ) !==
+    "true"
+  ) {
+    return;
+  }
+
+
+  const disabledOriginal =
+    controle.getAttribute(
+      CONFIG_BLOQUEIO_VISUAL_UX21964E
+        .atributoDisabledOriginal
+    ) ===
+    "true";
+
+
+  if (
+    "disabled" in controle
+  ) {
+    controle.disabled =
+      disabledOriginal;
+  }
+
+
+  restaurarAtributoOriginalUX21964E_(
+    controle,
+    "aria-disabled",
+    CONFIG_BLOQUEIO_VISUAL_UX21964E
+      .atributoAriaOriginal
+  );
+
+
+  restaurarAtributoOriginalUX21964E_(
+    controle,
+    "title",
+    CONFIG_BLOQUEIO_VISUAL_UX21964E
+      .atributoTitleOriginal
+  );
+
+
+  restaurarAtributoOriginalUX21964E_(
+    controle,
+    "tabindex",
+    CONFIG_BLOQUEIO_VISUAL_UX21964E
+      .atributoTabindexOriginal
+  );
+
+
+  controle.removeAttribute(
+    CONFIG_BLOQUEIO_VISUAL_UX21964E
+      .atributoDisabledOriginal
+  );
+
+
+  controle.removeAttribute(
+    CONFIG_BLOQUEIO_VISUAL_UX21964E
+      .atributoBloqueado
+  );
+
+
+  controle.removeAttribute(
+    CONFIG_BLOQUEIO_VISUAL_UX21964E
+      .atributoGerenciado
+  );
+
+
+  controle.classList.remove(
+    CONFIG_BLOQUEIO_VISUAL_UX21964E
+      .classeBloqueado
+  );
+}
+
+
+/**
+ * Instala o estilo visual uma única vez.
+ */
+function instalarEstiloBloqueioVisualUX21964E_() {
+  if (
+    document.getElementById(
+      CONFIG_BLOQUEIO_VISUAL_UX21964E
+        .idEstilo
+    )
+  ) {
+    return;
+  }
+
+
+  const estilo =
+    document.createElement(
+      "style"
+    );
+
+
+  estilo.id =
+    CONFIG_BLOQUEIO_VISUAL_UX21964E
+      .idEstilo;
+
+
+  estilo.textContent = `
+    .${CONFIG_BLOQUEIO_VISUAL_UX21964E.classeBloqueado} {
+      opacity: 0.52 !important;
+      cursor: not-allowed !important;
+      filter: grayscale(0.35);
+      user-select: none;
+    }
+
+    .${CONFIG_BLOQUEIO_VISUAL_UX21964E.classeBloqueado}:focus {
+      outline: 2px solid rgba(220, 38, 38, 0.45);
+      outline-offset: 2px;
+    }
+  `;
+
+
+  document.head.appendChild(
+    estilo
+  );
+}
+
+
+/**
+ * Atualiza todos os controles já existentes no DOM.
+ */
+function atualizarBloqueioVisualDinamicoUX21964E_() {
+  if (
+    aplicandoBloqueioVisualUX21964E_
+  ) {
+    return {
+      bloqueado:
+        Boolean(
+          obterBloqueioIdentidadeLocalUX2196_()
+        ),
+
+      atualizacaoIgnorada:
+        true
+    };
+  }
+
+
+  aplicandoBloqueioVisualUX21964E_ =
+    true;
+
+
+  try {
+    instalarEstiloBloqueioVisualUX21964E_();
+
+
+    const bloqueio =
+      obterBloqueioIdentidadeLocalUX2196_();
+
+
+    const bloqueado =
+      Boolean(
+        bloqueio
+      );
+
+
+    const candidatos =
+      Array.from(
+        document.querySelectorAll(
+          [
+            CONFIG_BLOQUEIO_VISUAL_UX21964E
+              .seletoresCandidatos,
+
+            `[${CONFIG_BLOQUEIO_VISUAL_UX21964E.atributoGerenciado}="true"]`
+          ].join(",")
+        )
+      );
+
+
+    let operacionais =
+      0;
+
+    let bloqueados =
+      0;
+
+    let restaurados =
+      0;
+
+
+    candidatos.forEach(
+      function (controle) {
+        const operacional =
+          ehControleOperacionalUX21964E_(
+            controle
+          );
+
+
+        const gerenciado =
+          controle.getAttribute(
+            CONFIG_BLOQUEIO_VISUAL_UX21964E
+              .atributoGerenciado
+          ) ===
+          "true";
+
+
+        if (
+          bloqueado &&
+          operacional
+        ) {
+          operacionais++;
+
+          bloquearControleVisualUX21964E_(
+            controle,
+            bloqueio
+          );
+
+          bloqueados++;
+
+          return;
+        }
+
+
+        if (gerenciado) {
+          restaurarControleVisualUX21964E_(
+            controle
+          );
+
+          restaurados++;
+        }
+      }
+    );
+
+
+    if (bloqueado) {
+      document.documentElement
+        .setAttribute(
+          "data-sigo-operacoes",
+          "bloqueadas"
+        );
+
+
+      aplicarAvisoVisualBloqueioUX2196_(
+        bloqueio
+      );
+
+    } else {
+      document.documentElement
+        .removeAttribute(
+          "data-sigo-operacoes"
+        );
+
+
+      removerAvisoVisualBloqueioUX2196_();
+    }
+
+
+    return {
+      bloqueado:
+        bloqueado,
+
+      codigo:
+        bloqueio?.codigo || "",
+
+      candidatos:
+        candidatos.length,
+
+      operacionais:
+        operacionais,
+
+      controlesBloqueados:
+        bloqueados,
+
+      controlesRestaurados:
+        restaurados
+    };
+
+  } finally {
+    aplicandoBloqueioVisualUX21964E_ =
+      false;
+  }
+}
+
+
+/**
+ * Agenda uma atualização, evitando várias varreduras
+ * no mesmo ciclo do navegador.
+ */
+function agendarAtualizacaoVisualUX21964E_() {
+  if (
+    atualizacaoVisualAgendadaUX21964E_
+  ) {
+    return;
+  }
+
+
+  atualizacaoVisualAgendadaUX21964E_ =
+    true;
+
+
+  queueMicrotask(
+    function () {
+      atualizacaoVisualAgendadaUX21964E_ =
+        false;
+
+      atualizarBloqueioVisualDinamicoUX21964E_();
+    }
+  );
+}
+
+
+/**
+ * Localiza o controle operacional relacionado ao evento.
+ */
+function localizarControleEventoUX21964E_(
+  evento
+) {
+  const caminho =
+    typeof evento.composedPath ===
+      "function"
+      ? evento.composedPath()
+      : [];
+
+
+  for (
+    const item of
+    caminho
+  ) {
+    if (
+      item instanceof Element &&
+      ehControleOperacionalUX21964E_(
+        item
+      )
+    ) {
+      return item;
+    }
+  }
+
+
+  const alvo =
+    evento.target instanceof Element
+      ? evento.target
+      : null;
+
+
+  if (!alvo) {
+    return null;
+  }
+
+
+  const controle =
+    alvo.closest(
+      CONFIG_BLOQUEIO_VISUAL_UX21964E
+        .seletoresCandidatos
+    );
+
+
+  return (
+    controle &&
+    ehControleOperacionalUX21964E_(
+      controle
+    )
+  )
+    ? controle
+    : null;
+}
+
+
+/**
+ * Intercepta links, cards e elementos sem suporte a disabled.
+ */
+function interceptarEventoOperacionalUX21964E_(
+  evento
+) {
+  const bloqueio =
+    obterBloqueioIdentidadeLocalUX2196_();
+
+
+  if (!bloqueio) {
+    return;
+  }
+
+
+  const controle =
+    localizarControleEventoUX21964E_(
+      evento
+    );
+
+
+  if (!controle) {
+    return;
+  }
+
+
+  evento.preventDefault();
+  evento.stopPropagation();
+  evento.stopImmediatePropagation();
+
+
+  bloquearControleVisualUX21964E_(
+    controle,
+    bloqueio
+  );
+
+
+  aplicarAvisoVisualBloqueioUX2196_(
+    bloqueio
+  );
+
+
+  const agora =
+    Date.now();
+
+
+  if (
+    agora -
+      ultimaMensagemBloqueioVisualUX21964E_ >
+    1000
+  ) {
+    ultimaMensagemBloqueioVisualUX21964E_ =
+      agora;
+
+
+    if (
+      globalThis.SIGOUI
+        ?.feedback &&
+      typeof SIGOUI.feedback.error ===
+        "function"
+    ) {
+      SIGOUI.feedback.error(
+        "Operação bloqueada",
+        bloqueio.mensagem ||
+        "A identidade atual não pode realizar esta operação."
+      );
+    }
+  }
+
+
+  console.warn(
+    "[UX.21.9.6.4E] Ação visual impedida:",
+    {
+      evento:
+        evento.type,
+
+      codigo:
+        bloqueio.codigo || "",
+
+      controle:
+        controle.id ||
+        controle.textContent
+          ?.trim()
+          ?.slice(
+            0,
+            80
+          ) ||
+        controle.tagName
+    }
+  );
+}
+
+
+/**
+ * Inicia o acompanhamento das telas dinâmicas.
+ */
+function iniciarBloqueioVisualDinamicoUX21964E_() {
+  instalarEstiloBloqueioVisualUX21964E_();
+
+
+  if (
+    !observadorBloqueioVisualUX21964E_
+  ) {
+    observadorBloqueioVisualUX21964E_ =
+      new MutationObserver(
+        function () {
+          agendarAtualizacaoVisualUX21964E_();
+        }
+      );
+
+
+    observadorBloqueioVisualUX21964E_
+      .observe(
+        document.body ||
+        document.documentElement,
+        {
+          childList:
+            true,
+
+          subtree:
+            true,
+
+          attributes:
+            true,
+
+          attributeFilter: [
+            "onclick",
+            "onsubmit",
+            "data-action",
+            "data-acao",
+            "data-sigo-operacao",
+            "data-sigo-requer-identidade"
+          ]
+        }
+      );
+  }
+
+
+  atualizarBloqueioVisualDinamicoUX21964E_();
+
+
+  return {
+    iniciado:
+      true,
+
+    observerAtivo:
+      Boolean(
+        observadorBloqueioVisualUX21964E_
+      )
+  };
+}
+
+
+/**
+ * Eventos de identidade.
+ */
+globalThis.addEventListener(
+  "sigo:identidade-bloqueada",
+  agendarAtualizacaoVisualUX21964E_
+);
+
+
+globalThis.addEventListener(
+  "sigo:identidade-desbloqueada",
+  agendarAtualizacaoVisualUX21964E_
+);
+
+
+/**
+ * Mudança de localStorage em outra aba ou janela.
+ */
+globalThis.addEventListener(
+  "storage",
+  function (evento) {
+    if (
+      evento.key ===
+      CONFIG_BLOQUEIO_IDENTIDADE_UX2196
+        .chaveLocalStorage
+    ) {
+      agendarAtualizacaoVisualUX21964E_();
+    }
+  }
+);
+
+
+/**
+ * Interceptação em fase de captura.
+ */
+document.addEventListener(
+  "click",
+  interceptarEventoOperacionalUX21964E_,
+  true
+);
+
+
+document.addEventListener(
+  "submit",
+  interceptarEventoOperacionalUX21964E_,
+  true
+);
+
+
+/**
+ * Inicialização.
+ */
+if (
+  document.readyState ===
+  "loading"
+) {
+  document.addEventListener(
+    "DOMContentLoaded",
+    iniciarBloqueioVisualDinamicoUX21964E_,
+    {
+      once:
+        true
+    }
+  );
+
+} else {
+  iniciarBloqueioVisualDinamicoUX21964E_();
+}
 
 
 
 
 
 
+/**
+ * ============================================================
+ * UX.21.9.6.4E — AUDITORIA DO BLOQUEIO VISUAL DINÂMICO
+ * ============================================================
+ *
+ * Cria controles temporários fora da área visível.
+ * Não chama funções reais.
+ * Não grava nas stores operacionais.
+ * ============================================================
+ */
+
+function aguardarCicloVisualUX21964E_() {
+  return new Promise(
+    function (resolve) {
+      requestAnimationFrame(
+        function () {
+          setTimeout(
+            resolve,
+            30
+          );
+        }
+      );
+    }
+  );
+}
+
+
+async function auditarBloqueioVisualDinamicoUX21964E_() {
+
+  iniciarBloqueioVisualDinamicoUX21964E_();
+
+
+  const chaveBloqueio =
+    CONFIG_BLOQUEIO_IDENTIDADE_UX2196
+      .chaveLocalStorage;
+
+
+  const valorAnterior =
+    localStorage.getItem(
+      chaveBloqueio
+    );
+
+
+  const filaAntes =
+    await listarRegistrosSIGO(
+      "TB_SYNC_QUEUE"
+    );
+
+
+  const areaTeste =
+    document.createElement(
+      "div"
+    );
+
+
+  areaTeste.id =
+    "areaAuditoriaVisualUX21964E";
+
+
+  areaTeste.style.cssText = [
+    "position:fixed",
+    "left:-10000px",
+    "top:-10000px",
+    "width:10px",
+    "height:10px",
+    "overflow:hidden"
+  ].join(";");
+
+
+  const botaoHabilitado =
+    document.createElement(
+      "button"
+    );
+
+
+  botaoHabilitado.id =
+    "testeUX21964E-habilitado";
+
+
+  botaoHabilitado.textContent =
+    "Salvar teste";
+
+
+  botaoHabilitado.setAttribute(
+    "data-sigo-requer-identidade",
+    "true"
+  );
+
+
+  const botaoOriginalmenteDesabilitado =
+    document.createElement(
+      "button"
+    );
+
+
+  botaoOriginalmenteDesabilitado.id =
+    "testeUX21964E-desabilitado";
+
+
+  botaoOriginalmenteDesabilitado.textContent =
+    "Excluir teste";
+
+
+  botaoOriginalmenteDesabilitado.disabled =
+    true;
+
+
+  botaoOriginalmenteDesabilitado
+    .setAttribute(
+      "data-sigo-requer-identidade",
+      "true"
+    );
+
+
+  const botaoConsulta =
+    document.createElement(
+      "button"
+    );
+
+
+  botaoConsulta.id =
+    "testeUX21964E-consulta";
+
+
+  botaoConsulta.textContent =
+    "Consultar registros";
+
+
+  areaTeste.append(
+    botaoHabilitado,
+    botaoOriginalmenteDesabilitado,
+    botaoConsulta
+  );
+
+
+  document.body.appendChild(
+    areaTeste
+  );
+
+
+  const bloqueioSimulado = {
+    ativo:
+      true,
+
+    versaoContrato:
+      "1.0",
+
+    codigo:
+      "VINCULO_OBRA_NAO_ATIVO",
+
+    mensagem:
+      "Vínculo simulado com a obra revogado.",
+
+    idUsuario:
+      "USR-SIMULADO",
+
+    idDispositivo:
+      "DISP-SIMULADO",
+
+    idSessao:
+      "SES-SIMULADA",
+
+    idObra:
+      "OBR002",
+
+    bloqueadaEm:
+      new Date()
+        .toISOString(),
+
+    origem:
+      "AUDITORIA_UX21964E"
+  };
+
+
+  let linkDinamico =
+    null;
+
+
+  let acaoLinkExecutada =
+    false;
+
+
+  let validacoesDuranteBloqueio =
+    {};
+
+
+  let validacoesRestauracao =
+    {};
+
+
+  try {
+
+    localStorage.setItem(
+      chaveBloqueio,
+      JSON.stringify(
+        bloqueioSimulado
+      )
+    );
+
+
+    atualizarBloqueioVisualDinamicoUX21964E_();
+
+
+    linkDinamico =
+      document.createElement(
+        "a"
+      );
+
+
+    linkDinamico.id =
+      "testeUX21964E-dinamico";
+
+
+    linkDinamico.href =
+      "#nao-navegar";
+
+
+    linkDinamico.textContent =
+      "Editar ocorrência";
+
+
+    linkDinamico.setAttribute(
+      "onclick",
+      "return editarOcorrenciaOffline_('TESTE');"
+    );
+
+
+    linkDinamico.addEventListener(
+      "click",
+      function () {
+        acaoLinkExecutada =
+          true;
+      }
+    );
+
+
+    areaTeste.appendChild(
+      linkDinamico
+    );
+
+
+    await aguardarCicloVisualUX21964E_();
+
+
+    linkDinamico.dispatchEvent(
+      new MouseEvent(
+        "click",
+        {
+          bubbles:
+            true,
+
+          cancelable:
+            true
+        }
+      )
+    );
+
+
+    validacoesDuranteBloqueio = {
+
+      botaoHabilitadoBloqueado:
+        botaoHabilitado.disabled ===
+          true &&
+        botaoHabilitado.getAttribute(
+          "data-sigo-bloqueado"
+        ) ===
+          "true",
+
+      botaoDesabilitadoPermaneceuBloqueado:
+        botaoOriginalmenteDesabilitado
+          .disabled ===
+        true,
+
+      consultaPermaneceuLiberada:
+        botaoConsulta.disabled ===
+          false &&
+        botaoConsulta.hasAttribute(
+          "data-sigo-bloqueado"
+        ) ===
+          false,
+
+      controleDinamicoDetectado:
+        linkDinamico.getAttribute(
+          "data-sigo-bloqueado"
+        ) ===
+          "true" &&
+        linkDinamico.getAttribute(
+          "aria-disabled"
+        ) ===
+          "true",
+
+      cliqueDinamicoInterceptado:
+        acaoLinkExecutada ===
+        false,
+
+      documentoMarcadoComoBloqueado:
+        document.documentElement
+          .getAttribute(
+            "data-sigo-operacoes"
+          ) ===
+        "bloqueadas"
+    };
+
+  } finally {
+
+    if (
+      valorAnterior ===
+      null
+    ) {
+      localStorage.removeItem(
+        chaveBloqueio
+      );
+
+    } else {
+      localStorage.setItem(
+        chaveBloqueio,
+        valorAnterior
+      );
+    }
+
+
+    atualizarBloqueioVisualDinamicoUX21964E_();
+
+
+    await aguardarCicloVisualUX21964E_();
+
+
+    validacoesRestauracao = {
+
+      botaoHabilitadoRestaurado:
+        valorAnterior !== null ||
+        botaoHabilitado.disabled ===
+          false,
+
+      botaoOriginalmenteDesabilitadoPreservado:
+        botaoOriginalmenteDesabilitado
+          .disabled ===
+        true,
+
+      consultaContinuouLiberada:
+        botaoConsulta.disabled ===
+        false,
+
+      linkDinamicoRestaurado:
+        valorAnterior !== null ||
+        (
+          linkDinamico.getAttribute(
+            "data-sigo-bloqueado"
+          ) ===
+            null &&
+          linkDinamico.getAttribute(
+            "aria-disabled"
+          ) ===
+            null
+        ),
+
+      bloqueioAnteriorRestaurado:
+        valorAnterior === null
+          ? localStorage.getItem(
+              chaveBloqueio
+            ) === null
+          : localStorage.getItem(
+              chaveBloqueio
+            ) === valorAnterior,
+
+      documentoRestaurado:
+        valorAnterior !== null ||
+        document.documentElement
+          .getAttribute(
+            "data-sigo-operacoes"
+          ) ===
+          null,
+
+      avisoVisualRestaurado:
+        valorAnterior !== null ||
+        document.getElementById(
+          "avisoIdentidadeBloqueadaUX2196"
+        ) ===
+        null
+    };
+  }
+
+
+  const filaDepois =
+    await listarRegistrosSIGO(
+      "TB_SYNC_QUEUE"
+    );
+
+
+  areaTeste.remove();
+
+
+  const validacoes = {
+    ...validacoesDuranteBloqueio,
+    ...validacoesRestauracao,
+
+    observerAtivo:
+      Boolean(
+        observadorBloqueioVisualUX21964E_
+      ),
+
+    filaPreservada:
+      filaAntes.length ===
+      filaDepois.length
+  };
+
+
+  const aprovado =
+    Object.values(
+      validacoes
+    ).every(
+      valor =>
+        valor === true
+    );
+
+
+  const relatorio = {
+    etapa:
+      "UX.21.9.6.4E",
+
+    auditoria:
+      "BLOQUEIO_VISUAL_CONTROLES_DINAMICOS",
+
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+
+    quantidadeFilaAntes:
+      filaAntes.length,
+
+    quantidadeFilaDepois:
+      filaDepois.length,
+
+    validacoes:
+      validacoes,
+
+    aprovado:
+      aprovado,
+
+    prontoParaTesteRealRevogacaoPWA:
+      aprovado
+  };
+
+
+  console.log(
+    JSON.stringify(
+      relatorio,
+      null,
+      2
+    )
+  );
+
+
+  if (!aprovado) {
+    throw new Error(
+      "UX.21.9.6.4E REPROVADA. Consulte as validações."
+    );
+  }
+
+
+  console.log(
+    "UX.21.9.6.4E — BLOQUEIO VISUAL DINÂMICO APROVADO."
+  );
+
+
+  return relatorio;
+}
 /**
  * ============================================================
  * UX.21.9.6.4A — AUDITORIA DAS FUNÇÕES DE GRAVAÇÃO
