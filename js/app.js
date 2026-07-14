@@ -73358,3 +73358,2475 @@ function removerAvisoVisualBloqueioUX2196_() {
     aviso.remove();
   }
 }
+
+/**
+ * ============================================================
+ * UX.21.9.6.4 — BLOQUEIO DAS NOVAS OPERAÇÕES
+ * ============================================================
+ *
+ * Protege operações de:
+ *
+ * - criação;
+ * - edição;
+ * - exclusão;
+ * - geração de pendências;
+ * - alteração de registros operacionais.
+ *
+ * Não bloqueia:
+ *
+ * - consultas;
+ * - listagens;
+ * - visualização de registros existentes;
+ * - leitura da fila;
+ * - recuperação e auditoria.
+ * ============================================================
+ */
+
+
+const CONFIG_BLOQUEIO_OPERACIONAL_UX21964 =
+  Object.freeze({
+    versaoContrato:
+      "1.0",
+
+    atributoDocumento:
+      "data-sigo-operacoes",
+
+    seletorControles:
+      "[data-sigo-requer-identidade='true']"
+  });
+
+
+/**
+ * Cria o retorno padronizado de uma operação impedida.
+ */
+function criarResultadoBloqueioOperacionalUX21964_(
+  operacao,
+  bloqueio
+) {
+  return {
+    status:
+      "BLOQUEADO",
+
+    operacao:
+      String(
+        operacao || ""
+      ).trim(),
+
+    codigo:
+      String(
+        bloqueio?.codigo || ""
+      ).trim(),
+
+    mensagem:
+      String(
+        bloqueio?.mensagem ||
+        "Esta operação está bloqueada."
+      ).trim(),
+
+    idUsuario:
+      String(
+        bloqueio?.idUsuario || ""
+      ).trim(),
+
+    idDispositivo:
+      String(
+        bloqueio?.idDispositivo || ""
+      ).trim(),
+
+    idSessao:
+      String(
+        bloqueio?.idSessao || ""
+      ).trim(),
+
+    idObra:
+      String(
+        bloqueio?.idObra || ""
+      ).trim(),
+
+    gravacaoExecutada:
+      false,
+
+    filaAlterada:
+      false,
+
+    bloqueio:
+      bloqueio || null
+  };
+}
+
+
+/**
+ * Aplica ou remove o estado visual dos controles
+ * explicitamente marcados como operacionais.
+ *
+ * A navegação e os botões de consulta não são alterados.
+ */
+function atualizarControlesOperacionaisUX21964_() {
+  const bloqueio =
+    obterBloqueioIdentidadeLocalUX2196_();
+
+  const bloqueado =
+    Boolean(
+      bloqueio
+    );
+
+
+  if (bloqueado) {
+    document.documentElement
+      .setAttribute(
+        CONFIG_BLOQUEIO_OPERACIONAL_UX21964
+          .atributoDocumento,
+
+        "bloqueadas"
+      );
+
+  } else {
+    document.documentElement
+      .removeAttribute(
+        CONFIG_BLOQUEIO_OPERACIONAL_UX21964
+          .atributoDocumento
+      );
+  }
+
+
+  const controles =
+    document.querySelectorAll(
+      CONFIG_BLOQUEIO_OPERACIONAL_UX21964
+        .seletorControles
+    );
+
+
+  controles.forEach(
+    function (controle) {
+      if (bloqueado) {
+
+        controle.setAttribute(
+          "aria-disabled",
+          "true"
+        );
+
+        controle.setAttribute(
+          "data-sigo-bloqueado",
+          "true"
+        );
+
+        controle.setAttribute(
+          "title",
+          bloqueio.mensagem ||
+          "Operação bloqueada pelo servidor."
+        );
+
+
+        /*
+         * Apenas elementos que possuem suporte real
+         * à propriedade disabled são desabilitados.
+         */
+        if (
+          "disabled" in
+          controle
+        ) {
+          controle.disabled =
+            true;
+        }
+
+      } else {
+
+        controle.removeAttribute(
+          "aria-disabled"
+        );
+
+        controle.removeAttribute(
+          "data-sigo-bloqueado"
+        );
+
+        controle.removeAttribute(
+          "title"
+        );
+
+
+        if (
+          "disabled" in
+          controle
+        ) {
+          controle.disabled =
+            false;
+        }
+      }
+    }
+  );
+
+
+  return {
+    bloqueado:
+      bloqueado,
+
+    quantidadeControles:
+      controles.length,
+
+    codigo:
+      bloqueio?.codigo || ""
+  };
+}
+
+
+/**
+ * Intercepta uma operação antes de sua gravação.
+ *
+ * Retorna null quando a operação está permitida.
+ * Retorna um objeto BLOQUEADO quando deve ser interrompida.
+ */
+function bloquearOperacaoSeRevogadaUX21964_(
+  operacao
+) {
+  try {
+
+    garantirIdentidadeAtivaUX2196_(
+      operacao
+    );
+
+
+    return null;
+
+  } catch (erro) {
+
+    if (
+      erro?.name !==
+      "SIGOIdentidadeBloqueadaError"
+    ) {
+      throw erro;
+    }
+
+
+    const bloqueio =
+      erro.bloqueio ||
+      obterBloqueioIdentidadeLocalUX2196_() ||
+      {};
+
+
+    aplicarAvisoVisualBloqueioUX2196_(
+      bloqueio
+    );
+
+
+    atualizarControlesOperacionaisUX21964_();
+
+
+    if (
+      globalThis.SIGOUI &&
+      SIGOUI.feedback &&
+      typeof SIGOUI.feedback.error ===
+        "function"
+    ) {
+      SIGOUI.feedback.error(
+        "Operação bloqueada",
+        bloqueio.mensagem ||
+        "A identidade atual não pode realizar novas operações."
+      );
+    }
+
+
+    const resultado =
+      criarResultadoBloqueioOperacionalUX21964_(
+        operacao,
+        bloqueio
+      );
+
+
+    console.warn(
+      "[UX.21.9.6.4] Operação impedida por revogação:",
+      resultado
+    );
+
+
+    return resultado;
+  }
+}
+
+
+/**
+ * Executa uma função somente quando a identidade está ativa.
+ *
+ * Esta versão é útil para funções assíncronas.
+ */
+async function executarOperacaoProtegidaUX21964_(
+  operacao,
+  executor
+) {
+  if (
+    typeof executor !==
+    "function"
+  ) {
+    throw new Error(
+      "UX21964_EXECUTOR_INVALIDO"
+    );
+  }
+
+
+  const bloqueio =
+    bloquearOperacaoSeRevogadaUX21964_(
+      operacao
+    );
+
+
+  if (bloqueio) {
+    return bloqueio;
+  }
+
+
+  return await executor();
+}
+
+
+/**
+ * Reaplica o estado visual quando a API informa
+ * que a identidade foi bloqueada.
+ */
+globalThis.addEventListener(
+  "sigo:identidade-bloqueada",
+  function () {
+    atualizarControlesOperacionaisUX21964_();
+  }
+);
+
+
+/**
+ * Restaura o estado correto após o carregamento da página.
+ */
+if (
+  document.readyState ===
+  "loading"
+) {
+  document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+      atualizarControlesOperacionaisUX21964_();
+    },
+    {
+      once:
+        true
+    }
+  );
+
+} else {
+  atualizarControlesOperacionaisUX21964_();
+}
+
+/**
+ * ============================================================
+ * UX.21.9.6.4A — AUDITORIA DAS FUNÇÕES DE GRAVAÇÃO
+ * ============================================================
+ *
+ * Esta auditoria:
+ *
+ * - não altera funções;
+ * - não grava no IndexedDB;
+ * - não altera a TB_SYNC_QUEUE;
+ * - não cria bloqueio local;
+ * - apenas examina os scripts carregados no PWA.
+ * ============================================================
+ */
+
+
+const CONFIG_AUDITORIA_GRAVACOES_UX21964 =
+  Object.freeze({
+
+    storesOperacionais: [
+      "TB_DIARIOS",
+      "TB_DIARIO_ITENS",
+      "TB_MEDICOES",
+      "TB_LOTES_MEDICAO",
+      "TB_OCORRENCIAS",
+      "TB_CLIMA",
+      "TB_EVIDENCIAS",
+      "TB_SYNC_QUEUE"
+    ],
+
+    padroesProtecao: [
+      {
+        nome:
+          "bloquearOperacaoSeRevogadaUX21964_",
+
+        regex:
+          /\bbloquearOperacaoSeRevogadaUX21964_\s*\(/
+      },
+
+      {
+        nome:
+          "garantirIdentidadeAtivaUX2196_",
+
+        regex:
+          /\bgarantirIdentidadeAtivaUX2196_\s*\(/
+      },
+
+      {
+        nome:
+          "executarOperacaoProtegidaUX21964_",
+
+        regex:
+          /\bexecutarOperacaoProtegidaUX21964_\s*\(/
+      }
+    ],
+
+    padroesGravacao: [
+      {
+        nome:
+          "salvarRegistroSIGO",
+
+        regex:
+          /\bsalvarRegistroSIGO\s*\(/
+      },
+
+      {
+        nome:
+          "atualizarRegistroSIGO",
+
+        regex:
+          /\batualizarRegistroSIGO\s*\(/
+      },
+
+      {
+        nome:
+          "removerRegistroSIGO",
+
+        regex:
+          /\bremoverRegistroSIGO_?\s*\(/
+      },
+
+      {
+        nome:
+          "adicionarNaFilaSyncSIGO",
+
+        regex:
+          /\badicionarNaFilaSyncSIGO\s*\(/
+      },
+
+      {
+        nome:
+          "SIGOCRUD.saveOffline",
+
+        regex:
+          /\bSIGOCRUD\s*\.\s*saveOffline\s*\(/
+      },
+
+      {
+        nome:
+          "SIGOCRUD.updateOffline",
+
+        regex:
+          /\bSIGOCRUD\s*\.\s*updateOffline\s*\(/
+      },
+
+      {
+        nome:
+          "SIGOCRUD.deleteOffline",
+
+        regex:
+          /\bSIGOCRUD\s*\.\s*(?:deleteOffline|removeOffline)\s*\(/
+      },
+
+      {
+        nome:
+          "IndexedDB.transaction.readwrite",
+
+        regex:
+          /\.transaction\s*\([\s\S]{0,250}?["']readwrite["']/
+      },
+
+      {
+        nome:
+          "IndexedDB.put",
+
+        regex:
+          /\.put\s*\(/
+      },
+
+      {
+        nome:
+          "IndexedDB.add",
+
+        regex:
+          /\.add\s*\(/
+      },
+
+      {
+        nome:
+          "IndexedDB.delete",
+
+        regex:
+          /\.delete\s*\(/
+      },
+
+      {
+        nome:
+          "IndexedDB.clear",
+
+        regex:
+          /\.clear\s*\(/
+      },
+
+      {
+        nome:
+          "ObjectStore.put",
+
+        regex:
+          /\bobjectStore\s*\([\s\S]{0,150}?\)\s*\.\s*put\s*\(/
+      },
+
+      {
+        nome:
+          "ObjectStore.add",
+
+        regex:
+          /\bobjectStore\s*\([\s\S]{0,150}?\)\s*\.\s*add\s*\(/
+      },
+
+      {
+        nome:
+          "ObjectStore.delete",
+
+        regex:
+          /\bobjectStore\s*\([\s\S]{0,150}?\)\s*\.\s*delete\s*\(/
+      }
+    ]
+  });
+
+
+function textoAuditoriaGravacaoUX21964_(
+  valor
+) {
+  return String(
+    valor === null ||
+    valor === undefined
+      ? ""
+      : valor
+  ).trim();
+}
+
+
+/**
+ * Calcula o número aproximado da linha dentro do arquivo.
+ */
+function calcularLinhaFonteUX21964_(
+  fonte,
+  indice
+) {
+  return (
+    fonte
+      .slice(
+        0,
+        Math.max(
+          0,
+          indice
+        )
+      )
+      .split("\n")
+      .length
+  );
+}
+
+
+/**
+ * Encontra o fechamento de uma função pelo equilíbrio
+ * das chaves, ignorando strings e comentários.
+ */
+function encontrarFimBlocoUX21964_(
+  fonte,
+  indiceChaveInicial
+) {
+  let profundidade =
+    0;
+
+  let estado =
+    "NORMAL";
+
+  let escapado =
+    false;
+
+
+  for (
+    let i =
+      indiceChaveInicial;
+
+    i <
+      fonte.length;
+
+    i++
+  ) {
+    const caractere =
+      fonte[i];
+
+    const proximo =
+      fonte[i + 1];
+
+
+    if (
+      estado ===
+      "COMENTARIO_LINHA"
+    ) {
+      if (
+        caractere ===
+        "\n"
+      ) {
+        estado =
+          "NORMAL";
+      }
+
+      continue;
+    }
+
+
+    if (
+      estado ===
+      "COMENTARIO_BLOCO"
+    ) {
+      if (
+        caractere ===
+          "*" &&
+        proximo ===
+          "/"
+      ) {
+        estado =
+          "NORMAL";
+
+        i++;
+      }
+
+      continue;
+    }
+
+
+    if (
+      estado ===
+        "ASPAS_SIMPLES" ||
+      estado ===
+        "ASPAS_DUPLAS" ||
+      estado ===
+        "TEMPLATE"
+    ) {
+      if (escapado) {
+        escapado =
+          false;
+
+        continue;
+      }
+
+
+      if (
+        caractere ===
+        "\\"
+      ) {
+        escapado =
+          true;
+
+        continue;
+      }
+
+
+      const fechamento =
+        estado ===
+          "ASPAS_SIMPLES"
+          ? "'"
+          : estado ===
+              "ASPAS_DUPLAS"
+            ? '"'
+            : "`";
+
+
+      if (
+        caractere ===
+        fechamento
+      ) {
+        estado =
+          "NORMAL";
+      }
+
+      continue;
+    }
+
+
+    if (
+      caractere ===
+        "/" &&
+      proximo ===
+        "/"
+    ) {
+      estado =
+        "COMENTARIO_LINHA";
+
+      i++;
+
+      continue;
+    }
+
+
+    if (
+      caractere ===
+        "/" &&
+      proximo ===
+        "*"
+    ) {
+      estado =
+        "COMENTARIO_BLOCO";
+
+      i++;
+
+      continue;
+    }
+
+
+    if (
+      caractere ===
+      "'"
+    ) {
+      estado =
+        "ASPAS_SIMPLES";
+
+      continue;
+    }
+
+
+    if (
+      caractere ===
+      '"'
+    ) {
+      estado =
+        "ASPAS_DUPLAS";
+
+      continue;
+    }
+
+
+    if (
+      caractere ===
+      "`"
+    ) {
+      estado =
+        "TEMPLATE";
+
+      continue;
+    }
+
+
+    if (
+      caractere ===
+      "{"
+    ) {
+      profundidade++;
+    }
+
+
+    if (
+      caractere ===
+      "}"
+    ) {
+      profundidade--;
+
+      if (
+        profundidade ===
+        0
+      ) {
+        return i;
+      }
+    }
+  }
+
+
+  return -1;
+}
+
+
+/**
+ * Extrai funções nomeadas de um arquivo JavaScript.
+ */
+function extrairFuncoesFonteUX21964_(
+  fonte,
+  origem
+) {
+  const funcoes =
+    [];
+
+  const encontrados =
+    new Set();
+
+
+  const padroes = [
+    {
+      tipo:
+        "FUNCTION_DECLARATION",
+
+      regex:
+        /(?:^|[\n;])\s*(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/gm
+    },
+
+    {
+      tipo:
+        "FUNCTION_EXPRESSION",
+
+      regex:
+        /(?:^|[\n;])\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?function\s*\([^)]*\)\s*\{/gm
+    },
+
+    {
+      tipo:
+        "ARROW_FUNCTION",
+
+      regex:
+        /(?:^|[\n;])\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>\s*\{/gm
+    },
+
+    {
+      tipo:
+        "GLOBAL_ASSIGNMENT",
+
+      regex:
+        /(?:^|[\n;])\s*(?:window|globalThis)\.([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:function\s*\([^)]*\)|(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>)\s*\{/gm
+    }
+  ];
+
+
+  padroes.forEach(
+    function (padrao) {
+      let correspondencia;
+
+
+      while (
+        (
+          correspondencia =
+            padrao.regex.exec(
+              fonte
+            )
+        ) !==
+        null
+      ) {
+        const nome =
+          correspondencia[1];
+
+        const indiceInicio =
+          correspondencia.index;
+
+        const indiceChave =
+          fonte.indexOf(
+            "{",
+            indiceInicio
+          );
+
+
+        if (
+          indiceChave <
+          0
+        ) {
+          continue;
+        }
+
+
+        const indiceFim =
+          encontrarFimBlocoUX21964_(
+            fonte,
+            indiceChave
+          );
+
+
+        if (
+          indiceFim <
+          0
+        ) {
+          continue;
+        }
+
+
+        const chave =
+          origem +
+          "|" +
+          nome +
+          "|" +
+          indiceInicio;
+
+
+        if (
+          encontrados.has(
+            chave
+          )
+        ) {
+          continue;
+        }
+
+
+        encontrados.add(
+          chave
+        );
+
+
+        funcoes.push({
+          nome:
+            nome,
+
+          tipo:
+            padrao.tipo,
+
+          origem:
+            origem,
+
+          linha:
+            calcularLinhaFonteUX21964_(
+              fonte,
+              indiceInicio
+            ),
+
+          codigo:
+            fonte.slice(
+              indiceInicio,
+              indiceFim + 1
+            )
+        });
+      }
+    }
+  );
+
+
+  return funcoes;
+}
+
+
+/**
+ * Lê os scripts carregados pela página.
+ */
+async function carregarFontesScriptsUX21964_() {
+  const scripts =
+    Array.from(
+      document.scripts
+    );
+
+  const fontes =
+    [];
+
+  const falhas =
+    [];
+
+
+  for (
+    let indice = 0;
+    indice <
+      scripts.length;
+    indice++
+  ) {
+    const script =
+      scripts[indice];
+
+
+    if (
+      !script.src
+    ) {
+      const conteudo =
+        script.textContent ||
+        "";
+
+      if (
+        conteudo.trim()
+      ) {
+        fontes.push({
+          origem:
+            "SCRIPT_INLINE_" +
+            (indice + 1),
+
+          url:
+            "",
+
+          conteudo:
+            conteudo
+        });
+      }
+
+      continue;
+    }
+
+
+    try {
+      const resposta =
+        await fetch(
+          script.src,
+          {
+            cache:
+              "no-store"
+          }
+        );
+
+
+      if (
+        !resposta.ok
+      ) {
+        throw new Error(
+          "HTTP_" +
+          resposta.status
+        );
+      }
+
+
+      const conteudo =
+        await resposta.text();
+
+
+      fontes.push({
+        origem:
+          new URL(
+            script.src,
+            location.href
+          ).pathname
+            .split("/")
+            .pop() ||
+          script.src,
+
+        url:
+          script.src,
+
+        conteudo:
+          conteudo
+      });
+
+    } catch (erro) {
+      falhas.push({
+        url:
+          script.src,
+
+        erro:
+          textoAuditoriaGravacaoUX21964_(
+            erro?.message ||
+            erro
+          )
+      });
+    }
+  }
+
+
+  return {
+    fontes:
+      fontes,
+
+    falhas:
+      falhas
+  };
+}
+
+
+/**
+ * Localiza chamadas de funções em botões, formulários,
+ * atributos onclick e configurações com "acao".
+ */
+function extrairReferenciasInterfaceUX21964_(
+  fontes
+) {
+  const referencias =
+    new Map();
+
+
+  const registrar =
+    (
+      nomeFuncao,
+      referencia
+    ) => {
+
+      if (
+        !referencias.has(
+          nomeFuncao
+        )
+      ) {
+        referencias.set(
+          nomeFuncao,
+          []
+        );
+      }
+
+
+      referencias
+        .get(
+          nomeFuncao
+        )
+        .push(
+          referencia
+        );
+    };
+
+
+  /*
+   * Elementos atualmente existentes no DOM.
+   */
+  document
+    .querySelectorAll(
+      "[onclick], [onsubmit], [onchange], [oninput]"
+    )
+    .forEach(
+      function (elemento) {
+        [
+          "onclick",
+          "onsubmit",
+          "onchange",
+          "oninput"
+        ].forEach(
+          function (atributo) {
+            const expressao =
+              elemento.getAttribute(
+                atributo
+              );
+
+
+            if (!expressao) {
+              return;
+            }
+
+
+            const regexFuncao =
+              /\b([A-Za-z_$][\w$]*)\s*\(/g;
+
+            let resultado;
+
+
+            while (
+              (
+                resultado =
+                  regexFuncao.exec(
+                    expressao
+                  )
+              ) !==
+              null
+            ) {
+              registrar(
+                resultado[1],
+                {
+                  origem:
+                    "DOM_ATUAL",
+
+                  tipo:
+                    atributo,
+
+                  rotulo:
+                    textoAuditoriaGravacaoUX21964_(
+                      elemento.textContent ||
+                      elemento.value ||
+                      elemento.id
+                    ).slice(
+                      0,
+                      120
+                    ),
+
+                  expressao:
+                    expressao
+                }
+              );
+            }
+          }
+        );
+      }
+    );
+
+
+  /*
+   * Referências existentes nos arquivos JavaScript,
+   * inclusive HTML montado por template string.
+   */
+  fontes.forEach(
+    function (fonteItem) {
+      const fonte =
+        fonteItem.conteudo;
+
+
+      const regexAcao =
+        /(?:onclick|onsubmit|onchange|oninput|acao)\s*[:=]\s*["'`]([^"'`]+)["'`]/g;
+
+      let resultadoAcao;
+
+
+      while (
+        (
+          resultadoAcao =
+            regexAcao.exec(
+              fonte
+            )
+        ) !==
+        null
+      ) {
+        const expressao =
+          resultadoAcao[1];
+
+        const regexFuncao =
+          /\b([A-Za-z_$][\w$]*)\s*\(/g;
+
+        let resultadoFuncao;
+
+
+        while (
+          (
+            resultadoFuncao =
+              regexFuncao.exec(
+                expressao
+              )
+          ) !==
+          null
+        ) {
+          registrar(
+            resultadoFuncao[1],
+            {
+              origem:
+                fonteItem.origem,
+
+              tipo:
+                "ACAO_DECLARADA",
+
+              linha:
+                calcularLinhaFonteUX21964_(
+                  fonte,
+                  resultadoAcao.index
+                ),
+
+              rotulo:
+                "",
+
+              expressao:
+                expressao
+            }
+          );
+        }
+      }
+
+
+      /*
+       * Objetos de ação no formato:
+       *
+       * texto: "Salvar",
+       * acao: "salvarRegistro()"
+       */
+      const regexTextoAcao =
+        /texto\s*:\s*["'`]([^"'`]+)["'`][\s\S]{0,250}?acao\s*:\s*["'`]([^"'`]+)["'`]/g;
+
+      let resultadoTextoAcao;
+
+
+      while (
+        (
+          resultadoTextoAcao =
+            regexTextoAcao.exec(
+              fonte
+            )
+        ) !==
+        null
+      ) {
+        const rotulo =
+          resultadoTextoAcao[1];
+
+        const expressao =
+          resultadoTextoAcao[2];
+
+        const regexFuncao =
+          /\b([A-Za-z_$][\w$]*)\s*\(/g;
+
+        let resultadoFuncao;
+
+
+        while (
+          (
+            resultadoFuncao =
+              regexFuncao.exec(
+                expressao
+              )
+          ) !==
+          null
+        ) {
+          registrar(
+            resultadoFuncao[1],
+            {
+              origem:
+                fonteItem.origem,
+
+              tipo:
+                "ACAO_COM_ROTULO",
+
+              linha:
+                calcularLinhaFonteUX21964_(
+                  fonte,
+                  resultadoTextoAcao.index
+                ),
+
+              rotulo:
+                rotulo,
+
+              expressao:
+                expressao
+            }
+          );
+        }
+      }
+
+
+      /*
+       * addEventListener("click", nomeDaFuncao)
+       */
+      const regexListener =
+        /addEventListener\s*\(\s*["'`][^"'`]+["'`]\s*,\s*([A-Za-z_$][\w$]*)/g;
+
+      let resultadoListener;
+
+
+      while (
+        (
+          resultadoListener =
+            regexListener.exec(
+              fonte
+            )
+        ) !==
+        null
+      ) {
+        registrar(
+          resultadoListener[1],
+          {
+            origem:
+              fonteItem.origem,
+
+            tipo:
+              "EVENT_LISTENER",
+
+            linha:
+              calcularLinhaFonteUX21964_(
+                fonte,
+                resultadoListener.index
+              ),
+
+            rotulo:
+              "",
+
+            expressao:
+              resultadoListener[0]
+          }
+        );
+      }
+    }
+  );
+
+
+  return referencias;
+}
+
+
+/**
+ * Identifica sinais de gravação em uma função.
+ */
+function obterSinaisGravacaoUX21964_(
+  codigo
+) {
+  return CONFIG_AUDITORIA_GRAVACOES_UX21964
+    .padroesGravacao
+    .filter(
+      function (padrao) {
+        return padrao.regex.test(
+          codigo
+        );
+      }
+    )
+    .map(
+      function (padrao) {
+        return padrao.nome;
+      }
+    );
+}
+
+
+/**
+ * Identifica as stores operacionais citadas na função.
+ */
+function obterStoresOperacionaisUX21964_(
+  codigo
+) {
+  return CONFIG_AUDITORIA_GRAVACOES_UX21964
+    .storesOperacionais
+    .filter(
+      function (store) {
+        return codigo.includes(
+          store
+        );
+      }
+    );
+}
+
+
+/**
+ * Verifica se a função já possui proteção.
+ */
+function obterProtecoesFuncaoUX21964_(
+  codigo
+) {
+  return CONFIG_AUDITORIA_GRAVACOES_UX21964
+    .padroesProtecao
+    .filter(
+      function (padrao) {
+        return padrao.regex.test(
+          codigo
+        );
+      }
+    )
+    .map(
+      function (padrao) {
+        return padrao.nome;
+      }
+    );
+}
+
+
+/**
+ * Indica se o nome aparenta ser uma operação iniciada
+ * pelo usuário.
+ */
+function nomePareceOperacaoUX21964_(
+  nome
+) {
+  return /^(salvar|gravar|criar|adicionar|editar|excluir|remover|apagar|deletar|confirmar|finalizar|aprovar|consolidar|encerrar|fechar|atualizar)/i
+    .test(
+      nome
+    );
+}
+
+
+/**
+ * Identifica funções internas que não devem receber
+ * proteção cegamente.
+ */
+function ehInfraestruturaGravacaoUX21964_(
+  nome
+) {
+  return /^(salvarRegistroSIGO|atualizarRegistroSIGO|removerRegistroSIGO_?|adicionarNaFilaSyncSIGO|abrirBanco|abrirBancoLocalSIGO|contarStore|registrarAuditoria|atualizarSessaoBloqueada|preencherChaveStore)/i
+    .test(
+      nome
+    );
+}
+
+
+/**
+ * Identifica sincronização, reidratação, cache,
+ * identidade e tarefas internas.
+ */
+function ehFluxoSistemaUX21964_(
+  nome,
+  codigo
+) {
+  const texto =
+    nome +
+    "\n" +
+    codigo.slice(
+      0,
+      800
+    );
+
+
+  return /(sincron|sync|reidrat|mescl|cache|notifica|identidade|bloqueio|retry|migra|upgrade|importa|restaura)/i
+    .test(
+      texto
+    );
+}
+
+
+/**
+ * Identifica auditorias e testes.
+ */
+function ehAuditoriaOuTesteUX21964_(
+  nome
+) {
+  return /^(auditar|testar|diagnosticar|simular)|AUDITORIA|TESTE|UX2196/i
+    .test(
+      nome
+    );
+}
+
+
+/**
+ * Verifica se a referência visual representa uma ação
+ * operacional.
+ */
+function referenciaUiOperacionalUX21964_(
+  referencias
+) {
+  return referencias.some(
+    function (referencia) {
+      const texto =
+        [
+          referencia.rotulo,
+          referencia.expressao
+        ]
+          .filter(
+            Boolean
+          )
+          .join(
+            " "
+          );
+
+
+      return /(novo|salvar|gravar|adicionar|editar|excluir|remover|confirmar|finalizar|aprovar|consolidar|encerrar)/i
+        .test(
+          texto
+        );
+    }
+  );
+}
+
+
+/**
+ * Classifica uma função encontrada.
+ */
+function classificarFuncaoGravacaoUX21964_(
+  funcao,
+  referenciasUi
+) {
+  const sinais =
+    obterSinaisGravacaoUX21964_(
+      funcao.codigo
+    );
+
+  const stores =
+    obterStoresOperacionaisUX21964_(
+      funcao.codigo
+    );
+
+  const protecoes =
+    obterProtecoesFuncaoUX21964_(
+      funcao.codigo
+    );
+
+  const possuiGravacao =
+    sinais.length >
+    0;
+
+  const chamadaPelaInterface =
+    referenciasUi.length >
+    0;
+
+  const uiOperacional =
+    referenciaUiOperacionalUX21964_(
+      referenciasUi
+    );
+
+  const nomeOperacional =
+    nomePareceOperacaoUX21964_(
+      funcao.nome
+    );
+
+
+  let classificacao =
+    "IGNORAR";
+
+
+  if (
+    protecoes.length >
+      0 &&
+    (
+      possuiGravacao ||
+      nomeOperacional ||
+      uiOperacional
+    )
+  ) {
+    classificacao =
+      "JA_PROTEGIDA";
+
+  } else if (
+    ehAuditoriaOuTesteUX21964_(
+      funcao.nome
+    )
+  ) {
+    classificacao =
+      "AUDITORIA_OU_TESTE";
+
+  } else if (
+    ehInfraestruturaGravacaoUX21964_(
+      funcao.nome
+    )
+  ) {
+    classificacao =
+      "INFRAESTRUTURA_NAO_PROTEGER_DIRETAMENTE";
+
+  } else if (
+    possuiGravacao &&
+    ehFluxoSistemaUX21964_(
+      funcao.nome,
+      funcao.codigo
+    )
+  ) {
+    classificacao =
+      "REVISAR_FLUXO_DE_SISTEMA";
+
+  } else if (
+    possuiGravacao &&
+    (
+      chamadaPelaInterface ||
+      nomeOperacional
+    )
+  ) {
+    classificacao =
+      "PROTEGER_FUNCAO";
+
+  } else if (
+    possuiGravacao
+  ) {
+    classificacao =
+      "REVISAR_GRAVACAO_INDIRETA";
+
+  } else if (
+    chamadaPelaInterface &&
+    (
+      uiOperacional ||
+      nomeOperacional
+    )
+  ) {
+    classificacao =
+      "BLOQUEAR_ACAO_VISUAL";
+
+  } else if (
+    chamadaPelaInterface
+  ) {
+    classificacao =
+      "ACAO_INTERFACE_NAO_OPERACIONAL";
+  }
+
+
+  return {
+    nome:
+      funcao.nome,
+
+    classificacao:
+      classificacao,
+
+    origem:
+      funcao.origem,
+
+    linha:
+      funcao.linha,
+
+    tipoDeclaracao:
+      funcao.tipo,
+
+    possuiGravacao:
+      possuiGravacao,
+
+    chamadaPelaInterface:
+      chamadaPelaInterface,
+
+    uiOperacional:
+      uiOperacional,
+
+    nomeOperacional:
+      nomeOperacional,
+
+    sinaisGravacao:
+      sinais,
+
+    storesOperacionais:
+      stores,
+
+    protecoesEncontradas:
+      protecoes,
+
+    referenciasInterface:
+      referenciasUi,
+
+    trechoInicial:
+      funcao.codigo
+        .slice(
+          0,
+          500
+        )
+  };
+}
+
+
+/**
+ * Examina funções globais que possam não ter sido
+ * extraídas diretamente do arquivo.
+ */
+function coletarFuncoesRuntimeUX21964_() {
+  const resultado =
+    [];
+
+
+  Object
+    .getOwnPropertyNames(
+      globalThis
+    )
+    .forEach(
+      function (nome) {
+        let valor;
+
+
+        try {
+          valor =
+            globalThis[nome];
+
+        } catch (erro) {
+          return;
+        }
+
+
+        if (
+          typeof valor !==
+          "function"
+        ) {
+          return;
+        }
+
+
+        let codigo;
+
+
+        try {
+          codigo =
+            Function.prototype
+              .toString
+              .call(
+                valor
+              );
+
+        } catch (erro) {
+          return;
+        }
+
+
+        if (
+          !codigo ||
+          codigo.includes(
+            "[native code]"
+          )
+        ) {
+          return;
+        }
+
+
+        const possuiSinal =
+          obterSinaisGravacaoUX21964_(
+            codigo
+          ).length >
+          0;
+
+        const possuiProtecao =
+          obterProtecoesFuncaoUX21964_(
+            codigo
+          ).length >
+          0;
+
+
+        if (
+          !possuiSinal &&
+          !possuiProtecao &&
+          !nomePareceOperacaoUX21964_(
+            nome
+          )
+        ) {
+          return;
+        }
+
+
+        resultado.push({
+          nome:
+            nome,
+
+          tipo:
+            "RUNTIME_GLOBAL",
+
+          origem:
+            "GLOBAL_THIS",
+
+          linha:
+            0,
+
+          codigo:
+            codigo
+        });
+      }
+    );
+
+
+  return resultado;
+}
+
+
+/**
+ * Identifica botões operacionais visíveis sem a marcação:
+ *
+ * data-sigo-requer-identidade="true"
+ */
+function auditarControlesVisuaisUX21964_() {
+  const controles =
+    Array.from(
+      document.querySelectorAll(
+        [
+          "button",
+          "input[type='button']",
+          "input[type='submit']",
+          "[role='button']"
+        ].join(",")
+      )
+    );
+
+
+  return controles
+    .map(
+      function (controle) {
+        const rotulo =
+          textoAuditoriaGravacaoUX21964_(
+            controle.textContent ||
+            controle.value ||
+            controle.getAttribute(
+              "aria-label"
+            ) ||
+            controle.id
+          );
+
+
+        const operacional =
+          /(novo|salvar|gravar|adicionar|editar|excluir|remover|confirmar|finalizar|aprovar|consolidar|encerrar)/i
+            .test(
+              rotulo
+            );
+
+
+        if (!operacional) {
+          return null;
+        }
+
+
+        return {
+          tag:
+            controle.tagName,
+
+          id:
+            controle.id || "",
+
+          classes:
+            controle.className || "",
+
+          rotulo:
+            rotulo.slice(
+              0,
+              150
+            ),
+
+          acao:
+            controle.getAttribute(
+              "onclick"
+            ) || "",
+
+          marcado:
+            controle.getAttribute(
+              "data-sigo-requer-identidade"
+            ) ===
+            "true",
+
+          disabled:
+            Boolean(
+              controle.disabled
+            )
+        };
+      }
+    )
+    .filter(
+      Boolean
+    );
+}
+
+
+/**
+ * Copia um conteúdo para a área de transferência,
+ * quando permitido pelo navegador.
+ */
+async function copiarTextoAuditoriaUX21964_(
+  texto
+) {
+  try {
+    if (
+      typeof globalThis.copy ===
+      "function"
+    ) {
+      globalThis.copy(
+        texto
+      );
+
+      return true;
+    }
+
+
+    if (
+      navigator.clipboard &&
+      typeof navigator.clipboard
+        .writeText ===
+        "function"
+    ) {
+      await navigator.clipboard
+        .writeText(
+          texto
+        );
+
+      return true;
+    }
+
+  } catch (erro) {
+    console.warn(
+      "[UX.21.9.6.4A] Não foi possível copiar automaticamente:",
+      erro
+    );
+  }
+
+
+  return false;
+}
+
+
+/**
+ * Auditoria principal.
+ */
+async function auditarFuncoesGravacaoUX21964_() {
+  const leituraScripts =
+    await carregarFontesScriptsUX21964_();
+
+
+  const referenciasInterface =
+    extrairReferenciasInterfaceUX21964_(
+      leituraScripts.fontes
+    );
+
+
+  const mapaFuncoes =
+    new Map();
+
+
+  leituraScripts.fontes
+    .forEach(
+      function (fonteItem) {
+        const funcoes =
+          extrairFuncoesFonteUX21964_(
+            fonteItem.conteudo,
+            fonteItem.origem
+          );
+
+
+        funcoes.forEach(
+          function (funcao) {
+            /*
+             * Quando existe mais de uma declaração com
+             * o mesmo nome, a última carregada prevalece.
+             */
+            mapaFuncoes.set(
+              funcao.nome,
+              funcao
+            );
+          }
+        );
+      }
+    );
+
+
+  coletarFuncoesRuntimeUX21964_()
+    .forEach(
+      function (funcaoRuntime) {
+        if (
+          !mapaFuncoes.has(
+            funcaoRuntime.nome
+          )
+        ) {
+          mapaFuncoes.set(
+            funcaoRuntime.nome,
+            funcaoRuntime
+          );
+        }
+      }
+    );
+
+
+  const analises =
+    Array
+      .from(
+        mapaFuncoes.values()
+      )
+      .map(
+        function (funcao) {
+          return classificarFuncaoGravacaoUX21964_(
+            funcao,
+            referenciasInterface.get(
+              funcao.nome
+            ) ||
+            []
+          );
+        }
+      )
+      .filter(
+        function (item) {
+          return item.classificacao !==
+            "IGNORAR";
+        }
+      )
+      .sort(
+        function (a, b) {
+          return a.classificacao
+            .localeCompare(
+              b.classificacao
+            ) ||
+            a.nome.localeCompare(
+              b.nome
+            );
+        }
+      );
+
+
+  const nomesLocalizados =
+    new Set(
+      analises.map(
+        item =>
+          item.nome
+      )
+    );
+
+
+  const referenciasSemFuncao =
+    Array
+      .from(
+        referenciasInterface.entries()
+      )
+      .filter(
+        function (
+          [
+            nome
+          ]
+        ) {
+          return !nomesLocalizados.has(
+            nome
+          ) &&
+          typeof globalThis[nome] !==
+            "function";
+        }
+      )
+      .map(
+        function (
+          [
+            nome,
+            referencias
+          ]
+        ) {
+          return {
+            nome:
+              nome,
+
+            referencias:
+              referencias
+          };
+        }
+      );
+
+
+  const controlesVisuais =
+    auditarControlesVisuaisUX21964_();
+
+
+  const relatorio = {
+    etapa:
+      "UX.21.9.6.4A",
+
+    auditoria:
+      "INVENTARIO_FUNCOES_GRAVACAO_PWA",
+
+    geradoEm:
+      new Date()
+        .toISOString(),
+
+    scripts: {
+      carregados:
+        leituraScripts.fontes
+          .map(
+            item => ({
+              origem:
+                item.origem,
+
+              url:
+                item.url,
+
+              tamanho:
+                item.conteudo.length
+            })
+          ),
+
+      falhas:
+        leituraScripts.falhas
+    },
+
+    totais: {
+      scriptsAnalisados:
+        leituraScripts
+          .fontes
+          .length,
+
+      funcoesLocalizadas:
+        mapaFuncoes.size,
+
+      funcoesClassificadas:
+        analises.length,
+
+      protegerFuncao:
+        analises.filter(
+          item =>
+            item.classificacao ===
+            "PROTEGER_FUNCAO"
+        ).length,
+
+      bloquearAcaoVisual:
+        analises.filter(
+          item =>
+            item.classificacao ===
+            "BLOQUEAR_ACAO_VISUAL"
+        ).length,
+
+      jaProtegidas:
+        analises.filter(
+          item =>
+            item.classificacao ===
+            "JA_PROTEGIDA"
+        ).length,
+
+      revisarGravacaoIndireta:
+        analises.filter(
+          item =>
+            item.classificacao ===
+            "REVISAR_GRAVACAO_INDIRETA"
+        ).length,
+
+      revisarFluxoSistema:
+        analises.filter(
+          item =>
+            item.classificacao ===
+            "REVISAR_FLUXO_DE_SISTEMA"
+        ).length,
+
+      infraestrutura:
+        analises.filter(
+          item =>
+            item.classificacao ===
+            "INFRAESTRUTURA_NAO_PROTEGER_DIRETAMENTE"
+        ).length,
+
+      referenciasUiSemFuncao:
+        referenciasSemFuncao.length,
+
+      controlesOperacionaisVisiveis:
+        controlesVisuais.length,
+
+      controlesSemMarcacao:
+        controlesVisuais.filter(
+          item =>
+            item.marcado ===
+            false
+        ).length
+    },
+
+    funcoesParaProteger:
+      analises.filter(
+        item =>
+          item.classificacao ===
+          "PROTEGER_FUNCAO"
+      ),
+
+    acoesVisuaisParaBloquear:
+      analises.filter(
+        item =>
+          item.classificacao ===
+          "BLOQUEAR_ACAO_VISUAL"
+      ),
+
+    funcoesJaProtegidas:
+      analises.filter(
+        item =>
+          item.classificacao ===
+          "JA_PROTEGIDA"
+      ),
+
+    gravacoesIndiretasParaRevisar:
+      analises.filter(
+        item =>
+          item.classificacao ===
+          "REVISAR_GRAVACAO_INDIRETA"
+      ),
+
+    fluxosSistemaParaRevisarSeparadamente:
+      analises.filter(
+        item =>
+          item.classificacao ===
+          "REVISAR_FLUXO_DE_SISTEMA"
+      ),
+
+    infraestruturaNaoProtegerDiretamente:
+      analises.filter(
+        item =>
+          item.classificacao ===
+          "INFRAESTRUTURA_NAO_PROTEGER_DIRETAMENTE"
+      ),
+
+    auditoriasETestes:
+      analises.filter(
+        item =>
+          item.classificacao ===
+          "AUDITORIA_OU_TESTE"
+      ),
+
+    referenciasUiSemFuncao:
+      referenciasSemFuncao,
+
+    controlesOperacionaisVisiveis:
+      controlesVisuais,
+
+    controlesOperacionaisSemMarcacao:
+      controlesVisuais.filter(
+        item =>
+          item.marcado ===
+          false
+      )
+  };
+
+
+  /*
+   * Guarda também os códigos completos das funções
+   * encontradas para a próxima etapa.
+   */
+  globalThis
+    .SIGO_FONTES_FUNCOES_GRAVACAO_UX21964 =
+      Object.fromEntries(
+        Array
+          .from(
+            mapaFuncoes.entries()
+          )
+          .map(
+            function (
+              [
+                nome,
+                funcao
+              ]
+            ) {
+              return [
+                nome,
+                {
+                  origem:
+                    funcao.origem,
+
+                  linha:
+                    funcao.linha,
+
+                  codigo:
+                    funcao.codigo
+                }
+              ];
+            }
+          )
+      );
+
+
+  globalThis
+    .SIGO_AUDITORIA_FUNCOES_GRAVACAO_UX21964 =
+      relatorio;
+
+
+  console.group(
+    "UX.21.9.6.4A — Auditoria das funções de gravação"
+  );
+
+
+  console.log(
+    "Resumo:",
+    relatorio.totais
+  );
+
+
+  console.log(
+    "Funções que devem receber proteção:"
+  );
+
+  console.table(
+    relatorio.funcoesParaProteger
+      .map(
+        item => ({
+          funcao:
+            item.nome,
+
+          origem:
+            item.origem,
+
+          linha:
+            item.linha,
+
+          gravacoes:
+            item.sinaisGravacao
+              .join(", "),
+
+          stores:
+            item.storesOperacionais
+              .join(", "),
+
+          chamadaPelaInterface:
+            item.chamadaPelaInterface
+        })
+      )
+  );
+
+
+  console.log(
+    "Ações visuais que devem ser bloqueadas:"
+  );
+
+  console.table(
+    relatorio.acoesVisuaisParaBloquear
+      .map(
+        item => ({
+          funcao:
+            item.nome,
+
+          origem:
+            item.origem,
+
+          linha:
+            item.linha,
+
+          referencias:
+            item.referenciasInterface
+              .map(
+                ref =>
+                  ref.rotulo ||
+                  ref.expressao
+              )
+              .join(" | ")
+        })
+      )
+  );
+
+
+  console.log(
+    "Gravações indiretas para revisão:"
+  );
+
+  console.table(
+    relatorio.gravacoesIndiretasParaRevisar
+      .map(
+        item => ({
+          funcao:
+            item.nome,
+
+          origem:
+            item.origem,
+
+          linha:
+            item.linha,
+
+          sinais:
+            item.sinaisGravacao
+              .join(", "),
+
+          stores:
+            item.storesOperacionais
+              .join(", ")
+        })
+      )
+  );
+
+
+  console.log(
+    "Fluxos de sistema para tratamento separado:"
+  );
+
+  console.table(
+    relatorio.fluxosSistemaParaRevisarSeparadamente
+      .map(
+        item => ({
+          funcao:
+            item.nome,
+
+          origem:
+            item.origem,
+
+          linha:
+            item.linha,
+
+          sinais:
+            item.sinaisGravacao
+              .join(", ")
+        })
+      )
+  );
+
+
+  console.log(
+    "Controles visíveis sem marcação:"
+  );
+
+  console.table(
+    relatorio
+      .controlesOperacionaisSemMarcacao
+  );
+
+
+  console.groupEnd();
+
+
+  const textoRelatorio =
+    JSON.stringify(
+      relatorio,
+      null,
+      2
+    );
+
+
+  const copiado =
+    await copiarTextoAuditoriaUX21964_(
+      textoRelatorio
+    );
+
+
+  relatorio.copiadoParaAreaTransferencia =
+    copiado;
+
+
+  console.log(
+    JSON.stringify(
+      {
+        etapa:
+          relatorio.etapa,
+
+        auditoria:
+          relatorio.auditoria,
+
+        totais:
+          relatorio.totais,
+
+        funcoesParaProteger:
+          relatorio.funcoesParaProteger
+            .map(
+              item =>
+                item.nome
+            ),
+
+        acoesVisuaisParaBloquear:
+          relatorio.acoesVisuaisParaBloquear
+            .map(
+              item =>
+                item.nome
+            ),
+
+        gravacoesIndiretasParaRevisar:
+          relatorio.gravacoesIndiretasParaRevisar
+            .map(
+              item =>
+                item.nome
+            ),
+
+        fluxosSistemaParaRevisarSeparadamente:
+          relatorio
+            .fluxosSistemaParaRevisarSeparadamente
+            .map(
+              item =>
+                item.nome
+            ),
+
+        copiadoParaAreaTransferencia:
+          copiado
+      },
+      null,
+      2
+    )
+  );
+
+
+  return relatorio;
+}
