@@ -69677,3 +69677,941 @@ async function auditarIncorporacaoAutoriaUX216_() {
 
   return resultado;
 }
+
+/**
+ * ============================================================
+ * UX.21.6A — TESTE OPERACIONAL CONTROLADO DE AUTORIA
+ * ============================================================
+ *
+ * Fluxo:
+ *
+ * 1. iniciarTesteOperacionalAutoriaUX216A_()
+ * 2. criar uma Ocorrência pela interface usando o marcador
+ * 3. concluirTesteOperacionalAutoriaUX216A_()
+ *
+ * O auditor não cria registros diretamente.
+ */
+
+function textoUX216A_(valor) {
+  return String(
+    valor === undefined || valor === null
+      ? ""
+      : valor
+  ).trim();
+}
+
+
+function clonarUX216A_(valor) {
+  return JSON.parse(
+    JSON.stringify(valor)
+  );
+}
+
+
+function esperarUX216A_(tempoMs) {
+  return new Promise(
+    function (resolve) {
+      setTimeout(resolve, tempoMs);
+    }
+  );
+}
+
+
+async function listarStoreUX216A_(nomeStore) {
+  const db =
+    await abrirBancoLocalSIGO();
+
+  return new Promise(
+    function (resolve, reject) {
+      const transacao =
+        db.transaction(
+          [nomeStore],
+          "readonly"
+        );
+
+      const requisicao =
+        transacao
+          .objectStore(nomeStore)
+          .getAll();
+
+      requisicao.onsuccess =
+        function () {
+          resolve(
+            Array.isArray(requisicao.result)
+              ? requisicao.result
+              : []
+          );
+        };
+
+      requisicao.onerror =
+        function () {
+          reject(
+            requisicao.error ||
+            new Error(
+              "UX216A_FALHA_LEITURA_STORE: " +
+              nomeStore
+            )
+          );
+        };
+    }
+  );
+}
+
+
+async function obterKeyPathStoreUX216A_(
+  nomeStore
+) {
+  const db =
+    await abrirBancoLocalSIGO();
+
+  const transacao =
+    db.transaction(
+      [nomeStore],
+      "readonly"
+    );
+
+  return transacao
+    .objectStore(nomeStore)
+    .keyPath;
+}
+
+
+function obterChaveRegistroUX216A_(
+  registro,
+  keyPath
+) {
+  if (
+    Array.isArray(keyPath)
+  ) {
+    return JSON.stringify(
+      keyPath.map(
+        function (campo) {
+          return registro?.[campo];
+        }
+      )
+    );
+  }
+
+  if (
+    typeof keyPath === "string" &&
+    keyPath
+  ) {
+    return textoUX216A_(
+      registro?.[keyPath]
+    );
+  }
+
+  const candidatos = [
+    registro?.idOcorrencia,
+    registro?.idSyncLocal,
+    registro?.idFila,
+    registro?.idSync,
+    registro?.idRegistro,
+    registro?.id
+  ];
+
+  return textoUX216A_(
+    candidatos.find(Boolean)
+  );
+}
+
+
+function criarMapaStoreUX216A_(
+  registros,
+  keyPath
+) {
+  const mapa =
+    new Map();
+
+  registros.forEach(
+    function (registro) {
+      const chave =
+        obterChaveRegistroUX216A_(
+          registro,
+          keyPath
+        );
+
+      if (chave) {
+        mapa.set(
+          chave,
+          JSON.stringify(registro)
+        );
+      }
+    }
+  );
+
+  return mapa;
+}
+
+
+function registroContemTextoUX216A_(
+  registro,
+  texto
+) {
+  return JSON.stringify(
+    registro
+  )
+    .toUpperCase()
+    .includes(
+      textoUX216A_(texto)
+        .toUpperCase()
+    );
+}
+
+
+function validarSnapshotUX216A_(
+  autoria
+) {
+  if (!autoria) {
+    return false;
+  }
+
+  try {
+    return (
+      validarContextoAutoriaUX212_(
+        autoria
+      ).valido === true &&
+      localizarCamposSecretosUX212_(
+        autoria
+      ).length === 0
+    );
+
+  } catch (erro) {
+    return false;
+  }
+}
+
+
+function snapshotsMesmaIdentidadeUX216A_(
+  a,
+  b
+) {
+  if (!a || !b) {
+    return false;
+  }
+
+  return (
+    a.idUsuario === b.idUsuario &&
+    a.idDispositivo === b.idDispositivo &&
+    a.idSessao === b.idSessao &&
+    a.idObra === b.idObra &&
+    a.perfil === b.perfil
+  );
+}
+
+
+/**
+ * ETAPA 1 — Captura o estado antes da criação pela interface.
+ */
+async function iniciarTesteOperacionalAutoriaUX216A_(
+  idObra = "OBR002"
+) {
+  console.log(
+    "[UX.21.6A] Preparando teste operacional..."
+  );
+
+  const instalacao =
+    instalarIncorporacaoAutoriaUX216_();
+
+  if (!instalacao.instalado) {
+    throw new Error(
+      "UX216A_WRAPPERS_AUTORIA_NAO_INSTALADOS"
+    );
+  }
+
+  const identidade =
+    await aguardarIdentidadeAtivaUX215_();
+
+  if (
+    !identidade.sessao
+      .obrasAutorizadas
+      .includes(idObra)
+  ) {
+    throw new Error(
+      "UX216A_OBRA_NAO_AUTORIZADA: " +
+      idObra
+    );
+  }
+
+  const [
+    ocorrencias,
+    fila,
+    keyPathOcorrencias,
+    keyPathFila
+  ] =
+    await Promise.all([
+      listarStoreUX216A_(
+        "TB_OCORRENCIAS"
+      ),
+
+      listarStoreUX216A_(
+        "TB_SYNC_QUEUE"
+      ),
+
+      obterKeyPathStoreUX216A_(
+        "TB_OCORRENCIAS"
+      ),
+
+      obterKeyPathStoreUX216A_(
+        "TB_SYNC_QUEUE"
+      )
+    ]);
+
+  const sufixo =
+    Date.now()
+      .toString(36)
+      .toUpperCase();
+
+  const marcador =
+    "TESTE AUTORIA UX.21.6A — " +
+    sufixo;
+
+  const teste = {
+    etapa:
+      "UX.21.6A",
+
+    status:
+      "AGUARDANDO_CRIACAO_INTERFACE",
+
+    idObra:
+      idObra,
+
+    marcador:
+      marcador,
+
+    iniciadoEm:
+      new Date().toISOString(),
+
+    identidadeInicial: {
+      idUsuario:
+        identidade.usuario.idUsuario,
+
+      idDispositivo:
+        identidade.dispositivo
+          .idDispositivo,
+
+      idSessao:
+        identidade.sessao.idSessao
+    },
+
+    keyPathOcorrencias:
+      keyPathOcorrencias,
+
+    keyPathFila:
+      keyPathFila,
+
+    ocorrenciasAntes:
+      criarMapaStoreUX216A_(
+        ocorrencias,
+        keyPathOcorrencias
+      ),
+
+    filaAntes:
+      criarMapaStoreUX216A_(
+        fila,
+        keyPathFila
+      )
+  };
+
+  window.SIGO_UX216A_TESTE =
+    teste;
+
+  console.log(
+    "UX.21.6A — BASELINE CAPTURADO.",
+    {
+      idObra:
+        idObra,
+
+      marcador:
+        marcador,
+
+      ocorrenciasAntes:
+        ocorrencias.length,
+
+      filaAntes:
+        fila.length,
+
+      idSessao:
+        teste.identidadeInicial
+          .idSessao
+    }
+  );
+
+  console.log(
+    "Crie agora uma Ocorrência pela interface usando exatamente esta descrição:"
+  );
+
+  console.log(marcador);
+
+  return {
+    etapa:
+      "UX.21.6A",
+
+    status:
+      "AGUARDANDO_CRIACAO_INTERFACE",
+
+    idObra:
+      idObra,
+
+    marcador:
+      marcador,
+
+    instrucoes: [
+      "Abra a tela Ocorrências.",
+      "Confirme que a obra ativa é " + idObra + ".",
+      "Crie uma nova ocorrência.",
+      "Use o marcador exatamente como descrição.",
+      "Salve a ocorrência.",
+      "Depois execute concluirTesteOperacionalAutoriaUX216A_()."
+    ]
+  };
+}
+
+
+/**
+ * Aguarda a entrada correspondente aparecer na fila.
+ */
+async function aguardarEntradaFilaUX216A_(
+  teste,
+  idOcorrencia,
+  timeoutMs = 12000
+) {
+  const limite =
+    Date.now() + timeoutMs;
+
+  while (
+    Date.now() <= limite
+  ) {
+    const fila =
+      await listarStoreUX216A_(
+        "TB_SYNC_QUEUE"
+      );
+
+    const candidatas =
+      fila.filter(
+        function (entrada) {
+          const chave =
+            obterChaveRegistroUX216A_(
+              entrada,
+              teste.keyPathFila
+            );
+
+          const novaEntrada =
+            !teste.filaAntes.has(chave);
+
+          const relacionada =
+            registroContemTextoUX216A_(
+              entrada,
+              idOcorrencia
+            ) ||
+            registroContemTextoUX216A_(
+              entrada,
+              teste.marcador
+            );
+
+          const tipoOcorrencia =
+            registroContemTextoUX216A_(
+              {
+                storeOrigem:
+                  entrada.storeOrigem,
+
+                tipo:
+                  entrada.tipo,
+
+                entidade:
+                  entrada.entidade
+              },
+              "OCORRENCIA"
+            ) ||
+            entrada.storeOrigem ===
+              "TB_OCORRENCIAS";
+
+          return (
+            novaEntrada &&
+            relacionada &&
+            tipoOcorrencia
+          );
+        }
+      );
+
+    if (candidatas.length) {
+      return {
+        entrada:
+          candidatas[
+            candidatas.length - 1
+          ],
+
+        filaAtual:
+          fila
+      };
+    }
+
+    await esperarUX216A_(500);
+  }
+
+  return {
+    entrada:
+      null,
+
+    filaAtual:
+      await listarStoreUX216A_(
+        "TB_SYNC_QUEUE"
+      )
+  };
+}
+
+
+/**
+ * ETAPA 2 — Audita o registro realmente criado pela interface.
+ */
+async function concluirTesteOperacionalAutoriaUX216A_() {
+  console.log(
+    "[UX.21.6A] Auditando criação operacional..."
+  );
+
+  const teste =
+    window.SIGO_UX216A_TESTE;
+
+  if (!teste) {
+    throw new Error(
+      "UX216A_TESTE_NAO_INICIADO"
+    );
+  }
+
+  const identidadeAtual =
+    await aguardarIdentidadeAtivaUX215_();
+
+  const ocorrenciasAtual =
+    await listarStoreUX216A_(
+      "TB_OCORRENCIAS"
+    );
+
+  const ocorrenciasMarcador =
+    ocorrenciasAtual.filter(
+      function (registro) {
+        const chave =
+          obterChaveRegistroUX216A_(
+            registro,
+            teste.keyPathOcorrencias
+          );
+
+        return (
+          !teste.ocorrenciasAntes.has(
+            chave
+          ) &&
+          textoUX216A_(
+            registro.idObra
+          ) === teste.idObra &&
+          registroContemTextoUX216A_(
+            registro,
+            teste.marcador
+          )
+        );
+      }
+    );
+
+  const ocorrencia =
+    ocorrenciasMarcador.length
+      ? ocorrenciasMarcador[
+          ocorrenciasMarcador.length - 1
+        ]
+      : null;
+
+  const idOcorrencia =
+    ocorrencia
+      ? obterChaveRegistroUX216A_(
+          ocorrencia,
+          teste.keyPathOcorrencias
+        )
+      : "";
+
+  const resultadoFila =
+    ocorrencia
+      ? await aguardarEntradaFilaUX216A_(
+          teste,
+          idOcorrencia
+        )
+      : {
+          entrada:
+            null,
+
+          filaAtual:
+            await listarStoreUX216A_(
+              "TB_SYNC_QUEUE"
+            )
+        };
+
+  const entradaFila =
+    resultadoFila.entrada;
+
+  const autoriaCriacao =
+    ocorrencia?.autoriaCriacao;
+
+  const autoriaAtualizacao =
+    ocorrencia?.autoriaAtualizacao;
+
+  const autoriaOperacao =
+    entradaFila?.autoriaOperacao;
+
+
+  /*
+   * Verifica se os registros anteriores da store
+   * de Ocorrências permaneceram idênticos.
+   */
+  const mapaOcorrenciasAtual =
+    criarMapaStoreUX216A_(
+      ocorrenciasAtual,
+      teste.keyPathOcorrencias
+    );
+
+  const ocorrenciasAnterioresAlteradas =
+    [];
+
+  teste.ocorrenciasAntes.forEach(
+    function (assinatura, chave) {
+      if (
+        mapaOcorrenciasAtual.get(chave) !==
+        assinatura
+      ) {
+        ocorrenciasAnterioresAlteradas.push(
+          chave
+        );
+      }
+    }
+  );
+
+
+  /*
+   * A fila pode atualizar status e tentativas,
+   * mas os itens históricos não podem desaparecer.
+   */
+  const chavesFilaAtual =
+    new Set(
+      resultadoFila.filaAtual.map(
+        function (registro) {
+          return obterChaveRegistroUX216A_(
+            registro,
+            teste.keyPathFila
+          );
+        }
+      )
+    );
+
+  const itensFilaHistoricaRemovidos =
+    [];
+
+  teste.filaAntes.forEach(
+    function (_, chave) {
+      if (
+        !chavesFilaAtual.has(chave)
+      ) {
+        itensFilaHistoricaRemovidos.push(
+          chave
+        );
+      }
+    }
+  );
+
+
+  const identidadeEsperada = {
+    idUsuario:
+      identidadeAtual.usuario
+        .idUsuario,
+
+    idDispositivo:
+      identidadeAtual.dispositivo
+        .idDispositivo,
+
+    idSessao:
+      identidadeAtual.sessao
+        .idSessao,
+
+    idObra:
+      teste.idObra,
+
+    perfil:
+      "ENGENHEIRO"
+  };
+
+
+  const validacoes = {
+    wrapperRegistroAtivo:
+      window.salvarRegistroSIGO
+        ?.__autoriaUX216 ===
+      true,
+
+    wrapperFilaAtivo:
+      window.adicionarNaFilaSyncSIGO
+        ?.__autoriaUX216 ===
+      true,
+
+    ocorrenciaCriadaPelaInterface:
+      Boolean(ocorrencia),
+
+    ocorrenciaEhNova:
+      Boolean(idOcorrencia) &&
+      !teste.ocorrenciasAntes.has(
+        idOcorrencia
+      ),
+
+    marcadorEncontrado:
+      Boolean(ocorrencia) &&
+      registroContemTextoUX216A_(
+        ocorrencia,
+        teste.marcador
+      ),
+
+    obraCorreta:
+      ocorrencia?.idObra ===
+      teste.idObra,
+
+    autoriaCriacaoPresente:
+      Boolean(autoriaCriacao),
+
+    autoriaAtualizacaoPresente:
+      Boolean(autoriaAtualizacao),
+
+    autoriaCriacaoValida:
+      validarSnapshotUX216A_(
+        autoriaCriacao
+      ),
+
+    autoriaAtualizacaoValida:
+      validarSnapshotUX216A_(
+        autoriaAtualizacao
+      ),
+
+    autoriaCriacaoUsuarioCorreto:
+      autoriaCriacao?.idUsuario ===
+      identidadeEsperada.idUsuario,
+
+    autoriaCriacaoDispositivoCorreto:
+      autoriaCriacao?.idDispositivo ===
+      identidadeEsperada
+        .idDispositivo,
+
+    autoriaCriacaoSessaoCorreta:
+      autoriaCriacao?.idSessao ===
+      identidadeEsperada.idSessao,
+
+    autoriaCriacaoObraCorreta:
+      autoriaCriacao?.idObra ===
+      identidadeEsperada.idObra,
+
+    autoriaCriacaoPerfilCorreto:
+      autoriaCriacao?.perfil ===
+      identidadeEsperada.perfil,
+
+    criacaoEAtualizacaoMesmaIdentidade:
+      snapshotsMesmaIdentidadeUX216A_(
+        autoriaCriacao,
+        autoriaAtualizacao
+      ),
+
+    entradaFilaEncontrada:
+      Boolean(entradaFila),
+
+    entradaFilaNova:
+      Boolean(entradaFila) &&
+      !teste.filaAntes.has(
+        obterChaveRegistroUX216A_(
+          entradaFila,
+          teste.keyPathFila
+        )
+      ),
+
+    filaReferenciaOcorrencia:
+      Boolean(entradaFila) &&
+      registroContemTextoUX216A_(
+        entradaFila,
+        idOcorrencia
+      ),
+
+    autoriaOperacaoPresente:
+      Boolean(autoriaOperacao),
+
+    autoriaOperacaoValida:
+      validarSnapshotUX216A_(
+        autoriaOperacao
+      ),
+
+    registroEFilaMesmaIdentidade:
+      snapshotsMesmaIdentidadeUX216A_(
+        autoriaCriacao,
+        autoriaOperacao
+      ),
+
+    nenhumaCredencialSecreta:
+      localizarCamposSecretosUX212_({
+        autoriaCriacao:
+          autoriaCriacao,
+
+        autoriaAtualizacao:
+          autoriaAtualizacao,
+
+        autoriaOperacao:
+          autoriaOperacao
+      }).length === 0,
+
+    registrosAnterioresPreservados:
+      ocorrenciasAnterioresAlteradas
+        .length === 0,
+
+    filaHistoricaPreservada:
+      itensFilaHistoricaRemovidos
+        .length === 0,
+
+    mesmaSessaoDuranteTeste:
+      teste.identidadeInicial
+        .idSessao ===
+      identidadeAtual.sessao
+        .idSessao
+  };
+
+
+  const aprovado =
+    Object.values(validacoes)
+      .every(
+        function (valor) {
+          return valor === true;
+        }
+      );
+
+
+  const resultado = {
+    etapa:
+      "UX.21.6A",
+
+    auditoria:
+      "TESTE_OPERACIONAL_CONTROLADO_AUTORIA",
+
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+
+    marcador:
+      teste.marcador,
+
+    ocorrencia: {
+      encontrada:
+        Boolean(ocorrencia),
+
+      idOcorrencia:
+        idOcorrencia,
+
+      idObra:
+        ocorrencia?.idObra || "",
+
+      autoriaCriacao:
+        autoriaCriacao || null,
+
+      autoriaAtualizacao:
+        autoriaAtualizacao || null
+    },
+
+    fila: {
+      encontrada:
+        Boolean(entradaFila),
+
+      idEntrada:
+        entradaFila
+          ? obterChaveRegistroUX216A_(
+              entradaFila,
+              teste.keyPathFila
+            )
+          : "",
+
+      storeOrigem:
+        entradaFila?.storeOrigem || "",
+
+      idRegistro:
+        entradaFila?.idRegistro || "",
+
+      operacao:
+        entradaFila?.operacao ||
+        entradaFila?.tipo ||
+        "",
+
+      autoriaOperacao:
+        autoriaOperacao || null
+    },
+
+    preservacao: {
+      ocorrenciasAnterioresAlteradas:
+        ocorrenciasAnterioresAlteradas,
+
+      itensFilaHistoricaRemovidos:
+        itensFilaHistoricaRemovidos,
+
+      registroTesteRemovido:
+        false,
+
+      filaTesteRemovida:
+        false
+    },
+
+    transicao: {
+      criadoPelaInterface:
+        true,
+
+      registroRecebeuAutoriaOficial:
+        Boolean(
+          autoriaCriacao &&
+          autoriaAtualizacao
+        ),
+
+      filaRecebeuAutoriaOficial:
+        Boolean(autoriaOperacao),
+
+      registrosLegadosMigrados:
+        false,
+
+      usuarioMobileRemovido:
+        false
+    },
+
+    validacoes:
+      validacoes,
+
+    aprovado:
+      aprovado,
+
+    prontoParaUX217:
+      aprovado
+  };
+
+
+  teste.status =
+    resultado.status;
+
+  teste.resultado =
+    resultado;
+
+  teste.concluidoEm =
+    new Date().toISOString();
+
+
+  console.log(
+    JSON.stringify(
+      resultado,
+      null,
+      2
+    )
+  );
+
+
+  if (!aprovado) {
+    throw new Error(
+      "UX.21.6A REPROVADA. Consulte as validações do teste operacional."
+    );
+  }
+
+
+  console.log(
+    "UX.21.6A — TESTE OPERACIONAL DE AUTORIA APROVADO."
+  );
+
+
+  return resultado;
+}
