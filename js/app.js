@@ -73713,6 +73713,1124 @@ if (
 
 /**
  * ============================================================
+ * UX.21.9.6.4C — PROTEÇÃO AUTOMÁTICA DAS FUNÇÕES OPERACIONAIS
+ * ============================================================
+ *
+ * - protege as 29 funções reais identificadas;
+ * - não altera o código interno das funções;
+ * - preserva parâmetros, retorno e contexto "this";
+ * - instalação idempotente;
+ * - não protege consultas, reidratação ou sincronização;
+ * - impede a função original de começar quando há revogação.
+ * ============================================================
+ */
+
+
+const ALVOS_PROTECAO_OPERACIONAL_UX21964C =
+  Object.freeze([
+
+    // =====================================================
+    // DIÁRIO
+    // =====================================================
+
+    {
+      funcao:
+        "salvarDiarioOffline",
+
+      operacao:
+        "SALVAR_DIARIO",
+
+      categoria:
+        "GRAVACAO"
+    },
+
+    {
+      funcao:
+        "salvarDiarioPremium",
+
+      operacao:
+        "SALVAR_DIARIO",
+
+      categoria:
+        "GRAVACAO"
+    },
+
+    {
+      funcao:
+        "salvarItemDiarioOffline",
+
+      operacao:
+        "SALVAR_ITEM_DIARIO",
+
+      categoria:
+        "GRAVACAO"
+    },
+
+    {
+      funcao:
+        "salvarItemDiarioPremium",
+
+      operacao:
+        "SALVAR_ITEM_DIARIO",
+
+      categoria:
+        "GRAVACAO"
+    },
+
+    {
+      funcao:
+        "atualizarDiarioOffline_",
+
+      operacao:
+        "ATUALIZAR_DIARIO",
+
+      categoria:
+        "GRAVACAO"
+    },
+
+    {
+      funcao:
+        "atualizarItemDiarioOffline_",
+
+      operacao:
+        "ATUALIZAR_ITEM_DIARIO",
+
+      categoria:
+        "GRAVACAO"
+    },
+
+    {
+      funcao:
+        "excluirDiarioOffline_",
+
+      operacao:
+        "EXCLUIR_DIARIO",
+
+      categoria:
+        "GRAVACAO"
+    },
+
+    {
+      funcao:
+        "excluirItemDiarioOffline_",
+
+      operacao:
+        "EXCLUIR_ITEM_DIARIO",
+
+      categoria:
+        "GRAVACAO"
+    },
+
+
+    // =====================================================
+    // OCORRÊNCIAS
+    // =====================================================
+
+    {
+      funcao:
+        "salvarOcorrenciaPremium",
+
+      operacao:
+        "SALVAR_OCORRENCIA",
+
+      categoria:
+        "GRAVACAO"
+    },
+
+    {
+      funcao:
+        "atualizarOcorrenciaOffline_",
+
+      operacao:
+        "ATUALIZAR_OCORRENCIA",
+
+      categoria:
+        "GRAVACAO"
+    },
+
+    {
+      funcao:
+        "excluirOcorrenciaOffline_",
+
+      operacao:
+        "EXCLUIR_OCORRENCIA",
+
+      categoria:
+        "GRAVACAO"
+    },
+
+
+    // =====================================================
+    // CLIMA
+    // =====================================================
+
+    {
+      funcao:
+        "salvarClimaPremium",
+
+      operacao:
+        "SALVAR_CLIMA",
+
+      categoria:
+        "GRAVACAO"
+    },
+
+    {
+      funcao:
+        "atualizarClimaOffline_",
+
+      operacao:
+        "ATUALIZAR_CLIMA",
+
+      categoria:
+        "GRAVACAO"
+    },
+
+    {
+      funcao:
+        "excluirClimaOffline_",
+
+      operacao:
+        "EXCLUIR_CLIMA",
+
+      categoria:
+        "GRAVACAO"
+    },
+
+
+    // =====================================================
+    // EVIDÊNCIAS
+    // =====================================================
+
+    {
+      funcao:
+        "salvarEvidenciaPremium",
+
+      operacao:
+        "SALVAR_EVIDENCIA",
+
+      categoria:
+        "GRAVACAO"
+    },
+
+    {
+      funcao:
+        "atualizarEvidenciaOffline_",
+
+      operacao:
+        "ATUALIZAR_EVIDENCIA",
+
+      categoria:
+        "GRAVACAO"
+    },
+
+    {
+      funcao:
+        "excluirEvidenciaOffline_",
+
+      operacao:
+        "EXCLUIR_EVIDENCIA",
+
+      categoria:
+        "GRAVACAO"
+    },
+
+
+    // =====================================================
+    // MEDIÇÕES
+    // =====================================================
+
+    {
+      funcao:
+        "salvarMedicaoOffline",
+
+      operacao:
+        "SALVAR_MEDICAO",
+
+      categoria:
+        "GRAVACAO"
+    },
+
+    {
+      funcao:
+        "salvarMedicaoPremium",
+
+      operacao:
+        "SALVAR_MEDICAO",
+
+      categoria:
+        "WRAPPER"
+    },
+
+    {
+      funcao:
+        "salvarLoteMedicaoDrawer_",
+
+      operacao:
+        "SALVAR_LOTE_MEDICAO",
+
+      categoria:
+        "ENTRADA_OPERACIONAL"
+    },
+
+    {
+      funcao:
+        "atualizarMedicaoOffline_",
+
+      operacao:
+        "ATUALIZAR_MEDICAO",
+
+      categoria:
+        "GRAVACAO"
+    },
+
+    {
+      funcao:
+        "excluirMedicaoOffline_",
+
+      operacao:
+        "EXCLUIR_MEDICAO",
+
+      categoria:
+        "GRAVACAO"
+    },
+
+
+    // =====================================================
+    // ENTRADAS DE CRIAÇÃO E EDIÇÃO
+    // =====================================================
+
+    {
+      funcao:
+        "iniciarNovoDiarioUnificadoUX19_",
+
+      operacao:
+        "INICIAR_NOVO_DIARIO",
+
+      categoria:
+        "INTERFACE"
+    },
+
+    {
+      funcao:
+        "editarDiarioOffline_",
+
+      operacao:
+        "INICIAR_EDICAO_DIARIO",
+
+      categoria:
+        "INTERFACE"
+    },
+
+    {
+      funcao:
+        "editarItemDiarioOffline_",
+
+      operacao:
+        "INICIAR_EDICAO_ITEM_DIARIO",
+
+      categoria:
+        "INTERFACE"
+    },
+
+    {
+      funcao:
+        "editarOcorrenciaOffline_",
+
+      operacao:
+        "INICIAR_EDICAO_OCORRENCIA",
+
+      categoria:
+        "INTERFACE"
+    },
+
+    {
+      funcao:
+        "editarClimaOffline_",
+
+      operacao:
+        "INICIAR_EDICAO_CLIMA",
+
+      categoria:
+        "INTERFACE"
+    },
+
+    {
+      funcao:
+        "editarEvidenciaOffline_",
+
+      operacao:
+        "INICIAR_EDICAO_EVIDENCIA",
+
+      categoria:
+        "INTERFACE"
+    },
+
+    {
+      funcao:
+        "editarMedicaoOffline_",
+
+      operacao:
+        "INICIAR_EDICAO_MEDICAO",
+
+      categoria:
+        "INTERFACE"
+    }
+  ]);
+
+
+/**
+ * Armazena referências das funções originais apenas
+ * para diagnóstico durante a sessão atual.
+ */
+const ORIGINAIS_PROTECAO_UX21964C =
+  new Map();
+
+
+/**
+ * Instala a proteção em uma função global.
+ */
+function protegerFuncaoOperacionalUX21964C_(
+  alvo
+) {
+  const nomeFuncao =
+    String(
+      alvo?.funcao || ""
+    ).trim();
+
+
+  const funcaoAtual =
+    globalThis[
+      nomeFuncao
+    ];
+
+
+  if (
+    typeof funcaoAtual !==
+    "function"
+  ) {
+    return {
+      funcao:
+        nomeFuncao,
+
+      operacao:
+        alvo?.operacao || "",
+
+      categoria:
+        alvo?.categoria || "",
+
+      encontrada:
+        false,
+
+      protegida:
+        false,
+
+      resultado:
+        "FUNCAO_NAO_ENCONTRADA"
+    };
+  }
+
+
+  const metadadosExistentes =
+    funcaoAtual
+      .__sigoProtecaoUX21964C;
+
+
+  if (
+    metadadosExistentes?.ativa ===
+    true
+  ) {
+    return {
+      funcao:
+        nomeFuncao,
+
+      operacao:
+        metadadosExistentes
+          .operacao,
+
+      categoria:
+        metadadosExistentes
+          .categoria,
+
+      encontrada:
+        true,
+
+      protegida:
+        true,
+
+      resultado:
+        "JA_PROTEGIDA"
+    };
+  }
+
+
+  const funcaoOriginal =
+    funcaoAtual
+      .__sigoOriginalUX21964C ||
+    funcaoAtual;
+
+
+  ORIGINAIS_PROTECAO_UX21964C
+    .set(
+      nomeFuncao,
+      funcaoOriginal
+    );
+
+
+  const funcaoProtegida =
+    function (...argumentos) {
+
+      const bloqueio =
+        bloquearOperacaoSeRevogadaUX21964_(
+          alvo.operacao
+        );
+
+
+      if (bloqueio) {
+        return {
+          ...bloqueio,
+
+          funcao:
+            nomeFuncao,
+
+          categoria:
+            alvo.categoria
+        };
+      }
+
+
+      return funcaoOriginal
+        .apply(
+          this,
+          argumentos
+        );
+    };
+
+
+  Object.defineProperties(
+    funcaoProtegida,
+    {
+      __sigoProtecaoUX21964C: {
+        value: {
+          ativa:
+            true,
+
+          funcao:
+            nomeFuncao,
+
+          operacao:
+            alvo.operacao,
+
+          categoria:
+            alvo.categoria,
+
+          instaladaEm:
+            new Date()
+              .toISOString()
+        },
+
+        enumerable:
+          false,
+
+        configurable:
+          false,
+
+        writable:
+          false
+      },
+
+      __sigoOriginalUX21964C: {
+        value:
+          funcaoOriginal,
+
+        enumerable:
+          false,
+
+        configurable:
+          false,
+
+        writable:
+          false
+      }
+    }
+  );
+
+
+  globalThis[
+    nomeFuncao
+  ] =
+    funcaoProtegida;
+
+
+  return {
+    funcao:
+      nomeFuncao,
+
+    operacao:
+      alvo.operacao,
+
+    categoria:
+      alvo.categoria,
+
+    encontrada:
+      true,
+
+    protegida:
+      true,
+
+    resultado:
+      "PROTECAO_INSTALADA"
+  };
+}
+
+
+/**
+ * Instala todas as proteções.
+ */
+function instalarProtecoesOperacionaisUX21964C_() {
+  const resultados =
+    ALVOS_PROTECAO_OPERACIONAL_UX21964C
+      .map(
+        function (alvo) {
+          return protegerFuncaoOperacionalUX21964C_(
+            alvo
+          );
+        }
+      );
+
+
+  const encontradas =
+    resultados.filter(
+      item =>
+        item.encontrada
+    );
+
+
+  const protegidas =
+    resultados.filter(
+      item =>
+        item.protegida
+    );
+
+
+  const ausentes =
+    resultados.filter(
+      item =>
+        !item.encontrada
+    );
+
+
+  const relatorio = {
+    etapa:
+      "UX.21.9.6.4C",
+
+    instalacao:
+      "PROTECOES_OPERACIONAIS",
+
+    totalAlvos:
+      resultados.length,
+
+    encontradas:
+      encontradas.length,
+
+    protegidas:
+      protegidas.length,
+
+    ausentes:
+      ausentes.length,
+
+    funcoesAusentes:
+      ausentes.map(
+        item =>
+          item.funcao
+      ),
+
+    resultados:
+      resultados,
+
+    instalado:
+      ausentes.length ===
+        0 &&
+      protegidas.length ===
+        resultados.length
+  };
+
+
+  globalThis
+    .SIGO_PROTECOES_OPERACIONAIS_UX21964C =
+      relatorio;
+
+
+  console.log(
+    "[UX.21.9.6.4C] Proteções operacionais:",
+    relatorio
+  );
+
+
+  return relatorio;
+}
+
+
+/**
+ * Retorna o estado atual de cada função protegida.
+ */
+function obterEstadoProtecoesUX21964C_() {
+  return ALVOS_PROTECAO_OPERACIONAL_UX21964C
+    .map(
+      function (alvo) {
+        const funcao =
+          globalThis[
+            alvo.funcao
+          ];
+
+
+        const metadados =
+          funcao
+            ?.__sigoProtecaoUX21964C ||
+          null;
+
+
+        return {
+          funcao:
+            alvo.funcao,
+
+          operacao:
+            alvo.operacao,
+
+          categoria:
+            alvo.categoria,
+
+          encontrada:
+            typeof funcao ===
+            "function",
+
+          protegida:
+            metadados?.ativa ===
+            true,
+
+          operacaoInstalada:
+            metadados?.operacao ||
+            "",
+
+          categoriaInstalada:
+            metadados?.categoria ||
+            ""
+        };
+      }
+    );
+}
+
+
+/**
+ * Instala após o carregamento das declarações.
+ *
+ * A segunda chamada no evento load é segura porque
+ * a instalação é idempotente.
+ */
+function agendarProtecoesOperacionaisUX21964C_() {
+
+  const executar =
+    function () {
+      instalarProtecoesOperacionaisUX21964C_();
+    };
+
+
+  if (
+    document.readyState ===
+    "loading"
+  ) {
+    document.addEventListener(
+      "DOMContentLoaded",
+      executar,
+      {
+        once:
+          true
+      }
+    );
+
+  } else {
+    queueMicrotask(
+      executar
+    );
+  }
+
+
+  globalThis.addEventListener(
+    "load",
+    executar,
+    {
+      once:
+        true
+    }
+  );
+}
+
+
+agendarProtecoesOperacionaisUX21964C_();
+
+/**
+ * ============================================================
+ * UX.21.9.6.4C — AUDITORIA DAS PROTEÇÕES INSTALADAS
+ * ============================================================
+ *
+ * Não chama nenhuma das 29 funções reais.
+ *
+ * A execução bloqueada é testada apenas em uma função
+ * temporária e controlada que usa o mesmo mecanismo.
+ * ============================================================
+ */
+
+async function auditarProtecoesOperacionaisUX21964C_() {
+
+  const instalacao =
+    instalarProtecoesOperacionaisUX21964C_();
+
+
+  const estadoAntes =
+    obterEstadoProtecoesUX21964C_();
+
+
+  const filaAntes =
+    await listarRegistrosSIGO(
+      "TB_SYNC_QUEUE"
+    );
+
+
+  const chaveBloqueio =
+    CONFIG_BLOQUEIO_IDENTIDADE_UX2196
+      .chaveLocalStorage;
+
+
+  const valorAnterior =
+    localStorage.getItem(
+      chaveBloqueio
+    );
+
+
+  const nomeFuncaoTeste =
+    "__testeProtecaoOperacionalUX21964C";
+
+
+  let executorTesteChamado =
+    false;
+
+
+  globalThis[
+    nomeFuncaoTeste
+  ] =
+    function () {
+
+      executorTesteChamado =
+        true;
+
+      return {
+        status:
+          "EXECUTADO"
+      };
+    };
+
+
+  protegerFuncaoOperacionalUX21964C_({
+    funcao:
+      nomeFuncaoTeste,
+
+    operacao:
+      "OPERACAO_CONTROLADA_UX21964C",
+
+    categoria:
+      "AUDITORIA"
+  });
+
+
+  const bloqueioSimulado = {
+    ativo:
+      true,
+
+    versaoContrato:
+      "1.0",
+
+    codigo:
+      "USUARIO_NAO_ATIVO",
+
+    mensagem:
+      "Usuário simulado revogado.",
+
+    idUsuario:
+      "USR-SIMULADO",
+
+    idDispositivo:
+      "DISP-SIMULADO",
+
+    idSessao:
+      "SES-SIMULADA",
+
+    idObra:
+      "OBR002",
+
+    bloqueadaEm:
+      new Date()
+        .toISOString(),
+
+    origem:
+      "AUDITORIA_UX21964C"
+  };
+
+
+  let resultadoTeste;
+
+
+  try {
+
+    localStorage.setItem(
+      chaveBloqueio,
+      JSON.stringify(
+        bloqueioSimulado
+      )
+    );
+
+
+    resultadoTeste =
+      globalThis[
+        nomeFuncaoTeste
+      ]();
+
+  } finally {
+
+    delete globalThis[
+      nomeFuncaoTeste
+    ];
+
+
+    ORIGINAIS_PROTECAO_UX21964C
+      .delete(
+        nomeFuncaoTeste
+      );
+
+
+    if (
+      valorAnterior ===
+      null
+    ) {
+      localStorage.removeItem(
+        chaveBloqueio
+      );
+
+      removerAvisoVisualBloqueioUX2196_();
+
+    } else {
+      localStorage.setItem(
+        chaveBloqueio,
+        valorAnterior
+      );
+
+
+      try {
+        const bloqueioAnterior =
+          JSON.parse(
+            valorAnterior
+          );
+
+
+        if (
+          bloqueioAnterior?.ativo ===
+          true
+        ) {
+          aplicarAvisoVisualBloqueioUX2196_(
+            bloqueioAnterior
+          );
+        }
+
+      } catch (erroRestauracao) {
+        console.error(
+          "[UX.21.9.6.4C] Falha ao restaurar bloqueio anterior:",
+          erroRestauracao
+        );
+      }
+    }
+
+
+    atualizarControlesOperacionaisUX21964_();
+  }
+
+
+  const filaDepois =
+    await listarRegistrosSIGO(
+      "TB_SYNC_QUEUE"
+    );
+
+
+  const estadoDepois =
+    obterEstadoProtecoesUX21964C_();
+
+
+  const validacoes = {
+    totalAlvosCorreto:
+      instalacao.totalAlvos ===
+      29,
+
+    todasFuncoesEncontradas:
+      estadoDepois.every(
+        item =>
+          item.encontrada ===
+          true
+      ),
+
+    todasFuncoesProtegidas:
+      estadoDepois.every(
+        item =>
+          item.protegida ===
+          true
+      ),
+
+    operacoesInstaladasCorretamente:
+      estadoDepois.every(
+        item =>
+          item.operacao ===
+          item.operacaoInstalada
+      ),
+
+    categoriasInstaladasCorretamente:
+      estadoDepois.every(
+        item =>
+          item.categoria ===
+          item.categoriaInstalada
+      ),
+
+    instalacaoIdempotente:
+      estadoAntes.every(
+        item =>
+          item.protegida ===
+          true
+      ) &&
+      estadoDepois.every(
+        item =>
+          item.protegida ===
+          true
+      ),
+
+    testeControladoBloqueado:
+      resultadoTeste?.status ===
+      "BLOQUEADO",
+
+    codigoTesteCorreto:
+      resultadoTeste?.codigo ===
+      "USUARIO_NAO_ATIVO",
+
+    executorControladoNaoChamado:
+      executorTesteChamado ===
+      false,
+
+    nenhumaGravacaoControlada:
+      resultadoTeste
+        ?.gravacaoExecutada ===
+      false,
+
+    filaPreservada:
+      filaAntes.length ===
+      filaDepois.length,
+
+    bloqueioAnteriorRestaurado:
+      valorAnterior === null
+        ? localStorage.getItem(
+            chaveBloqueio
+          ) === null
+        : localStorage.getItem(
+            chaveBloqueio
+          ) === valorAnterior,
+
+    estadoVisualRestaurado:
+      valorAnterior !== null ||
+      document.getElementById(
+        "avisoIdentidadeBloqueadaUX2196"
+      ) === null
+  };
+
+
+  const aprovado =
+    Object.values(
+      validacoes
+    ).every(
+      valor =>
+        valor === true
+    );
+
+
+  const relatorio = {
+    etapa:
+      "UX.21.9.6.4C",
+
+    auditoria:
+      "PROTECAO_AUTOMATICA_FUNCOES_OPERACIONAIS",
+
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+
+    instalacao:
+      instalacao,
+
+    totalFuncoesProtegidas:
+      estadoDepois.filter(
+        item =>
+          item.protegida
+      ).length,
+
+    estadoProtecoes:
+      estadoDepois,
+
+    resultadoTesteControlado:
+      resultadoTeste,
+
+    quantidadeFilaAntes:
+      filaAntes.length,
+
+    quantidadeFilaDepois:
+      filaDepois.length,
+
+    validacoes:
+      validacoes,
+
+    aprovado:
+      aprovado,
+
+    prontoParaTesteOperacionalReal:
+      aprovado
+  };
+
+
+  console.log(
+    JSON.stringify(
+      relatorio,
+      null,
+      2
+    )
+  );
+
+
+  if (!aprovado) {
+    throw new Error(
+      "UX.21.9.6.4C REPROVADA. Consulte as validações."
+    );
+  }
+
+
+  console.log(
+    "UX.21.9.6.4C — 29 FUNÇÕES OPERACIONAIS PROTEGIDAS."
+  );
+
+
+  return relatorio;
+}
+
+
+
+
+
+
+
+/**
+ * ============================================================
  * UX.21.9.6.4A — AUDITORIA DAS FUNÇÕES DE GRAVAÇÃO
  * ============================================================
  *
