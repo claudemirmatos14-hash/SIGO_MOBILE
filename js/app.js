@@ -67889,3 +67889,1791 @@ async function auditarAtivacaoAutomaticaIdentidadeUX215_() {
 
   return resultado;
 }
+
+/**
+ * ============================================================
+ * UX.21.6 — AUTORIA OFICIAL EM NOVOS REGISTROS
+ * E NA FILA DE SINCRONIZAÇÃO
+ * ============================================================
+ *
+ * Pontos centrais integrados:
+ *
+ * - salvarRegistroSIGO(nomeStore, registro)
+ * - adicionarNaFilaSyncSIGO(registro)
+ *
+ * Esta etapa:
+ *
+ * - adiciona autoria somente a novos registros locais;
+ * - adiciona autoria de atualização somente a registros
+ *   que já nasceram com o contrato oficial;
+ * - não migra registros legados;
+ * - não modifica registros reidratados do servidor;
+ * - adiciona snapshot de autoria às novas entradas da fila;
+ * - não substitui campos legados;
+ * - não altera entradas antigas da TB_SYNC_QUEUE.
+ */
+
+const STORES_OPERACIONAIS_AUTORIA_UX216 =
+  new Set([
+    "TB_DIARIOS",
+    "TB_DIARIO_ITENS",
+    "TB_LOTES_MEDICAO",
+    "TB_MEDICOES",
+    "TB_OCORRENCIAS",
+    "TB_CLIMA",
+    "TB_EVIDENCIAS"
+  ]);
+
+
+const CHAVES_STORES_AUTORIA_UX216 =
+  Object.freeze({
+    TB_DIARIOS:
+      "idDiario",
+
+    TB_DIARIO_ITENS:
+      "idItemDiario",
+
+    TB_LOTES_MEDICAO:
+      "idLoteMedicao",
+
+    TB_MEDICOES:
+      "idMedicao",
+
+    TB_OCORRENCIAS:
+      "idOcorrencia",
+
+    TB_CLIMA:
+      "idClima",
+
+    TB_EVIDENCIAS:
+      "idEvidencia"
+  });
+
+
+function textoUX216_(valor) {
+  return String(
+    valor === undefined ||
+    valor === null
+      ? ""
+      : valor
+  ).trim();
+}
+
+
+function clonarUX216_(valor) {
+  return JSON.parse(
+    JSON.stringify(valor)
+  );
+}
+
+
+function objetosIguaisUX216_(a, b) {
+  return (
+    JSON.stringify(a) ===
+    JSON.stringify(b)
+  );
+}
+
+
+/**
+ * Identifica registros provenientes da reidratação.
+ *
+ * Esses registros não podem receber autoria local.
+ */
+function registroVeioDoServidorUX216_(
+  registro
+) {
+  const valores = [
+    registro?.origemReidratacao,
+    registro?.fonteReidratacao,
+    registro?.origemServidor,
+    registro?.origem
+  ]
+    .map(textoUX216_)
+    .join("|")
+    .toUpperCase();
+
+  return (
+    valores.includes("SERVIDOR") ||
+    valores.includes("REIDRATACAO") ||
+    valores.includes("REIDRATAÇÃO")
+  );
+}
+
+
+/**
+ * Identifica tombstones.
+ *
+ * A autoria da exclusão ficará na entrada da fila,
+ * sem alterar retroativamente o registro legado.
+ */
+function registroEhTombstoneUX216_(
+  registro
+) {
+  return (
+    registro?.tombstone === true ||
+    registro?.excluido === true ||
+    registro?.deleted === true ||
+    textoUX216_(
+      registro?.operacao
+    ).toUpperCase() ===
+      "DELETE" ||
+    textoUX216_(
+      registro?.statusRegistro
+    ).toUpperCase() ===
+      "EXCLUIDO"
+  );
+}
+
+
+/**
+ * Obtém a chave primária esperada para a store.
+ */
+function obterChaveRegistroUX216_(
+  nomeStore,
+  registro
+) {
+  const campo =
+    CHAVES_STORES_AUTORIA_UX216[
+      nomeStore
+    ];
+
+  return campo
+    ? textoUX216_(
+        registro?.[campo]
+      )
+    : "";
+}
+
+
+/**
+ * Leitura direta e somente leitura.
+ */
+async function obterRegistroStoreUX216_(
+  nomeStore,
+  chave
+) {
+  if (
+    !nomeStore ||
+    !chave
+  ) {
+    return null;
+  }
+
+  const db =
+    await abrirBancoLocalSIGO();
+
+  return new Promise(
+    function (resolve, reject) {
+      const transacao =
+        db.transaction(
+          [nomeStore],
+          "readonly"
+        );
+
+      const requisicao =
+        transacao
+          .objectStore(nomeStore)
+          .get(chave);
+
+      requisicao.onsuccess =
+        function () {
+          resolve(
+            requisicao.result
+              ? clonarUX216_(
+                  requisicao.result
+                )
+              : null
+          );
+        };
+
+      requisicao.onerror =
+        function () {
+          reject(
+            requisicao.error ||
+            new Error(
+              "UX216_FALHA_LEITURA_REGISTRO"
+            )
+          );
+        };
+    }
+  );
+}
+
+
+/**
+ * Obtém a identidade ativa antes da gravação.
+ */
+async function obterAutoriaOficialUX216_(
+  idObra
+) {
+  const obra =
+    textoUX216_(idObra);
+
+  if (
+    !/^OBR[A-Z0-9_-]+$/i.test(
+      obra
+    )
+  ) {
+    throw new Error(
+      "UX216_ID_OBRA_INVALIDO: " +
+      obra
+    );
+  }
+
+  await aguardarIdentidadeAtivaUX215_();
+
+  const autoria =
+    await obterContextoAutoriaAtualUX214_(
+      obra
+    );
+
+  const validacao =
+    validarContextoAutoriaUX212_(
+      autoria
+    );
+
+  if (!validacao.valido) {
+    throw new Error(
+      "UX216_AUTORIA_INVALIDA: " +
+      validacao.erros.join(", ")
+    );
+  }
+
+  if (
+    localizarCamposSecretosUX212_(
+      autoria
+    ).length
+  ) {
+    throw new Error(
+      "UX216_AUTORIA_CONTEM_CAMPO_SECRETO"
+    );
+  }
+
+  return clonarUX216_(
+    autoria
+  );
+}
+
+
+/**
+ * Preserva somente o contrato oficial da autoria.
+ */
+function normalizarSnapshotAutoriaUX216_(
+  autoria
+) {
+  return {
+    versaoContrato:
+      textoUX216_(
+        autoria?.versaoContrato
+      ),
+
+    idUsuario:
+      textoUX216_(
+        autoria?.idUsuario
+      ),
+
+    nomeUsuario:
+      textoUX216_(
+        autoria?.nomeUsuario
+      ),
+
+    emailUsuario:
+      textoUX216_(
+        autoria?.emailUsuario
+      ),
+
+    idDispositivo:
+      textoUX216_(
+        autoria?.idDispositivo
+      ),
+
+    idSessao:
+      textoUX216_(
+        autoria?.idSessao
+      ),
+
+    idObra:
+      textoUX216_(
+        autoria?.idObra
+      ),
+
+    perfil:
+      textoUX216_(
+        autoria?.perfil
+      ),
+
+    modoConexao:
+      textoUX216_(
+        autoria?.modoConexao
+      ),
+
+    ocorridoEm:
+      textoUX216_(
+        autoria?.ocorridoEm
+      ),
+
+    origem:
+      textoUX216_(
+        autoria?.origem
+      )
+  };
+}
+
+
+/**
+ * Valida um snapshot já existente.
+ */
+function validarSnapshotAutoriaUX216_(
+  autoria
+) {
+  const validacao =
+    validarContextoAutoriaUX212_(
+      autoria
+    );
+
+  if (!validacao.valido) {
+    throw new Error(
+      "UX216_SNAPSHOT_AUTORIA_INVALIDO: " +
+      validacao.erros.join(", ")
+    );
+  }
+
+  const secretos =
+    localizarCamposSecretosUX212_(
+      autoria
+    );
+
+  if (secretos.length) {
+    throw new Error(
+      "UX216_SNAPSHOT_AUTORIA_CONTEM_SEGREDO"
+    );
+  }
+
+  return true;
+}
+
+
+/**
+ * ============================================================
+ * PREPARAÇÃO DO REGISTRO OPERACIONAL
+ * ============================================================
+ *
+ * A função não grava nada.
+ */
+async function prepararRegistroComAutoriaUX216_(
+  nomeStore,
+  registro,
+  opcoes = {}
+) {
+  const original =
+    clonarUX216_(
+      registro
+    );
+
+  const resultado = {
+    registro:
+      original,
+
+    autoriaAplicada:
+      false,
+
+    tipoAutoria:
+      "NENHUMA",
+
+    motivo:
+      ""
+  };
+
+
+  if (
+    !STORES_OPERACIONAIS_AUTORIA_UX216
+      .has(nomeStore)
+  ) {
+    resultado.motivo =
+      "STORE_NAO_OPERACIONAL";
+
+    return resultado;
+  }
+
+
+  if (
+    registroVeioDoServidorUX216_(
+      original
+    )
+  ) {
+    resultado.motivo =
+      "REGISTRO_DO_SERVIDOR";
+
+    return resultado;
+  }
+
+
+  const chave =
+    obterChaveRegistroUX216_(
+      nomeStore,
+      original
+    );
+
+  if (!chave) {
+    throw new Error(
+      "UX216_CHAVE_REGISTRO_AUSENTE: " +
+      nomeStore
+    );
+  }
+
+
+  const existente =
+    Object.prototype.hasOwnProperty.call(
+      opcoes,
+      "registroExistente"
+    )
+      ? clonarUX216_(
+          opcoes.registroExistente
+        )
+      : (
+        Object.prototype.hasOwnProperty.call(
+          opcoes,
+          "existeAntes"
+        )
+          ? (
+            opcoes.existeAntes
+              ? {}
+              : null
+          )
+          : await obterRegistroStoreUX216_(
+              nomeStore,
+              chave
+            )
+      );
+
+
+  const existeAntes =
+    Boolean(existente);
+
+
+  /*
+   * Registro legado existente:
+   *
+   * Não recebe autoria retroativa.
+   * A autoria da operação será registrada na fila.
+   */
+  if (
+    existeAntes &&
+    !existente?.autoriaCriacao &&
+    !original?.autoriaCriacao
+  ) {
+    resultado.motivo =
+      "REGISTRO_LEGADO_PRESERVADO";
+
+    return resultado;
+  }
+
+
+  /*
+   * Tombstone de registro legado:
+   *
+   * Também não recebe autoria retroativa.
+   */
+  if (
+    existeAntes &&
+    registroEhTombstoneUX216_(
+      original
+    ) &&
+    !existente?.autoriaCriacao
+  ) {
+    resultado.motivo =
+      "TOMBSTONE_LEGADO_PRESERVADO";
+
+    return resultado;
+  }
+
+
+  const idObra =
+    textoUX216_(
+      original.idObra ||
+      existente?.idObra
+    );
+
+  const autoria =
+    normalizarSnapshotAutoriaUX216_(
+      await obterAutoriaOficialUX216_(
+        idObra
+      )
+    );
+
+
+  validarSnapshotAutoriaUX216_(
+    autoria
+  );
+
+
+  /*
+   * Novo registro.
+   */
+  if (!existeAntes) {
+    resultado.registro = {
+      ...original,
+
+      versaoContratoAutoria:
+        VERSAO_CONTRATO_IDENTIDADE_UX212,
+
+      autoriaCriacao:
+        clonarUX216_(autoria),
+
+      autoriaAtualizacao:
+        clonarUX216_(autoria)
+    };
+
+    resultado.autoriaAplicada =
+      true;
+
+    resultado.tipoAutoria =
+      "CRIACAO";
+
+    resultado.motivo =
+      "NOVO_REGISTRO_LOCAL";
+
+    return resultado;
+  }
+
+
+  /*
+   * Registro já criado dentro do contrato oficial.
+   */
+  const autoriaCriacao =
+    original.autoriaCriacao ||
+    existente.autoriaCriacao;
+
+
+  validarSnapshotAutoriaUX216_(
+    autoriaCriacao
+  );
+
+
+  resultado.registro = {
+    ...original,
+
+    versaoContratoAutoria:
+      VERSAO_CONTRATO_IDENTIDADE_UX212,
+
+    autoriaCriacao:
+      clonarUX216_(
+        autoriaCriacao
+      ),
+
+    autoriaAtualizacao:
+      clonarUX216_(
+        autoria
+      )
+  };
+
+  resultado.autoriaAplicada =
+    true;
+
+  resultado.tipoAutoria =
+    "ATUALIZACAO";
+
+  resultado.motivo =
+    "REGISTRO_OFICIAL_ATUALIZADO";
+
+  return resultado;
+}
+
+
+/**
+ * ============================================================
+ * PREPARAÇÃO DA ENTRADA DA FILA
+ * ============================================================
+ *
+ * A função não grava nada.
+ */
+async function prepararEntradaFilaComAutoriaUX216_(
+  entrada
+) {
+  const original =
+    clonarUX216_(
+      entrada
+    );
+
+  const nomeStore =
+    textoUX216_(
+      original.storeOrigem
+    );
+
+
+  if (
+    !STORES_OPERACIONAIS_AUTORIA_UX216
+      .has(nomeStore)
+  ) {
+    return {
+      entrada:
+        original,
+
+      autoriaAplicada:
+        false,
+
+      motivo:
+        "STORE_NAO_OPERACIONAL"
+    };
+  }
+
+
+  /*
+   * Entrada já criada com autoria:
+   * preserva o snapshot original.
+   */
+  if (
+    original.autoriaOperacao
+  ) {
+    validarSnapshotAutoriaUX216_(
+      original.autoriaOperacao
+    );
+
+    return {
+      entrada:
+        original,
+
+      autoriaAplicada:
+        false,
+
+      motivo:
+        "AUTORIA_JA_EXISTENTE"
+    };
+  }
+
+
+  let idObra =
+    textoUX216_(
+      original.idObra
+    );
+
+
+  /*
+   * Recupera a obra pelo registro de origem,
+   * caso a chamada antiga da fila não tenha enviado idObra.
+   */
+  if (
+    !idObra &&
+    original.idRegistro
+  ) {
+    const registroOrigem =
+      await obterRegistroStoreUX216_(
+        nomeStore,
+        original.idRegistro
+      );
+
+    idObra =
+      textoUX216_(
+        registroOrigem?.idObra
+      );
+  }
+
+
+  if (
+    !/^OBR[A-Z0-9_-]+$/i.test(
+      idObra
+    )
+  ) {
+    throw new Error(
+      "UX216_ID_OBRA_AUSENTE_NA_FILA: " +
+      nomeStore +
+      "/" +
+      textoUX216_(
+        original.idRegistro
+      )
+    );
+  }
+
+
+  const autoria =
+    normalizarSnapshotAutoriaUX216_(
+      await obterAutoriaOficialUX216_(
+        idObra
+      )
+    );
+
+
+  validarSnapshotAutoriaUX216_(
+    autoria
+  );
+
+
+  const preparada = {
+    ...original,
+
+    idObra:
+      idObra,
+
+    versaoContratoAutoria:
+      VERSAO_CONTRATO_IDENTIDADE_UX212,
+
+    autoriaOperacao:
+      clonarUX216_(autoria)
+  };
+
+
+  return {
+    entrada:
+      preparada,
+
+    autoriaAplicada:
+      true,
+
+    motivo:
+      "NOVA_ENTRADA_FILA"
+  };
+}
+
+
+/**
+ * Publica evento informativo quando a autoria é incorporada.
+ */
+function emitirEventoAutoriaUX216_(
+  tipo,
+  detalhes
+) {
+  window.dispatchEvent(
+    new CustomEvent(
+      "SIGO_AUTORIA_INCORPORADA",
+      {
+        detail: {
+          tipo:
+            tipo,
+
+          ...clonarUX216_(
+            detalhes || {}
+          )
+        }
+      }
+    )
+  );
+}
+
+
+/**
+ * ============================================================
+ * WRAPPER DE salvarRegistroSIGO
+ * ============================================================
+ */
+function instalarWrapperRegistroAutoriaUX216_() {
+  if (
+    typeof window.salvarRegistroSIGO !==
+    "function"
+  ) {
+    return false;
+  }
+
+
+  if (
+    window.salvarRegistroSIGO
+      .__autoriaUX216 ===
+    true
+  ) {
+    return true;
+  }
+
+
+  const original =
+    window.salvarRegistroSIGO;
+
+
+  const wrapper =
+    async function (
+      nomeStore,
+      registro,
+      ...argumentos
+    ) {
+      const preparado =
+        await prepararRegistroComAutoriaUX216_(
+          nomeStore,
+          registro
+        );
+
+
+      const retorno =
+        await original.apply(
+          this,
+          [
+            nomeStore,
+            preparado.registro,
+            ...argumentos
+          ]
+        );
+
+
+      if (
+        preparado.autoriaAplicada
+      ) {
+        emitirEventoAutoriaUX216_(
+          "REGISTRO",
+          {
+            nomeStore:
+              nomeStore,
+
+            idRegistro:
+              obterChaveRegistroUX216_(
+                nomeStore,
+                preparado.registro
+              ),
+
+            idObra:
+              preparado.registro
+                .idObra,
+
+            tipoAutoria:
+              preparado.tipoAutoria
+          }
+        );
+      }
+
+
+      return retorno;
+    };
+
+
+  wrapper.__autoriaUX216 =
+    true;
+
+  wrapper.originalUX216 =
+    original;
+
+
+  window.salvarRegistroSIGO =
+    wrapper;
+
+
+  console.log(
+    "[UX.21.6] salvarRegistroSIGO protegido com autoria."
+  );
+
+
+  return true;
+}
+
+
+/**
+ * ============================================================
+ * WRAPPER DE adicionarNaFilaSyncSIGO
+ * ============================================================
+ */
+function instalarWrapperFilaAutoriaUX216_() {
+  if (
+    typeof window.adicionarNaFilaSyncSIGO !==
+    "function"
+  ) {
+    return false;
+  }
+
+
+  if (
+    window.adicionarNaFilaSyncSIGO
+      .__autoriaUX216 ===
+    true
+  ) {
+    return true;
+  }
+
+
+  const original =
+    window.adicionarNaFilaSyncSIGO;
+
+
+  const wrapper =
+    async function (
+      entrada,
+      ...argumentos
+    ) {
+      const preparada =
+        await prepararEntradaFilaComAutoriaUX216_(
+          entrada
+        );
+
+
+      const retorno =
+        await original.apply(
+          this,
+          [
+            preparada.entrada,
+            ...argumentos
+          ]
+        );
+
+
+      if (
+        preparada.autoriaAplicada
+      ) {
+        emitirEventoAutoriaUX216_(
+          "FILA",
+          {
+            idSyncLocal:
+              preparada.entrada
+                .idSyncLocal || "",
+
+            nomeStore:
+              preparada.entrada
+                .storeOrigem,
+
+            idRegistro:
+              preparada.entrada
+                .idRegistro,
+
+            idObra:
+              preparada.entrada
+                .idObra,
+
+            operacao:
+              preparada.entrada
+                .operacao ||
+              preparada.entrada
+                .tipo ||
+              ""
+          }
+        );
+      }
+
+
+      return retorno;
+    };
+
+
+  wrapper.__autoriaUX216 =
+    true;
+
+  wrapper.originalUX216 =
+    original;
+
+
+  window.adicionarNaFilaSyncSIGO =
+    wrapper;
+
+
+  console.log(
+    "[UX.21.6] adicionarNaFilaSyncSIGO protegido com autoria."
+  );
+
+
+  return true;
+}
+
+
+/**
+ * Instala os dois pontos centrais.
+ */
+function instalarIncorporacaoAutoriaUX216_() {
+  window.SIGO_UX216 =
+    window.SIGO_UX216 || {};
+
+
+  const registroInstalado =
+    instalarWrapperRegistroAutoriaUX216_();
+
+  const filaInstalada =
+    instalarWrapperFilaAutoriaUX216_();
+
+
+  window.SIGO_UX216.instalado =
+    (
+      registroInstalado &&
+      filaInstalada
+    );
+
+
+  window.SIGO_UX216
+    .registroInstalado =
+      registroInstalado;
+
+  window.SIGO_UX216
+    .filaInstalada =
+      filaInstalada;
+
+
+  if (
+    window.SIGO_UX216.instalado
+  ) {
+    console.log(
+      "UX.21.6 — Incorporação automática da autoria instalada."
+    );
+  }
+
+
+  return {
+    instalado:
+      window.SIGO_UX216
+        .instalado,
+
+    registroInstalado:
+      registroInstalado,
+
+    filaInstalada:
+      filaInstalada,
+
+    storesProtegidas:
+      Array.from(
+        STORES_OPERACIONAIS_AUTORIA_UX216
+      )
+  };
+}
+
+
+/**
+ * Instalação automática.
+ */
+if (
+  document.readyState ===
+  "loading"
+) {
+  document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+      instalarIncorporacaoAutoriaUX216_();
+    },
+    {
+      once:
+        true
+    }
+  );
+
+} else {
+  instalarIncorporacaoAutoriaUX216_();
+}
+
+/**
+ * ============================================================
+ * UX.21.6 — AUDITORIA
+ * ============================================================
+ */
+async function auditarIncorporacaoAutoriaUX216_() {
+  console.log(
+    "[UX.21.6] Iniciando auditoria da incorporação da autoria..."
+  );
+
+
+  const instalacao =
+    instalarIncorporacaoAutoriaUX216_();
+
+
+  const assinaturaStorageAntes =
+    assinarLocalStorageIdentidadeUX211_();
+
+  const storesExistentes =
+    await listarStoresIdentidadeUX211_();
+
+  const estadoOperacionalAntes =
+    await capturarEstadoIdentidadeUX211_(
+      storesExistentes
+    );
+
+  const identidadeAntes =
+    await capturarEstadoStoresIdentidadeUX213_();
+
+
+  const sufixo =
+    Date.now()
+      .toString(36)
+      .toUpperCase();
+
+
+  /*
+   * ========================================================
+   * NOVO REGISTRO
+   * ========================================================
+   */
+
+  const registroNovoOriginal = {
+    idOcorrencia:
+      "OCO-UX216-SIM-" +
+      sufixo,
+
+    idObra:
+      "OBR002",
+
+    descricao:
+      "SIMULAÇÃO DE AUTORIA UX.21.6",
+
+    origem:
+      "APP_OFFLINE",
+
+    statusSync:
+      "PENDENTE"
+  };
+
+
+  const assinaturaNovoAntes =
+    JSON.stringify(
+      registroNovoOriginal
+    );
+
+
+  const novoPreparado =
+    await prepararRegistroComAutoriaUX216_(
+      "TB_OCORRENCIAS",
+      registroNovoOriginal,
+      {
+        existeAntes:
+          false
+      }
+    );
+
+
+  /*
+   * ========================================================
+   * REGISTRO LEGADO
+   * ========================================================
+   */
+
+  const legadoOriginal = {
+    idOcorrencia:
+      "OCO-LEGADO-UX216",
+
+    idObra:
+      "OBR002",
+
+    descricao:
+      "REGISTRO LEGADO",
+
+    responsavel:
+      "USUARIO_MOBILE",
+
+    statusSync:
+      "PENDENTE"
+  };
+
+
+  const legadoPreparado =
+    await prepararRegistroComAutoriaUX216_(
+      "TB_OCORRENCIAS",
+      legadoOriginal,
+      {
+        existeAntes:
+          true,
+
+        registroExistente:
+          clonarUX216_(
+            legadoOriginal
+          )
+      }
+    );
+
+
+  /*
+   * ========================================================
+   * ATUALIZAÇÃO DE REGISTRO OFICIAL
+   * ========================================================
+   */
+
+  const registroOficialExistente =
+    clonarUX216_(
+      novoPreparado.registro
+    );
+
+
+  const registroOficialAtualizado = {
+    ...clonarUX216_(
+      registroOficialExistente
+    ),
+
+    descricao:
+      "REGISTRO OFICIAL ATUALIZADO"
+  };
+
+
+  const oficialPreparado =
+    await prepararRegistroComAutoriaUX216_(
+      "TB_OCORRENCIAS",
+      registroOficialAtualizado,
+      {
+        existeAntes:
+          true,
+
+        registroExistente:
+          registroOficialExistente
+      }
+    );
+
+
+  /*
+   * ========================================================
+   * REGISTRO DO SERVIDOR
+   * ========================================================
+   */
+
+  const registroServidorOriginal = {
+    idOcorrencia:
+      "OCO-SERVIDOR-UX216",
+
+    idObra:
+      "OBR002",
+
+    descricao:
+      "REGISTRO REIDRATADO",
+
+    origemReidratacao:
+      "SERVIDOR",
+
+    statusSync:
+      "SINCRONIZADO"
+  };
+
+
+  const servidorPreparado =
+    await prepararRegistroComAutoriaUX216_(
+      "TB_OCORRENCIAS",
+      registroServidorOriginal,
+      {
+        existeAntes:
+          false
+      }
+    );
+
+
+  /*
+   * ========================================================
+   * ENTRADA DA FILA
+   * ========================================================
+   */
+
+  const filaOriginal = {
+    idSyncLocal:
+      "SYNC-UX216-SIM-" +
+      sufixo,
+
+    tipo:
+      "OCORRENCIA",
+
+    storeOrigem:
+      "TB_OCORRENCIAS",
+
+    idRegistro:
+      registroNovoOriginal
+        .idOcorrencia,
+
+    idObra:
+      "OBR002",
+
+    statusSync:
+      "PENDENTE",
+
+    tentativas:
+      0,
+
+    criadoEm:
+      new Date().toISOString()
+  };
+
+
+  const assinaturaFilaAntes =
+    JSON.stringify(
+      filaOriginal
+    );
+
+
+  const filaPreparada =
+    await prepararEntradaFilaComAutoriaUX216_(
+      filaOriginal
+    );
+
+
+  const filaIdempotente =
+    await prepararEntradaFilaComAutoriaUX216_(
+      filaPreparada.entrada
+    );
+
+
+  /*
+   * ========================================================
+   * OBRA NÃO AUTORIZADA
+   * ========================================================
+   */
+
+  let obraNaoAutorizadaBloqueada =
+    false;
+
+  let erroObraNaoAutorizada =
+    "";
+
+
+  try {
+    await prepararEntradaFilaComAutoriaUX216_({
+      idSyncLocal:
+        "SYNC-UX216-NAO-AUTORIZADA",
+
+      tipo:
+        "OCORRENCIA",
+
+      storeOrigem:
+        "TB_OCORRENCIAS",
+
+      idRegistro:
+        "OCO-UX216-NAO-AUTORIZADA",
+
+      idObra:
+        "OBR999",
+
+      statusSync:
+        "PENDENTE"
+    });
+
+  } catch (erro) {
+    obraNaoAutorizadaBloqueada =
+      true;
+
+    erroObraNaoAutorizada =
+      erro?.message || "";
+  }
+
+
+  /*
+   * ========================================================
+   * PRESERVAÇÃO
+   * ========================================================
+   */
+
+  const estadoOperacionalDepois =
+    await capturarEstadoIdentidadeUX211_(
+      storesExistentes
+    );
+
+  const identidadeDepois =
+    await capturarEstadoStoresIdentidadeUX213_();
+
+  const assinaturaStorageDepois =
+    assinarLocalStorageIdentidadeUX211_();
+
+
+  const storesOperacionaisAlteradas =
+    compararEstadoIdentidadeUX211_(
+      estadoOperacionalAntes,
+      estadoOperacionalDepois
+    );
+
+
+  const storesIdentidadeAlteradas =
+    Object.keys(
+      identidadeAntes
+    ).filter(
+      function (nomeStore) {
+        return (
+          identidadeAntes[
+            nomeStore
+          ].assinatura !==
+          identidadeDepois[
+            nomeStore
+          ].assinatura
+        );
+      }
+    );
+
+
+  const autoriaCriacao =
+    novoPreparado.registro
+      .autoriaCriacao;
+
+  const autoriaAtualizacao =
+    oficialPreparado.registro
+      .autoriaAtualizacao;
+
+  const autoriaFila =
+    filaPreparada.entrada
+      .autoriaOperacao;
+
+
+  const validacoes = {
+    integracaoInstalada:
+      instalacao.instalado ===
+      true,
+
+    wrapperRegistroInstalado:
+      window.salvarRegistroSIGO
+        ?.__autoriaUX216 ===
+      true,
+
+    wrapperFilaInstalado:
+      window.adicionarNaFilaSyncSIGO
+        ?.__autoriaUX216 ===
+      true,
+
+    novoRegistroRecebeuAutoria:
+      novoPreparado
+        .autoriaAplicada ===
+      true,
+
+    novoRegistroClassificadoCriacao:
+      novoPreparado
+        .tipoAutoria ===
+      "CRIACAO",
+
+    autoriaCriacaoValida:
+      validarContextoAutoriaUX212_(
+        autoriaCriacao
+      ).valido ===
+      true,
+
+    autoriaAtualizacaoInicialValida:
+      validarContextoAutoriaUX212_(
+        novoPreparado.registro
+          .autoriaAtualizacao
+      ).valido ===
+      true,
+
+    usuarioOficialNoRegistro:
+      autoriaCriacao
+        .idUsuario ===
+      "USR-TRANSICAO-MOBILE-V1",
+
+    dispositivoRealNoRegistro:
+      autoriaCriacao
+        .idDispositivo ===
+      "DISP-MOBILE-10355705-c01d-4dbe-9012-f43283628e3b",
+
+    sessaoOficialNoRegistro:
+      autoriaCriacao
+        .idSessao ===
+      "SES-TRANSICAO-A668A6B2-MRJV71JZ",
+
+    perfilNoRegistro:
+      autoriaCriacao
+        .perfil ===
+      "ENGENHEIRO",
+
+    obraNoRegistro:
+      autoriaCriacao
+        .idObra ===
+      "OBR002",
+
+    registroOriginalNaoMutado:
+      assinaturaNovoAntes ===
+      JSON.stringify(
+        registroNovoOriginal
+      ),
+
+    legadoNaoMigrado:
+      legadoPreparado
+        .autoriaAplicada ===
+      false,
+
+    legadoPermaneceuSemAutoria:
+      !legadoPreparado
+        .registro
+        .autoriaCriacao,
+
+    atualizacaoOficialRecebeuAutoria:
+      oficialPreparado
+        .autoriaAplicada ===
+      true,
+
+    atualizacaoClassificada:
+      oficialPreparado
+        .tipoAutoria ===
+      "ATUALIZACAO",
+
+    autoriaCriacaoPreservada:
+      objetosIguaisUX216_(
+        oficialPreparado.registro
+          .autoriaCriacao,
+        registroOficialExistente
+          .autoriaCriacao
+      ),
+
+    autoriaAtualizacaoValida:
+      validarContextoAutoriaUX212_(
+        autoriaAtualizacao
+      ).valido ===
+      true,
+
+    servidorNaoRecebeuAutoriaLocal:
+      servidorPreparado
+        .autoriaAplicada ===
+      false,
+
+    servidorPermaneceuInalterado:
+      objetosIguaisUX216_(
+        servidorPreparado.registro,
+        registroServidorOriginal
+      ),
+
+    filaRecebeuAutoria:
+      filaPreparada
+        .autoriaAplicada ===
+      true,
+
+    autoriaFilaValida:
+      validarContextoAutoriaUX212_(
+        autoriaFila
+      ).valido ===
+      true,
+
+    usuarioOficialNaFila:
+      autoriaFila.idUsuario ===
+      "USR-TRANSICAO-MOBILE-V1",
+
+    dispositivoRealNaFila:
+      autoriaFila.idDispositivo ===
+      "DISP-MOBILE-10355705-c01d-4dbe-9012-f43283628e3b",
+
+    sessaoOficialNaFila:
+      autoriaFila.idSessao ===
+      "SES-TRANSICAO-A668A6B2-MRJV71JZ",
+
+    filaOriginalNaoMutada:
+      assinaturaFilaAntes ===
+      JSON.stringify(
+        filaOriginal
+      ),
+
+    filaIdempotente:
+      filaIdempotente
+        .autoriaAplicada ===
+      false,
+
+    snapshotFilaPreservado:
+      objetosIguaisUX216_(
+        filaIdempotente.entrada
+          .autoriaOperacao,
+        filaPreparada.entrada
+          .autoriaOperacao
+      ),
+
+    obraNaoAutorizadaBloqueada:
+      obraNaoAutorizadaBloqueada ===
+      true,
+
+    erroObraNaoAutorizadaCorreto:
+      /OBRA_NAO_AUTORIZADA/i.test(
+        erroObraNaoAutorizada
+      ),
+
+    nenhumaCredencialSecreta:
+      localizarCamposSecretosUX212_(
+        {
+          autoriaCriacao:
+            autoriaCriacao,
+
+          autoriaAtualizacao:
+            autoriaAtualizacao,
+
+          autoriaOperacao:
+            autoriaFila
+        }
+      ).length === 0,
+
+    nenhumaStoreOperacionalAlterada:
+      storesOperacionaisAlteradas
+        .length === 0,
+
+    nenhumaStoreIdentidadeAlterada:
+      storesIdentidadeAlteradas
+        .length === 0,
+
+    localStoragePreservado:
+      assinaturaStorageAntes ===
+      assinaturaStorageDepois,
+
+    filaHistoricaPreservada:
+      !storesOperacionaisAlteradas
+        .some(
+          function (item) {
+            return (
+              item.store ===
+              "TB_SYNC_QUEUE"
+            );
+          }
+        )
+  };
+
+
+  const aprovado =
+    Object.values(
+      validacoes
+    ).every(
+      function (valor) {
+        return valor === true;
+      }
+    );
+
+
+  const resultado = {
+    etapa:
+      "UX.21.6",
+
+    auditoria:
+      "AUTORIA_NOVOS_REGISTROS_E_FILA",
+
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+
+    contratoAutoria: {
+      versao:
+        VERSAO_CONTRATO_IDENTIDADE_UX212,
+
+      camposRegistro: [
+        "autoriaCriacao",
+        "autoriaAtualizacao"
+      ],
+
+      campoFila:
+        "autoriaOperacao"
+    },
+
+    identidade: {
+      idUsuario:
+        autoriaCriacao
+          ?.idUsuario || "",
+
+      idDispositivo:
+        autoriaCriacao
+          ?.idDispositivo || "",
+
+      idSessao:
+        autoriaCriacao
+          ?.idSessao || "",
+
+      idObra:
+        autoriaCriacao
+          ?.idObra || "",
+
+      perfil:
+        autoriaCriacao
+          ?.perfil || "",
+
+      modoConexao:
+        autoriaCriacao
+          ?.modoConexao || ""
+    },
+
+    simulacoes: {
+      novoRegistro: {
+        autoriaAplicada:
+          novoPreparado
+            .autoriaAplicada,
+
+        tipoAutoria:
+          novoPreparado
+            .tipoAutoria,
+
+        motivo:
+          novoPreparado
+            .motivo
+      },
+
+      legado: {
+        autoriaAplicada:
+          legadoPreparado
+            .autoriaAplicada,
+
+        motivo:
+          legadoPreparado
+            .motivo
+      },
+
+      atualizacaoOficial: {
+        autoriaAplicada:
+          oficialPreparado
+            .autoriaAplicada,
+
+        tipoAutoria:
+          oficialPreparado
+            .tipoAutoria
+      },
+
+      servidor: {
+        autoriaAplicada:
+          servidorPreparado
+            .autoriaAplicada,
+
+        motivo:
+          servidorPreparado
+            .motivo
+      },
+
+      fila: {
+        autoriaAplicada:
+          filaPreparada
+            .autoriaAplicada,
+
+        motivo:
+          filaPreparada
+            .motivo,
+
+        idempotente:
+          filaIdempotente
+            .autoriaAplicada ===
+          false
+      }
+    },
+
+    preservacao: {
+      storesOperacionaisAlteradas:
+        storesOperacionaisAlteradas,
+
+      storesIdentidadeAlteradas:
+        storesIdentidadeAlteradas,
+
+      localStorageAlterado:
+        assinaturaStorageAntes !==
+        assinaturaStorageDepois,
+
+      filaHistoricaAlterada:
+        !validacoes
+          .filaHistoricaPreservada
+    },
+
+    transicao: {
+      usuarioMobileRemovido:
+        false,
+
+      camposLegadosSobrescritos:
+        false,
+
+      registrosLegadosMigrados:
+        false,
+
+      registrosServidorAlterados:
+        false,
+
+      entradasAntigasFilaAlteradas:
+        false,
+
+      novosRegistrosComAutoria:
+        true,
+
+      novasEntradasFilaComAutoria:
+        true
+    },
+
+    validacoes:
+      validacoes,
+
+    aprovado:
+      aprovado,
+
+    prontoParaUX217:
+      aprovado
+  };
+
+
+  console.log(
+    JSON.stringify(
+      resultado,
+      null,
+      2
+    )
+  );
+
+
+  if (!aprovado) {
+    throw new Error(
+      "UX.21.6 REPROVADA. Consulte as validações da autoria."
+    );
+  }
+
+
+  console.log(
+    "UX.21.6 — AUTORIA NOS NOVOS REGISTROS E NA FILA APROVADA."
+  );
+
+
+  return resultado;
+}
