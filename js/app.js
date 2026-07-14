@@ -72957,3 +72957,335 @@ async function auditarContratoLocalBloqueioUX21961_() {
 
   return relatorio;
 }
+
+/**
+ * ============================================================
+ * UX.21.9.6.3 — CONTROLE DO RETRY SOB REVOGAÇÃO
+ * ============================================================
+ */
+
+function podeExecutarRetryUX21963_() {
+  const bloqueio =
+    obterBloqueioIdentidadeLocalUX2196_();
+
+  if (!bloqueio) {
+    return {
+      permitido:
+        true,
+
+      motivo:
+        "IDENTIDADE_ATIVA",
+
+      bloqueio:
+        null
+    };
+  }
+
+
+  return {
+    permitido:
+      false,
+
+    motivo:
+      "IDENTIDADE_BLOQUEADA",
+
+    codigo:
+      bloqueio.codigo || "",
+
+    mensagem:
+      bloqueio.mensagem ||
+      "A identidade atual está bloqueada.",
+
+    bloqueio:
+      bloqueio
+  };
+}
+
+
+/**
+ * Executa uma tentativa de sincronização somente quando
+ * a identidade permanece autorizada localmente.
+ */
+async function executarRetrySyncUX21963_(
+  origem = "RETRY_AUTOMATICO"
+) {
+  const controle =
+    podeExecutarRetryUX21963_();
+
+
+  if (!controle.permitido) {
+
+    console.warn(
+      "[UX.21.9.6.3] Retry suspenso por bloqueio da identidade.",
+      {
+        origem:
+          origem,
+
+        codigo:
+          controle.codigo,
+
+        mensagem:
+          controle.mensagem
+      }
+    );
+
+
+    aplicarAvisoVisualBloqueioUX2196_(
+      controle.bloqueio
+    );
+
+
+    return {
+      status:
+        "BLOQUEADO",
+
+      retryExecutado:
+        false,
+
+      origem:
+        origem,
+
+      codigo:
+        controle.codigo,
+
+      mensagem:
+        controle.mensagem,
+
+      filaPreservada:
+        true
+    };
+  }
+
+
+  const resultado =
+    await sincronizarSIGO();
+
+
+  /*
+   * A própria sincronização pode descobrir um bloqueio
+   * novo retornado pelo servidor.
+   */
+  if (
+    resultado?.status ===
+    "BLOQUEADO"
+  ) {
+    console.warn(
+      "[UX.21.9.6.3] Retry interrompido após bloqueio retornado pela API.",
+      resultado
+    );
+
+
+    return {
+      ...resultado,
+
+      retryExecutado:
+        true,
+
+      retrySuspenso:
+        true,
+
+      origem:
+        origem
+    };
+  }
+
+
+  return {
+    resultado:
+      resultado,
+
+    status:
+      resultado?.status || "SEM_RESULTADO",
+
+    retryExecutado:
+      true,
+
+    retrySuspenso:
+      false,
+
+    origem:
+      origem
+  };
+}
+
+async function auditarSuspensaoRetryUX21963_() {
+  const chave =
+    CONFIG_BLOQUEIO_IDENTIDADE_UX2196
+      .chaveLocalStorage;
+
+
+  const valorAnterior =
+    localStorage.getItem(
+      chave
+    );
+
+
+  const filaAntes =
+    await listarRegistrosSIGO(
+      "TB_SYNC_QUEUE"
+    );
+
+
+  const bloqueioSimulado = {
+    ativo:
+      true,
+
+    versaoContrato:
+      "1.0",
+
+    codigo:
+      "SESSAO_NAO_ATIVA",
+
+    mensagem:
+      "Sessão simulada encerrada.",
+
+    idUsuario:
+      "USR-SIMULADO",
+
+    idDispositivo:
+      "DISP-SIMULADO",
+
+    idSessao:
+      "SES-SIMULADA",
+
+    idObra:
+      "OBR002",
+
+    bloqueadaEm:
+      new Date().toISOString(),
+
+    origem:
+      "AUDITORIA_UX21963"
+  };
+
+
+  localStorage.setItem(
+    chave,
+    JSON.stringify(
+      bloqueioSimulado
+    )
+  );
+
+
+  let resultadoRetry;
+
+
+  try {
+    resultadoRetry =
+      await executarRetrySyncUX21963_(
+        "AUDITORIA_UX21963"
+      );
+
+  } finally {
+    if (valorAnterior === null) {
+      localStorage.removeItem(
+        chave
+      );
+
+    } else {
+      localStorage.setItem(
+        chave,
+        valorAnterior
+      );
+    }
+  }
+
+
+  const filaDepois =
+    await listarRegistrosSIGO(
+      "TB_SYNC_QUEUE"
+    );
+
+
+  const validacoes = {
+    retryBloqueado:
+      resultadoRetry.status ===
+      "BLOQUEADO",
+
+    retryNaoExecutado:
+      resultadoRetry
+        .retryExecutado ===
+      false,
+
+    codigoCorreto:
+      resultadoRetry.codigo ===
+      "SESSAO_NAO_ATIVA",
+
+    filaPreservada:
+      filaAntes.length ===
+      filaDepois.length,
+
+    bloqueioSimuladoRemovido:
+      valorAnterior === null
+        ? localStorage.getItem(
+            chave
+          ) === null
+        : localStorage.getItem(
+            chave
+          ) === valorAnterior
+  };
+
+
+  const aprovado =
+    Object.values(
+      validacoes
+    ).every(
+      valor => valor === true
+    );
+
+
+  const relatorio = {
+    etapa:
+      "UX.21.9.6.3",
+
+    auditoria:
+      "SUSPENSAO_RETRY_IDENTIDADE_BLOQUEADA",
+
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+
+    resultadoRetry:
+      resultadoRetry,
+
+    quantidadeFilaAntes:
+      filaAntes.length,
+
+    quantidadeFilaDepois:
+      filaDepois.length,
+
+    validacoes:
+      validacoes,
+
+    aprovado:
+      aprovado,
+
+    prontoParaBloqueioOperacional:
+      aprovado
+  };
+
+
+  console.log(
+    JSON.stringify(
+      relatorio,
+      null,
+      2
+    )
+  );
+
+
+  if (!aprovado) {
+    throw new Error(
+      "UX.21.9.6.3 REPROVADA."
+    );
+  }
+
+
+  console.log(
+    "UX.21.9.6.3 — RETRY AUTOMÁTICO SUSPENSO CORRETAMENTE."
+  );
+
+
+  return relatorio;
+}
