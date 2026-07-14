@@ -3695,6 +3695,12 @@ async function sincronizarSIGO() {
       return;
     }
 
+    const envelopeAutoriaUX217 =
+      await montarEnvelopeAutoriaSyncUX217_(
+        obraAtiva,
+        pendentesObra
+      );
+
 
     // =================================================
     // PACOTE DA API
@@ -3703,11 +3709,28 @@ async function sincronizarSIGO() {
       token:
         SIGO_TOKEN_OFFLINE,
 
-      idDispositivo:
-        "WEB-MOBILE-001",
-
+     idDispositivo:
+        envelopeAutoriaUX217
+          .identidadeEnvio
+          .idDispositivo,
+      
       idUsuario:
-        "USUARIO_APP",
+        envelopeAutoriaUX217
+          .identidadeEnvio
+          .idUsuario,
+      
+      idSessao:
+        envelopeAutoriaUX217
+          .identidadeEnvio
+          .idSessao,
+      
+      identidadeEnvio:
+        envelopeAutoriaUX217
+          .identidadeEnvio,
+      
+      controleAutoria:
+        envelopeAutoriaUX217
+          .controleAutoria,
 
       idObra:
         obraAtiva,
@@ -3736,7 +3759,14 @@ async function sincronizarSIGO() {
         evidencias:
           evidenciasPendentes,
 
-        exclusoes
+        exclusoes:
+          exclusoesPendentes.map(
+            montarTombstoneFilaSIGO_
+          ),
+
+        autoriasOperacoes:
+          envelopeAutoriaUX217
+            .autoriasOperacoes
       }
     };
 
@@ -3780,7 +3810,17 @@ async function sincronizarSIGO() {
         "Erro na API SIGO."
       );
     }
-
+    
+     const confirmacaoAutoriaUX217 =
+      validarConfirmacaoAutoriaSyncUX217_(
+        resultado,
+        envelopeAutoriaUX217
+      );
+    
+    console.log(
+      "[UX.21.7] Autoria confirmada pela API:",
+      confirmacaoAutoriaUX217
+    );
 
     // =================================================
     // MARCAR SOMENTE O QUE FOI ENVIADO
@@ -70612,6 +70652,642 @@ async function concluirTesteOperacionalAutoriaUX216A_() {
     "UX.21.6A — TESTE OPERACIONAL DE AUTORIA APROVADO."
   );
 
+
+  return resultado;
+}
+
+/**
+ * ============================================================
+ * UX.21.7 — ENVIO DA AUTORIA OFICIAL PELA API
+ * ============================================================
+ */
+
+const VERSAO_CONTRATO_SYNC_AUTORIA_UX217 =
+  "1.0";
+
+
+function textoUX217_(valor) {
+  return String(
+    valor === undefined ||
+    valor === null
+      ? ""
+      : valor
+  ).trim();
+}
+
+
+function clonarUX217_(valor) {
+  return JSON.parse(
+    JSON.stringify(valor)
+  );
+}
+
+
+function pendenciaEhDeleteUX217_(
+  pendencia
+) {
+  if (
+    typeof ehPendenciaDeleteSIGO_ ===
+    "function"
+  ) {
+    return ehPendenciaDeleteSIGO_(
+      pendencia
+    );
+  }
+
+  return (
+    textoUX217_(
+      pendencia?.operacao
+    ).toUpperCase() ===
+      "DELETE" ||
+    textoUX217_(
+      pendencia?.tipo
+    ).toUpperCase() ===
+      "DELETE"
+  );
+}
+
+
+function validarSnapshotEnvioUX217_(
+  snapshot,
+  idObra,
+  nomeCampo
+) {
+  if (!snapshot) {
+    throw new Error(
+      "UX217_" +
+      nomeCampo +
+      "_AUSENTE"
+    );
+  }
+
+  validarSnapshotAutoriaUX216_(
+    snapshot
+  );
+
+  if (
+    textoUX217_(
+      snapshot.idObra
+    ) !==
+    textoUX217_(
+      idObra
+    )
+  ) {
+    throw new Error(
+      "UX217_" +
+      nomeCampo +
+      "_OBRA_DIVERGENTE"
+    );
+  }
+
+  return true;
+}
+
+
+/**
+ * Monta o envelope sem modificar registros ou fila.
+ */
+async function montarEnvelopeAutoriaSyncUX217_(
+  idObra,
+  pendencias
+) {
+  const obra =
+    textoUX217_(idObra);
+
+  if (!obra) {
+    throw new Error(
+      "UX217_ID_OBRA_AUSENTE"
+    );
+  }
+
+  const listaPendencias =
+    Array.isArray(pendencias)
+      ? pendencias
+      : [];
+
+  await aguardarIdentidadeAtivaUX215_();
+
+  const autoriaEnvio =
+    normalizarSnapshotAutoriaUX216_(
+      await obterContextoAutoriaAtualUX214_(
+        obra
+      )
+    );
+
+  validarSnapshotEnvioUX217_(
+    autoriaEnvio,
+    obra,
+    "IDENTIDADE_ENVIO"
+  );
+
+  const autoriasOperacoes = [];
+  const pendenciasSemAutoria = [];
+
+  for (
+    const pendencia of
+    listaPendencias
+  ) {
+    const idSyncLocal =
+      textoUX217_(
+        pendencia.idSyncLocal
+      );
+
+    if (!idSyncLocal) {
+      throw new Error(
+        "UX217_PENDENCIA_SEM_ID_SYNC_LOCAL"
+      );
+    }
+
+    /*
+     * Entradas históricas anteriores à UX.21.6
+     * continuam sincronizando sem autoria.
+     */
+    if (
+      !pendencia.autoriaOperacao
+    ) {
+      if (
+        textoUX217_(
+          pendencia
+            .versaoContratoAutoria
+        )
+      ) {
+        throw new Error(
+          "UX217_FILA_OFICIAL_SEM_AUTORIA: " +
+          idSyncLocal
+        );
+      }
+
+      pendenciasSemAutoria.push({
+        idSyncLocal:
+          idSyncLocal,
+
+        storeOrigem:
+          textoUX217_(
+            pendencia.storeOrigem
+          ),
+
+        idRegistro:
+          textoUX217_(
+            pendencia.idRegistro
+          )
+      });
+
+      continue;
+    }
+
+    const autoriaOperacao =
+      normalizarSnapshotAutoriaUX216_(
+        pendencia.autoriaOperacao
+      );
+
+    validarSnapshotEnvioUX217_(
+      autoriaOperacao,
+      obra,
+      "AUTORIA_OPERACAO"
+    );
+
+    const ehDelete =
+      pendenciaEhDeleteUX217_(
+        pendencia
+      );
+
+    let registroOrigem =
+      null;
+
+    if (!ehDelete) {
+      registroOrigem =
+        await obterRegistroStoreUX216_(
+          textoUX217_(
+            pendencia.storeOrigem
+          ),
+          textoUX217_(
+            pendencia.idRegistro
+          )
+        );
+
+      if (!registroOrigem) {
+        throw new Error(
+          "UX217_REGISTRO_ORIGEM_NAO_ENCONTRADO: " +
+          pendencia.storeOrigem +
+          "/" +
+          pendencia.idRegistro
+        );
+      }
+    }
+
+    const autoriaCriacao =
+      registroOrigem
+        ?.autoriaCriacao
+        ? normalizarSnapshotAutoriaUX216_(
+            registroOrigem
+              .autoriaCriacao
+          )
+        : null;
+
+    const autoriaAtualizacao =
+      registroOrigem
+        ?.autoriaAtualizacao
+        ? normalizarSnapshotAutoriaUX216_(
+            registroOrigem
+              .autoriaAtualizacao
+          )
+        : null;
+
+    if (!ehDelete) {
+      validarSnapshotEnvioUX217_(
+        autoriaCriacao,
+        obra,
+        "AUTORIA_CRIACAO"
+      );
+
+      validarSnapshotEnvioUX217_(
+        autoriaAtualizacao,
+        obra,
+        "AUTORIA_ATUALIZACAO"
+      );
+    }
+
+    autoriasOperacoes.push({
+      versaoContrato:
+        VERSAO_CONTRATO_SYNC_AUTORIA_UX217,
+
+      idSyncLocal:
+        idSyncLocal,
+
+      tipo:
+        textoUX217_(
+          pendencia.tipo
+        ),
+
+      operacao:
+        textoUX217_(
+          pendencia.operacao ||
+          (
+            ehDelete
+              ? "DELETE"
+              : "UPSERT"
+          )
+        ).toUpperCase(),
+
+      entidade:
+        textoUX217_(
+          pendencia.entidade
+        ),
+
+      storeOrigem:
+        textoUX217_(
+          pendencia.storeOrigem
+        ),
+
+      idRegistro:
+        textoUX217_(
+          pendencia.idRegistro
+        ),
+
+      idObra:
+        obra,
+
+      criadoEmFila:
+        textoUX217_(
+          pendencia.criadoEm
+        ),
+
+      autoriaCriacao:
+        autoriaCriacao,
+
+      autoriaAtualizacao:
+        autoriaAtualizacao,
+
+      autoriaOperacao:
+        autoriaOperacao
+    });
+  }
+
+  return {
+    versaoContrato:
+      VERSAO_CONTRATO_SYNC_AUTORIA_UX217,
+
+    identidadeEnvio: {
+      ...clonarUX217_(
+        autoriaEnvio
+      ),
+
+      enviadoEm:
+        new Date().toISOString(),
+
+      origemEnvio:
+        "APP_MOBILE_SYNC"
+    },
+
+    autoriasOperacoes:
+      autoriasOperacoes,
+
+    controleAutoria: {
+      totalPendencias:
+        listaPendencias.length,
+
+      comAutoria:
+        autoriasOperacoes.length,
+
+      semAutoriaLegada:
+        pendenciasSemAutoria.length,
+
+      pendenciasSemAutoria:
+        pendenciasSemAutoria
+    }
+  };
+}
+
+
+/**
+ * Confirma que o servidor recebeu todas as autorias
+ * enviadas no pacote.
+ */
+function validarConfirmacaoAutoriaSyncUX217_(
+  respostaApi,
+  envelope
+) {
+  const idsEnviados =
+    envelope.autoriasOperacoes
+      .map(
+        function (item) {
+          return item.idSyncLocal;
+        }
+      );
+
+  if (!idsEnviados.length) {
+    return {
+      confirmado:
+        true,
+
+      enviados:
+        0,
+
+      confirmados:
+        0,
+
+      faltantes:
+        []
+    };
+  }
+
+  const idsConfirmados =
+    respostaApi
+      ?.detalhes
+      ?.autoria
+      ?.idSyncLocaisConfirmados;
+
+  if (
+    !Array.isArray(
+      idsConfirmados
+    )
+  ) {
+    throw new Error(
+      "UX217_API_NAO_RETORNOU_CONFIRMACAO_AUTORIA"
+    );
+  }
+
+  const conjuntoConfirmados =
+    new Set(
+      idsConfirmados.map(
+        textoUX217_
+      )
+    );
+
+  const faltantes =
+    idsEnviados.filter(
+      function (idSyncLocal) {
+        return !conjuntoConfirmados.has(
+          idSyncLocal
+        );
+      }
+    );
+
+  if (faltantes.length) {
+    throw new Error(
+      "UX217_AUTORIAS_NAO_CONFIRMADAS: " +
+      faltantes.join(", ")
+    );
+  }
+
+  const resultado = {
+    confirmado:
+      true,
+
+    enviados:
+      idsEnviados.length,
+
+    confirmados:
+      idsEnviados.length,
+
+    faltantes:
+      []
+  };
+
+  window.SIGO_UX217 =
+    window.SIGO_UX217 || {};
+
+  window.SIGO_UX217
+    .ultimaConfirmacao =
+      resultado;
+
+  return resultado;
+}
+
+
+/**
+ * Auditoria local, sem enviar nada para a API.
+ */
+async function auditarPreparacaoEnvioAutoriaUX217_() {
+  console.log(
+    "[UX.21.7] Auditando preparação do envelope..."
+  );
+
+  const obraAtiva =
+    textoUX217_(
+      obterObraAtivaMobile_?.() ||
+      localStorage.getItem(
+        "obraAtiva"
+      )
+    );
+
+  const filaAntes =
+    await listarRegistrosSIGO(
+      "TB_SYNC_QUEUE"
+    );
+
+  const assinaturaAntes =
+    JSON.stringify(
+      filaAntes
+    );
+
+  const pendentesObra =
+    filaAntes.filter(
+      function (item) {
+        return (
+          textoUX217_(
+            item.statusSync
+          ).toUpperCase() ===
+            "PENDENTE" &&
+
+          textoUX217_(
+            item.idObra
+          ) ===
+            obraAtiva
+        );
+      }
+    );
+
+  const envelope =
+    await montarEnvelopeAutoriaSyncUX217_(
+      obraAtiva,
+      pendentesObra
+    );
+
+  const filaDepois =
+    await listarRegistrosSIGO(
+      "TB_SYNC_QUEUE"
+    );
+
+  const validacoes = {
+    obraAtivaEncontrada:
+      Boolean(obraAtiva),
+
+    identidadeEnvioValida:
+      validarContextoAutoriaUX212_(
+        envelope.identidadeEnvio
+      ).valido === true,
+
+    usuarioEnvioOficial:
+      envelope.identidadeEnvio
+        .idUsuario ===
+      "USR-TRANSICAO-MOBILE-V1",
+
+    dispositivoEnvioReal:
+      envelope.identidadeEnvio
+        .idDispositivo ===
+      "DISP-MOBILE-10355705-c01d-4dbe-9012-f43283628e3b",
+
+    possuiAutoriaParaEnviar:
+      envelope.autoriasOperacoes
+        .length >= 1,
+
+    autoriasOperacaoValidas:
+      envelope.autoriasOperacoes
+        .every(
+          function (item) {
+            return (
+              validarContextoAutoriaUX212_(
+                item.autoriaOperacao
+              ).valido === true
+            );
+          }
+        ),
+
+    autoriasCriacaoValidas:
+      envelope.autoriasOperacoes
+        .filter(
+          function (item) {
+            return (
+              item.operacao !==
+              "DELETE"
+            );
+          }
+        )
+        .every(
+          function (item) {
+            return (
+              validarContextoAutoriaUX212_(
+                item.autoriaCriacao
+              ).valido === true
+            );
+          }
+        ),
+
+    autoriasAtualizacaoValidas:
+      envelope.autoriasOperacoes
+        .filter(
+          function (item) {
+            return (
+              item.operacao !==
+              "DELETE"
+            );
+          }
+        )
+        .every(
+          function (item) {
+            return (
+              validarContextoAutoriaUX212_(
+                item.autoriaAtualizacao
+              ).valido === true
+            );
+          }
+        ),
+
+    nenhumaCredencialSecreta:
+      localizarCamposSecretosUX212_(
+        envelope
+      ).length === 0,
+
+    filaNaoAlterada:
+      assinaturaAntes ===
+      JSON.stringify(
+        filaDepois
+      )
+  };
+
+  const aprovado =
+    Object.values(
+      validacoes
+    ).every(Boolean);
+
+  const resultado = {
+    etapa:
+      "UX.21.7",
+
+    auditoria:
+      "PREPARACAO_ENVIO_AUTORIA_API",
+
+    status:
+      aprovado
+        ? "APROVADO"
+        : "REPROVADO",
+
+    obraAtiva:
+      obraAtiva,
+
+    identidadeEnvio:
+      envelope.identidadeEnvio,
+
+    controleAutoria:
+      envelope.controleAutoria,
+
+    autoriasOperacoes:
+      envelope.autoriasOperacoes,
+
+    validacoes:
+      validacoes,
+
+    aprovado:
+      aprovado,
+
+    prontoParaApi:
+      aprovado
+  };
+
+  console.log(
+    JSON.stringify(
+      resultado,
+      null,
+      2
+    )
+  );
+
+  if (!aprovado) {
+    throw new Error(
+      "UX.21.7 — Preparação do envelope reprovada."
+    );
+  }
 
   return resultado;
 }
