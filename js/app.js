@@ -3076,231 +3076,6 @@ async function excluirDiarioOffline_(
       );
     }
 
-
-    /**
-     * ============================================================
-     * UX.19.9.7B — INVALIDAÇÃO DE CACHE PÓS-REIDRATAÇÃO
-     * ============================================================
-     *
-     * A reidratação grava diretamente no IndexedDB.
-     * Por isso, os caches globais e por obra precisam ser
-     * invalidados antes de qualquer atualização visual.
-     *
-     * A função é idempotente e não altera registros locais.
-     */
-    async function invalidarCachesPosReidratacaoSIGO_(
-      idObra
-    ) {
-    
-      const obra =
-        String(
-          idObra || ""
-        ).trim();
-    
-    
-      if (!obra) {
-    
-        return {
-          etapa:
-            "UX.19.9.7B",
-    
-          status:
-            "IGNORADO",
-    
-          motivo:
-            "ID_OBRA_NAO_INFORMADO",
-    
-          aprovado:
-            false,
-    
-          stores:
-            []
-        };
-      }
-    
-    
-      const stores = [
-        "TB_DIARIOS",
-        "TB_DIARIO_ITENS",
-        "TB_OCORRENCIAS",
-        "TB_CLIMA",
-        "TB_EVIDENCIAS",
-        "TB_MEDICOES"
-      ];
-    
-    
-      const cache =
-        globalThis.SIGODataCache ||
-        window.SIGODataCache ||
-        null;
-    
-    
-      const resultados =
-        [];
-    
-    
-      for (
-        const nomeStore of
-        stores
-      ) {
-    
-        const resultado = {
-    
-          store:
-            nomeStore,
-    
-          cacheGlobalInvalidado:
-            false,
-    
-          cacheObraInvalidado:
-            false,
-    
-          erros:
-            []
-        };
-    
-    
-        /*
-         * Cache global da store.
-         */
-        try {
-    
-          if (
-            cache &&
-            typeof cache.invalidate ===
-              "function"
-          ) {
-    
-            cache.invalidate(
-              nomeStore
-            );
-    
-            resultado.cacheGlobalInvalidado =
-              true;
-          }
-    
-        } catch (erroGlobal) {
-    
-          resultado.erros.push({
-            escopo:
-              "GLOBAL",
-    
-            mensagem:
-              erroGlobal?.message ||
-              String(
-                erroGlobal
-              )
-          });
-        }
-    
-    
-        /*
-         * Cache específico da obra.
-         */
-        try {
-    
-          if (
-            typeof invalidarCacheObraSIGO_ ===
-              "function"
-          ) {
-    
-            await Promise.resolve(
-              invalidarCacheObraSIGO_(
-                nomeStore,
-                obra
-              )
-            );
-    
-            resultado.cacheObraInvalidado =
-              true;
-          }
-    
-        } catch (erroObra) {
-    
-          resultado.erros.push({
-            escopo:
-              "OBRA",
-    
-            mensagem:
-              erroObra?.message ||
-              String(
-                erroObra
-              )
-          });
-        }
-    
-    
-        resultados.push(
-          resultado
-        );
-      }
-    
-    
-      const storesComErro =
-        resultados
-          .filter(
-            item =>
-              item.erros.length >
-              0
-          )
-          .map(
-            item =>
-              item.store
-          );
-    
-    
-      const aprovado =
-        resultados.every(
-          item =>
-            item.cacheGlobalInvalidado ===
-              true &&
-            item.cacheObraInvalidado ===
-              true &&
-            item.erros.length ===
-              0
-        );
-    
-    
-      const relatorio = {
-    
-        etapa:
-          "UX.19.9.7B",
-    
-        operacao:
-          "INVALIDAR_CACHES_POS_REIDRATACAO",
-    
-        idObra:
-          obra,
-    
-        stores:
-          resultados,
-    
-        storesComErro:
-          storesComErro,
-    
-        aprovado:
-          aprovado
-      };
-    
-    
-      if (aprovado) {
-    
-        console.log(
-          "[UX.19.9.7B] Caches pós-reidratação invalidados:",
-          obra
-        );
-    
-      } else {
-    
-        console.warn(
-          "[UX.19.9.7B] Invalidação parcial dos caches:",
-          relatorio
-        );
-      }
-    
-    
-      return relatorio;
-    }
     
     // ================================================
     // ATUALIZAR INTERFACE
@@ -36226,7 +36001,52 @@ async function confirmarReidratacaoInterfaceUX1958_() {
       meta
     );
 
-
+    /*
+     * ========================================================
+     * UX.19.9.7B — INVALIDAÇÃO DOS CACHES
+     * ========================================================
+     */
+    
+    try {
+    
+      if (
+        typeof globalThis
+          .invalidarCachesPosReidratacaoSIGO_ ===
+        "function"
+      ) {
+    
+        const resultadoCachePosReidratacao =
+          await globalThis
+            .invalidarCachesPosReidratacaoSIGO_(
+              estado.idObra
+            );
+    
+        if (
+          resultadoCachePosReidratacao
+            ?.aprovado !==
+          true
+        ) {
+          console.warn(
+            "[UX.19.9.7B] Invalidação parcial dos caches.",
+            resultadoCachePosReidratacao
+          );
+        }
+    
+      } else {
+    
+        console.warn(
+          "[UX.19.9.7B] Helper global de invalidação não encontrado."
+        );
+      }
+    
+    } catch (erroCachePosReidratacao) {
+    
+      console.warn(
+        "[UX.19.9.7B] Falha não bloqueante ao invalidar caches:",
+        erroCachePosReidratacao
+      );
+    }
+    
     /*
      * ========================================================
      * INTERFACE
@@ -76192,6 +76012,235 @@ document.addEventListener(
 } else {
   iniciarBloqueioVisualDinamicoUX21964E_();
 }*/
+
+/**
+     * ============================================================
+     * UX.19.9.7B — INVALIDAÇÃO DE CACHE PÓS-REIDRATAÇÃO
+     * ============================================================
+     *
+     * A reidratação grava diretamente no IndexedDB.
+     * Por isso, os caches globais e por obra precisam ser
+     * invalidados antes de qualquer atualização visual.
+     *
+     * A função é idempotente e não altera registros locais.
+     */
+    globalThis.invalidarCachesPosReidratacaoSIGO_ =
+    async function invalidarCachesPosReidratacaoSIGO_(
+      idObra
+    ) {
+    
+      const obra =
+        String(
+          idObra || ""
+        ).trim();
+    
+    
+      if (!obra) {
+    
+        return {
+          etapa:
+            "UX.19.9.7B",
+    
+          status:
+            "IGNORADO",
+    
+          motivo:
+            "ID_OBRA_NAO_INFORMADO",
+    
+          aprovado:
+            false,
+    
+          stores:
+            []
+        };
+      }
+    
+    
+      const stores = [
+        "TB_DIARIOS",
+        "TB_DIARIO_ITENS",
+        "TB_OCORRENCIAS",
+        "TB_CLIMA",
+        "TB_EVIDENCIAS",
+        "TB_MEDICOES"
+      ];
+    
+    
+      const cache =
+        globalThis.SIGODataCache ||
+        window.SIGODataCache ||
+        null;
+    
+    
+      const resultados =
+        [];
+    
+    
+      for (
+        const nomeStore of
+        stores
+      ) {
+    
+        const resultado = {
+    
+          store:
+            nomeStore,
+    
+          cacheGlobalInvalidado:
+            false,
+    
+          cacheObraInvalidado:
+            false,
+    
+          erros:
+            []
+        };
+    
+    
+        /*
+         * Cache global da store.
+         */
+        try {
+    
+          if (
+            cache &&
+            typeof cache.invalidate ===
+              "function"
+          ) {
+    
+            cache.invalidate(
+              nomeStore
+            );
+    
+            resultado.cacheGlobalInvalidado =
+              true;
+          }
+    
+        } catch (erroGlobal) {
+    
+          resultado.erros.push({
+            escopo:
+              "GLOBAL",
+    
+            mensagem:
+              erroGlobal?.message ||
+              String(
+                erroGlobal
+              )
+          });
+        }
+    
+    
+        /*
+         * Cache específico da obra.
+         */
+        try {
+    
+          if (
+            typeof invalidarCacheObraSIGO_ ===
+              "function"
+          ) {
+    
+            await Promise.resolve(
+              invalidarCacheObraSIGO_(
+                nomeStore,
+                obra
+              )
+            );
+    
+            resultado.cacheObraInvalidado =
+              true;
+          }
+    
+        } catch (erroObra) {
+    
+          resultado.erros.push({
+            escopo:
+              "OBRA",
+    
+            mensagem:
+              erroObra?.message ||
+              String(
+                erroObra
+              )
+          });
+        }
+    
+    
+        resultados.push(
+          resultado
+        );
+      }
+    
+    
+      const storesComErro =
+        resultados
+          .filter(
+            item =>
+              item.erros.length >
+              0
+          )
+          .map(
+            item =>
+              item.store
+          );
+    
+    
+      const aprovado =
+        resultados.every(
+          item =>
+            item.cacheGlobalInvalidado ===
+              true &&
+            item.cacheObraInvalidado ===
+              true &&
+            item.erros.length ===
+              0
+        );
+    
+    
+      const relatorio = {
+    
+        etapa:
+          "UX.19.9.7B",
+    
+        operacao:
+          "INVALIDAR_CACHES_POS_REIDRATACAO",
+    
+        idObra:
+          obra,
+    
+        stores:
+          resultados,
+    
+        storesComErro:
+          storesComErro,
+    
+        aprovado:
+          aprovado
+      };
+    
+    
+      if (aprovado) {
+    
+        console.log(
+          "[UX.19.9.7B] Caches pós-reidratação invalidados:",
+          obra
+        );
+    
+      } else {
+    
+        console.warn(
+          "[UX.19.9.7B] Invalidação parcial dos caches:",
+          relatorio
+        );
+      }
+    
+    
+      return relatorio;
+    };
+
+
+
 
 
 
