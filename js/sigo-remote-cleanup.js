@@ -4872,11 +4872,7 @@
         "COMANDO_AUTORIZADO"
     });
 
-  /* =========================================================
-   * UX.21.9.7.7K.3C.8I.10B.3 — ADAPTADOR CRIPTOGRAFICO
-   * =========================================================
-   */
-
+ 
 
   function normalizarPacoteCriptografico_(entrada) {
 
@@ -4891,17 +4887,87 @@
     }
 
 
-    const comando =
-      entrada.comando;
+    /*
+     * Contrato novo/interno já normalizado:
+     *
+     * {
+     *   comando: {...},
+     *   envelope: {...}
+     * }
+     *
+     * Mantém exatamente o comportamento já aprovado para
+     * pacotes nested.
+     */
+    const possuiComandoNested =
+      entrada.comando &&
+      typeof entrada.comando === "object";
 
 
-    const envelope =
-      entrada.envelope;
+    const possuiEnvelopeNested =
+      entrada.envelope &&
+      typeof entrada.envelope === "object";
 
 
     if (
-      !comando ||
-      typeof comando !== "object"
+      possuiComandoNested ||
+      possuiEnvelopeNested
+    ) {
+
+      if (!possuiComandoNested) {
+
+        throw new Error(
+          "SIGO_REMOTE_COMANDO_ASSINADO_AUSENTE"
+        );
+      }
+
+
+      if (!possuiEnvelopeNested) {
+
+        throw new Error(
+          "SIGO_REMOTE_ENVELOPE_CRIPTOGRAFICO_AUSENTE"
+        );
+      }
+
+
+      return entrada;
+    }
+
+
+    /*
+     * Contrato real atualmente entregue pelo servidor:
+     * FLAT_COMANDO_E_CRIPTO_NO_MESMO_OBJETO.
+     *
+     * O adaptador apenas separa o objeto plano em dois blocos
+     * internos. Nenhum valor criptográfico é criado, alterado
+     * ou inferido.
+     */
+    const idComando =
+      texto_(
+        primeiroCampo_(
+          entrada,
+          [
+            "ID_COMANDO",
+            "idComando"
+          ]
+        )
+      );
+
+
+    const tipoComando =
+      texto_(
+        primeiroCampo_(
+          entrada,
+          [
+            "TIPO_COMANDO",
+            "tipoComando"
+          ]
+        )
+      );
+
+
+    if (
+      !idComando ||
+      !tipoComando
     ) {
 
       throw new Error(
@@ -4910,9 +4976,33 @@
     }
 
 
+    const nonce =
+      texto_(
+        primeiroCampo_(
+          entrada,
+          [
+            "nonce",
+            "NONCE"
+          ]
+        )
+      );
+
+
+    const assinaturaServidor =
+      texto_(
+        primeiroCampo_(
+          entrada,
+          [
+            "assinaturaServidor",
+            "ASSINATURA_SERVIDOR"
+          ]
+        )
+      );
+
+
     if (
-      !envelope ||
-      typeof envelope !== "object"
+      !nonce ||
+      !assinaturaServidor
     ) {
 
       throw new Error(
@@ -4921,8 +5011,298 @@
     }
 
 
-    return entrada;
+    const comando = {
+
+      ID_COMANDO:
+        idComando,
+
+      ID_OPERACAO_REVOGACAO:
+        texto_(
+          primeiroCampo_(
+            entrada,
+            [
+              "ID_OPERACAO_REVOGACAO",
+              "idOperacaoRevogacao"
+            ]
+          )
+        ),
+
+      VERSAO_CONTRATO:
+        texto_(
+          primeiroCampo_(
+            entrada,
+            [
+              "VERSAO_CONTRATO",
+              "versaoContrato"
+            ]
+          )
+        ),
+
+      TIPO_COMANDO:
+        tipoComando,
+
+      STATUS_COMANDO:
+        texto_(
+          primeiroCampo_(
+            entrada,
+            [
+              "STATUS_COMANDO",
+              "statusComando"
+            ]
+          )
+        ),
+
+      ID_USUARIO:
+        texto_(
+          primeiroCampo_(
+            entrada,
+            [
+              "ID_USUARIO",
+              "idUsuario"
+            ]
+          )
+        ),
+
+      ID_DISPOSITIVO:
+        texto_(
+          primeiroCampo_(
+            entrada,
+            [
+              "ID_DISPOSITIVO",
+              "idDispositivo"
+            ]
+          )
+        ),
+
+      ID_SESSAO:
+        texto_(
+          primeiroCampo_(
+            entrada,
+            [
+              "ID_SESSAO",
+              "idSessao"
+            ]
+          )
+        ),
+
+      MOTIVO:
+        texto_(
+          primeiroCampo_(
+            entrada,
+            [
+              "MOTIVO",
+              "motivo"
+            ]
+          )
+        ),
+
+      EMITIDO_EM:
+        texto_(
+          primeiroCampo_(
+            entrada,
+            [
+              "EMITIDO_EM",
+              "emitidoEm"
+            ]
+          )
+        ),
+
+      EMITIDO_POR:
+        texto_(
+          primeiroCampo_(
+            entrada,
+            [
+              "EMITIDO_POR",
+              "emitidoPor"
+            ]
+          )
+        ),
+
+      ORIGEM:
+        texto_(
+          primeiroCampo_(
+            entrada,
+            [
+              "ORIGEM",
+              "origem"
+            ]
+          )
+        ),
+
+      EXPIRA_EM:
+        texto_(
+          primeiroCampo_(
+            entrada,
+            [
+              "EXPIRA_EM",
+              "expiraEm"
+            ]
+          )
+        )
+    };
+
+
+    const envelope = {
+
+      dominio:
+        texto_(
+          primeiroCampo_(
+            entrada,
+            [
+              "dominio",
+              "DOMINIO"
+            ]
+          )
+        ),
+
+      versaoEnvelope:
+        texto_(
+          primeiroCampo_(
+            entrada,
+            [
+              "versaoEnvelope",
+              "VERSAO_ENVELOPE"
+            ]
+          )
+        ),
+
+      acaoAutorizada:
+        texto_(
+          primeiroCampo_(
+            entrada,
+            [
+              "acaoAutorizada",
+              "ACAO_AUTORIZADA"
+            ]
+          )
+        ),
+
+      idSessao:
+        texto_(
+          primeiroCampo_(
+            entrada,
+            [
+              "idSessao",
+              "ID_SESSAO"
+            ]
+          )
+        ),
+
+      nonce:
+        nonce,
+
+      assinadoEm:
+        texto_(
+          primeiroCampo_(
+            entrada,
+            [
+              "assinadoEm",
+              "ASSINADO_EM"
+            ]
+          )
+        ),
+
+      expiraAssinaturaEm:
+        texto_(
+          primeiroCampo_(
+            entrada,
+            [
+              "expiraAssinaturaEm",
+              "EXPIRA_ASSINATURA_EM"
+            ]
+          )
+        ),
+
+      idChaveAssinatura:
+        texto_(
+          primeiroCampo_(
+            entrada,
+            [
+              "idChaveAssinatura",
+              "ID_CHAVE_ASSINATURA"
+            ]
+          )
+        ),
+
+      algoritmoAssinatura:
+        texto_(
+          primeiroCampo_(
+            entrada,
+            [
+              "algoritmoAssinatura",
+              "ALGORITMO_ASSINATURA"
+            ]
+          )
+        ),
+
+      algoritmoWebCrypto:
+        texto_(
+          primeiroCampo_(
+            entrada,
+            [
+              "algoritmoWebCrypto",
+              "ALGORITMO_WEB_CRYPTO"
+            ]
+          )
+        ),
+
+      algoritmoHash:
+        texto_(
+          primeiroCampo_(
+            entrada,
+            [
+              "algoritmoHash",
+              "ALGORITMO_HASH"
+            ]
+          )
+        ),
+
+      payloadCanonicoAssinado:
+        texto_(
+          primeiroCampo_(
+            entrada,
+            [
+              "payloadCanonicoAssinado",
+              "PAYLOAD_CANONICO_ASSINADO"
+            ]
+          )
+        ),
+
+      hashPayloadAssinado:
+        texto_(
+          primeiroCampo_(
+            entrada,
+            [
+              "hashPayloadAssinado",
+              "HASH_PAYLOAD_ASSINADO"
+            ]
+          )
+        ),
+
+      assinaturaServidor:
+        assinaturaServidor
+    };
+
+
+    return {
+      comando:
+        comando,
+
+      envelope:
+        envelope
+    };
   }
+
+
+SEGURANÇA
+---------
+- Não alterar servidor.
+- Não alterar chave pública/privada.
+- Não alterar verificador criptográfico.
+- Não alterar fluxo cliente.iniciar/confirmar.
+- Não reabrir o PWA ainda.
+- Não publicar antes da auditoria pós-aplicação.
+
 
   const criarCoordenadorBase_ =
     (function criarCoordenador_(
