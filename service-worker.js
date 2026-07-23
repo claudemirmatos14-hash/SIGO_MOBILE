@@ -4,7 +4,7 @@
 // =====================================================
 
 const SIGO_CACHE_VERSION =
-  "sigo-mobile-v91";
+  "sigo-mobile-v92";
 
 const SIGO_BASE_URL =
   new URL("./", self.location.href);
@@ -30,6 +30,7 @@ const SIGO_APP_SHELL = [
   "js/data-crud.js",
   "js/ui.js",
   "js/app.js",
+  "js/sigo-remote-cleanup.js",
 
   "icons/icon-192.png",
   "icons/icon-512.png",
