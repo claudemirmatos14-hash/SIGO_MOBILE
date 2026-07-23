@@ -5293,17 +5293,6 @@
     };
   }
 
-
-SEGURANÇA
----------
-- Não alterar servidor.
-- Não alterar chave pública/privada.
-- Não alterar verificador criptográfico.
-- Não alterar fluxo cliente.iniciar/confirmar.
-- Não reabrir o PWA ainda.
-- Não publicar antes da auditoria pós-aplicação.
-
-
   const criarCoordenadorBase_ =
     (function criarCoordenador_(
     dependencias
