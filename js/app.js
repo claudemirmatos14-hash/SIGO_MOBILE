@@ -692,14 +692,52 @@ function renderizarTelaDispositivoRevogadoUX21977K3C9_() {
     return false;
   }
 
-  const area =
+  let area =
     document.getElementById(
       "telaApp"
     );
 
+  /*
+   * UX.21.9.7.7K.3C.9F.2C
+   *
+   * No fluxo normal, #telaApp é criado por
+   * SIGOUI.createScreen().
+   *
+   * Em dispositivo revogado, a montagem operacional pode ser
+   * interrompida antes de createScreen. A raiz .app-premium,
+   * entretanto, já existe no HTML estático.
+   *
+   * O fallback abaixo é exclusivamente visual e só é alcançado
+   * com o estado terminal já ativo.
+   */
   if (!area) {
-    return false;
+
+    const raiz =
+      document.querySelector(
+        ".app-premium"
+      );
+
+    if (!raiz) {
+      return false;
+    }
+
+    raiz.innerHTML = `
+      <section
+        id="telaApp"
+        class="tela-app"
+      ></section>
+    `;
+
+    area =
+      document.getElementById(
+        "telaApp"
+      );
+
+    if (!area) {
+      return false;
+    }
   }
+
 
   instalarEstiloTelaDispositivoRevogadoUX21977K3C9_();
 
