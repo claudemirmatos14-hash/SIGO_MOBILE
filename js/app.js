@@ -492,7 +492,473 @@ async function iniciarNovoDiarioUnificadoUX19_() {
   }
 }
 
+/* =========================================================
+ * UX.21.9.7.7K.3C.9C
+ * TELA TERMINAL — DISPOSITIVO REVOGADO
+ * ========================================================= */
+
+const estadoDispositivoRevogadoUX21977K3C9_ = {
+  ativo: false,
+  detalhe: {
+    status: "",
+    codigo: "",
+    resultado: ""
+  },
+  recebidoEm: "",
+  renderPendente: false,
+  tentativasRender: 0,
+  temporizadorRender: null
+};
+
+
+function normalizarDetalheDispositivoRevogadoUX21977K3C9_(
+  detalhe
+) {
+
+  const origem =
+    detalhe &&
+    typeof detalhe === "object"
+      ? detalhe
+      : {};
+
+  function textoSeguro_(
+    valor,
+    limite
+  ) {
+
+    return String(
+      valor == null
+        ? ""
+        : valor
+    )
+      .trim()
+      .slice(
+        0,
+        limite
+      );
+  }
+
+  return {
+    status:
+      textoSeguro_(
+        origem.status,
+        40
+      )
+        .toUpperCase(),
+
+    codigo:
+      textoSeguro_(
+        origem.codigo,
+        80
+      )
+        .toUpperCase(),
+
+    resultado:
+      textoSeguro_(
+        origem.resultado,
+        80
+      )
+        .toUpperCase()
+  };
+}
+
+
+function instalarEstiloTelaDispositivoRevogadoUX21977K3C9_() {
+
+  const ID_ESTILO =
+    "sigo-estilo-dispositivo-revogado-ux21977k3c9";
+
+  if (
+    document.getElementById(
+      ID_ESTILO
+    )
+  ) {
+    return;
+  }
+
+  const estilo =
+    document.createElement(
+      "style"
+    );
+
+  estilo.id =
+    ID_ESTILO;
+
+  estilo.textContent = `
+    .sigo-revogado-terminal-ux21977k3c9 {
+      min-height: calc(100vh - 110px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 18px 40px;
+      box-sizing: border-box;
+    }
+
+    .sigo-revogado-card-ux21977k3c9 {
+      width: min(100%, 560px);
+      box-sizing: border-box;
+      border-radius: 24px;
+      background: #ffffff;
+      border: 1px solid rgba(15, 23, 42, 0.10);
+      box-shadow: 0 24px 64px rgba(15, 23, 42, 0.14);
+      padding: 34px 28px 30px;
+      text-align: center;
+    }
+
+    .sigo-revogado-marca-ux21977k3c9 {
+      margin-bottom: 22px;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.16em;
+      color: #64748b;
+    }
+
+    .sigo-revogado-icone-ux21977k3c9 {
+      width: 74px;
+      height: 74px;
+      margin: 0 auto 22px;
+      border-radius: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      line-height: 1;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+    }
+
+    .sigo-revogado-titulo-ux21977k3c9 {
+      margin: 0;
+      font-size: clamp(24px, 5vw, 32px);
+      line-height: 1.15;
+      font-weight: 850;
+      color: #0f172a;
+    }
+
+    .sigo-revogado-subtitulo-ux21977k3c9 {
+      margin: 10px 0 0;
+      font-size: 15px;
+      line-height: 1.55;
+      font-weight: 650;
+      color: #475569;
+    }
+
+    .sigo-revogado-divisor-ux21977k3c9 {
+      height: 1px;
+      margin: 26px 0;
+      background: #e2e8f0;
+    }
+
+    .sigo-revogado-texto-ux21977k3c9 {
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.65;
+      color: #334155;
+    }
+
+    .sigo-revogado-texto-ux21977k3c9 + 
+    .sigo-revogado-texto-ux21977k3c9 {
+      margin-top: 14px;
+    }
+
+    .sigo-revogado-rodape-ux21977k3c9 {
+      margin-top: 26px;
+      padding: 15px 16px;
+      border-radius: 16px;
+      background: #f8fafc;
+      font-size: 13px;
+      line-height: 1.5;
+      color: #64748b;
+    }
+  `;
+
+  (
+    document.head ||
+    document.documentElement
+  )
+    .appendChild(
+      estilo
+    );
+}
+
+
+function renderizarTelaDispositivoRevogadoUX21977K3C9_() {
+
+  if (
+    estadoDispositivoRevogadoUX21977K3C9_
+      .ativo !==
+    true
+  ) {
+    return false;
+  }
+
+  const area =
+    document.getElementById(
+      "telaApp"
+    );
+
+  if (!area) {
+    return false;
+  }
+
+  instalarEstiloTelaDispositivoRevogadoUX21977K3C9_();
+
+  const detalhe =
+    estadoDispositivoRevogadoUX21977K3C9_
+      .detalhe ||
+    {};
+
+  const limpezaConcluida =
+    detalhe.resultado ===
+    "LIMPEZA_REMOTA_CONCLUIDA";
+
+  const textoLimpeza =
+    limpezaConcluida
+      ? `
+        <p class="sigo-revogado-texto-ux21977k3c9">
+          Os dados operacionais armazenados localmente
+          foram removidos com segurança.
+        </p>
+      `
+      : "";
+
+  area.setAttribute(
+    "data-sigo-tela-terminal",
+    "dispositivo-revogado"
+  );
+
+  area.innerHTML = `
+    <section
+      class="sigo-revogado-terminal-ux21977k3c9"
+      role="alert"
+      aria-live="assertive"
+      aria-label="Dispositivo bloqueado"
+    >
+      <div class="sigo-revogado-card-ux21977k3c9">
+
+        <div class="sigo-revogado-marca-ux21977k3c9">
+          SIGO MOBILE
+        </div>
+
+        <div
+          class="sigo-revogado-icone-ux21977k3c9"
+          aria-hidden="true"
+        >
+          🔒
+        </div>
+
+        <h1 class="sigo-revogado-titulo-ux21977k3c9">
+          Dispositivo bloqueado
+        </h1>
+
+        <p class="sigo-revogado-subtitulo-ux21977k3c9">
+          Este dispositivo não possui mais autorização
+          para operar no SIGO.
+        </p>
+
+        <div class="sigo-revogado-divisor-ux21977k3c9"></div>
+
+        ${textoLimpeza}
+
+        <p class="sigo-revogado-texto-ux21977k3c9">
+          Para voltar a utilizar o aplicativo neste
+          dispositivo será necessária uma nova autorização.
+        </p>
+
+        <div class="sigo-revogado-rodape-ux21977k3c9">
+          Nenhuma ação operacional está disponível
+          neste dispositivo.
+        </div>
+
+      </div>
+    </section>
+  `;
+
+  estadoDispositivoRevogadoUX21977K3C9_
+    .renderPendente =
+    false;
+
+  estadoDispositivoRevogadoUX21977K3C9_
+    .tentativasRender =
+    0;
+
+  return true;
+}
+
+
+function agendarRenderTelaDispositivoRevogadoUX21977K3C9_() {
+
+  if (
+    estadoDispositivoRevogadoUX21977K3C9_
+      .ativo !==
+    true
+  ) {
+    return;
+  }
+
+  if (
+    estadoDispositivoRevogadoUX21977K3C9_
+      .temporizadorRender
+  ) {
+
+    clearTimeout(
+      estadoDispositivoRevogadoUX21977K3C9_
+        .temporizadorRender
+    );
+  }
+
+  estadoDispositivoRevogadoUX21977K3C9_
+    .renderPendente =
+    true;
+
+  function tentarRender_() {
+
+    if (
+      estadoDispositivoRevogadoUX21977K3C9_
+        .ativo !==
+      true
+    ) {
+      return;
+    }
+
+    const renderizou =
+      renderizarTelaDispositivoRevogadoUX21977K3C9_();
+
+    if (renderizou) {
+      return;
+    }
+
+    estadoDispositivoRevogadoUX21977K3C9_
+      .tentativasRender +=
+      1;
+
+    if (
+      estadoDispositivoRevogadoUX21977K3C9_
+        .tentativasRender >
+      30
+    ) {
+      return;
+    }
+
+    estadoDispositivoRevogadoUX21977K3C9_
+      .temporizadorRender =
+      setTimeout(
+        tentarRender_,
+        100
+      );
+  }
+
+  estadoDispositivoRevogadoUX21977K3C9_
+    .temporizadorRender =
+    setTimeout(
+      tentarRender_,
+      0
+    );
+}
+
+
+function tratarEventoDispositivoRevogadoUX21977K3C9_(
+  evento
+) {
+
+  const detalhe =
+    normalizarDetalheDispositivoRevogadoUX21977K3C9_(
+      evento &&
+      evento.detail
+    );
+
+  /*
+   * O evento do domínio é a autoridade para a UI.
+   * Guardamos SOMENTE campos visuais não sensíveis.
+   */
+  estadoDispositivoRevogadoUX21977K3C9_
+    .ativo =
+    true;
+
+  estadoDispositivoRevogadoUX21977K3C9_
+    .detalhe =
+    detalhe;
+
+  estadoDispositivoRevogadoUX21977K3C9_
+    .recebidoEm =
+    new Date()
+      .toISOString();
+
+  agendarRenderTelaDispositivoRevogadoUX21977K3C9_();
+}
+
+
+function instalarListenerDispositivoRevogadoUX21977K3C9_() {
+
+  const CHAVE_LISTENER =
+    "__SIGO_LISTENER_DISPOSITIVO_REVOGADO_UX21977K3C9__";
+
+  if (
+    window[
+      CHAVE_LISTENER
+    ] ===
+    true
+  ) {
+    return;
+  }
+
+  window.addEventListener(
+    "sigo:dispositivo-revogado",
+    tratarEventoDispositivoRevogadoUX21977K3C9_
+  );
+
+  window[
+    CHAVE_LISTENER
+  ] =
+    true;
+}
+
+
+/*
+ * O app.js é carregado antes de sigo-remote-cleanup.js.
+ * Portanto o listener fica disponível antes do autoboot remoto.
+ */
+instalarListenerDispositivoRevogadoUX21977K3C9_();
+
+
+/*
+ * Segunda oportunidade visual para o caso em que o evento seja
+ * recebido muito cedo e #telaApp ainda não exista.
+ *
+ * Não consulta estado remoto e não lê armazenamento.
+ */
+document.addEventListener(
+  "DOMContentLoaded",
+  function () {
+
+    if (
+      estadoDispositivoRevogadoUX21977K3C9_
+        .ativo ===
+      true
+    ) {
+      agendarRenderTelaDispositivoRevogadoUX21977K3C9_();
+    }
+  },
+  {
+    once: true
+  }
+);
+
 function navegarPara(tela) {
+  /*
+   * UX.21.9.7.7K.3C.9C
+   * Gate terminal de dispositivo revogado.
+   */
+  if (
+    estadoDispositivoRevogadoUX21977K3C9_
+      .ativo ===
+    true
+  ) {
+
+    agendarRenderTelaDispositivoRevogadoUX21977K3C9_();
+
+    return;
+  }
 localStorage.setItem("telaAtualMobile", tela);
   
   const app = document.querySelector(".app-premium");
