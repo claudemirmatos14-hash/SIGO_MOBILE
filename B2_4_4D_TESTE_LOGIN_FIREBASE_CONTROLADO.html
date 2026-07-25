@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>SIGO — B2.4.4D Login Firebase Controlado</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 760px;
+      margin: 40px auto;
+      padding: 0 20px;
+      line-height: 1.5;
+    }
+    button {
+      padding: 12px 18px;
+      margin-right: 8px;
+      cursor: pointer;
+    }
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      padding: 16px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+    .ok { font-weight: bold; }
+  </style>
+</head>
+<body>
+
+  <h1>SIGO — B2.4.4D</h1>
+  <p>Primeiro login Firebase controlado.</p>
+
+  <p>
+    Esta página NÃO cria sessão SIGO, NÃO grava UID no Sheets,
+    NÃO altera dispositivo e NÃO executa R16.
+  </p>
+
+  <button id="btnLogin">Entrar com Google</button>
+  <button id="btnSair" disabled>Sair</button>
+
+  <h2>Resultado seguro</h2>
+  <pre id="resultado">Aguardando login...</pre>
+
+  <script type="module">
+    import { initializeApp }
+      from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+
+    import {
+      getAuth,
+      GoogleAuthProvider,
+      signInWithPopup,
+      signOut,
+      setPersistence,
+      inMemoryPersistence,
+      getIdToken
+    } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+
+    /*
+     * B2.4.4D
+     *
+     * Cole SOMENTE a apiKey no campo abaixo.
+     * Os demais identificadores correspondem ao app Web já
+     * registrado no projeto SIGO V1-0 Mobile.
+     *
+     * A API key não será exibida no resultado.
+     */
+    const firebaseConfig = {
+      apiKey: "AIzaSyDvs7xE2QhHuKF6OhXC6PNyID0Uf06FzjY",
+      authDomain: "sigo-v1-0-mobile.firebaseapp.com",
+      projectId: "sigo-v1-0-mobile",
+      storageBucket: "sigo-v1-0-mobile.firebasestorage.app",
+      messagingSenderId: "292699885751",
+      appId: "1:292699885751:web:38eafdb653b1f2d5ebbd32"
+    };
+
+    const EMAIL_ESPERADO =
+      "claudemirmatos14@gmail.com";
+
+    const app =
+      initializeApp(firebaseConfig);
+
+    const auth =
+      getAuth(app);
+
+    /*
+     * Prova controlada:
+     * não queremos persistência longa da sessão Firebase
+     * nesta página técnica.
+     */
+    await setPersistence(
+      auth,
+      inMemoryPersistence
+    );
+
+    const provider =
+      new GoogleAuthProvider();
+
+    provider.setCustomParameters({
+      login_hint: EMAIL_ESPERADO
+    });
+
+    const btnLogin =
+      document.getElementById("btnLogin");
+
+    const btnSair =
+      document.getElementById("btnSair");
+
+    const resultado =
+      document.getElementById("resultado");
+
+    function mostrar(obj) {
+      resultado.textContent =
+        JSON.stringify(obj, null, 2);
+    }
+
+    btnLogin.addEventListener(
+      "click",
+      async () => {
+
+        btnLogin.disabled = true;
+
+        mostrar({
+          etapa:
+            "B2_4_4D_PRIMEIRO_LOGIN_FIREBASE_CONTROLADO",
+          status:
+            "ABRINDO_LOGIN_GOOGLE"
+        });
+
+        try {
+
+          const credencial =
+            await signInWithPopup(
+              auth,
+              provider
+            );
+
+          const user =
+            credencial.user;
+
+          const email =
+            String(
+              user.email || ""
+            )
+            .trim()
+            .toLowerCase();
+
+          /*
+           * Proteção contra login acidental
+           * com outra conta Google.
+           */
+          if (email !== EMAIL_ESPERADO) {
+
+            await signOut(auth);
+
+            throw new Error(
+              "CONTA_GOOGLE_DIVERGENTE_DO_USUARIO_SIGO"
+            );
+          }
+
+          if (user.emailVerified !== true) {
+
+            await signOut(auth);
+
+            throw new Error(
+              "EMAIL_FIREBASE_NAO_VERIFICADO"
+            );
+          }
+
+          /*
+           * Prova de emissão do Firebase ID token.
+           * O token NÃO é impresso, NÃO é salvo e NÃO é copiado.
+           */
+          const idToken =
+            await getIdToken(
+              user,
+              true
+            );
+
+          const providers =
+            Array.isArray(user.providerData)
+              ? user.providerData
+                  .map(p => p && p.providerId)
+                  .filter(Boolean)
+              : [];
+
+          const prova = {
+            etapa:
+              "B2_4_4D_PRIMEIRO_LOGIN_FIREBASE_CONTROLADO",
+
+            autenticado:
+              true,
+
+            uid:
+              user.uid,
+
+            email,
+
+            emailVerified:
+              user.emailVerified === true,
+
+            providerIds:
+              providers,
+
+            tokenFirebaseEmitido:
+              Boolean(idToken),
+
+            tokenExposto:
+              false,
+
+            usuarioSigoEsperado:
+              "USR-IND-B476B612655840C2",
+
+            nenhumaSessaoSigoCriada:
+              true,
+
+            nenhumUidGravadoNoSheets:
+              true,
+
+            nenhumDispositivoAlterado:
+              true,
+
+            r16NaoTocado:
+              true,
+
+            classificacao:
+              "B2_4_4D_LOGIN_FIREBASE_REAL_VALIDADO_E_TOKEN_EMITIDO"
+          };
+
+          mostrar(prova);
+
+          btnSair.disabled = false;
+
+        } catch (erro) {
+
+          mostrar({
+            etapa:
+              "B2_4_4D_PRIMEIRO_LOGIN_FIREBASE_CONTROLADO",
+
+            autenticado:
+              false,
+
+            codigo:
+              erro && erro.code
+                ? String(erro.code)
+                : "ERRO_CONTROLADO",
+
+            mensagem:
+              erro && erro.message
+                ? String(erro.message)
+                : "Falha no login Firebase.",
+
+            tokenExposto:
+              false
+          });
+
+        } finally {
+          btnLogin.disabled = false;
+        }
+      }
+    );
+
+    btnSair.addEventListener(
+      "click",
+      async () => {
+        await signOut(auth);
+
+        btnSair.disabled = true;
+
+        mostrar({
+          etapa:
+            "B2_4_4D_PRIMEIRO_LOGIN_FIREBASE_CONTROLADO",
+          status:
+            "SAIDA_FIREBASE_CONCLUIDA"
+        });
+      }
+    );
+  </script>
+</body>
+</html>
