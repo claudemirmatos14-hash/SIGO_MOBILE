@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>SIGO — B2.4.4F.4D.1 Primeiro vínculo real</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 880px;
+      margin: 40px auto;
+      padding: 0 20px;
+      line-height: 1.5;
+    }
+
+    .alerta {
+      border: 1px solid #9a6700;
+      border-radius: 8px;
+      padding: 14px;
+      margin: 18px 0;
+    }
+
+    label {
+      display: block;
+      margin: 18px 0;
+    }
+
+    button {
+      padding: 12px 18px;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      padding: 16px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>SIGO — B2.4.4F.4D.1</h1>
+
+  <h2>Primeiro vínculo real controlado</h2>
+
+  <div class="alerta">
+    <strong>Atenção:</strong>
+    esta execução gravará pela primeira vez a identidade Firebase
+    no usuário SIGO já cadastrado.
+  </div>
+
+  <p>
+    Serão gravados somente:
+  </p>
+
+  <pre>PROVEDOR_IDENTIDADE
+ID_IDENTIDADE_EXTERNA
+AUTENTICACAO_VINCULADA_EM
+AUTENTICACAO_VINCULADA_POR
+ATUALIZADO_EM</pre>
+
+  <p>
+    Não será criada sessão, dispositivo, autorização ou permissão.
+  </p>
+
+  <label>
+    <input id="confirmacao" type="checkbox">
+    Confirmo a execução única do primeiro vínculo real de
+    Claudemir Matos.
+  </label>
+
+  <button id="btnVincular" disabled>
+    Entrar com Google e executar primeiro vínculo
+  </button>
+
+  <h2>Resultado seguro</h2>
+  <pre id="resultado">Aguardando confirmação...</pre>
+
+  <script type="module">
+
+    import { initializeApp }
+      from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+
+    import {
+      getAuth,
+      GoogleAuthProvider,
+      signInWithPopup,
+      signOut,
+      setPersistence,
+      inMemoryPersistence,
+      getIdToken
+    } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDvs7xE2QhHuKF6OhXC6PNyID0Uf06FzjY",
+      authDomain: "sigo-v1-0-mobile.firebaseapp.com",
+      projectId: "sigo-v1-0-mobile",
+      storageBucket: "sigo-v1-0-mobile.firebasestorage.app",
+      messagingSenderId: "292699885751",
+      appId: "1:292699885751:web:38eafdb653b1f2d5ebbd32"
+    };
+
+    const ENDPOINT =
+      "https://script.google.com/macros/s/" +
+      "AKfycbzVE7tdTSwHvKgLkrdcaQtGAm_muqNPo6n0wQZBDpmRwtAJuySfWyh6gdef0R6g_drKRw" +
+      "/exec";
+
+    const ACAO =
+      "VINCULAR_IDENTIDADE_FIREBASE_B244F";
+
+    const EMAIL_ESPERADO =
+      "claudemirmatos14@gmail.com";
+
+    const ID_USUARIO_ESPERADO =
+      "USR-IND-B476B612655840C2";
+
+    const app =
+      initializeApp(firebaseConfig);
+
+    const auth =
+      getAuth(app);
+
+    await setPersistence(
+      auth,
+      inMemoryPersistence
+    );
+
+    const provider =
+      new GoogleAuthProvider();
+
+    provider.setCustomParameters({
+      login_hint:
+        EMAIL_ESPERADO
+    });
+
+    const checkbox =
+      document.getElementById(
+        "confirmacao"
+      );
+
+    const btn =
+      document.getElementById(
+        "btnVincular"
+      );
+
+    const out =
+      document.getElementById(
+        "resultado"
+      );
+
+    let concluido =
+      false;
+
+    checkbox.addEventListener(
+      "change",
+      () => {
+        btn.disabled =
+          !checkbox.checked ||
+          concluido;
+      }
+    );
+
+    function mostrar(obj) {
+      out.textContent =
+        JSON.stringify(
+          obj,
+          null,
+          2
+        );
+    }
+
+    function obterDetalhes_(obj) {
+
+      if (
+        !obj ||
+        typeof obj !== "object"
+      ) {
+        return {};
+      }
+
+      return (
+        obj.detalhes ||
+        obj.details ||
+        {}
+      );
+    }
+
+    btn.addEventListener(
+      "click",
+      async () => {
+
+        if (
+          concluido ||
+          checkbox.checked !== true
+        ) {
+          return;
+        }
+
+        const confirmado =
+          window.confirm(
+            "Confirmar o primeiro vínculo real do usuário Claudemir Matos?"
+          );
+
+        if (!confirmado) {
+          return;
+        }
+
+        btn.disabled = true;
+
+        mostrar({
+          etapa:
+            "B2_4_4F_4D_1_PRIMEIRO_VINCULO_REAL_CONTROLADO",
+          status:
+            "AUTENTICANDO"
+        });
+
+        let idToken =
+          "";
+
+        let uidFirebase =
+          "";
+
+        try {
+
+          const cred =
+            await signInWithPopup(
+              auth,
+              provider
+            );
+
+          const user =
+            cred.user;
+
+          const email =
+            String(
+              user.email || ""
+            )
+            .trim()
+            .toLowerCase();
+
+          if (
+            email !==
+            EMAIL_ESPERADO
+          ) {
+            throw new Error(
+              "CONTA_GOOGLE_DIVERGENTE_DO_USUARIO_SIGO"
+            );
+          }
+
+          if (
+            user.emailVerified !==
+            true
+          ) {
+            throw new Error(
+              "EMAIL_FIREBASE_NAO_VERIFICADO"
+            );
+          }
+
+          uidFirebase =
+            String(
+              user.uid || ""
+            );
+
+          if (!uidFirebase) {
+            throw new Error(
+              "UID_FIREBASE_NAO_EMITIDO"
+            );
+          }
+
+          idToken =
+            await getIdToken(
+              user,
+              true
+            );
+
+          if (!idToken) {
+            throw new Error(
+              "TOKEN_FIREBASE_NAO_EMITIDO"
+            );
+          }
+
+          const resposta =
+            await fetch(
+              ENDPOINT,
+              {
+                method:
+                  "POST",
+
+                redirect:
+                  "follow",
+
+                headers: {
+                  "Content-Type":
+                    "text/plain;charset=UTF-8"
+                },
+
+                body:
+                  JSON.stringify({
+                    acao:
+                      ACAO,
+
+                    firebaseIdToken:
+                      idToken
+                  })
+              }
+            );
+
+          const texto =
+            await resposta.text();
+
+          let jsonServidor =
+            null;
+
+          try {
+
+            jsonServidor =
+              JSON.parse(
+                texto
+              );
+
+          } catch (_) {
+
+            throw new Error(
+              "RESPOSTA_SERVIDOR_NAO_JSON"
+            );
+          }
+
+          const detalhes =
+            obterDetalhes_(
+              jsonServidor
+            );
+
+          const vinculo =
+            detalhes.vinculo ||
+            {};
+
+          const idAutenticacaoServidor =
+            String(
+              detalhes
+                .idAutenticacaoServidor ||
+              ""
+            ).trim();
+
+          const respostaSerializada =
+            JSON.stringify(
+              jsonServidor
+            );
+
+          const uidCompletoRetornado =
+            Boolean(
+              uidFirebase &&
+              respostaSerializada.includes(
+                uidFirebase
+              )
+            );
+
+          const tokenRetornado =
+            Boolean(
+              idToken &&
+              respostaSerializada.includes(
+                idToken
+              )
+            ) ||
+            respostaSerializada.includes(
+              "firebaseIdToken"
+            );
+
+          const validacoes = {
+
+            httpOk:
+              resposta.ok === true,
+
+            respostaJson:
+              Boolean(
+                jsonServidor &&
+                typeof jsonServidor ===
+                  "object"
+              ),
+
+            acaoReconhecida:
+              detalhes.acao ===
+              ACAO,
+
+            resultadoPrimeiroVinculo:
+              detalhes.resultado ===
+              "VINCULADO",
+
+            codigoVinculoCorreto:
+              detalhes.codigo ===
+              "IDENTIDADE_FIREBASE_VINCULADA_COM_SUCESSO",
+
+            idAutenticacaoServidorPresente:
+              Boolean(
+                idAutenticacaoServidor
+              ),
+
+            prefixoIdAutenticacaoCorreto:
+              idAutenticacaoServidor
+                .startsWith(
+                  "AUTH-SRV-"
+                ),
+
+            idUsuarioCorreto:
+              String(
+                vinculo.idUsuario ||
+                ""
+              ) ===
+              ID_USUARIO_ESPERADO,
+
+            emailCorreto:
+              String(
+                vinculo
+                  .emailAutenticacao ||
+                ""
+              )
+              .trim()
+              .toLowerCase() ===
+              EMAIL_ESPERADO,
+
+            provedorCorreto:
+              String(
+                vinculo
+                  .provedorIdentidade ||
+                ""
+              ).toUpperCase() ===
+              "FIREBASE_IDENTITY_PLATFORM",
+
+            uidConfirmado:
+              vinculo.uidConfirmado ===
+              true,
+
+            uidFingerprintPresente:
+              Boolean(
+                String(
+                  vinculo
+                    .uidFingerprint ||
+                  ""
+                ).trim()
+              ),
+
+            uidCompletoNaoRetornado:
+              uidCompletoRetornado ===
+              false,
+
+            vinculoNaoIdempotente:
+              vinculo.idempotente ===
+              false,
+
+            gravacaoUidConfirmada:
+              detalhes.gravaUid ===
+              true,
+
+            nenhumaSessaoCriada:
+              detalhes.criaSessao ===
+              false,
+
+            nenhumDispositivoAlterado:
+              detalhes
+                .alteraDispositivo ===
+              false,
+
+            tokenNaoRetornado:
+              tokenRetornado ===
+              false
+          };
+
+          /*
+           * Limpeza das credenciais em memória antes de exibir.
+           */
+          idToken =
+            "";
+
+          uidFirebase =
+            "";
+
+          const falsas =
+            Object.entries(
+              validacoes
+            )
+            .filter(([, valor]) =>
+              valor !== true
+            )
+            .map(([nome]) =>
+              nome
+            );
+
+          const aprovado =
+            falsas.length === 0;
+
+          const resultadoSeguro = {
+
+            etapa:
+              "B2_4_4F_4D_1_PRIMEIRO_VINCULO_REAL_CONTROLADO",
+
+            autenticacaoFirebase:
+              true,
+
+            httpStatus:
+              resposta.status,
+
+            email:
+              email,
+
+            idAutenticacaoServidor:
+              idAutenticacaoServidor,
+
+            tokenFirebaseExposto:
+              false,
+
+            uidClienteExposto:
+              false,
+
+            validacoes,
+
+            totalValidacoes:
+              Object.keys(
+                validacoes
+              ).length,
+
+            totalFalsas:
+              falsas.length,
+
+            falsas,
+
+            aprovado,
+
+            classificacao:
+              aprovado
+                ? "B2_4_4F_4D_1_PRIMEIRO_VINCULO_FIREBASE_REAL_EXECUTADO_COM_SUCESSO"
+                : "B2_4_4F_4D_1_PRIMEIRO_VINCULO_REAL_COM_DIVERGENCIA",
+
+            proximaEtapa:
+              aprovado
+                ? "B2_4_4F_4D_2_AUDITORIA_POS_VINCULO"
+                : "ANALISAR_APENAS_VALIDACOES_FALSAS"
+          };
+
+          concluido =
+            aprovado;
+
+          mostrar(
+            resultadoSeguro
+          );
+
+        } catch (erro) {
+
+          idToken =
+            "";
+
+          uidFirebase =
+            "";
+
+          mostrar({
+            etapa:
+              "B2_4_4F_4D_1_PRIMEIRO_VINCULO_REAL_CONTROLADO",
+
+            aprovado:
+              false,
+
+            codigo:
+              erro && erro.code
+                ? String(
+                    erro.code
+                  )
+                : "ERRO_CONTROLADO",
+
+            mensagem:
+              erro && erro.message
+                ? String(
+                    erro.message
+                  )
+                : "Falha no primeiro vínculo real.",
+
+            tokenFirebaseExposto:
+              false,
+
+            uidClienteExposto:
+              false
+          });
+
+        } finally {
+
+          try {
+            await signOut(
+              auth
+            );
+          } catch (_) {}
+
+          btn.disabled =
+            concluido ||
+            !checkbox.checked;
+        }
+      }
+    );
+
+  </script>
+</body>
+</html>
