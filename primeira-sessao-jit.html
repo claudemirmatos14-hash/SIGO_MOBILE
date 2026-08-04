@@ -1,0 +1,1004 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  >
+  <meta
+    name="robots"
+    content="noindex,nofollow"
+  >
+  <title>SIGO — Primeira sessão real JIT</title>
+
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #08111f;
+      --panel: #101b2d;
+      --panel-2: #15233a;
+      --border: #2b3b57;
+      --text: #eef4ff;
+      --muted: #9fb0ca;
+      --accent: #4f8cff;
+      --accent-2: #2f6fe4;
+      --success: #34c989;
+      --danger: #ff6b7a;
+      --warning: #f7c85b;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family:
+        Inter,
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(
+          circle at top left,
+          rgba(79, 140, 255, 0.18),
+          transparent 36%
+        ),
+        var(--bg);
+    }
+
+    main {
+      width: min(860px, calc(100% - 32px));
+      margin: 48px auto;
+    }
+
+    .hero {
+      margin-bottom: 22px;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #82aaff;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 5vw, 46px);
+      line-height: 1.08;
+    }
+
+    .subtitle {
+      margin: 14px 0 0;
+      max-width: 720px;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.65;
+    }
+
+    .card {
+      padding: 24px;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background:
+        linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.025),
+          transparent
+        ),
+        var(--panel);
+      box-shadow:
+        0 24px 64px rgba(0, 0, 0, 0.28);
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns:
+        repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .status-box {
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--panel-2);
+    }
+
+    .status-label {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .status-value {
+      font-weight: 750;
+      word-break: break-word;
+    }
+
+    .warning {
+      padding: 16px;
+      border: 1px solid
+        rgba(247, 200, 91, 0.38);
+      border-radius: 14px;
+      background:
+        rgba(247, 200, 91, 0.08);
+      color: #ffe8a5;
+      line-height: 1.55;
+    }
+
+    .confirmacao {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin: 20px 0;
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.025);
+      cursor: pointer;
+    }
+
+    .confirmacao input {
+      width: 20px;
+      height: 20px;
+      margin-top: 2px;
+      accent-color: var(--accent);
+    }
+
+    .confirmacao strong {
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .confirmacao span {
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    button {
+      width: 100%;
+      min-height: 54px;
+      border: 0;
+      border-radius: 14px;
+      font-size: 16px;
+      font-weight: 800;
+      color: white;
+      background:
+        linear-gradient(
+          135deg,
+          var(--accent),
+          var(--accent-2)
+        );
+      cursor: pointer;
+      transition:
+        transform 0.16s ease,
+        opacity 0.16s ease;
+    }
+
+    button:not(:disabled):hover {
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.48;
+    }
+
+    .result-title {
+      margin: 24px 0 10px;
+      font-size: 16px;
+    }
+
+    pre {
+      min-height: 180px;
+      margin: 0;
+      padding: 18px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      color: #d8e7ff;
+      background: #07101d;
+      line-height: 1.5;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      margin-top: 14px;
+      padding: 8px 11px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 800;
+      background: rgba(79, 140, 255, 0.12);
+      color: #a9c5ff;
+    }
+
+    @media (max-width: 680px) {
+      main {
+        margin: 24px auto;
+      }
+
+      .status-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .card {
+        padding: 18px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main>
+    <header class="hero">
+      <p class="eyebrow">
+        SIGO V1.0 · B4.1.20.4D.8B.5A.7
+      </p>
+
+      <h1>
+        Primeira sessão real JIT
+      </h1>
+
+      <p class="subtitle">
+        A autenticação Firebase, a criação do AUTH-SRV,
+        a autorização JIT e a criação da sessão ocorrerão
+        na mesma requisição server-side.
+      </p>
+    </header>
+
+    <section class="card">
+      <div class="status-grid">
+        <div class="status-box">
+          <span class="status-label">
+            Usuário
+          </span>
+          <span class="status-value">
+            Claudemir Matos
+          </span>
+        </div>
+
+        <div class="status-box">
+          <span class="status-label">
+            Conta Google
+          </span>
+          <span class="status-value">
+            claudemirmatos14@gmail.com
+          </span>
+        </div>
+
+        <div class="status-box">
+          <span class="status-label">
+            Modo
+          </span>
+          <span class="status-value">
+            Execução única
+          </span>
+        </div>
+      </div>
+
+      <div class="warning">
+        Antes de usar esta página, a função
+        <strong>
+          prepararPrimeiraExecucaoRealJitB41204D8B5A7()
+        </strong>
+        precisa ter aprovado o baseline e armado a rota.
+        Não atualize a página nem abra outra cópia durante
+        a execução.
+      </div>
+
+      <label class="confirmacao">
+        <input
+          id="confirmacao"
+          type="checkbox"
+        >
+
+        <span>
+          <strong>
+            Confirmo a primeira execução real.
+          </strong>
+
+          Estou usando a conta Google indicada acima e
+          autorizo a criação server-side da primeira sessão
+          do dispositivo piloto.
+        </span>
+      </label>
+
+      <button
+        id="btnExecutar"
+        type="button"
+        disabled
+      >
+        Entrar com Google e criar primeira sessão
+      </button>
+
+      <div class="badge">
+        🔒 Token Firebase somente em memória
+      </div>
+
+      <h2 class="result-title">
+        Comprovante sanitizado
+      </h2>
+
+      <pre id="resultado">
+Aguardando confirmação...
+      </pre>
+    </section>
+  </main>
+
+  <script type="module">
+    import {
+      initializeApp
+    } from
+      "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+
+    import {
+      getAuth,
+      GoogleAuthProvider,
+      signInWithPopup,
+      signOut,
+      setPersistence,
+      inMemoryPersistence,
+      getIdToken
+    } from
+      "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+
+
+    /*
+     * IMPORTANTE:
+     * mantenha aqui a mesma apiKey já funcional da página
+     * Firebase usada e aprovada anteriormente.
+     */
+    const firebaseConfig = {
+  apiKey: "AIzaSyDvs7xE2QhHuKF6OhXC6PNyID0Uf06FzjY",
+  authDomain: "sigo-v1-0-mobile.firebaseapp.com",
+  projectId: "sigo-v1-0-mobile",
+  storageBucket: "sigo-v1-0-mobile.firebasestorage.app",
+  messagingSenderId: "292699885751",
+  appId: "1:292699885751:web:38eafdb653b1f2d5ebbd32",
+  measurementId: "G-2ZYW79F3V9"
+};
+
+
+    const ENDPOINT =
+      "https://script.google.com/macros/s/" +
+      "AKfycbzVE7tdTSwHvKgLkrdcaQtGAm_muqNPo6n0wQZBDpmRwtAJuySfWyh6gdef0R6g_drKRw" +
+      "/exec";
+
+
+    const ACAO =
+      "EXECUTAR_PRIMEIRA_SESSAO_JIT_B41204D8B6";
+
+
+    const EMAIL_ESPERADO =
+      "claudemirmatos14@gmail.com";
+
+
+    const ID_USUARIO_ESPERADO =
+      "USR-IND-B476B612655840C2";
+
+
+    const app =
+      initializeApp(
+        firebaseConfig
+      );
+
+
+    const auth =
+      getAuth(
+        app
+      );
+
+
+    await setPersistence(
+      auth,
+      inMemoryPersistence
+    );
+
+
+    const provider =
+      new GoogleAuthProvider();
+
+
+    provider.setCustomParameters({
+      login_hint:
+        EMAIL_ESPERADO
+    });
+
+
+    const checkbox =
+      document.getElementById(
+        "confirmacao"
+      );
+
+
+    const btn =
+      document.getElementById(
+        "btnExecutar"
+      );
+
+
+    const out =
+      document.getElementById(
+        "resultado"
+      );
+
+
+    let requisicaoEnviada =
+      sessionStorage.getItem(
+        "SIGO_B41204D8B5A7_REQUISICAO_ENVIADA"
+      ) ===
+      "1";
+
+
+    function mostrar(
+      objeto
+    ) {
+
+      out.textContent =
+        JSON.stringify(
+          objeto,
+          null,
+          2
+        );
+    }
+
+
+    function detalhes_(
+      objeto
+    ) {
+
+      if (
+        !objeto ||
+        typeof objeto !==
+          "object"
+      ) {
+        return {};
+      }
+
+      return (
+        objeto.detalhes ||
+        objeto.details ||
+        {}
+      );
+    }
+
+
+    function formato_(
+      valor,
+      regex
+    ) {
+
+      return regex.test(
+        String(
+          valor ||
+          ""
+        ).trim()
+      );
+    }
+
+
+    function bloquearDefinitivamente_() {
+
+      requisicaoEnviada =
+        true;
+
+      sessionStorage.setItem(
+        "SIGO_B41204D8B5A7_REQUISICAO_ENVIADA",
+        "1"
+      );
+
+      checkbox.disabled =
+        true;
+
+      btn.disabled =
+        true;
+    }
+
+
+    if (
+      requisicaoEnviada
+    ) {
+
+      checkbox.disabled =
+        true;
+
+      btn.disabled =
+        true;
+
+      mostrar({
+        etapa:
+          "B4_1_20_4D8B5A7_PAGINA_UNICO_CLIQUE",
+
+        status:
+          "REQUISICAO_JA_ENVIADA_NESTA_ABA",
+
+        orientacao:
+          "Não repita. Execute a auditoria pós no Apps Script."
+      });
+    }
+
+
+    checkbox.addEventListener(
+      "change",
+      () => {
+
+        btn.disabled =
+          !checkbox.checked ||
+          requisicaoEnviada;
+      }
+    );
+
+
+    btn.addEventListener(
+      "click",
+      async () => {
+
+        if (
+          requisicaoEnviada ||
+          !checkbox.checked
+        ) {
+          return;
+        }
+
+        btn.disabled =
+          true;
+
+        mostrar({
+          etapa:
+            "B4_1_20_4D8B5A7_PAGINA_UNICO_CLIQUE",
+
+          status:
+            "ABRINDO_LOGIN_GOOGLE"
+        });
+
+        let idToken = "";
+        let postIniciado = false;
+
+        try {
+
+          /*
+           * Não existe window.confirm() antes do popup.
+           * O popup é iniciado diretamente pelo gesto do botão.
+           */
+          const credencial =
+            await signInWithPopup(
+              auth,
+              provider
+            );
+
+
+          const user =
+            credencial.user;
+
+
+          const email =
+            String(
+              user.email ||
+              ""
+            )
+              .trim()
+              .toLowerCase();
+
+
+          if (
+            email !==
+            EMAIL_ESPERADO
+          ) {
+
+            await signOut(
+              auth
+            );
+
+            throw new Error(
+              "CONTA_GOOGLE_DIVERGENTE_DO_USUARIO_SIGO"
+            );
+          }
+
+
+          if (
+            user.emailVerified !==
+            true
+          ) {
+
+            await signOut(
+              auth
+            );
+
+            throw new Error(
+              "EMAIL_FIREBASE_NAO_VERIFICADO"
+            );
+          }
+
+
+          idToken =
+            await getIdToken(
+              user,
+              true
+            );
+
+
+          if (!idToken) {
+            throw new Error(
+              "TOKEN_FIREBASE_NAO_EMITIDO"
+            );
+          }
+
+
+          /*
+           * A partir daqui, a página nunca permite novo POST
+           * no mesmo carregamento/aba.
+           */
+          bloquearDefinitivamente_();
+
+          postIniciado =
+            true;
+
+
+          mostrar({
+            etapa:
+              "B4_1_20_4D8B5A7_PAGINA_UNICO_CLIQUE",
+
+            status:
+              "EXECUCAO_SERVER_SIDE_EM_ANDAMENTO",
+
+            orientacao:
+              "Aguarde a resposta. Não feche nem atualize a página."
+          });
+
+
+          const resposta =
+            await fetch(
+              ENDPOINT,
+              {
+                method:
+                  "POST",
+
+                redirect:
+                  "follow",
+
+                headers: {
+                  "Content-Type":
+                    "text/plain;charset=UTF-8"
+                },
+
+                body:
+                  JSON.stringify({
+                    acao:
+                      ACAO,
+
+                    firebaseIdToken:
+                      idToken
+                  })
+              }
+            );
+
+
+          const texto =
+            await resposta.text();
+
+
+          let jsonServidor = null;
+
+          try {
+
+            jsonServidor =
+              JSON.parse(
+                texto
+              );
+
+          } catch (erroJson) {
+
+            throw new Error(
+              "RESPOSTA_SERVIDOR_NAO_JSON"
+            );
+          }
+
+
+          /*
+           * Verifica eventual eco indevido antes de eliminar a
+           * referência ao token em memória.
+           */
+          const tokenFoiRetornado =
+            Boolean(
+              idToken &&
+              texto.includes(
+                idToken
+              )
+            );
+
+
+          /*
+           * O token deixa de ser referenciado antes da montagem
+           * do comprovante exibido.
+           */
+          idToken = "";
+
+
+          const detalhes =
+            detalhes_(
+              jsonServidor
+            );
+
+
+          const execucao =
+            detalhes.execucao &&
+            typeof detalhes.execucao ===
+              "object"
+              ? detalhes.execucao
+              : {};
+
+
+          const etapas =
+            Array.isArray(
+              execucao.etapasExecutadas
+            )
+              ? execucao.etapasExecutadas
+              : [];
+
+
+          const validacoes = {
+            httpOk:
+              resposta.ok ===
+              true,
+
+            acaoCorreta:
+              detalhes.acao ===
+              ACAO,
+
+            statusOk:
+              jsonServidor.status ===
+              "OK",
+
+            resultadoSessaoCriada:
+              detalhes.resultado ===
+              "SESSAO_JIT_CRIADA",
+
+            codigoTransacaoConcluida:
+              detalhes.codigo ===
+              "B41204D8B2_TRANSACAO_CONCLUIDA",
+
+            authSrvPresente:
+              formato_(
+                detalhes
+                  .idAutenticacaoServidor,
+                /^AUTH-SRV-[A-F0-9]{32}$/
+              ),
+
+            execucaoOk:
+              execucao.ok ===
+              true,
+
+            idAutorizacaoPresente:
+              formato_(
+                execucao.idAutorizacao,
+                /^AUT-[A-F0-9]{32}$/
+              ),
+
+            idSessaoPresente:
+              formato_(
+                execucao.idSessao,
+                /^SES-[A-Z0-9-]+$/
+              ),
+
+            trezeEtapas:
+              etapas.length ===
+              13,
+
+            ordemInicial:
+              etapas[0] ===
+              "PREFLIGHT_ESTRUTURAL",
+
+            ordemFinal:
+              etapas[12] ===
+              "AUDITORIA_POS",
+
+            rollbackNaoExecutado:
+              execucao.rollbackExecutado ===
+              false,
+
+            runtimeDeclaradoLimpo:
+              execucao.runtimeLimpo ===
+              true,
+
+            mutacaoDeclarada:
+              detalhes.mutacaoExecutada ===
+              true,
+
+            tokenFirebaseNaoExposto:
+              detalhes.tokenFirebaseExposto ===
+                false &&
+              tokenFoiRetornado ===
+                false &&
+              !JSON.stringify(
+                jsonServidor
+              ).includes(
+                "firebaseIdToken"
+              ),
+
+            uidNaoExposto:
+              detalhes.uidExposto ===
+              false
+          };
+
+
+          const falsas =
+            Object.entries(
+              validacoes
+            )
+              .filter(
+                ([, valor]) =>
+                  valor !==
+                  true
+              )
+              .map(
+                ([nome]) =>
+                  nome
+              );
+
+
+          const comprovante = {
+            etapa:
+              "B4_1_20_4D8B5A7_PAGINA_UNICO_CLIQUE",
+
+            autenticacaoFirebase:
+              true,
+
+            httpStatus:
+              resposta.status,
+
+            email,
+
+            idUsuario:
+              ID_USUARIO_ESPERADO,
+
+            idAutenticacaoServidor:
+              detalhes
+                .idAutenticacaoServidor ||
+              "",
+
+            idAutorizacao:
+              execucao.idAutorizacao ||
+              "",
+
+            idSessao:
+              execucao.idSessao ||
+              "",
+
+            etapasExecutadas:
+              etapas,
+
+            tokenFirebaseExposto:
+              false,
+
+            uidClienteExposto:
+              false,
+
+            validacoes,
+
+            totalValidacoes:
+              Object.keys(
+                validacoes
+              ).length,
+
+            totalFalsas:
+              falsas.length,
+
+            falsas,
+
+            aprovado:
+              falsas.length ===
+              0,
+
+            classificacao:
+              falsas.length ===
+                0
+                ? "B4_1_20_4D8B5A7_PRIMEIRA_SESSAO_REAL_SOLICITADA_E_CONFIRMADA_PELO_SERVIDOR"
+                : "B4_1_20_4D8B5A7_RESPOSTA_REAL_COM_DIVERGENCIA",
+
+            proximaEtapa:
+              "EXECUTAR_auditarPosPrimeiraExecucaoRealJitB41204D8B7"
+          };
+
+
+          mostrar(
+            comprovante
+          );
+
+
+          try {
+            await signOut(
+              auth
+            );
+          } catch (_) {
+            // O comprovante já foi produzido.
+          }
+
+        } catch (erro) {
+
+          idToken = "";
+
+          try {
+            await signOut(
+              auth
+            );
+          } catch (_) {
+            // Sem ação.
+          }
+
+
+          /*
+           * Somente falhas anteriores ao POST permitem nova
+           * tentativa nesta mesma página.
+           */
+          if (
+            postIniciado !==
+            true
+          ) {
+
+            requisicaoEnviada =
+              false;
+
+            sessionStorage.removeItem(
+              "SIGO_B41204D8B5A7_REQUISICAO_ENVIADA"
+            );
+
+            checkbox.disabled =
+              false;
+
+            btn.disabled =
+              !checkbox.checked;
+          }
+
+
+          mostrar({
+            etapa:
+              "B4_1_20_4D8B5A7_PAGINA_UNICO_CLIQUE",
+
+            aprovado:
+              false,
+
+            postIniciado,
+
+            erro:
+              erro &&
+              erro.message
+                ? String(
+                    erro.message
+                  )
+                : String(
+                    erro
+                  ),
+
+            tokenFirebaseExposto:
+              false,
+
+            uidClienteExposto:
+              false,
+
+            orientacao:
+              postIniciado
+                ? "Não repita. Execute a auditoria pós no Apps Script."
+                : "A chamada server-side não começou. Verifique o login e tente novamente enquanto o armamento estiver válido."
+          });
+        }
+      }
+    );
+  </script>
+</body>
+</html>
