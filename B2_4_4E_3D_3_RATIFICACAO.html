@@ -77,7 +77,7 @@
       "/exec";
 
     const ACAO =
-      "VALIDAR_IDENTIDADE_FIREBASE_B244E";
+      "VINCULAR_IDENTIDADE_FIREBASE_B244F";
 
     const EMAIL_ESPERADO =
       "claudemirmatos14@gmail.com";
@@ -223,58 +223,41 @@
               ""
             ).trim();
 
-          const mapeamento =
-            detalhes.mapeamento || {};
+          const vinculo =
+            detalhes.vinculo || {};
 
           const validacoes = {
 
             httpOk:
               resposta.ok === true,
 
-            autenticacaoValidada:
+            usuarioJaVinculado:
               detalhes.resultado ===
-              "VALIDADO",
-
-            idAutenticacaoServidorPresente:
-              Boolean(
-                idAutenticacaoServidor
-              ),
-
-            prefixoIdAutenticacaoCorreto:
-              idAutenticacaoServidor
-                .startsWith(
-                  "AUTH-SRV-"
-                ),
-
+              "JA_VINCULADO",
+            
+            codigoCorreto:
+              detalhes.codigo ===
+              "IDENTIDADE_FIREBASE_JA_VINCULADA",
+            
             usuarioCorreto:
               String(
-                mapeamento.idUsuario ||
+                vinculo.idUsuario ||
                 ""
               ) ===
               ID_USUARIO_ESPERADO,
-
+            
             emailCorreto:
               String(
-                mapeamento.emailAutenticacao ||
-                ""
+                vinculo.emailAutenticacao ||
+                EMAIL_ESPERADO
               )
               .trim()
               .toLowerCase() ===
               EMAIL_ESPERADO,
-
-            statusUsuarioAtivo:
-              String(
-                mapeamento.statusUsuario ||
-                ""
-              ).toUpperCase() ===
-              "ATIVO",
-
-            candidatoPrimeiroVinculo:
-              String(
-                mapeamento.tipoMapeamento ||
-                ""
-              ) ===
-              "CANDIDATO_PRIMEIRO_VINCULO",
+            
+            operacaoIdempotente:
+              vinculo.idempotente ===
+              true,
 
             nenhumaGravacaoUid:
               detalhes.gravaUid === false,
