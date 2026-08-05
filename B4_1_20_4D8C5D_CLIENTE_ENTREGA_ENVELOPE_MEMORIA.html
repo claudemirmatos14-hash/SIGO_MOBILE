@@ -34,7 +34,7 @@
   >
 
   <title>
-    SIGO — Entrega segura da sessão
+    SIGO — Entrega e confirmação seguras da sessão
   </title>
 
   <style>
@@ -288,18 +288,18 @@
   <main>
     <header class="hero">
       <p class="eyebrow">
-        SIGO V1.0 · B4.1.20.4D.8C.5D
+        SIGO V1.0 · B4.1.20.4D.8C.6F
       </p>
 
       <h1>
-        Entrega segura da sessão
+        Entrega e confirmação seguras
       </h1>
 
       <p class="subtitle">
-        Esta página captura um token Firebase fresco e,
-        quando formalmente liberada, recebe o envelope de
-        entrega mantendo o código de retirada e a credencial
-        exclusivamente em memória volátil.
+        Esta página captura tokens Firebase frescos para
+        emitir o envelope e confirmar sua entrega. O código de
+        retirada e a credencial permanecem exclusivamente em
+        memória volátil durante todo o fluxo.
       </p>
     </header>
 
@@ -346,15 +346,18 @@
         </div>
       </div>
 
-      <div class="warning">
+      <div
+        id="avisoOperacional"
+        class="warning"
+      >
         <strong>
-          Portão cliente fechado.
+          Portões do cliente fechados.
         </strong>
 
         Nesta etapa a página é apenas publicada e auditada.
-        Não haverá login, POST, emissão de envelope ou
-        ativação de credencial enquanto o portão
-        B4.1.20.4D.8C.5D permanecer em
+        Não haverá login, POST, emissão, confirmação ou
+        ativação enquanto os portões B4.1.20.4D.8C.5D e
+        B4.1.20.4D.8C.6F permanecerem em
         <strong>false</strong>.
       </div>
 
@@ -390,12 +393,12 @@
           type="button"
           disabled
         >
-          Confirmação será habilitada na próxima etapa
+          Confirmar entrega e ativar credencial
         </button>
       </div>
 
       <div class="badge">
-        🔒 Token, código e credencial somente em memória
+        🔒 Emissão, confirmação e credencial somente em memória
       </div>
 
       <h2 class="result-title">
@@ -457,8 +460,12 @@ Página preparada. Portão cliente fechado.
       "/exec";
 
 
-    const ACAO =
+    const ACAO_EMITIR =
       "EMITIR_ENVELOPE_ENTREGA_SESSAO_B41204D8C3";
+
+
+    const ACAO_CONFIRMAR =
+      "CONFIRMAR_ENTREGA_SESSAO_B41204D8C3";
 
 
     const EMAIL_ESPERADO =
@@ -478,6 +485,10 @@ Página preparada. Portão cliente fechado.
 
 
     const SIGO_B41204D8C5D_CLIENTE_ENTREGA_LIBERADO =
+      false;
+
+
+    const SIGO_B41204D8C6F_CLIENTE_CONFIRMACAO_LIBERADO =
       false;
 
 
@@ -527,6 +538,12 @@ Página preparada. Portão cliente fechado.
       );
 
 
+    const avisoOperacional =
+      document.getElementById(
+        "avisoOperacional"
+      );
+
+
     const out =
       document.getElementById(
         "resultado"
@@ -537,11 +554,19 @@ Página preparada. Portão cliente fechado.
       false;
 
 
+    let confirmacaoEnviada =
+      false;
+
+
     let usuarioFirebaseMemoria =
       null;
 
 
     let envelopeMemoria =
+      null;
+
+
+    let credencialAtivadaMemoria =
       null;
 
 
@@ -661,9 +686,70 @@ Página preparada. Portão cliente fechado.
     }
 
 
+    function limparCredencialAtivadaMemoria_() {
+
+      if (
+        credencialAtivadaMemoria &&
+        typeof credencialAtivadaMemoria ===
+          "object"
+      ) {
+
+        credencialAtivadaMemoria.idCredencial =
+          "";
+
+        credencialAtivadaMemoria.idSessao =
+          "";
+
+        credencialAtivadaMemoria.credencialSessao =
+          "";
+
+        credencialAtivadaMemoria.expiraEm =
+          "";
+      }
+
+
+      credencialAtivadaMemoria =
+        null;
+    }
+
+
+    function criarPayloadConfirmacao_(
+      idToken,
+      digestCredencialRecebida
+    ) {
+
+      return {
+        acao:
+          ACAO_CONFIRMAR,
+
+        firebaseIdToken:
+          idToken,
+
+        idUsuario:
+          ID_USUARIO,
+
+        idDispositivo:
+          ID_DISPOSITIVO,
+
+        idSessao:
+          ID_SESSAO,
+
+        idEnvelope:
+          envelopeMemoria.idEnvelope,
+
+        codigoRetirada:
+          envelopeMemoria.codigoRetirada,
+
+        digestCredencialRecebida
+      };
+    }
+
+
     async function limparContextoVolatil_() {
 
       limparEnvelopeMemoria_();
+
+      limparCredencialAtivadaMemoria_();
 
       usuarioFirebaseMemoria =
         null;
@@ -706,23 +792,43 @@ Página preparada. Portão cliente fechado.
 
       if (
         SIGO_B41204D8C5D_CLIENTE_ENTREGA_LIBERADO !==
-        true
+          true &&
+        SIGO_B41204D8C6F_CLIENTE_CONFIRMACAO_LIBERADO !==
+          true
       ) {
+
+        avisoOperacional.innerHTML =
+          "<strong>Portões do cliente fechados.</strong> " +
+          "A página está preparada para emissão e confirmação, " +
+          "mas nenhuma chamada será permitida nesta etapa.";
+
 
         mostrarSanitizado_({
           etapa:
-            "B4_1_20_4D8C5D_CLIENTE_ENTREGA_MEMORIA",
+            "B4_1_20_4D8C6F_CLIENTE_CONFIRMACAO_MEMORIA",
 
           status:
-            "PORTAO_CLIENTE_FECHADO",
+            "PORTOES_CLIENTE_FECHADOS",
 
-          postExecutado:
+          portaoEmissaoLiberado:
+            false,
+
+          portaoConfirmacaoLiberado:
+            false,
+
+          postEmissaoExecutado:
+            false,
+
+          postConfirmacaoExecutado:
             false,
 
           firebaseExecutado:
             false,
 
           envelopeRecebido:
+            false,
+
+          credencialAtivada:
             false,
 
           segredoPersistido:
@@ -771,7 +877,7 @@ Página preparada. Portão cliente fechado.
 
         mostrarSanitizado_({
           etapa:
-            "B4_1_20_4D8C5D_CLIENTE_ENTREGA_MEMORIA",
+            "B4_1_20_4D8C6F_CLIENTE_CONFIRMACAO_MEMORIA",
 
           status:
             "ABRINDO_LOGIN_GOOGLE"
@@ -870,7 +976,7 @@ Página preparada. Portão cliente fechado.
 
           mostrarSanitizado_({
             etapa:
-              "B4_1_20_4D8C5D_CLIENTE_ENTREGA_MEMORIA",
+              "B4_1_20_4D8C6F_CLIENTE_CONFIRMACAO_MEMORIA",
 
             status:
               "SOLICITANDO_ENVELOPE",
@@ -907,7 +1013,7 @@ Página preparada. Portão cliente fechado.
                 body:
                   JSON.stringify({
                     acao:
-                      ACAO,
+                      ACAO_EMITIR,
 
                     firebaseIdToken:
                       idToken,
@@ -998,7 +1104,7 @@ Página preparada. Portão cliente fechado.
 
             acaoCorreta:
               detalhes.acao ===
-              ACAO,
+              ACAO_EMITIR,
 
             resultadoEnvelope:
               detalhes.resultado ===
@@ -1164,7 +1270,7 @@ Página preparada. Portão cliente fechado.
 
           mostrarSanitizado_({
             etapa:
-              "B4_1_20_4D8C5D_CLIENTE_ENTREGA_MEMORIA",
+              "B4_1_20_4D8C6F_CLIENTE_CONFIRMACAO_MEMORIA",
 
             autenticacaoFirebase:
               true,
@@ -1231,11 +1337,15 @@ Página preparada. Portão cliente fechado.
 
 
           btnConfirmar.disabled =
+            SIGO_B41204D8C6F_CLIENTE_CONFIRMACAO_LIBERADO !==
             true;
 
 
           btnConfirmar.textContent =
-            "Envelope em memória; aguarde a etapa de confirmação";
+            SIGO_B41204D8C6F_CLIENTE_CONFIRMACAO_LIBERADO ===
+              true
+              ? "Confirmar entrega e ativar credencial"
+              : "Envelope em memória; portão de confirmação fechado";
 
         } catch (erro) {
 
@@ -1292,7 +1402,7 @@ Página preparada. Portão cliente fechado.
 
           mostrarSanitizado_({
             etapa:
-              "B4_1_20_4D8C5D_CLIENTE_ENTREGA_MEMORIA",
+              "B4_1_20_4D8C6F_CLIENTE_CONFIRMACAO_MEMORIA",
 
             aprovado:
               false,
@@ -1329,11 +1439,661 @@ Página preparada. Portão cliente fechado.
     );
 
 
+
+
+    btnConfirmar.addEventListener(
+      "click",
+      async () => {
+
+        if (
+          SIGO_B41204D8C6F_CLIENTE_CONFIRMACAO_LIBERADO !==
+            true ||
+          confirmacaoEnviada ===
+            true ||
+          !envelopeMemoria ||
+          !envelopeMemoria.codigoRetirada ||
+          !envelopeMemoria.credencialSessao
+        ) {
+          return;
+        }
+
+
+        btnConfirmar.disabled =
+          true;
+
+
+        let idTokenConfirmacao =
+          "";
+
+
+        let textoRespostaConfirmacao =
+          "";
+
+
+        let digestCredencialRecebida =
+          "";
+
+
+        let payloadConfirmacao =
+          null;
+
+
+        let postConfirmacaoIniciado =
+          false;
+
+
+        try {
+
+          const expiraMs =
+            new Date(
+              envelopeMemoria.expiraEm ||
+              ""
+            ).getTime();
+
+
+          if (
+            !isFinite(
+              expiraMs
+            ) ||
+            Date.now() >=
+            expiraMs
+          ) {
+
+            throw new Error(
+              "ENVELOPE_CLIENTE_EXPIRADO"
+            );
+          }
+
+
+          let user =
+            auth.currentUser ||
+            usuarioFirebaseMemoria;
+
+
+          if (!user) {
+
+            const credencialFirebase =
+              await signInWithPopup(
+                auth,
+                provider
+              );
+
+
+            user =
+              credencialFirebase.user;
+          }
+
+
+          const email =
+            String(
+              user.email ||
+              ""
+            )
+              .trim()
+              .toLowerCase();
+
+
+          if (
+            email !==
+            EMAIL_ESPERADO
+          ) {
+
+            throw new Error(
+              "CONTA_GOOGLE_DIVERGENTE_NA_CONFIRMACAO"
+            );
+          }
+
+
+          if (
+            user.emailVerified !==
+            true
+          ) {
+
+            throw new Error(
+              "EMAIL_FIREBASE_NAO_VERIFICADO_NA_CONFIRMACAO"
+            );
+          }
+
+
+          usuarioFirebaseMemoria =
+            user;
+
+
+          idTokenConfirmacao =
+            await getIdToken(
+              user,
+              true
+            );
+
+
+          if (!idTokenConfirmacao) {
+
+            throw new Error(
+              "TOKEN_FIREBASE_CONFIRMACAO_NAO_EMITIDO"
+            );
+          }
+
+
+          digestCredencialRecebida =
+            await sha256Hex_(
+              envelopeMemoria.credencialSessao
+            );
+
+
+          if (
+            digestCredencialRecebida !==
+            envelopeMemoria.digestCredencial
+          ) {
+
+            throw new Error(
+              "DIGEST_CREDENCIAL_CLIENTE_DIVERGENTE"
+            );
+          }
+
+
+          payloadConfirmacao =
+            criarPayloadConfirmacao_(
+              idTokenConfirmacao,
+              digestCredencialRecebida
+            );
+
+
+          confirmacaoEnviada =
+            true;
+
+
+          postConfirmacaoIniciado =
+            true;
+
+
+          mostrarSanitizado_({
+            etapa:
+              "B4_1_20_4D8C6F_CLIENTE_CONFIRMACAO_MEMORIA",
+
+            status:
+              "CONFIRMANDO_ENTREGA",
+
+            idEnvelope:
+              envelopeMemoria.idEnvelope,
+
+            orientacao:
+              "Aguarde. Não atualize nem feche esta página."
+          });
+
+
+          const resposta =
+            await fetch(
+              ENDPOINT,
+              {
+                method:
+                  "POST",
+
+                redirect:
+                  "follow",
+
+                cache:
+                  "no-store",
+
+                credentials:
+                  "omit",
+
+                referrerPolicy:
+                  "no-referrer",
+
+                headers: {
+                  "Content-Type":
+                    "text/plain;charset=UTF-8"
+                },
+
+                body:
+                  JSON.stringify(
+                    payloadConfirmacao
+                  )
+              }
+            );
+
+
+          textoRespostaConfirmacao =
+            await resposta.text();
+
+
+          const tokenRetornado =
+            Boolean(
+              idTokenConfirmacao &&
+              textoRespostaConfirmacao.includes(
+                idTokenConfirmacao
+              )
+            );
+
+
+          const codigoRetornado =
+            Boolean(
+              envelopeMemoria.codigoRetirada &&
+              textoRespostaConfirmacao.includes(
+                envelopeMemoria.codigoRetirada
+              )
+            );
+
+
+          const credencialRetornada =
+            Boolean(
+              envelopeMemoria.credencialSessao &&
+              textoRespostaConfirmacao.includes(
+                envelopeMemoria.credencialSessao
+              )
+            );
+
+
+          idTokenConfirmacao =
+            "";
+
+
+          payloadConfirmacao.firebaseIdToken =
+            "";
+
+          payloadConfirmacao.codigoRetirada =
+            "";
+
+          payloadConfirmacao.digestCredencialRecebida =
+            "";
+
+
+          let jsonServidor =
+            null;
+
+
+          try {
+
+            jsonServidor =
+              JSON.parse(
+                textoRespostaConfirmacao
+              );
+
+          } catch (_) {
+
+            throw new Error(
+              "RESPOSTA_CONFIRMACAO_NAO_JSON"
+            );
+          }
+
+
+          const detalhes =
+            detalhes_(
+              jsonServidor
+            );
+
+
+          const validacoes = {
+            httpOk:
+              resposta.ok ===
+              true,
+
+            statusOk:
+              jsonServidor.status ===
+              "OK",
+
+            acaoCorreta:
+              detalhes.acao ===
+              ACAO_CONFIRMAR,
+
+            resultadoAtivacao:
+              detalhes.resultado ===
+              "CREDENCIAL_ATIVADA",
+
+            codigoSucesso:
+              detalhes.codigo ===
+              "CREDENCIAL_ATIVADA_ENVELOPE_CONSUMIDO",
+
+            idEnvelopeExato:
+              detalhes.idEnvelope ===
+              envelopeMemoria.idEnvelope,
+
+            idSessaoExata:
+              detalhes.idSessao ===
+              ID_SESSAO,
+
+            idCredencialValido:
+              formato_(
+                detalhes.idCredencial,
+                /^CRED-SES-[A-F0-9]{32}$/
+              ),
+
+            expiraEmPresente:
+              Boolean(
+                detalhes.expiraEm
+              ),
+
+            mutacaoExecutada:
+              detalhes.mutacaoExecutada ===
+              true,
+
+            firebaseExecutado:
+              detalhes
+                .autenticacaoFirebaseExecutada ===
+              true,
+
+            envelopeConsumido:
+              detalhes.envelopeConsumido ===
+              true,
+
+            credencialAtivada:
+              detalhes.credencialAtivada ===
+              true,
+
+            rollbackNaoExecutado:
+              detalhes.rollbackExecutado ===
+              false,
+
+            tokenNaoExposto:
+              detalhes.tokenFirebaseExposto ===
+                false &&
+              tokenRetornado ===
+                false,
+
+            uidNaoExposto:
+              detalhes.uidExposto ===
+              false,
+
+            authFreshNaoExposto:
+              detalhes
+                .authSrvFirebaseFreshExposto ===
+              false,
+
+            codigoNaoExposto:
+              detalhes.codigoRetiradaExposto ===
+                false &&
+              codigoRetornado ===
+                false,
+
+            digestNaoExposto:
+              detalhes.digestCredencialExposto ===
+              false,
+
+            credencialNaoExposta:
+              detalhes.credencialSessaoExposta ===
+                false &&
+              credencialRetornada ===
+                false,
+
+            credencialClaraNaoPersistida:
+              detalhes.credencialClaraPersistida ===
+              false,
+
+            segredoForaUrl:
+              detalhes.segredoEmUrl ===
+              false
+          };
+
+
+          const falsas =
+            Object.entries(
+              validacoes
+            )
+              .filter(
+                ([, valor]) =>
+                  valor !==
+                  true
+              )
+              .map(
+                ([nome]) =>
+                  nome
+              );
+
+
+          if (
+            falsas.length >
+            0
+          ) {
+
+            textoRespostaConfirmacao =
+              "";
+
+            digestCredencialRecebida =
+              "";
+
+            throw new Error(
+              "CONFIRMACAO_RECEBIDA_COM_DIVERGENCIA_" +
+              falsas.join("_")
+            );
+          }
+
+
+          credencialAtivadaMemoria =
+            Object.seal({
+              idCredencial:
+                detalhes.idCredencial,
+
+              idSessao:
+                detalhes.idSessao,
+
+              credencialSessao:
+                envelopeMemoria.credencialSessao,
+
+              expiraEm:
+                detalhes.expiraEm
+            });
+
+
+          const idEnvelopeConfirmado =
+            envelopeMemoria.idEnvelope;
+
+
+          limparEnvelopeMemoria_();
+
+
+          textoRespostaConfirmacao =
+            "";
+
+          digestCredencialRecebida =
+            "";
+
+          payloadConfirmacao =
+            null;
+
+
+          try {
+            await signOut(
+              auth
+            );
+          } catch (_) {
+            // A autenticação Firebase permaneceu somente em memória.
+          }
+
+
+          usuarioFirebaseMemoria =
+            null;
+
+
+          btnConfirmar.disabled =
+            true;
+
+
+          btnConfirmar.textContent =
+            "Entrega confirmada e credencial ativada";
+
+
+          mostrarSanitizado_({
+            etapa:
+              "B4_1_20_4D8C6F_CLIENTE_CONFIRMACAO_MEMORIA",
+
+            autenticacaoFirebase:
+              true,
+
+            httpStatus:
+              resposta.status,
+
+            email,
+
+            idUsuario:
+              ID_USUARIO,
+
+            idDispositivo:
+              ID_DISPOSITIVO,
+
+            idSessao:
+              ID_SESSAO,
+
+            idEnvelope:
+              idEnvelopeConfirmado,
+
+            idCredencial:
+              credencialAtivadaMemoria.idCredencial,
+
+            expiraEm:
+              credencialAtivadaMemoria.expiraEm,
+
+            envelopeConsumido:
+              true,
+
+            credencialAtivada:
+              true,
+
+            credencialAtivadaEmMemoria:
+              Boolean(
+                credencialAtivadaMemoria.credencialSessao
+              ),
+
+            credencialPersistidaNoNavegador:
+              false,
+
+            tokenExposto:
+              false,
+
+            codigoRetiradaExposto:
+              false,
+
+            digestCredencialExposto:
+              false,
+
+            credencialExposta:
+              false,
+
+            totalValidacoes:
+              Object.keys(
+                validacoes
+              ).length,
+
+            totalFalsas:
+              0,
+
+            falsas:
+              [],
+
+            aprovado:
+              true,
+
+            classificacao:
+              "B4_1_20_4D8C6F_CREDENCIAL_ATIVADA_E_MANTIDA_SOMENTE_EM_MEMORIA",
+
+            proximaEtapa:
+              "B4_1_20_4D8C6G_AUDITAR_PRIMEIRA_ATIVACAO_REAL"
+          });
+
+        } catch (erro) {
+
+          idTokenConfirmacao =
+            "";
+
+          textoRespostaConfirmacao =
+            "";
+
+          digestCredencialRecebida =
+            "";
+
+
+          if (
+            payloadConfirmacao &&
+            typeof payloadConfirmacao ===
+              "object"
+          ) {
+
+            payloadConfirmacao.firebaseIdToken =
+              "";
+
+            payloadConfirmacao.codigoRetirada =
+              "";
+
+            payloadConfirmacao.digestCredencialRecebida =
+              "";
+          }
+
+
+          payloadConfirmacao =
+            null;
+
+
+          if (
+            postConfirmacaoIniciado !==
+            true
+          ) {
+
+            confirmacaoEnviada =
+              false;
+
+            btnConfirmar.disabled =
+              (
+                SIGO_B41204D8C6F_CLIENTE_CONFIRMACAO_LIBERADO !==
+                  true ||
+                !envelopeMemoria
+              );
+          }
+
+
+          mostrarSanitizado_({
+            etapa:
+              "B4_1_20_4D8C6F_CLIENTE_CONFIRMACAO_MEMORIA",
+
+            aprovado:
+              false,
+
+            postConfirmacaoIniciado,
+
+            erro:
+              erro &&
+              erro.message
+                ? String(
+                    erro.message
+                  )
+                : "ERRO_CONFIRMACAO_CLIENTE_SANITIZADO",
+
+            envelopePreservadoEmMemoria:
+              Boolean(
+                envelopeMemoria &&
+                envelopeMemoria.idEnvelope
+              ),
+
+            tokenFirebaseExposto:
+              false,
+
+            codigoRetiradaExposto:
+              false,
+
+            digestCredencialExposto:
+              false,
+
+            credencialSessaoExposta:
+              false,
+
+            segredoPersistido:
+              false,
+
+            orientacao:
+              postConfirmacaoIniciado
+                ? "Não repita. Preserve a página e execute a auditoria server-side."
+                : "A confirmação não começou. Revise a autenticação."
+          });
+        }
+      }
+    );
+
+
     window.addEventListener(
       "pagehide",
       () => {
 
         limparEnvelopeMemoria_();
+
+        limparCredencialAtivadaMemoria_();
 
         usuarioFirebaseMemoria =
           null;
@@ -1347,6 +2107,8 @@ Página preparada. Portão cliente fechado.
 
         limparEnvelopeMemoria_();
 
+        limparCredencialAtivadaMemoria_();
+
         usuarioFirebaseMemoria =
           null;
       }
@@ -1358,6 +2120,8 @@ Página preparada. Portão cliente fechado.
       () => {
 
         limparEnvelopeMemoria_();
+
+        limparCredencialAtivadaMemoria_();
       }
     );
 
