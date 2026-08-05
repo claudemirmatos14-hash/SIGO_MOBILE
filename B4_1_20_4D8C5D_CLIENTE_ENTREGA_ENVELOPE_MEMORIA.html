@@ -288,7 +288,7 @@
   <main>
     <header class="hero">
       <p class="eyebrow">
-        SIGO V1.0 · B4.1.20.4D.8C.6F
+        SIGO V1.0 · B4.1.20.4D.8C.6I
       </p>
 
       <h1>
@@ -351,14 +351,13 @@
         class="warning"
       >
         <strong>
-          Portões do cliente fechados.
+          Execução real controlada preparada.
         </strong>
 
-        Nesta etapa a página é apenas publicada e auditada.
-        Não haverá login, POST, emissão, confirmação ou
-        ativação enquanto os portões B4.1.20.4D.8C.5D e
-        B4.1.20.4D.8C.6F permanecerem em
-        <strong>false</strong>.
+        Use esta página somente depois de confirmar que o
+        armamento conjunto de emissão e ativação está ativo.
+        Não atualize, não feche e não repita o fluxo depois que
+        o primeiro POST tiver sido iniciado.
       </div>
 
       <label class="confirmacao">
@@ -406,7 +405,7 @@
       </h2>
 
       <pre id="resultado">
-Página preparada. Portão cliente fechado.
+Página preparada. Aguarde o armamento conjunto antes de iniciar.
       </pre>
     </section>
   </main>
@@ -485,11 +484,11 @@ Página preparada. Portão cliente fechado.
 
 
     const SIGO_B41204D8C5D_CLIENTE_ENTREGA_LIBERADO =
-      false;
+      true;
 
 
     const SIGO_B41204D8C6F_CLIENTE_CONFIRMACAO_LIBERADO =
-      false;
+      true;
 
 
     const app =
@@ -805,7 +804,7 @@ Página preparada. Portão cliente fechado.
 
         mostrarSanitizado_({
           etapa:
-            "B4_1_20_4D8C6F_CLIENTE_CONFIRMACAO_MEMORIA",
+            "B4_1_20_4D8C6I_CLIENTE_EXECUCAO_REAL_CONTROLADA",
 
           status:
             "PORTOES_CLIENTE_FECHADOS",
@@ -815,6 +814,51 @@ Página preparada. Portão cliente fechado.
 
           portaoConfirmacaoLiberado:
             false,
+
+          postEmissaoExecutado:
+            false,
+
+          postConfirmacaoExecutado:
+            false,
+
+          firebaseExecutado:
+            false,
+
+          envelopeRecebido:
+            false,
+
+          credencialAtivada:
+            false,
+
+          segredoPersistido:
+            false
+        });
+
+      } else if (
+        SIGO_B41204D8C5D_CLIENTE_ENTREGA_LIBERADO ===
+          true &&
+        SIGO_B41204D8C6F_CLIENTE_CONFIRMACAO_LIBERADO ===
+          true
+      ) {
+
+        avisoOperacional.innerHTML =
+          "<strong>Execução real controlada liberada.</strong> " +
+          "Confirme primeiro o armamento conjunto no Apps Script. " +
+          "Depois marque a declaração e execute o fluxo uma única vez.";
+
+
+        mostrarSanitizado_({
+          etapa:
+            "B4_1_20_4D8C6I_CLIENTE_EXECUCAO_REAL_CONTROLADA",
+
+          status:
+            "PORTOES_CLIENTE_ABERTOS_AGUARDANDO_ACAO_MANUAL",
+
+          portaoEmissaoLiberado:
+            true,
+
+          portaoConfirmacaoLiberado:
+            true,
 
           postEmissaoExecutado:
             false,
@@ -877,7 +921,7 @@ Página preparada. Portão cliente fechado.
 
         mostrarSanitizado_({
           etapa:
-            "B4_1_20_4D8C6F_CLIENTE_CONFIRMACAO_MEMORIA",
+            "B4_1_20_4D8C6I_CLIENTE_EXECUCAO_REAL_CONTROLADA",
 
           status:
             "ABRINDO_LOGIN_GOOGLE"
@@ -976,7 +1020,7 @@ Página preparada. Portão cliente fechado.
 
           mostrarSanitizado_({
             etapa:
-              "B4_1_20_4D8C6F_CLIENTE_CONFIRMACAO_MEMORIA",
+              "B4_1_20_4D8C6I_CLIENTE_EXECUCAO_REAL_CONTROLADA",
 
             status:
               "SOLICITANDO_ENVELOPE",
@@ -1270,7 +1314,7 @@ Página preparada. Portão cliente fechado.
 
           mostrarSanitizado_({
             etapa:
-              "B4_1_20_4D8C6F_CLIENTE_CONFIRMACAO_MEMORIA",
+              "B4_1_20_4D8C6I_CLIENTE_EXECUCAO_REAL_CONTROLADA",
 
             autenticacaoFirebase:
               true,
@@ -1402,7 +1446,7 @@ Página preparada. Portão cliente fechado.
 
           mostrarSanitizado_({
             etapa:
-              "B4_1_20_4D8C6F_CLIENTE_CONFIRMACAO_MEMORIA",
+              "B4_1_20_4D8C6I_CLIENTE_EXECUCAO_REAL_CONTROLADA",
 
             aprovado:
               false,
@@ -1608,7 +1652,7 @@ Página preparada. Portão cliente fechado.
 
           mostrarSanitizado_({
             etapa:
-              "B4_1_20_4D8C6F_CLIENTE_CONFIRMACAO_MEMORIA",
+              "B4_1_20_4D8C6I_CLIENTE_EXECUCAO_REAL_CONTROLADA",
 
             status:
               "CONFIRMANDO_ENTREGA",
@@ -1914,7 +1958,7 @@ Página preparada. Portão cliente fechado.
 
           mostrarSanitizado_({
             etapa:
-              "B4_1_20_4D8C6F_CLIENTE_CONFIRMACAO_MEMORIA",
+              "B4_1_20_4D8C6I_CLIENTE_EXECUCAO_REAL_CONTROLADA",
 
             autenticacaoFirebase:
               true,
@@ -1983,10 +2027,10 @@ Página preparada. Portão cliente fechado.
               true,
 
             classificacao:
-              "B4_1_20_4D8C6F_CREDENCIAL_ATIVADA_E_MANTIDA_SOMENTE_EM_MEMORIA",
+              "B4_1_20_4D8C6I_CREDENCIAL_REAL_ATIVADA_E_MANTIDA_SOMENTE_EM_MEMORIA",
 
             proximaEtapa:
-              "B4_1_20_4D8C6G_AUDITAR_PRIMEIRA_ATIVACAO_REAL"
+              "B4_1_20_4D8C6IB_AUDITAR_FLUXO_REAL_COMPLETO"
           });
 
         } catch (erro) {
@@ -2041,7 +2085,7 @@ Página preparada. Portão cliente fechado.
 
           mostrarSanitizado_({
             etapa:
-              "B4_1_20_4D8C6F_CLIENTE_CONFIRMACAO_MEMORIA",
+              "B4_1_20_4D8C6I_CLIENTE_EXECUCAO_REAL_CONTROLADA",
 
             aprovado:
               false,
