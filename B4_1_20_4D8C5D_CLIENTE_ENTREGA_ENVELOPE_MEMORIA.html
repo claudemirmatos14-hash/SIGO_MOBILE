@@ -34,7 +34,7 @@
   >
 
   <title>
-    SIGO — Entrega e confirmação seguras da sessão
+    SIGO — Reemissão e confirmação seguras da credencial
   </title>
 
   <style>
@@ -383,7 +383,7 @@
           type="button"
           disabled
         >
-          Entrar com Google e receber envelope
+          Entrar com Google e preparar reemissão
         </button>
 
         <button
@@ -392,7 +392,7 @@
           type="button"
           disabled
         >
-          Confirmar entrega e ativar credencial
+          Confirmar reemissão e ativar credencial
         </button>
       </div>
 
@@ -411,7 +411,7 @@ Página preparada. Aguarde o armamento conjunto antes de iniciar.
   </main>
 
   <script type="module">
-    import {
+import {
       initializeApp
     } from
       "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
@@ -459,12 +459,10 @@ Página preparada. Aguarde o armamento conjunto antes de iniciar.
       "/exec";
 
 
-    const ACAO_EMITIR =
-      "EMITIR_ENVELOPE_ENTREGA_SESSAO_B41204D8C3";
+    
 
-
-    const ACAO_CONFIRMAR =
-      "CONFIRMAR_ENTREGA_SESSAO_B41204D8C3";
+    const ACAO_REEMITIR =
+      "REEMITIR_CREDENCIAL_CONTROLADA_B41204D8C7O";
 
 
     const EMAIL_ESPERADO =
@@ -483,6 +481,13 @@ Página preparada. Aguarde o armamento conjunto antes de iniciar.
       "SES-67FE7F8DD0B94CADB641754A84C0B1E4";
 
 
+    const ID_CREDENCIAL_ATUAL =
+      "CRED-SES-653C1BE95D3B4BACA0D6A01FC446291A";
+
+
+    /*
+     * PORTOES DO CLIENTE PERMANECEM FECHADOS NESTA FASE.
+     */
     const SIGO_B41204D8C5D_CLIENTE_ENTREGA_LIBERADO =
       false;
 
@@ -561,7 +566,7 @@ Página preparada. Aguarde o armamento conjunto antes de iniciar.
       null;
 
 
-    let envelopeMemoria =
+    let reemissaoMemoria =
       null;
 
 
@@ -572,7 +577,6 @@ Página preparada. Aguarde o armamento conjunto antes de iniciar.
     function mostrarSanitizado_(
       objeto
     ) {
-
       out.textContent =
         JSON.stringify(
           objeto,
@@ -585,7 +589,6 @@ Página preparada. Aguarde o armamento conjunto antes de iniciar.
     function detalhes_(
       objeto
     ) {
-
       if (
         !objeto ||
         typeof objeto !==
@@ -602,24 +605,19 @@ Página preparada. Aguarde o armamento conjunto antes de iniciar.
     }
 
 
-    function formato_(
-      valor,
-      regex
+    function texto_(
+      valor
     ) {
-
-      return regex.test(
-        String(
-          valor ||
-          ""
-        ).trim()
-      );
+      return String(
+        valor ||
+        ""
+      ).trim();
     }
 
 
     async function sha256Hex_(
       valor
     ) {
-
       const bytes =
         new TextEncoder()
           .encode(
@@ -629,13 +627,11 @@ Página preparada. Aguarde o armamento conjunto antes de iniciar.
             )
           );
 
-
       const digest =
         await crypto.subtle.digest(
           "SHA-256",
           bytes
         );
-
 
       return Array.from(
         new Uint8Array(
@@ -652,47 +648,36 @@ Página preparada. Aguarde o armamento conjunto antes de iniciar.
     }
 
 
-    function limparEnvelopeMemoria_() {
-
+    function limparReemissaoMemoria_() {
       if (
-        envelopeMemoria &&
-        typeof envelopeMemoria ===
+        reemissaoMemoria &&
+        typeof reemissaoMemoria ===
           "object"
       ) {
-
-        envelopeMemoria.idEnvelope =
+        reemissaoMemoria.idOperacao =
           "";
 
-        envelopeMemoria.idSessao =
+        reemissaoMemoria.idCredencialNova =
           "";
 
-        envelopeMemoria.codigoRetirada =
+        reemissaoMemoria.segredoNovoEmMemoria =
           "";
 
-        envelopeMemoria.credencialSessao =
-          "";
-
-        envelopeMemoria.digestCredencial =
-          "";
-
-        envelopeMemoria.expiraEm =
+        reemissaoMemoria.digestCalculadoPeloApp =
           "";
       }
 
-
-      envelopeMemoria =
+      reemissaoMemoria =
         null;
     }
 
 
     function limparCredencialAtivadaMemoria_() {
-
       if (
         credencialAtivadaMemoria &&
         typeof credencialAtivadaMemoria ===
           "object"
       ) {
-
         credencialAtivadaMemoria.idCredencial =
           "";
 
@@ -706,20 +691,20 @@ Página preparada. Aguarde o armamento conjunto antes de iniciar.
           "";
       }
 
-
       credencialAtivadaMemoria =
         null;
     }
 
 
-    function criarPayloadConfirmacao_(
-      idToken,
-      digestCredencialRecebida
+    function criarPayloadPreparacao_(
+      idToken
     ) {
-
       return {
         acao:
-          ACAO_CONFIRMAR,
+          ACAO_REEMITIR,
+
+        faseReemissao:
+          "PREPARACAO",
 
         firebaseIdToken:
           idToken,
@@ -733,20 +718,51 @@ Página preparada. Aguarde o armamento conjunto antes de iniciar.
         idSessao:
           ID_SESSAO,
 
-        idEnvelope:
-          envelopeMemoria.idEnvelope,
+        idCredencialAtual:
+          ID_CREDENCIAL_ATUAL
+      };
+    }
 
-        codigoRetirada:
-          envelopeMemoria.codigoRetirada,
 
-        digestCredencialRecebida
+    function criarPayloadConfirmacao_(
+      idToken,
+      digestCalculadoPeloApp
+    ) {
+      return {
+        acao:
+          ACAO_REEMITIR,
+
+        faseReemissao:
+          "CONFIRMACAO",
+
+        firebaseIdToken:
+          idToken,
+
+        idUsuario:
+          ID_USUARIO,
+
+        idDispositivo:
+          ID_DISPOSITIVO,
+
+        idSessao:
+          ID_SESSAO,
+
+        idCredencialAtual:
+          ID_CREDENCIAL_ATUAL,
+
+        idOperacao:
+          reemissaoMemoria.idOperacao,
+
+        idCredencialNova:
+          reemissaoMemoria.idCredencialNova,
+
+        digestCalculadoPeloApp
       };
     }
 
 
     async function limparContextoVolatil_() {
-
-      limparEnvelopeMemoria_();
+      limparReemissaoMemoria_();
 
       limparCredencialAtivadaMemoria_();
 
@@ -758,26 +774,43 @@ Página preparada. Aguarde o armamento conjunto antes de iniciar.
           auth
         );
       } catch (_) {
-        // A persistência Firebase já é exclusivamente em memória.
       }
     }
 
 
-    function bloquearEmissao_() {
+    async function postar_(
+      payload
+    ) {
+      return fetch(
+        ENDPOINT,
+        {
+          method:
+            "POST",
 
-      requisicaoEnviada =
-        true;
+          cache:
+            "no-store",
 
-      checkbox.disabled =
-        true;
+          credentials:
+            "omit",
 
-      btnEmitir.disabled =
-        true;
+          referrerPolicy:
+            "no-referrer",
+
+          headers: {
+            "Content-Type":
+              "text/plain;charset=UTF-8"
+          },
+
+          body:
+            JSON.stringify(
+              payload
+            )
+        }
+      );
     }
 
 
     function prepararInterface_() {
-
       checkbox.disabled =
         SIGO_B41204D8C5D_CLIENTE_ENTREGA_LIBERADO !==
         true;
@@ -788,91 +821,33 @@ Página preparada. Aguarde o armamento conjunto antes de iniciar.
       btnConfirmar.disabled =
         true;
 
-
       if (
         SIGO_B41204D8C5D_CLIENTE_ENTREGA_LIBERADO !==
           true &&
         SIGO_B41204D8C6F_CLIENTE_CONFIRMACAO_LIBERADO !==
           true
       ) {
-
         avisoOperacional.innerHTML =
           "<strong>Portões do cliente fechados.</strong> " +
-          "A página está preparada para emissão e confirmação, " +
-          "mas nenhuma chamada será permitida nesta etapa.";
-
+          "O candidato C7O está preparado apenas para auditoria offline.";
 
         mostrarSanitizado_({
           etapa:
-            "B4_1_20_4D8C6I_CLIENTE_EXECUCAO_REAL_CONTROLADA",
+            "FASE15_4D3K11C4_CLIENTE_CANDIDATO",
 
           status:
             "PORTOES_CLIENTE_FECHADOS",
 
-          portaoEmissaoLiberado:
+          preparacaoLiberada:
             false,
 
-          portaoConfirmacaoLiberado:
-            false,
-
-          postEmissaoExecutado:
-            false,
-
-          postConfirmacaoExecutado:
+          confirmacaoLiberada:
             false,
 
           firebaseExecutado:
             false,
 
-          envelopeRecebido:
-            false,
-
-          credencialAtivada:
-            false,
-
-          segredoPersistido:
-            false
-        });
-
-      } else if (
-        SIGO_B41204D8C5D_CLIENTE_ENTREGA_LIBERADO ===
-          true &&
-        SIGO_B41204D8C6F_CLIENTE_CONFIRMACAO_LIBERADO ===
-          true
-      ) {
-
-        avisoOperacional.innerHTML =
-          "<strong>Execução real controlada liberada.</strong> " +
-          "Confirme primeiro o armamento conjunto no Apps Script. " +
-          "Depois marque a declaração e execute o fluxo uma única vez.";
-
-
-        mostrarSanitizado_({
-          etapa:
-            "B4_1_20_4D8C6I_CLIENTE_EXECUCAO_REAL_CONTROLADA",
-
-          status:
-            "PORTOES_CLIENTE_ABERTOS_AGUARDANDO_ACAO_MANUAL",
-
-          portaoEmissaoLiberado:
-            true,
-
-          portaoConfirmacaoLiberado:
-            true,
-
-          postEmissaoExecutado:
-            false,
-
-          postConfirmacaoExecutado:
-            false,
-
-          firebaseExecutado:
-            false,
-
-          envelopeRecebido:
-            false,
-
-          credencialAtivada:
+          postExecutado:
             false,
 
           segredoPersistido:
@@ -885,7 +860,6 @@ Página preparada. Aguarde o armamento conjunto antes de iniciar.
     checkbox.addEventListener(
       "change",
       () => {
-
         btnEmitir.disabled =
           (
             SIGO_B41204D8C5D_CLIENTE_ENTREGA_LIBERADO !==
@@ -902,11 +876,8 @@ Página preparada. Aguarde o armamento conjunto antes de iniciar.
     btnEmitir.addEventListener(
       "click",
       async () => {
-
         if (
           SIGO_B41204D8C5D_CLIENTE_ENTREGA_LIBERADO !==
-            true ||
-          checkbox.checked !==
             true ||
           requisicaoEnviada ===
             true
@@ -914,87 +885,61 @@ Página preparada. Aguarde o armamento conjunto antes de iniciar.
           return;
         }
 
+        requisicaoEnviada =
+          true;
+
+        checkbox.disabled =
+          true;
 
         btnEmitir.disabled =
           true;
 
-
-        mostrarSanitizado_({
-          etapa:
-            "B4_1_20_4D8C6I_CLIENTE_EXECUCAO_REAL_CONTROLADA",
-
-          status:
-            "ABRINDO_LOGIN_GOOGLE"
-        });
-
-
         let idToken =
           "";
-
 
         let textoResposta =
           "";
 
-
-        let codigoRetirada =
+        let segredoNovo =
           "";
 
-
-        let credencialSessao =
+        let digestLocal =
           "";
 
+        let payloadPreparacao =
+          null;
 
-        let postIniciado =
+        let postPreparacaoIniciado =
           false;
 
-
         try {
-
-          const credencialFirebase =
+          const login =
             await signInWithPopup(
               auth,
               provider
             );
 
-
           const user =
-            credencialFirebase.user;
-
+            login.user;
 
           const email =
-            String(
-              user.email ||
-              ""
+            texto_(
+              user &&
+              user.email
             )
-              .trim()
               .toLowerCase();
-
 
           if (
             email !==
-            EMAIL_ESPERADO
+            EMAIL_ESPERADO.toLowerCase()
           ) {
-
             throw new Error(
-              "CONTA_GOOGLE_DIVERGENTE_DO_USUARIO_SIGO"
+              "CONTA_FIREBASE_NAO_AUTORIZADA"
             );
           }
-
-
-          if (
-            user.emailVerified !==
-            true
-          ) {
-
-            throw new Error(
-              "EMAIL_FIREBASE_NAO_VERIFICADO"
-            );
-          }
-
 
           usuarioFirebaseMemoria =
             user;
-
 
           idToken =
             await getIdToken(
@@ -1002,327 +947,144 @@ Página preparada. Aguarde o armamento conjunto antes de iniciar.
               true
             );
 
-
-          if (!idToken) {
-
-            throw new Error(
-              "TOKEN_FIREBASE_NAO_EMITIDO"
+          payloadPreparacao =
+            criarPayloadPreparacao_(
+              idToken
             );
-          }
 
-
-          bloquearEmissao_();
-
-
-          postIniciado =
+          postPreparacaoIniciado =
             true;
 
-
-          mostrarSanitizado_({
-            etapa:
-              "B4_1_20_4D8C6I_CLIENTE_EXECUCAO_REAL_CONTROLADA",
-
-            status:
-              "SOLICITANDO_ENVELOPE",
-
-            orientacao:
-              "Aguarde. Não atualize nem feche esta página."
-          });
-
-
           const resposta =
-            await fetch(
-              ENDPOINT,
-              {
-                method:
-                  "POST",
-
-                redirect:
-                  "follow",
-
-                cache:
-                  "no-store",
-
-                credentials:
-                  "omit",
-
-                referrerPolicy:
-                  "no-referrer",
-
-                headers: {
-                  "Content-Type":
-                    "text/plain;charset=UTF-8"
-                },
-
-                body:
-                  JSON.stringify({
-                    acao:
-                      ACAO_EMITIR,
-
-                    firebaseIdToken:
-                      idToken,
-
-                    idUsuario:
-                      ID_USUARIO,
-
-                    idDispositivo:
-                      ID_DISPOSITIVO,
-
-                    idSessao:
-                      ID_SESSAO
-                  })
-              }
+            await postar_(
+              payloadPreparacao
             );
-
 
           textoResposta =
             await resposta.text();
 
-
-          const tokenRetornado =
-            Boolean(
-              idToken &&
-              textoResposta.includes(
-                idToken
-              )
+          const objeto =
+            JSON.parse(
+              textoResposta
             );
-
-
-          idToken =
-            "";
-
-
-          let jsonServidor =
-            null;
-
-
-          try {
-
-            jsonServidor =
-              JSON.parse(
-                textoResposta
-              );
-
-          } catch (_) {
-
-            throw new Error(
-              "RESPOSTA_SERVIDOR_NAO_JSON"
-            );
-          }
-
 
           const detalhes =
             detalhes_(
-              jsonServidor
+              objeto
             );
 
-
-          codigoRetirada =
-            String(
-              detalhes.codigoRetirada ||
-              ""
+          const idOperacao =
+            texto_(
+              detalhes.idOperacao
             );
 
-
-          credencialSessao =
-            String(
-              detalhes.credencialSessao ||
-              ""
+          const idCredencialNova =
+            texto_(
+              detalhes.idCredencialNova
             );
 
-
-          const digestCalculado =
-            await sha256Hex_(
-              credencialSessao
+          segredoNovo =
+            texto_(
+              detalhes.segredoNovoEmMemoria
             );
 
-
-          const validacoes = {
-            httpOk:
-              resposta.ok ===
-              true,
-
-            statusOk:
-              jsonServidor.status ===
-              "OK",
-
-            acaoCorreta:
-              detalhes.acao ===
-              ACAO_EMITIR,
-
-            resultadoEnvelope:
-              detalhes.resultado ===
-              "ENVELOPE_EMITIDO",
-
-            codigoSucesso:
-              detalhes.codigo ===
-              "ENVELOPE_ENTREGA_SESSAO_EMITIDO",
-
-            idEnvelopeValido:
-              formato_(
-                detalhes.idEnvelope,
-                /^ENV-SES-[A-F0-9]{32}$/
-              ),
-
-            idSessaoExata:
-              detalhes.idSessao ===
-              ID_SESSAO,
-
-            codigoRetiradaPresente:
-              codigoRetirada.length >=
-              40,
-
-            credencialPresente:
-              credencialSessao.length >=
-              40,
-
-            digestValido:
-              formato_(
-                detalhes.digestCredencial,
-                /^[a-f0-9]{64}$/
-              ),
-
-            digestCorresponde:
-              digestCalculado ===
-              detalhes.digestCredencial,
-
-            expiraEmPresente:
-              Boolean(
-                detalhes.expiraEm
-              ),
-
-            mutacaoDeclarada:
-              detalhes.mutacaoExecutada ===
-              true,
-
-            firebaseExecutado:
-              detalhes
-                .autenticacaoFirebaseExecutada ===
-              true,
-
-            envelopeEmitido:
-              detalhes.envelopeEmitido ===
-              true,
-
-            credencialAindaNaoAtivada:
-              detalhes.credencialAtivada ===
-              false,
-
-            tokenNaoExposto:
-              detalhes.tokenFirebaseExposto ===
-                false &&
-              tokenRetornado ===
-                false,
-
-            uidNaoExposto:
-              detalhes.uidExposto ===
-              false,
-
-            authFreshNaoExposto:
-              detalhes
-                .authSrvFirebaseFreshExposto ===
-              false,
-
-            segredoForaUrl:
-              detalhes.segredoEmUrl ===
-              false,
-
-            segredoClaroNaoPersistidoServidor:
-              detalhes
-                .segredoPersistidoEmClaro ===
-              false
-          };
-
-
-          const falsas =
-            Object.entries(
-              validacoes
-            )
-              .filter(
-                ([, valor]) =>
-                  valor !==
-                  true
-              )
-              .map(
-                ([nome]) =>
-                  nome
-              );
-
+          const aprovado =
+            resposta.status ===
+              200 &&
+            objeto.status ===
+              "OK" &&
+            detalhes.resultado ===
+              "PREPARACAO_REEMISSAO_CONCLUIDA" &&
+            Boolean(
+              idOperacao
+            ) &&
+            Boolean(
+              idCredencialNova
+            ) &&
+            Boolean(
+              segredoNovo
+            ) &&
+            detalhes.segredoPersistido ===
+              false &&
+            detalhes.tokenFirebaseExposto ===
+              false;
 
           if (
-            falsas.length >
-            0
+            aprovado !==
+            true
           ) {
-
-            detalhes.codigoRetirada =
-              "";
-
-            detalhes.credencialSessao =
-              "";
-
-            textoResposta =
-              "";
-
-            codigoRetirada =
-              "";
-
-            credencialSessao =
+            detalhes.segredoNovoEmMemoria =
               "";
 
             throw new Error(
-              "ENVELOPE_RECEBIDO_COM_DIVERGENCIA_" +
-              falsas.join("_")
+              "PREPARACAO_REEMISSAO_COM_DIVERGENCIA"
             );
           }
 
+          digestLocal =
+            await sha256Hex_(
+              segredoNovo
+            );
 
-          envelopeMemoria =
+          if (
+            !/^[a-f0-9]{64}$/
+              .test(
+                digestLocal
+              )
+          ) {
+            detalhes.segredoNovoEmMemoria =
+              "";
+
+            throw new Error(
+              "DIGEST_LOCAL_INVALIDO"
+            );
+          }
+
+          reemissaoMemoria =
             Object.seal({
-              idEnvelope:
-                detalhes.idEnvelope,
-
-              idSessao:
-                detalhes.idSessao,
-
-              codigoRetirada,
-
-              credencialSessao,
-
-              digestCredencial:
-                detalhes.digestCredencial,
-
-              expiraEm:
-                detalhes.expiraEm
+              idOperacao,
+              idCredencialNova,
+              segredoNovoEmMemoria:
+                segredoNovo,
+              digestCalculadoPeloApp:
+                digestLocal
             });
 
-
-          detalhes.codigoRetirada =
+          detalhes.segredoNovoEmMemoria =
             "";
 
-          detalhes.credencialSessao =
+          if (
+            payloadPreparacao
+          ) {
+            payloadPreparacao.firebaseIdToken =
+              "";
+          }
+
+          idToken =
             "";
 
           textoResposta =
             "";
 
-          codigoRetirada =
+          segredoNovo =
             "";
 
-          credencialSessao =
+          digestLocal =
             "";
 
+          payloadPreparacao =
+            null;
+
+          btnConfirmar.disabled =
+            SIGO_B41204D8C6F_CLIENTE_CONFIRMACAO_LIBERADO !==
+            true;
 
           mostrarSanitizado_({
             etapa:
-              "B4_1_20_4D8C6I_CLIENTE_EXECUCAO_REAL_CONTROLADA",
+              "FASE15_4D3K11C4_PREPARACAO_CLIENTE",
 
-            autenticacaoFirebase:
+            aprovado:
               true,
-
-            httpStatus:
-              resposta.status,
-
-            email,
 
             idUsuario:
               ID_USUARIO,
@@ -1333,20 +1095,20 @@ Página preparada. Aguarde o armamento conjunto antes de iniciar.
             idSessao:
               ID_SESSAO,
 
-            idEnvelope:
-              envelopeMemoria.idEnvelope,
+            idOperacao:
+              reemissaoMemoria.idOperacao,
 
-            expiraEm:
-              envelopeMemoria.expiraEm,
+            idCredencialNova:
+              reemissaoMemoria.idCredencialNova,
 
-            codigoRetiradaEmMemoria:
+            segredoNovoEmMemoria:
               Boolean(
-                envelopeMemoria.codigoRetirada
+                reemissaoMemoria.segredoNovoEmMemoria
               ),
 
-            credencialSessaoEmMemoria:
+            digestCalculadoLocalmente:
               Boolean(
-                envelopeMemoria.credencialSessao
+                reemissaoMemoria.digestCalculadoPeloApp
               ),
 
             segredoExibido:
@@ -1355,253 +1117,129 @@ Página preparada. Aguarde o armamento conjunto antes de iniciar.
             segredoPersistido:
               false,
 
-            confirmacaoExecutada:
+            tokenExposto:
               false,
 
-            totalValidacoes:
-              Object.keys(
-                validacoes
-              ).length,
-
-            totalFalsas:
-              0,
-
-            falsas:
-              [],
-
-            aprovado:
-              true,
-
-            classificacao:
-              "B4_1_20_4D8C5D_ENVELOPE_RECEBIDO_SOMENTE_EM_MEMORIA",
-
-            proximaEtapa:
-              "B4_1_20_4D8C6_CONFIRMAR_ENTREGA_E_ATIVAR_CREDENCIAL"
+            confirmacaoExecutada:
+              false
           });
 
-
-          btnConfirmar.disabled =
-            SIGO_B41204D8C6F_CLIENTE_CONFIRMACAO_LIBERADO !==
-            true;
-
-
-          btnConfirmar.textContent =
-            SIGO_B41204D8C6F_CLIENTE_CONFIRMACAO_LIBERADO ===
-              true
-              ? "Confirmar entrega e ativar credencial"
-              : "Envelope em memória; portão de confirmação fechado";
-
         } catch (erro) {
-
           idToken =
             "";
 
           textoResposta =
             "";
 
-          codigoRetirada =
+          segredoNovo =
             "";
 
-          credencialSessao =
+          digestLocal =
             "";
-
-
-          limparEnvelopeMemoria_();
-
-
-          try {
-            await signOut(
-              auth
-            );
-          } catch (_) {
-            // Sem persistência fora da memória.
-          }
-
-
-          usuarioFirebaseMemoria =
-            null;
-
 
           if (
-            postIniciado !==
+            payloadPreparacao &&
+            typeof payloadPreparacao ===
+              "object"
+          ) {
+            payloadPreparacao.firebaseIdToken =
+              "";
+          }
+
+          payloadPreparacao =
+            null;
+
+          if (
+            postPreparacaoIniciado !==
             true
           ) {
-
             requisicaoEnviada =
               false;
 
             checkbox.disabled =
-              SIGO_B41204D8C5D_CLIENTE_ENTREGA_LIBERADO !==
-              true;
+              false;
 
             btnEmitir.disabled =
-              (
-                SIGO_B41204D8C5D_CLIENTE_ENTREGA_LIBERADO !==
-                  true ||
-                checkbox.checked !==
-                  true
-              );
+              checkbox.checked !==
+              true;
           }
-
 
           mostrarSanitizado_({
             etapa:
-              "B4_1_20_4D8C6I_CLIENTE_EXECUCAO_REAL_CONTROLADA",
+              "FASE15_4D3K11C4_PREPARACAO_CLIENTE",
 
             aprovado:
               false,
 
-            postIniciado,
+            postPreparacaoIniciado,
 
             erro:
               erro &&
-              erro.message
+              erro.code
                 ? String(
-                    erro.message
+                    erro.code
                   )
-                : "ERRO_CLIENTE_SANITIZADO",
+                : "ERRO_PREPARACAO_CLIENTE_SANITIZADO",
 
-            tokenFirebaseExposto:
-              false,
-
-            codigoRetiradaExposto:
-              false,
-
-            credencialSessaoExposta:
+            segredoExibido:
               false,
 
             segredoPersistido:
               false,
 
-            orientacao:
-              postIniciado
-                ? "Não repita. Preserve a página e execute a auditoria server-side."
-                : "A requisição não começou. Revise a autenticação."
+            tokenExposto:
+              false
           });
         }
       }
     );
 
 
-
-
     btnConfirmar.addEventListener(
       "click",
       async () => {
-
         if (
           SIGO_B41204D8C6F_CLIENTE_CONFIRMACAO_LIBERADO !==
             true ||
           confirmacaoEnviada ===
             true ||
-          !envelopeMemoria ||
-          !envelopeMemoria.codigoRetirada ||
-          !envelopeMemoria.credencialSessao
+          !reemissaoMemoria
         ) {
           return;
         }
 
+        confirmacaoEnviada =
+          true;
 
         btnConfirmar.disabled =
           true;
 
-
         let idTokenConfirmacao =
           "";
-
 
         let textoRespostaConfirmacao =
           "";
 
-
-        let digestCredencialRecebida =
+        let digestCalculadoPeloApp =
           "";
-
 
         let payloadConfirmacao =
           null;
 
-
         let postConfirmacaoIniciado =
           false;
 
-
         try {
-
-          const expiraMs =
-            new Date(
-              envelopeMemoria.expiraEm ||
-              ""
-            ).getTime();
-
-
-          if (
-            !isFinite(
-              expiraMs
-            ) ||
-            Date.now() >=
-            expiraMs
-          ) {
-
-            throw new Error(
-              "ENVELOPE_CLIENTE_EXPIRADO"
-            );
-          }
-
-
-          let user =
-            auth.currentUser ||
+          const user =
             usuarioFirebaseMemoria;
 
-
-          if (!user) {
-
-            const credencialFirebase =
-              await signInWithPopup(
-                auth,
-                provider
-              );
-
-
-            user =
-              credencialFirebase.user;
-          }
-
-
-          const email =
-            String(
-              user.email ||
-              ""
-            )
-              .trim()
-              .toLowerCase();
-
-
           if (
-            email !==
-            EMAIL_ESPERADO
+            !user
           ) {
-
             throw new Error(
-              "CONTA_GOOGLE_DIVERGENTE_NA_CONFIRMACAO"
+              "USUARIO_FIREBASE_NAO_DISPONIVEL_EM_MEMORIA"
             );
           }
-
-
-          if (
-            user.emailVerified !==
-            true
-          ) {
-
-            throw new Error(
-              "EMAIL_FIREBASE_NAO_VERIFICADO_NA_CONFIRMACAO"
-            );
-          }
-
-
-          usuarioFirebaseMemoria =
-            user;
-
 
           idTokenConfirmacao =
             await getIdToken(
@@ -1609,364 +1247,148 @@ Página preparada. Aguarde o armamento conjunto antes de iniciar.
               true
             );
 
-
-          if (!idTokenConfirmacao) {
-
-            throw new Error(
-              "TOKEN_FIREBASE_CONFIRMACAO_NAO_EMITIDO"
-            );
-          }
-
-
-          digestCredencialRecebida =
+          digestCalculadoPeloApp =
             await sha256Hex_(
-              envelopeMemoria.credencialSessao
+              reemissaoMemoria
+                .segredoNovoEmMemoria
             );
-
 
           if (
-            digestCredencialRecebida !==
-            envelopeMemoria.digestCredencial
+            digestCalculadoPeloApp !==
+            reemissaoMemoria
+              .digestCalculadoPeloApp
           ) {
-
             throw new Error(
-              "DIGEST_CREDENCIAL_CLIENTE_DIVERGENTE"
+              "DIGEST_LOCAL_DIVERGENTE"
             );
           }
-
 
           payloadConfirmacao =
             criarPayloadConfirmacao_(
               idTokenConfirmacao,
-              digestCredencialRecebida
+              digestCalculadoPeloApp
             );
-
-
-          confirmacaoEnviada =
-            true;
-
 
           postConfirmacaoIniciado =
             true;
 
-
-          mostrarSanitizado_({
-            etapa:
-              "B4_1_20_4D8C6I_CLIENTE_EXECUCAO_REAL_CONTROLADA",
-
-            status:
-              "CONFIRMANDO_ENTREGA",
-
-            idEnvelope:
-              envelopeMemoria.idEnvelope,
-
-            orientacao:
-              "Aguarde. Não atualize nem feche esta página."
-          });
-
-
           const resposta =
-            await fetch(
-              ENDPOINT,
-              {
-                method:
-                  "POST",
-
-                redirect:
-                  "follow",
-
-                cache:
-                  "no-store",
-
-                credentials:
-                  "omit",
-
-                referrerPolicy:
-                  "no-referrer",
-
-                headers: {
-                  "Content-Type":
-                    "text/plain;charset=UTF-8"
-                },
-
-                body:
-                  JSON.stringify(
-                    payloadConfirmacao
-                  )
-              }
+            await postar_(
+              payloadConfirmacao
             );
-
 
           textoRespostaConfirmacao =
             await resposta.text();
 
-
-          const tokenRetornado =
-            Boolean(
-              idTokenConfirmacao &&
-              textoRespostaConfirmacao.includes(
-                idTokenConfirmacao
-              )
+          const objeto =
+            JSON.parse(
+              textoRespostaConfirmacao
             );
-
-
-          const codigoRetornado =
-            Boolean(
-              envelopeMemoria.codigoRetirada &&
-              textoRespostaConfirmacao.includes(
-                envelopeMemoria.codigoRetirada
-              )
-            );
-
-
-          const credencialRetornada =
-            Boolean(
-              envelopeMemoria.credencialSessao &&
-              textoRespostaConfirmacao.includes(
-                envelopeMemoria.credencialSessao
-              )
-            );
-
-
-          idTokenConfirmacao =
-            "";
-
-
-          payloadConfirmacao.firebaseIdToken =
-            "";
-
-          payloadConfirmacao.codigoRetirada =
-            "";
-
-          payloadConfirmacao.digestCredencialRecebida =
-            "";
-
-
-          let jsonServidor =
-            null;
-
-
-          try {
-
-            jsonServidor =
-              JSON.parse(
-                textoRespostaConfirmacao
-              );
-
-          } catch (_) {
-
-            throw new Error(
-              "RESPOSTA_CONFIRMACAO_NAO_JSON"
-            );
-          }
-
 
           const detalhes =
             detalhes_(
-              jsonServidor
+              objeto
             );
 
-
-          const validacoes = {
-            httpOk:
-              resposta.ok ===
-              true,
-
-            statusOk:
-              jsonServidor.status ===
-              "OK",
-
-            acaoCorreta:
-              detalhes.acao ===
-              ACAO_CONFIRMAR,
-
-            resultadoAtivacao:
-              detalhes.resultado ===
-              "CREDENCIAL_ATIVADA",
-
-            codigoSucesso:
-              detalhes.codigo ===
-              "CREDENCIAL_ATIVADA_ENVELOPE_CONSUMIDO",
-
-            idEnvelopeExato:
-              detalhes.idEnvelope ===
-              envelopeMemoria.idEnvelope,
-
-            idSessaoExata:
-              detalhes.idSessao ===
-              ID_SESSAO,
-
-            idCredencialValido:
-              formato_(
-                detalhes.idCredencial,
-                /^CRED-SES-[A-F0-9]{32}$/
-              ),
-
-            expiraEmPresente:
-              Boolean(
-                detalhes.expiraEm
-              ),
-
-            mutacaoExecutada:
-              detalhes.mutacaoExecutada ===
-              true,
-
-            firebaseExecutado:
-              detalhes
-                .autenticacaoFirebaseExecutada ===
-              true,
-
-            envelopeConsumido:
-              detalhes.envelopeConsumido ===
-              true,
-
-            credencialAtivada:
-              detalhes.credencialAtivada ===
-              true,
-
-            rollbackNaoExecutado:
-              detalhes.rollbackExecutado ===
-              false,
-
-            tokenNaoExposto:
-              detalhes.tokenFirebaseExposto ===
-                false &&
-              tokenRetornado ===
-                false,
-
-            uidNaoExposto:
-              detalhes.uidExposto ===
-              false,
-
-            authFreshNaoExposto:
-              detalhes
-                .authSrvFirebaseFreshExposto ===
-              false,
-
-            codigoNaoExposto:
-              detalhes.codigoRetiradaExposto ===
-                false &&
-              codigoRetornado ===
-                false,
-
-            digestNaoExposto:
-              detalhes.digestCredencialExposto ===
-              false,
-
-            credencialNaoExposta:
-              detalhes.credencialSessaoExposta ===
-                false &&
-              credencialRetornada ===
-                false,
-
-            credencialClaraNaoPersistida:
-              detalhes.credencialClaraPersistida ===
-              false,
-
-            segredoForaUrl:
-              detalhes.segredoEmUrl ===
-              false
-          };
-
-
-          const falsas =
-            Object.entries(
-              validacoes
-            )
-              .filter(
-                ([, valor]) =>
-                  valor !==
-                  true
-              )
-              .map(
-                ([nome]) =>
-                  nome
-              );
-
+          const aprovado =
+            resposta.status ===
+              200 &&
+            objeto.status ===
+              "OK" &&
+            detalhes.resultado ===
+              "CONFIRMACAO_REEMISSAO_CONCLUIDA" &&
+            texto_(
+              detalhes.idOperacao
+            ) ===
+              reemissaoMemoria.idOperacao &&
+            texto_(
+              detalhes.idCredencialNova
+            ) ===
+              reemissaoMemoria.idCredencialNova &&
+            detalhes.credencialAtivada ===
+              true &&
+            detalhes.segredoPersistido ===
+              false &&
+            detalhes.tokenFirebaseExposto ===
+              false;
 
           if (
-            falsas.length >
-            0
+            aprovado !==
+            true
           ) {
-
-            textoRespostaConfirmacao =
-              "";
-
-            digestCredencialRecebida =
-              "";
-
             throw new Error(
-              "CONFIRMACAO_RECEBIDA_COM_DIVERGENCIA_" +
-              falsas.join("_")
+              "CONFIRMACAO_REEMISSAO_COM_DIVERGENCIA"
             );
           }
-
 
           credencialAtivadaMemoria =
             Object.seal({
               idCredencial:
-                detalhes.idCredencial,
+                reemissaoMemoria
+                  .idCredencialNova,
 
               idSessao:
-                detalhes.idSessao,
+                ID_SESSAO,
 
               credencialSessao:
-                envelopeMemoria.credencialSessao,
+                reemissaoMemoria
+                  .segredoNovoEmMemoria,
 
               expiraEm:
-                detalhes.expiraEm
+                ""
             });
 
+          const idOperacaoConfirmada =
+            reemissaoMemoria.idOperacao;
 
-          const idEnvelopeConfirmado =
-            envelopeMemoria.idEnvelope;
+          limparReemissaoMemoria_();
 
-
-          limparEnvelopeMemoria_();
-
+          idTokenConfirmacao =
+            "";
 
           textoRespostaConfirmacao =
             "";
 
-          digestCredencialRecebida =
+          digestCalculadoPeloApp =
             "";
+
+          if (
+            payloadConfirmacao &&
+            typeof payloadConfirmacao ===
+              "object"
+          ) {
+            payloadConfirmacao.firebaseIdToken =
+              "";
+
+            payloadConfirmacao.digestCalculadoPeloApp =
+              "";
+          }
 
           payloadConfirmacao =
             null;
-
 
           try {
             await signOut(
               auth
             );
           } catch (_) {
-            // A autenticação Firebase permaneceu somente em memória.
           }
-
 
           usuarioFirebaseMemoria =
             null;
 
-
           btnConfirmar.disabled =
             true;
 
-
           btnConfirmar.textContent =
-            "Entrega confirmada e credencial ativada";
-
+            "Reemissão confirmada e credencial ativada";
 
           mostrarSanitizado_({
             etapa:
-              "B4_1_20_4D8C6I_CLIENTE_EXECUCAO_REAL_CONTROLADA",
+              "FASE15_4D3K11C4_CONFIRMACAO_CLIENTE",
 
-            autenticacaoFirebase:
+            aprovado:
               true,
-
-            httpStatus:
-              resposta.status,
-
-            email,
 
             idUsuario:
               ID_USUARIO,
@@ -1977,24 +1399,20 @@ Página preparada. Aguarde o armamento conjunto antes de iniciar.
             idSessao:
               ID_SESSAO,
 
-            idEnvelope:
-              idEnvelopeConfirmado,
+            idOperacao:
+              idOperacaoConfirmada,
 
             idCredencial:
-              credencialAtivadaMemoria.idCredencial,
-
-            expiraEm:
-              credencialAtivadaMemoria.expiraEm,
-
-            envelopeConsumido:
-              true,
+              credencialAtivadaMemoria
+                .idCredencial,
 
             credencialAtivada:
               true,
 
             credencialAtivadaEmMemoria:
               Boolean(
-                credencialAtivadaMemoria.credencialSessao
+                credencialAtivadaMemoria
+                  .credencialSessao
               ),
 
             credencialPersistidaNoNavegador:
@@ -2003,74 +1421,45 @@ Página preparada. Aguarde o armamento conjunto antes de iniciar.
             tokenExposto:
               false,
 
-            codigoRetiradaExposto:
-              false,
-
-            digestCredencialExposto:
+            digestExposto:
               false,
 
             credencialExposta:
               false,
 
-            totalValidacoes:
-              Object.keys(
-                validacoes
-              ).length,
-
-            totalFalsas:
-              0,
-
-            falsas:
-              [],
-
-            aprovado:
-              true,
-
-            classificacao:
-              "B4_1_20_4D8C6I_CREDENCIAL_REAL_ATIVADA_E_MANTIDA_SOMENTE_EM_MEMORIA",
-
-            proximaEtapa:
-              "B4_1_20_4D8C6IB_AUDITAR_FLUXO_REAL_COMPLETO"
+            segredoPersistido:
+              false
           });
 
         } catch (erro) {
-
           idTokenConfirmacao =
             "";
 
           textoRespostaConfirmacao =
             "";
 
-          digestCredencialRecebida =
+          digestCalculadoPeloApp =
             "";
-
 
           if (
             payloadConfirmacao &&
             typeof payloadConfirmacao ===
               "object"
           ) {
-
             payloadConfirmacao.firebaseIdToken =
               "";
 
-            payloadConfirmacao.codigoRetirada =
-              "";
-
-            payloadConfirmacao.digestCredencialRecebida =
+            payloadConfirmacao.digestCalculadoPeloApp =
               "";
           }
 
-
           payloadConfirmacao =
             null;
-
 
           if (
             postConfirmacaoIniciado !==
             true
           ) {
-
             confirmacaoEnviada =
               false;
 
@@ -2078,14 +1467,13 @@ Página preparada. Aguarde o armamento conjunto antes de iniciar.
               (
                 SIGO_B41204D8C6F_CLIENTE_CONFIRMACAO_LIBERADO !==
                   true ||
-                !envelopeMemoria
+                !reemissaoMemoria
               );
           }
 
-
           mostrarSanitizado_({
             etapa:
-              "B4_1_20_4D8C6I_CLIENTE_EXECUCAO_REAL_CONTROLADA",
+              "FASE15_4D3K11C4_CONFIRMACAO_CLIENTE",
 
             aprovado:
               false,
@@ -2094,37 +1482,29 @@ Página preparada. Aguarde o armamento conjunto antes de iniciar.
 
             erro:
               erro &&
-              erro.message
+              erro.code
                 ? String(
-                    erro.message
+                    erro.code
                   )
                 : "ERRO_CONFIRMACAO_CLIENTE_SANITIZADO",
 
-            envelopePreservadoEmMemoria:
+            reemissaoPreservadaEmMemoria:
               Boolean(
-                envelopeMemoria &&
-                envelopeMemoria.idEnvelope
+                reemissaoMemoria &&
+                reemissaoMemoria.idOperacao
               ),
 
-            tokenFirebaseExposto:
+            tokenExposto:
               false,
 
-            codigoRetiradaExposto:
+            digestExposto:
               false,
 
-            digestCredencialExposto:
-              false,
-
-            credencialSessaoExposta:
+            credencialExposta:
               false,
 
             segredoPersistido:
-              false,
-
-            orientacao:
-              postConfirmacaoIniciado
-                ? "Não repita. Preserve a página e execute a auditoria server-side."
-                : "A confirmação não começou. Revise a autenticação."
+              false
           });
         }
       }
@@ -2134,8 +1514,7 @@ Página preparada. Aguarde o armamento conjunto antes de iniciar.
     window.addEventListener(
       "pagehide",
       () => {
-
-        limparEnvelopeMemoria_();
+        limparReemissaoMemoria_();
 
         limparCredencialAtivadaMemoria_();
 
@@ -2148,8 +1527,7 @@ Página preparada. Aguarde o armamento conjunto antes de iniciar.
     window.addEventListener(
       "beforeunload",
       () => {
-
-        limparEnvelopeMemoria_();
+        limparReemissaoMemoria_();
 
         limparCredencialAtivadaMemoria_();
 
@@ -2162,8 +1540,7 @@ Página preparada. Aguarde o armamento conjunto antes de iniciar.
     window.addEventListener(
       "unhandledrejection",
       () => {
-
-        limparEnvelopeMemoria_();
+        limparReemissaoMemoria_();
 
         limparCredencialAtivadaMemoria_();
       }
