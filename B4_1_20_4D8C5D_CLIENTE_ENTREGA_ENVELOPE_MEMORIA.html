@@ -615,6 +615,28 @@ import {
     }
 
 
+    /*
+     * C13X — somente diagnostico sanitizado.
+     * Aceita apenas codigos/status alfanumericos controlados.
+     * Nunca recebe ou retorna token, segredo, digest ou credencial.
+     */
+    function codigoDiagnosticoSeguro_(
+      valor
+    ) {
+      const codigo =
+        texto_(
+          valor
+        ).toUpperCase();
+
+      return /^[A-Z0-9_]{1,180}$/
+        .test(
+          codigo
+        )
+        ? codigo
+        : "";
+    }
+
+
     async function sha256Hex_(
       valor
     ) {
@@ -912,6 +934,33 @@ import {
         let postPreparacaoIniciado =
           false;
 
+        let diagnosticoPreparacaoSeguro =
+          Object.seal({
+            respostaRecebida:
+              false,
+
+            httpStatus:
+              0,
+
+            statusSigo:
+              "",
+
+            resultadoServidor:
+              "",
+
+            codigoServidor:
+              "",
+
+            firebaseExecutado:
+              false,
+
+            armConsumido:
+              false,
+
+            receiptCriado:
+              false
+          });
+
         try {
           const login =
             await signInWithPopup(
@@ -972,6 +1021,42 @@ import {
             detalhes_(
               objeto
             );
+
+          diagnosticoPreparacaoSeguro.respostaRecebida =
+            true;
+
+          diagnosticoPreparacaoSeguro.httpStatus =
+            Number(
+              resposta.status ||
+              0
+            );
+
+          diagnosticoPreparacaoSeguro.statusSigo =
+            codigoDiagnosticoSeguro_(
+              objeto.status
+            );
+
+          diagnosticoPreparacaoSeguro.resultadoServidor =
+            codigoDiagnosticoSeguro_(
+              detalhes.resultado
+            );
+
+          diagnosticoPreparacaoSeguro.codigoServidor =
+            codigoDiagnosticoSeguro_(
+              detalhes.codigo
+            );
+
+          diagnosticoPreparacaoSeguro.firebaseExecutado =
+            detalhes.firebaseExecutado ===
+            true;
+
+          diagnosticoPreparacaoSeguro.armConsumido =
+            detalhes.armConsumido ===
+            true;
+
+          diagnosticoPreparacaoSeguro.receiptCriado =
+            detalhes.receiptCriado ===
+            true;
 
           const idOperacao =
             texto_(
@@ -1176,10 +1261,35 @@ import {
             erro:
               erro &&
               erro.code
-                ? String(
+                ? codigoDiagnosticoSeguro_(
                     erro.code
-                  )
+                  ) ||
+                  "ERRO_PREPARACAO_CLIENTE_SANITIZADO"
                 : "ERRO_PREPARACAO_CLIENTE_SANITIZADO",
+
+            diagnosticoServidorRecebido:
+              diagnosticoPreparacaoSeguro.respostaRecebida,
+
+            httpStatus:
+              diagnosticoPreparacaoSeguro.httpStatus,
+
+            statusSigo:
+              diagnosticoPreparacaoSeguro.statusSigo,
+
+            resultadoServidor:
+              diagnosticoPreparacaoSeguro.resultadoServidor,
+
+            codigoServidor:
+              diagnosticoPreparacaoSeguro.codigoServidor,
+
+            firebaseExecutado:
+              diagnosticoPreparacaoSeguro.firebaseExecutado,
+
+            armConsumido:
+              diagnosticoPreparacaoSeguro.armConsumido,
+
+            receiptCriado:
+              diagnosticoPreparacaoSeguro.receiptCriado,
 
             segredoExibido:
               false,
@@ -1228,6 +1338,33 @@ import {
 
         let postConfirmacaoIniciado =
           false;
+
+        let diagnosticoConfirmacaoSeguro =
+          Object.seal({
+            respostaRecebida:
+              false,
+
+            httpStatus:
+              0,
+
+            statusSigo:
+              "",
+
+            resultadoServidor:
+              "",
+
+            codigoServidor:
+              "",
+
+            firebaseExecutado:
+              false,
+
+            armConsumido:
+              false,
+
+            receiptCriado:
+              false
+          });
 
         try {
           const user =
@@ -1289,6 +1426,42 @@ import {
             detalhes_(
               objeto
             );
+
+          diagnosticoConfirmacaoSeguro.respostaRecebida =
+            true;
+
+          diagnosticoConfirmacaoSeguro.httpStatus =
+            Number(
+              resposta.status ||
+              0
+            );
+
+          diagnosticoConfirmacaoSeguro.statusSigo =
+            codigoDiagnosticoSeguro_(
+              objeto.status
+            );
+
+          diagnosticoConfirmacaoSeguro.resultadoServidor =
+            codigoDiagnosticoSeguro_(
+              detalhes.resultado
+            );
+
+          diagnosticoConfirmacaoSeguro.codigoServidor =
+            codigoDiagnosticoSeguro_(
+              detalhes.codigo
+            );
+
+          diagnosticoConfirmacaoSeguro.firebaseExecutado =
+            detalhes.firebaseExecutado ===
+            true;
+
+          diagnosticoConfirmacaoSeguro.armConsumido =
+            detalhes.armConsumido ===
+            true;
+
+          diagnosticoConfirmacaoSeguro.receiptCriado =
+            detalhes.receiptCriado ===
+            true;
 
           const aprovado =
             resposta.status ===
@@ -1483,10 +1656,35 @@ import {
             erro:
               erro &&
               erro.code
-                ? String(
+                ? codigoDiagnosticoSeguro_(
                     erro.code
-                  )
+                  ) ||
+                  "ERRO_CONFIRMACAO_CLIENTE_SANITIZADO"
                 : "ERRO_CONFIRMACAO_CLIENTE_SANITIZADO",
+
+            diagnosticoServidorRecebido:
+              diagnosticoConfirmacaoSeguro.respostaRecebida,
+
+            httpStatus:
+              diagnosticoConfirmacaoSeguro.httpStatus,
+
+            statusSigo:
+              diagnosticoConfirmacaoSeguro.statusSigo,
+
+            resultadoServidor:
+              diagnosticoConfirmacaoSeguro.resultadoServidor,
+
+            codigoServidor:
+              diagnosticoConfirmacaoSeguro.codigoServidor,
+
+            firebaseExecutado:
+              diagnosticoConfirmacaoSeguro.firebaseExecutado,
+
+            armConsumido:
+              diagnosticoConfirmacaoSeguro.armConsumido,
+
+            receiptCriado:
+              diagnosticoConfirmacaoSeguro.receiptCriado,
 
             reemissaoPreservadaEmMemoria:
               Boolean(
