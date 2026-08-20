@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>SIGO C13Z10 - Firebase Fresh</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
+*{box-sizing:border-box}body{margin:0;background:#07111f;color:#edf4ff;min-height:100vh}
+main{width:min(800px,calc(100% - 28px));margin:38px auto}
+.card{background:#101b2c;border:1px solid #2a3a56;border-radius:18px;padding:24px}
+h1{margin:0 0 8px}p{line-height:1.55}.muted{color:#a9b7cc}
+.guard{padding:14px;border-radius:12px;background:#2a2212;border:1px solid #6d5924;margin:18px 0}
+label{display:flex;gap:10px;align-items:flex-start;border:1px solid #2a3a56;border-radius:12px;padding:14px;margin:16px 0}
+input{width:20px;height:20px}button{width:100%;min-height:52px;border:0;border-radius:12px;font-weight:800;font-size:15px;cursor:pointer}
+button:disabled{opacity:.45;cursor:not-allowed}#go{background:#4d88ff;color:#fff}#copy{margin-top:10px;background:#dce8ff;color:#0c1830}
+pre{white-space:pre-wrap;word-break:break-word;background:#06101c;border:1px solid #2a3a56;border-radius:12px;padding:15px;min-height:220px}
+code{word-break:break-word}
+</style>
+</head>
+<body>
+<main><section class="card">
+<h1>SIGO C13Z10 - AUTH-SRV Fresh</h1>
+<p class="muted">Esta pagina executa somente a acao B244F. Ela nao executa JIT, B5A5, reemissao, HMAC, B3 ou B4.</p>
+<div class="guard"><strong>Regra:</strong> uma unica tentativa nesta aba. Se o POST iniciar, nao repetir, mesmo se a coleta falhar.</div>
+<label><input id="confirm" type="checkbox"><span>Confirmo a execucao de uma unica chamada B244F para renovar o evento AUTH-SRV da identidade ja vinculada.</span></label>
+<button id="go" disabled>Entrar com Google e executar B244F uma vez</button>
+<h2>Comprovante sanitizado</h2>
+<pre id="out">Aguardando...</pre>
+<button id="copy" disabled>Copiar comprovante</button>
+</section></main>
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+import {getAuth,GoogleAuthProvider,signInWithPopup,signOut,setPersistence,inMemoryPersistence,getIdToken} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+
+const firebaseConfig={"apiKey":"AIzaSyDvs7xE2QhHuKF6OhXC6PNyID0Uf06FzjY","authDomain":"sigo-v1-0-mobile.firebaseapp.com","projectId":"sigo-v1-0-mobile","storageBucket":"sigo-v1-0-mobile.firebasestorage.app","messagingSenderId":"292699885751","appId":"1:292699885751:web:38eafdb653b1f2d5ebbd32"};
+const ENDPOINT="https://script.google.com/macros/s/AKfycbzVE7tdTSwHvKgLkrdcaQtGAm_muqNPo6n0wQZBDpmRwtAJuySfWyh6gdef0R6g_drKRw/exec";
+const ACTION="VINCULAR_IDENTIDADE_FIREBASE_B244F";
+const EXPECTED_EMAIL="claudemirmatos14@gmail.com";
+const FLAG="SIGO_C13Z10_B244F_POST_INICIADO";
+
+const app=initializeApp(firebaseConfig);
+const auth=getAuth(app);
+await setPersistence(auth,inMemoryPersistence);
+const provider=new GoogleAuthProvider();
+provider.setCustomParameters({login_hint:EXPECTED_EMAIL});
+
+const confirmBox=document.getElementById("confirm");
+const go=document.getElementById("go");
+const out=document.getElementById("out");
+const copy=document.getElementById("copy");
+
+let postIniciado=sessionStorage.getItem(FLAG)==="1";
+let receipt=null;
+
+function safeCode(v){
+  const s=String(v==null?"":v).trim();
+  return /^[A-Za-z0-9_:\-., ]{0,240}$/.test(s)?s:"";
+}
+function safeId(v){
+  const s=String(v==null?"":v).trim();
+  return /^[A-Za-z0-9_-]{0,100}$/.test(s)?s:"";
+}
+function show(x){
+  receipt=x;
+  out.textContent=JSON.stringify(x,null,2);
+  copy.disabled=false;
+}
+function lock(){
+  postIniciado=true;
+  sessionStorage.setItem(FLAG,"1");
+  confirmBox.disabled=true;
+  go.disabled=true;
+}
+
+if(postIniciado){
+  confirmBox.disabled=true;
+  go.disabled=true;
+  show({
+    etapa:"FASE15_4D3K11C13Z10_B244F",
+    aprovado:false,
+    postIniciado:true,
+    status:"POST_JA_INICIADO_NESTA_ABA",
+    orientacao:"NAO_REPETIR"
+  });
+}
+
+confirmBox.addEventListener("change",()=>{
+  if(!postIniciado)go.disabled=!confirmBox.checked;
+});
+
+copy.addEventListener("click",async()=>{
+  if(!receipt)return;
+  await navigator.clipboard.writeText(JSON.stringify(receipt,null,2));
+  copy.textContent="Comprovante copiado";
+});
+
+go.addEventListener("click",async()=>{
+  if(postIniciado||!confirmBox.checked)return;
+  let token="";
+  let firebaseOk=false;
+
+  try{
+    const cred=await signInWithPopup(auth,provider);
+    const email=String(cred.user?.email||"").trim().toLowerCase();
+
+    if(email!==EXPECTED_EMAIL.toLowerCase()){
+      throw new Error("CONTA_FIREBASE_DIVERGENTE");
+    }
+
+    token=await getIdToken(cred.user,true);
+    if(!token)throw new Error("FIREBASE_ID_TOKEN_AUSENTE");
+    firebaseOk=true;
+
+    lock();
+
+    const resp=await fetch(ENDPOINT,{
+      method:"POST",
+      headers:{"Content-Type":"text/plain;charset=UTF-8"},
+      body:JSON.stringify({
+        acao:ACTION,
+        firebaseIdToken:token
+      })
+    });
+
+    token="";
+
+    const text=await resp.text();
+    let obj={};
+    try{obj=JSON.parse(text);}catch(_){obj={};}
+
+    const d=(obj&&typeof obj==="object"&&obj.detalhes&&typeof obj.detalhes==="object")?obj.detalhes:{};
+    const result={
+      etapa:"FASE15_4D3K11C13Z10_B244F",
+      postIniciado:true,
+      firebaseAutenticado:firebaseOk,
+      httpStatus:Number(resp.status||0),
+      statusServidor:safeCode(obj.status),
+      resultadoServidor:safeCode(obj.resultado||d.resultado),
+      codigoServidor:safeCode(obj.codigo||d.codigo),
+      idAutenticacaoServidor:safeId(d.idAutenticacaoServidor||obj.idAutenticacaoServidor),
+      criaSessao:d.criaSessao===true,
+      alteraDispositivo:d.alteraDispositivo===true,
+      tokenFirebaseExposto:false,
+      uidExposto:false,
+      segredoExposto:false,
+      orientacao:"PARAR_ANTES_DA_MACRO_JIT"
+    };
+
+    result.aprovado=
+      result.httpStatus===200 &&
+      (
+        result.codigoServidor==="IDENTIDADE_FIREBASE_JA_VINCULADA" ||
+        result.resultadoServidor==="JA_VINCULADO"
+      ) &&
+      /^AUTH-SRV-[A-Za-z0-9_-]+$/.test(result.idAutenticacaoServidor) &&
+      result.criaSessao===false &&
+      result.alteraDispositivo===false;
+
+    result.classificacao=result.aprovado
+      ?"C13Z10_AUTH_SRV_FRESH_GERADO_PARAR_ANTES_JIT"
+      :"C13Z10_RESPOSTA_B244F_REQUER_ANALISE_NAO_REPETIR_SE_POST_INICIADO";
+
+    show(result);
+  }catch(err){
+    token="";
+    show({
+      etapa:"FASE15_4D3K11C13Z10_B244F",
+      aprovado:false,
+      postIniciado,
+      firebaseAutenticado:firebaseOk,
+      erro:safeCode(err&&err.message?err.message:err)||"ERRO_CLIENTE_SANITIZADO",
+      tokenFirebaseExposto:false,
+      uidExposto:false,
+      segredoExposto:false,
+      orientacao:postIniciado?"NAO_REPETIR":"POST_NAO_INICIADO"
+    });
+  }finally{
+    token="";
+    try{await signOut(auth);}catch(_e){}
+  }
+});
+</script>
+</body>
+</html>
