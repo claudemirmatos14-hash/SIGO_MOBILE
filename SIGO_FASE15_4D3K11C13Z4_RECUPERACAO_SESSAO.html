@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>SIGO — Recuperação controlada de sessão</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
+*{box-sizing:border-box}body{margin:0;background:#08111f;color:#eef4ff;min-height:100vh}
+main{width:min(820px,calc(100% - 30px));margin:40px auto}.card{background:#101b2d;border:1px solid #2b3b57;border-radius:20px;padding:24px}
+h1{margin:0 0 8px}.muted{color:#a8b7ce;line-height:1.55}.warn{background:#2a2312;border:1px solid #6f5b22;border-radius:12px;padding:14px;margin:18px 0}
+label{display:flex;gap:10px;align-items:flex-start;border:1px solid #2b3b57;border-radius:12px;padding:14px;margin:16px 0}
+input{width:20px;height:20px}button{width:100%;min-height:52px;border:0;border-radius:12px;font-weight:800;font-size:15px;cursor:pointer}
+button:disabled{opacity:.45;cursor:not-allowed}.primary{background:#4f8cff;color:white}.copy{margin-top:10px;background:#d7e5ff;color:#0b1730}
+pre{white-space:pre-wrap;word-break:break-word;background:#07101d;border:1px solid #2b3b57;border-radius:12px;padding:16px;min-height:230px}
+.badge{display:inline-block;margin-top:12px;color:#b9d0ff;font-weight:700}
+</style>
+</head>
+<body>
+<main><section class="card">
+<h1>Recuperação controlada da sessão expirada</h1>
+<p class="muted">Fluxo JIT legado de substituição atômica. O token Firebase permanece somente em memória. Esta página permite uma única requisição por aba.</p>
+<div class="warn"><strong>Pré-condição obrigatória:</strong> execute no Apps Script, uma única vez, <code>armarRotaHttpJitUsoUnicoB41204D8B5A5()</code> e prossiga somente se retornar <code>ok:true</code> e <code>B41204D8B5A5_ROTA_HTTP_ARMADA_USO_UNICO</code>.</div>
+<label><input id="ok" type="checkbox"><span>Confirmo que o armamento B5A5 foi aprovado nesta janela e autorizo uma única tentativa de recuperação da sessão.</span></label>
+<button id="go" class="primary" disabled>Entrar com Google e executar recuperação única</button>
+<div class="badge">🔒 Sem persistência de token, código ou segredo</div>
+<h2>Comprovante sanitizado</h2>
+<pre id="out">Aguardando confirmação...</pre>
+<button id="copy" class="copy" disabled>Copiar comprovante</button>
+</section></main>
+
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+import {getAuth,GoogleAuthProvider,signInWithPopup,signOut,setPersistence,inMemoryPersistence,getIdToken} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+
+const firebaseConfig={"apiKey":"AIzaSyDvs7xE2QhHuKF6OhXC6PNyID0Uf06FzjY","authDomain":"sigo-v1-0-mobile.firebaseapp.com","projectId":"sigo-v1-0-mobile","storageBucket":"sigo-v1-0-mobile.firebasestorage.app","messagingSenderId":"292699885751","appId":"1:292699885751:web:38eafdb653b1f2d5ebbd32"};
+const ENDPOINT="https://script.google.com/macros/s/AKfycbzVE7tdTSwHvKgLkrdcaQtGAm_muqNPo6n0wQZBDpmRwtAJuySfWyh6gdef0R6g_drKRw/exec";
+const ACAO="EXECUTAR_PRIMEIRA_SESSAO_JIT_B41204D8B6";
+const EMAIL_ESPERADO="claudemirmatos14@gmail.com";
+const ID_USUARIO_ESPERADO="USR-IND-B476B612655840C2";
+const ID_DISPOSITIVO_ESPERADO="DISP-MOBILE-87deb97a-75ef-44d0-992b-1868129aaef8";
+const FLAG="SIGO_C13Z4_POST_INICIADO";
+
+const app=initializeApp(firebaseConfig);
+const auth=getAuth(app);
+await setPersistence(auth,inMemoryPersistence);
+const provider=new GoogleAuthProvider();
+provider.setCustomParameters({login_hint:EMAIL_ESPERADO});
+
+const box=document.getElementById("ok"), go=document.getElementById("go"), out=document.getElementById("out"), copy=document.getElementById("copy");
+let postIniciado=sessionStorage.getItem(FLAG)==="1";
+let comprovante=null;
+
+function code(v){
+  const s=String(v==null?"":v).trim().toUpperCase();
+  return /^[A-Z0-9_:\-.,]{1,240}$/.test(s)?s:"";
+}
+function safeText(v,max=240){
+  const s=String(v==null?"":v).trim();
+  return /^[A-Za-z0-9_:\-., ]{0,240}$/.test(s)?s.slice(0,max):"";
+}
+function details(x){ return x&&typeof x==="object"&&(x.detalhes||x.details)&&typeof (x.detalhes||x.details)==="object" ? (x.detalhes||x.details) : {}; }
+function show(x){ comprovante=x; out.textContent=JSON.stringify(x,null,2); copy.disabled=false; }
+function lock(){
+  postIniciado=true; sessionStorage.setItem(FLAG,"1"); box.disabled=true; go.disabled=true;
+}
+if(postIniciado){ box.disabled=true;go.disabled=true;show({etapa:"FASE15_4D3K11C13Z4_CLIENTE_RECUPERACAO",aprovado:false,postIniciado:true,status:"REQUISICAO_JA_INICIADA_NESTA_ABA",orientacao:"NAO_REPETIR"}); }
+box.addEventListener("change",()=>{ if(!postIniciado) go.disabled=!box.checked; });
+copy.addEventListener("click",async()=>{ if(!comprovante)return; await navigator.clipboard.writeText(JSON.stringify(comprovante,null,2)); copy.textContent="Comprovante copiado"; });
+
+go.addEventListener("click",async()=>{
+  if(postIniciado||!box.checked)return;
+  let token=""; let firebaseAutenticado=false;
+  try{
+    const cred=await signInWithPopup(auth,provider);
+    const email=String(cred.user?.email||"").trim().toLowerCase();
+    if(email!==EMAIL_ESPERADO.toLowerCase()) throw new Error("CONTA_FIREBASE_DIVERGENTE");
+    token=await getIdToken(cred.user,true);
+    if(!token) throw new Error("FIREBASE_ID_TOKEN_AUSENTE");
+    firebaseAutenticado=true;
+
+    lock(); // daqui em diante nunca repetir nesta aba
+    const resposta=await fetch(ENDPOINT,{
+      method:"POST",
+      headers:{"Content-Type":"text/plain;charset=UTF-8"},
+      body:JSON.stringify({acao:ACAO,firebaseIdToken:token})
+    });
+    token="";
+    const texto=await resposta.text();
+    let obj={};
+    try{obj=JSON.parse(texto);}catch(_){obj={};}
+    const d=details(obj);
+    const e=d.execucao&&typeof d.execucao==="object"?d.execucao:{};
+    const result={
+      etapa:"FASE15_4D3K11C13Z4_CLIENTE_RECUPERACAO",
+      postIniciado:true,
+      firebaseAutenticado,
+      httpStatus:Number(resposta.status||0),
+      statusServidor:code(obj.status),
+      resultadoServidor:code(obj.resultado||d.resultado),
+      codigoServidor:code(obj.codigo||d.codigo||e.codigo),
+      etapaFalha:code(e.etapaFalha||d.etapaFalha),
+      idUsuario:ID_USUARIO_ESPERADO,
+      idDispositivo:ID_DISPOSITIVO_ESPERADO,
+      idAutenticacaoServidor:safeText(d.idAutenticacaoServidor,80),
+      idAutorizacao:safeText(e.idAutorizacao||d.idAutorizacao,80),
+      idSessao:safeText(e.idSessao||d.idSessao,80),
+      sessaoCriada:e.sessaoCriada===true,
+      autorizacaoConsumida:e.autorizacaoConsumida===true,
+      rollbackExecutado:e.rollbackExecutado===true,
+      limpezaExecutada:e.limpezaExecutada===true,
+      auditoriaPosExecutada:e.auditoriaPosExecutada===true,
+      etapasExecutadas:Array.isArray(e.etapasExecutadas)?e.etapasExecutadas.map(x=>code(x)).filter(Boolean).slice(0,30):[],
+      tokenFirebaseExposto:false,
+      uidExposto:false,
+      codigoClaroExposto:false,
+      hmacExposto:false
+    };
+    result.aprovado=
+      result.httpStatus===200 &&
+      result.sessaoCriada===true &&
+      result.autorizacaoConsumida===true &&
+      /^SES-[A-F0-9]{32}$/i.test(result.idSessao) &&
+      /^AUT-[A-F0-9]{32}$/i.test(result.idAutorizacao);
+    result.classificacao=result.aprovado
+      ?"C13Z4_RECUPERACAO_SESSAO_CONCLUIDA_COM_SUBSTITUICAO_ATOMICA"
+      :"C13Z4_RESPOSTA_REAL_REQUER_POSCHECK_SEM_REPETIR";
+    show(result);
+  }catch(err){
+    token="";
+    show({
+      etapa:"FASE15_4D3K11C13Z4_CLIENTE_RECUPERACAO",
+      aprovado:false,
+      postIniciado,
+      firebaseAutenticado,
+      erro:code(err&&err.message?err.message:err)||"ERRO_CLIENTE_SANITIZADO",
+      tokenFirebaseExposto:false,
+      uidExposto:false,
+      codigoClaroExposto:false,
+      hmacExposto:false,
+      orientacao:postIniciado?"NAO_REPETIR_EXECUTAR_POSCHECK":"POST_NAO_INICIADO"
+    });
+  }finally{
+    token="";
+    try{await signOut(auth);}catch(_){}
+  }
+});
+</script>
+</body>
+</html>
