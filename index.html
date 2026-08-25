@@ -9,7 +9,11 @@
 
   <title>SIGO Mobile</title>
     <link rel="stylesheet" href="css/app.css">
-  </head>
+  
+  <style id="sigo-home-diario-span-style">
+    .sigo-home-diario-span { grid-column: 1 / -1; }
+  </style>
+</head>
   
   <body>
   
@@ -45,19 +49,14 @@
         </div>
     
         <div class="menu-grid">
-          <div class="menu-card" onclick="navegarPara('diario')">
+          <div class="menu-card sigo-home-diario-span" onclick="navegarPara('diario')">
             <div class="icone">📘</div>
             <h3>Diário de Obra</h3>
             <span class="badge badge-verde">Hoje</span>
             <p>Registrar produção diária</p>
           </div>
     
-          <div class="menu-card" onclick="navegarPara('diarioItens')">
-            <div class="menu-icone">📋</div>
-            <h3>Itens do Diário</h3>
-            <span class="badge badge-laranja">Itens</span>
-            <p>Atividades executadas</p>
-          </div>
+          
     
           <div class="menu-card" onclick="navegarPara('medicoes')">
             <div class="icone">📏</div>
