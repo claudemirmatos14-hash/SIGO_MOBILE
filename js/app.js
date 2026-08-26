@@ -79971,3 +79971,40 @@ async function auditarBloqueioFuncoesReaisUX21964D_() {
 
   return relatorio;
 }
+
+/* F16_24H_ORDEM_REIDRATACAO_CONTADOR_HOME - INICIO */
+(function instalarOrdemReidratacaoContadorHomeF1624H_() {
+  'use strict';
+  const atualizarIndicadoresOriginalF1624H_ = atualizarIndicadoresMobile_;
+  const carregarAtividadesOriginalF1624H_ = carregarAtividadesMedicaoOffline_;
+  let carregamentoEmAndamentoF1624H_ = false;
+  let geracaoF1624H_ = 0;
+  function obterChaveObraF1624H_() {
+    const bruto = localStorage.getItem('obraAtiva');
+    if (!bruto) return null;
+    try {
+      const valor = JSON.parse(bruto);
+      return String(typeof valor === 'string' ? valor : (valor && (valor.idObra || valor.id)) || bruto).trim().toUpperCase();
+    } catch (_) {
+      return String(bruto).trim().toUpperCase();
+    }
+  }
+  atualizarIndicadoresMobile_ = async function atualizarIndicadoresComReidratacaoF1624H_(...args) {
+    if (carregamentoEmAndamentoF1624H_) return undefined;
+    const obraInicio = obterChaveObraF1624H_();
+    const minhaGeracao = ++geracaoF1624H_;
+    carregamentoEmAndamentoF1624H_ = true;
+    try {
+      await carregarAtividadesOriginalF1624H_();
+      const obraFim = obterChaveObraF1624H_();
+      if (minhaGeracao !== geracaoF1624H_ || obraInicio !== obraFim) {
+        queueMicrotask(() => atualizarIndicadoresMobile_(...args));
+        return undefined;
+      }
+      return atualizarIndicadoresOriginalF1624H_.apply(this, args);
+    } finally {
+      carregamentoEmAndamentoF1624H_ = false;
+    }
+  };
+})();
+/* F16_24H_ORDEM_REIDRATACAO_CONTADOR_HOME - FIM */
