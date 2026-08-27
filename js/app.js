@@ -982,6 +982,16 @@ document.addEventListener(
   }
 );
 
+
+/* F16_24M2_REV7_ADAPTADOR_MINIMO_MONTAR_HOME
++ * A Home publicada ja existe no index.html. Este adaptador intencionalmente
++ * nao remonta o DOM; apenas satisfaz o contrato de navegarPara e permite
++ * que o callback depois atualize os indicadores a partir do IndexedDB.
++ */
+function montarHomePremium() {
+  return null;
+}
+
 function navegarPara(tela) {
   /*
    * UX.21.9.7.7K.3C.9C
@@ -1031,7 +1041,7 @@ localStorage.setItem("telaAtualMobile", tela);
   },
     
     obras: {
-      montar: montarTelaObrasOffline,
+      montar: () => montarTelaObrasOffline(),
       depois: async function () {
         if (typeof listarObrasOfflineMobile_ === "function") {
           await listarObrasOfflineMobile_();
@@ -1044,7 +1054,7 @@ localStorage.setItem("telaAtualMobile", tela);
     },
 
    diario: {
-    montar: montarTelaDiarioObra,
+    montar: () => montarTelaDiarioObra(),
   
     depois: async function () {
   
@@ -1105,7 +1115,7 @@ localStorage.setItem("telaAtualMobile", tela);
   },
 
     diarioItens: {
-      montar: montarTelaItensDiario,
+      montar: () => montarTelaItensDiario(),
       depois: async function () {
         if (typeof carregarAtividadesItemDiarioOffline_ === "function") {
           await carregarAtividadesItemDiarioOffline_();
@@ -1118,7 +1128,7 @@ localStorage.setItem("telaAtualMobile", tela);
     },
 
     medicoes: {
-      montar: montarTelaMedicoes,
+      montar: () => montarTelaMedicoes(),
       depois: async function () {
 
         if (typeof fecharLotesVencidosMedicao_ === "function") {
@@ -1442,13 +1452,16 @@ async function atualizarIndicadoresMobile_() {
     const atividades =
       await listarRegistrosSIGO("TB_ATIVIDADES_OBRA");
 
-    const obraAtiva =
-      obterObraAtivaMobile_();
+    const obraAtivaBruta =
+        obterObraAtivaMobile_();
 
-    const atividadesObra =
-      atividades.filter(item =>
-        String(item.idObra) === String(obraAtiva)
-      );
+      const obraAtiva =
+        String(obraAtivaBruta).split(" ")[0].trim();
+
+      const atividadesObra =
+        atividades.filter(item =>
+          String(item.idObra).trim() === String(obraAtiva)
+        );
 
     const totalAtividades =
       atividadesObra.length;
@@ -11634,13 +11647,8 @@ async function atualizarIndicadorAtividadesOffline_() {
     return;
   }
 
-  const atividades =
-    await listarRegistrosSIGO("TB_ATIVIDADES_OBRA");
-
   const total =
-    atividades.filter(item =>
-      String(item.idObra) === String(obraAtiva)
-    ).length;
+      await contarAtividadesOfflineObra_();
 
   contador.textContent =
     total + " atividades offline";
