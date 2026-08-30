@@ -1,9 +1,8 @@
 const SIGO_API_URL = "https://script.google.com/macros/s/AKfycbzVE7tdTSwHvKgLkrdcaQtGAm_muqNPo6n0wQZBDpmRwtAJuySfWyh6gdef0R6g_drKRw/exec";
 const SIGO_TOKEN_OFFLINE = "SIGO_TOKEN_OFFLINE";
 
-document.addEventListener("DOMContentLoaded", async () => {
-  await atualizarHomeMobile_();
-    iniciarSeletorObra();
+document.addEventListener("DOMContentLoaded", () => {
+  window.__SIGO_BOOT_TOPO_REV21_IGNORADO__ = true;
 });
 
 // ========================================
@@ -983,6 +982,184 @@ document.addEventListener(
 );
 
 
+
+/* F16_24M2_REV21_RUNTIME_ROOT_FIX
+ * Mantem o index.html atual e evita dependencias do ui.js no runtime normal.
+ */
+function feedbackSIGOCompat_(tipo, titulo, mensagem) {
+  const feedback =
+    globalThis.SIGOUI &&
+    SIGOUI.feedback &&
+    SIGOUI.feedback[tipo];
+
+  if (typeof feedback === "function") {
+    feedback(titulo, mensagem);
+    return;
+  }
+
+  console[tipo === "error" ? "error" : "log"](
+    titulo,
+    mensagem || ""
+  );
+}
+
+function renderizarTelaAppMobile_(tela, html) {
+  const home =
+    document.getElementById("homeApp");
+
+  const area =
+    document.getElementById("telaApp");
+
+  if (tela === "home") {
+    if (home) home.style.display = "";
+    if (area) area.innerHTML = "";
+    return true;
+  }
+
+  if (!area || typeof html !== "string") {
+    return false;
+  }
+
+  if (home) home.style.display = "none";
+  area.innerHTML = html;
+  return true;
+}
+
+function montarTelaBasicaMobile_(tela, titulo, descricao, corpo) {
+  return `
+    <div class="tela-card">
+      <button class="btn-voltar" onclick="voltarHome()">← Voltar</button>
+      <h2>${titulo}</h2>
+      <p>${descricao}</p>
+      ${corpo || ""}
+    </div>
+  `;
+}
+
+if (typeof globalThis.montarTelaDiarioObra !== "function") {
+  globalThis.montarTelaDiarioObra = function () {
+    return montarTelaDiarioObra_();
+  };
+}
+
+if (typeof globalThis.montarTelaItensDiario !== "function") {
+  globalThis.montarTelaItensDiario = function () {
+    return montarTelaDiarioItens_();
+  };
+}
+
+if (typeof globalThis.montarTelaMedicoes !== "function") {
+  globalThis.montarTelaMedicoes = function () {
+    return montarTelaMedicoes_();
+  };
+}
+
+if (typeof globalThis.montarTelaObrasOffline !== "function") {
+  globalThis.montarTelaObrasOffline = function () {
+    return montarTelaBasicaMobile_(
+      "obras",
+      "🏗 Obras Offline",
+      "Gerencie as obras disponíveis neste dispositivo.",
+      `
+        <section class="obras-bloco">
+          <h3>Obras baixadas</h3>
+          <div id="listaObrasOffline">Carregando obras offline...</div>
+        </section>
+        <section class="obras-bloco">
+          <h3>Obras disponíveis</h3>
+          <div id="listaObrasDisponiveis">Carregando obras disponíveis...</div>
+        </section>
+      `
+    );
+  };
+}
+
+function montarTelaDiarioItens_() {
+  return montarTelaBasicaMobile_(
+    "diarioItens",
+    "📋 Itens do Diário",
+    "Registre a produção vinculada ao diário ativo.",
+    `
+      <form class="formulario" onsubmit="salvarItemDiarioOffline(event)">
+        <label>Atividade</label>
+        <select id="itemDiarioAtividade" onchange="preencherDadosAtividadeItemDiario()">
+          <option value="">Carregando atividades...</option>
+        </select>
+        <label>Quantidade executada</label>
+        <input type="number" id="itemDiarioQtde" step="0.01">
+        <label>Observação</label>
+        <textarea id="itemDiarioObservacao"></textarea>
+        <button type="submit">Salvar item</button>
+      </form>
+      <div id="listaItensDiarioOffline">Carregando itens...</div>
+    `
+  );
+}
+
+function montarTelaMedicoes_() {
+  return montarTelaBasicaMobile_(
+    "medicoes",
+    "📏 Medições",
+    "Acompanhe e registre medições offline.",
+    `
+      <div id="heroLoteMedicaoAtivo"></div>
+      <div id="listaMedicoesOffline">Carregando medições...</div>
+      <div id="timelineLotesMedicao"></div>
+    `
+  );
+}
+
+function montarTelaClima_() {
+  return montarTelaBasicaMobile_(
+    "clima",
+    "🌦 Clima",
+    "Registre condições climáticas do período.",
+    `
+      <form class="formulario" onsubmit="salvarClimaOffline(event)">
+        <label>Data</label>
+        <input type="date" id="climaData" value="${new Date().toISOString().split("T")[0]}">
+        <label>Período</label>
+        <select id="climaPeriodo"><option value="">Selecione</option><option>MANHÃ</option><option>TARDE</option><option>NOITE</option></select>
+        <label>Condição</label>
+        <input id="climaCondicao" placeholder="Ex.: Ensolarado">
+        <button type="submit">Salvar clima</button>
+      </form>
+      <div id="listaClimasOffline">Carregando clima...</div>
+    `
+  );
+}
+
+function montarTelaOcorrencias_() {
+  return montarTelaBasicaMobile_(
+    "ocorrencias",
+    "⚠ Ocorrências",
+    "Registre problemas e impactos da obra.",
+    `
+      <form class="formulario" onsubmit="salvarOcorrenciaOffline(event)">
+        <label>Tipo</label>
+        <input id="ocorrenciaTipo" placeholder="Tipo da ocorrência">
+        <label>Descrição</label>
+        <textarea id="ocorrenciaDescricao"></textarea>
+        <button type="submit">Salvar ocorrência</button>
+      </form>
+      <div id="listaOcorrenciasOffline">Carregando ocorrências...</div>
+    `
+  );
+}
+
+function montarTelaEvidenciasCompat_() {
+  if (typeof montarTelaEvidencias_ === "function") {
+    return montarTelaEvidencias_();
+  }
+
+  return montarTelaBasicaMobile_(
+    "evidencias",
+    "📎 Evidências",
+    "Registre fotos e documentos da obra.",
+    `<div id="listaEvidenciasOffline">Carregando evidências...</div>`
+  );
+}
+
 /* F16_24M2_REV7_ADAPTADOR_MINIMO_MONTAR_HOME
 + * A Home publicada ja existe no index.html. Este adaptador intencionalmente
 + * nao remonta o DOM; apenas satisfaz o contrato de navegarPara e permite
@@ -992,7 +1169,7 @@ function montarHomePremium() {
   return null;
 }
 
-function navegarPara(tela) {
+async function navegarPara(tela) {
   /*
    * UX.21.9.7.7K.3C.9C
    * Gate terminal de dispositivo revogado.
@@ -1173,12 +1350,21 @@ localStorage.setItem("telaAtualMobile", tela);
     }
   };
 
- if (app && telasPremium[tela]) {
+ if (
+    app &&
+    telasPremium[tela] &&
+    globalThis.SIGOUI &&
+    typeof SIGOUI.render === "function"
+  ) {
     (async function () {
       const htmlTela =
         await telasPremium[tela].montar();
   
-      SIGOUI.render(".app-premium", htmlTela);
+      if (htmlTela !== null && htmlTela !== undefined) {
+        SIGOUI.render(".app-premium", htmlTela);
+      } else {
+        renderizarTelaAppMobile_(tela, htmlTela);
+      }
   
       setTimeout(async () => {
         if (typeof carregarObrasMobile_ === "function") {
@@ -1204,6 +1390,41 @@ localStorage.setItem("telaAtualMobile", tela);
 }
   
   if (!area) return;
+
+  const htmlFallback =
+    await montarTela(tela);
+
+  renderizarTelaAppMobile_(
+    tela,
+    htmlFallback
+  );
+
+  if (tela === "home") {
+    await atualizarHomeMobile_();
+    return;
+  }
+
+  if (tela === "diario") {
+    setTimeout(() => {
+      if (typeof carregarAtividadesItemDiarioOffline_ === "function") {
+        carregarAtividadesItemDiarioOffline_();
+      }
+      if (typeof carregarListaDiariosOffline === "function") {
+        carregarListaDiariosOffline();
+      }
+    }, 100);
+  }
+
+  if (tela === "medicoes") {
+    setTimeout(() => {
+      if (typeof listarMedicoesOffline_ === "function") {
+        listarMedicoesOffline_();
+      }
+      if (typeof criarTimelineLotesMedicao_ === "function") {
+        criarTimelineLotesMedicao_();
+      }
+    }, 100);
+  }
 
   if (tela === "evidencias") {
     setTimeout(() => {
@@ -1534,7 +1755,15 @@ document.addEventListener("DOMContentLoaded", async () => {
       
       console.log("SIGO Mobile inicializado.");
   
-      navegarPara("home");
+      if (
+        typeof iniciarSeletorObra === "function" &&
+        !window.__SIGO_SELETOR_OBRA_INICIADO_REV21__
+      ) {
+        iniciarSeletorObra();
+        window.__SIGO_SELETOR_OBRA_INICIADO_REV21__ = true;
+      }
+
+      await navegarPara("home");
   
     } catch (erro) {
       console.error(
@@ -4819,7 +5048,8 @@ async function sincronizarSIGO() {
       });
     }
 
-    SIGOUI.feedback.error(
+    feedbackSIGOCompat_(
+      "error",
       "Erro de sincronização",
       mensagemErro
     );

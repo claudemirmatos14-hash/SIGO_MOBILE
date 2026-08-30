@@ -19,6 +19,19 @@ function abrirBancoLocalSIGO() {
 
     request.onsuccess = (event) => {
       SIGO_DB = event.target.result;
+
+      SIGO_DB.onclose = () => {
+        SIGO_DB = null;
+      };
+
+      SIGO_DB.onversionchange = () => {
+        try {
+          SIGO_DB.close();
+        } finally {
+          SIGO_DB = null;
+        }
+      };
+
       resolve(SIGO_DB);
     };
 
@@ -375,12 +388,33 @@ function listarRegistrosSIGO(storeName) {
         );
       }
 
-      const db = SIGO_DB || await abrirBancoLocalSIGO();
+      let db = SIGO_DB || await abrirBancoLocalSIGO();
 
-      const transaction = db.transaction(
-        [storeName],
-        "readonly"
-      );
+      let transaction;
+
+      try {
+        transaction = db.transaction(
+          [storeName],
+          "readonly"
+        );
+      } catch (erroTransacao) {
+        const mensagem =
+          String(erroTransacao?.message || "");
+
+        if (
+          erroTransacao?.name === "InvalidStateError" ||
+          mensagem.includes("connection is closing")
+        ) {
+          SIGO_DB = null;
+          db = await abrirBancoLocalSIGO();
+          transaction = db.transaction(
+            [storeName],
+            "readonly"
+          );
+        } else {
+          throw erroTransacao;
+        }
+      }
 
       const store = transaction.objectStore(storeName);
 
