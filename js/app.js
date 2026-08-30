@@ -1003,6 +1003,18 @@ function feedbackSIGOCompat_(tipo, titulo, mensagem) {
   );
 }
 
+function formatarDataMedicao_(data) {
+  if (!data) return "--";
+
+  try {
+    return new Date(data + "T00:00:00")
+      .toLocaleDateString("pt-BR");
+  } catch (erro) {
+    return data;
+  }
+}
+
+
 function renderizarTelaAppMobile_(tela, html) {
   const home =
     document.getElementById("homeApp");
@@ -3964,7 +3976,7 @@ async function sincronizarSIGO() {
           );
     
     
-          SIGOUI.feedback.error(
+          feedbackSIGOCompat_("error",
             "Acesso bloqueado",
             bloqueioLocalUX2196.mensagem ||
             "Esta identidade não está autorizada a sincronizar."
@@ -4030,7 +4042,7 @@ async function sincronizarSIGO() {
       pendentesObra.length === 0
     ) {
 
-      SIGOUI.feedback.info(
+      feedbackSIGOCompat_("info",
         "Tudo sincronizado",
         "Não há registros pendentes para esta obra."
       );
@@ -4488,7 +4500,7 @@ async function sincronizarSIGO() {
       pendenciasEnviadas.length === 0
     ) {
 
-      SIGOUI.feedback.warning(
+      feedbackSIGOCompat_("warning",
         "Nada enviado",
         "As pendências não possuem registros de origem elegíveis."
       );
@@ -4665,7 +4677,7 @@ async function sincronizarSIGO() {
            * Nenhum registro operacional recebe
            * status SINCRONIZADO.
            */
-          SIGOUI.feedback.error(
+          feedbackSIGOCompat_("error",
             "Acesso bloqueado",
             bloqueioUX2196.mensagem ||
             "A identidade atual foi bloqueada pelo servidor."
@@ -4992,7 +5004,7 @@ async function sincronizarSIGO() {
       });
     }
 
-    SIGOUI.feedback.success(
+    feedbackSIGOCompat_("success",
       "Sincronização concluída",
       `${resumoSync.total} registro(s) enviado(s) ao SIGO.`
     );
