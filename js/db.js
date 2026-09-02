@@ -1061,3 +1061,27 @@ async function removerRegistroPorChaveSIGO_(storeName, chave) {
     transaction.onerror = () => reject(transaction.error);
   });
 }
+
+function obterChaveRegistroUX202_(
+  registro,
+  keyPath
+) {
+  if (
+    Array.isArray(keyPath)
+  ) {
+    return keyPath.map(
+      function (campo) {
+        return registro?.[campo];
+      }
+    );
+  }
+
+  if (
+    typeof keyPath === "string" &&
+    keyPath
+  ) {
+    return registro?.[keyPath];
+  }
+
+  return undefined;
+}

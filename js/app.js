@@ -50761,29 +50761,6 @@ async function obterKeyPathsUX202_(
 /**
  * Obtém a chave IndexedDB do registro.
  */
-function obterChaveRegistroUX202_(
-  registro,
-  keyPath
-) {
-  if (
-    Array.isArray(keyPath)
-  ) {
-    return keyPath.map(
-      function (campo) {
-        return registro?.[campo];
-      }
-    );
-  }
-
-  if (
-    typeof keyPath === "string" &&
-    keyPath
-  ) {
-    return registro?.[keyPath];
-  }
-
-  return undefined;
-}
 
 
 /**
