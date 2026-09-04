@@ -61900,16 +61900,6 @@ function gerarUuidUX213_() {
 }
 
 
-function gerarIdEventoIdentidadeUX213_() {
-  return (
-    "AUD-ID-" +
-    Date.now() +
-    "-" +
-    gerarUuidUX213_()
-  );
-}
-
-
 function promessaRequisicaoUX213_(
   requisicao
 ) {
