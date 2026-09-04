@@ -38881,29 +38881,6 @@ function normalizarMaiusculoMedicoesUX1995_(valor) {
  * Registros históricos concluídos permanecem na fila,
  * mas não bloqueiam uma reidratação.
  */
-function filaMedicaoConcluidaUX1995_(registroFila) {
-  const status =
-    normalizarMaiusculoMedicoesUX1995_(
-      registroFila?.statusSync ??
-      registroFila?.status ??
-      registroFila?.situacao
-    );
-
-  return [
-    "SINCRONIZADO",
-    "CONCLUIDO",
-    "PROCESSADO",
-    "ENVIADO",
-    "SUCESSO",
-    "OK",
-    "CANCELADO"
-  ].includes(status);
-}
-
-
-/**
- * Obtém a store referenciada por uma entrada da fila.
- */
 function obterOperacaoFilaMedicoesUX1995_(registroFila) {
   const operacao =
     normalizarMaiusculoMedicoesUX1995_(

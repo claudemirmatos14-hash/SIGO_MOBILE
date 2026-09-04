@@ -61,3 +61,27 @@ function filaClimaEstaPendenteUX1975_(
 /**
  * Determina a operação da fila.
  */
+
+function filaMedicaoConcluidaUX1995_(registroFila) {
+  const status =
+    normalizarMaiusculoMedicoesUX1995_(
+      registroFila?.statusSync ??
+      registroFila?.status ??
+      registroFila?.situacao
+    );
+
+  return [
+    "SINCRONIZADO",
+    "CONCLUIDO",
+    "PROCESSADO",
+    "ENVIADO",
+    "SUCESSO",
+    "OK",
+    "CANCELADO"
+  ].includes(status);
+}
+
+
+/**
+ * Obtém a store referenciada por uma entrada da fila.
+ */
