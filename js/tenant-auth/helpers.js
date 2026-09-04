@@ -67,3 +67,15 @@ function idSessaoValidoUX212_(
     textoUX212_(idSessao)
   );
 }
+
+function normalizarValorIdentidadeUX211_(
+  valor
+) {
+  return textoUX211_(valor)
+    .normalize("NFD")
+    .replace(
+      /[\u0300-\u036f]/g,
+      ""
+    )
+    .toUpperCase();
+}

@@ -55944,17 +55944,6 @@ function normalizarCampoIdentidadeUX211_(
 /**
  * Normalização de valores para comparação.
  */
-function normalizarValorIdentidadeUX211_(
-  valor
-) {
-  return textoUX211_(valor)
-    .normalize("NFD")
-    .replace(
-      /[\u0300-\u036f]/g,
-      ""
-    )
-    .toUpperCase();
-}
 
 
 /**
