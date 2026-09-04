@@ -59,3 +59,11 @@ function obterIdentidadeAtualUX214_() {
       )
     : null;
 }
+
+function idSessaoValidoUX212_(
+  idSessao
+) {
+  return /^SES-[A-Z0-9][A-Z0-9_-]{5,}$/i.test(
+    textoUX212_(idSessao)
+  );
+}

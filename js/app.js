@@ -59198,13 +59198,6 @@ function idDispositivoValidoUX212_(
 /**
  * Verifica formato da sessão.
  */
-function idSessaoValidoUX212_(
-  idSessao
-) {
-  return /^SES-[A-Z0-9][A-Z0-9_-]{5,}$/i.test(
-    textoUX212_(idSessao)
-  );
-}
 
 
 /**
