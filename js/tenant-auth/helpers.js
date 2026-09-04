@@ -51,3 +51,11 @@ function idUsuarioValidoUX212_(
     textoUX212_(idUsuario)
   );
 }
+
+function obterIdentidadeAtualUX214_() {
+  return window.SIGO_IDENTIDADE_ATUAL
+    ? clonarUX214_(
+        window.SIGO_IDENTIDADE_ATUAL
+      )
+    : null;
+}

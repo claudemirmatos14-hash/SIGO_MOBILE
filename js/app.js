@@ -65466,13 +65466,6 @@ async function restaurarIdentidadeTransicaoUX214_() {
 /**
  * Retorna o contexto oficial já carregado.
  */
-function obterIdentidadeAtualUX214_() {
-  return window.SIGO_IDENTIDADE_ATUAL
-    ? clonarUX214_(
-        window.SIGO_IDENTIDADE_ATUAL
-      )
-    : null;
-}
 
 
 /**
