@@ -43,3 +43,11 @@ function gerarIdSessaoTransicaoUX214_(
       .toUpperCase()
   );
 }
+
+function idUsuarioValidoUX212_(
+  idUsuario
+) {
+  return /^USR-[A-Z0-9][A-Z0-9_-]{5,}$/i.test(
+    textoUX212_(idUsuario)
+  );
+}
