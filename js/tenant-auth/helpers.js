@@ -7,4 +7,24 @@ function gerarIdEventoIdentidadeUX213_() {
   );
 }
 
+function snapshotsMesmaIdentidadeUX216A_(
+  a,
+  b
+) {
+  if (!a || !b) {
+    return false;
+  }
 
+  return (
+    a.idUsuario === b.idUsuario &&
+    a.idDispositivo === b.idDispositivo &&
+    a.idSessao === b.idSessao &&
+    a.idObra === b.idObra &&
+    a.perfil === b.perfil
+  );
+}
+
+
+/**
+ * ETAPA 1 — Captura o estado antes da criação pela interface.
+ */
