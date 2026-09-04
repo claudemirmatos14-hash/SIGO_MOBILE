@@ -8,3 +8,18 @@ function formatarDataObraOffline_(dataISO) {
   }
 }
 
+
+function obterStoreFilaMedicoesUX1995_(registroFila) {
+  return normalizarMaiusculoMedicoesUX1995_(
+    registroFila?.storeOrigem ??
+    registroFila?.store ??
+    registroFila?.tabela ??
+    registroFila?.payload?.storeOrigem ??
+    registroFila?.dados?.storeOrigem
+  );
+}
+
+
+/**
+ * Obtém o ID referenciado por uma entrada da fila.
+ */
