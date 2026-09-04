@@ -40,3 +40,24 @@ function obterIdFilaMedicoesUX1995_(registroFila) {
 /**
  * Identifica a operação da fila.
  */
+
+function filaClimaEstaPendenteUX1975_(
+  registroFila
+) {
+  const status =
+    normalizarMaiusculoClimaUX1975_(
+      registroFila?.statusSync ||
+      registroFila?.status
+    );
+
+  return (
+    status === "PENDENTE" ||
+    status === "ERRO" ||
+    status === "FALHA"
+  );
+}
+
+
+/**
+ * Determina a operação da fila.
+ */

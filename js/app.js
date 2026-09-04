@@ -24269,26 +24269,6 @@ function filaPertenceClimaUX1975_(
 /**
  * Verifica se a entrada da fila ainda está pendente.
  */
-function filaClimaEstaPendenteUX1975_(
-  registroFila
-) {
-  const status =
-    normalizarMaiusculoClimaUX1975_(
-      registroFila?.statusSync ||
-      registroFila?.status
-    );
-
-  return (
-    status === "PENDENTE" ||
-    status === "ERRO" ||
-    status === "FALHA"
-  );
-}
-
-
-/**
- * Determina a operação da fila.
- */
 function obterOperacaoFilaClimaUX1975_(
   registroFila
 ) {
