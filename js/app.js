@@ -65033,20 +65033,6 @@ function sessaoPrecisaRenovarUX214_(
 }
 
 
-function gerarIdSessaoTransicaoUX214_(
-  idDispositivo
-) {
-  return (
-    "SES-TRANSICAO-" +
-    hashUX214_(
-      idDispositivo
-    ) +
-    "-" +
-    Date.now()
-      .toString(36)
-      .toUpperCase()
-  );
-}
 
 
 /**
