@@ -38924,22 +38924,6 @@ function filaMedicaoConcluidaUX1995_(registroFila) {
 /**
  * Obtém a store referenciada por uma entrada da fila.
  */
-function obterIdFilaMedicoesUX1995_(registroFila) {
-  return normalizarTextoMedicoesUX1995_(
-    registroFila?.idRegistro ??
-    registroFila?.registroId ??
-    registroFila?.idMedicao ??
-    registroFila?.payload?.idRegistro ??
-    registroFila?.payload?.idMedicao ??
-    registroFila?.dados?.idRegistro ??
-    registroFila?.dados?.idMedicao
-  );
-}
-
-
-/**
- * Identifica a operação da fila.
- */
 function obterOperacaoFilaMedicoesUX1995_(registroFila) {
   const operacao =
     normalizarMaiusculoMedicoesUX1995_(
