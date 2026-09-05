@@ -207,3 +207,64 @@ function assinarLocalStorageIdentidadeUX211_() {
     )
   );
 }
+
+function normalizarSnapshotAutoriaUX216_(
+  autoria
+) {
+  return {
+    versaoContrato:
+      textoUX216_(
+        autoria?.versaoContrato
+      ),
+
+    idUsuario:
+      textoUX216_(
+        autoria?.idUsuario
+      ),
+
+    nomeUsuario:
+      textoUX216_(
+        autoria?.nomeUsuario
+      ),
+
+    emailUsuario:
+      textoUX216_(
+        autoria?.emailUsuario
+      ),
+
+    idDispositivo:
+      textoUX216_(
+        autoria?.idDispositivo
+      ),
+
+    idSessao:
+      textoUX216_(
+        autoria?.idSessao
+      ),
+
+    idObra:
+      textoUX216_(
+        autoria?.idObra
+      ),
+
+    perfil:
+      textoUX216_(
+        autoria?.perfil
+      ),
+
+    modoConexao:
+      textoUX216_(
+        autoria?.modoConexao
+      ),
+
+    ocorridoEm:
+      textoUX216_(
+        autoria?.ocorridoEm
+      ),
+
+    origem:
+      textoUX216_(
+        autoria?.origem
+      )
+  };
+}
