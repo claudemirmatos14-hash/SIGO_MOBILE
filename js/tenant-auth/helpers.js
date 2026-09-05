@@ -165,3 +165,45 @@ function normalizarPerfilUX212_(
     ? normalizado
     : "";
 }
+
+function assinarLocalStorageIdentidadeUX211_() {
+  const entradas = [];
+
+  for (
+    let indice = 0;
+    indice < localStorage.length;
+    indice++
+  ) {
+    const chave =
+      localStorage.key(indice);
+
+    if (!chave) {
+      continue;
+    }
+
+    if (
+      !/usuario|user|dispositivo|device|identidade|sessao|session|auth|token|perfil|permiss|revog|bloque/i
+        .test(chave)
+    ) {
+      continue;
+    }
+
+    entradas.push([
+      chave,
+      localStorage.getItem(chave)
+    ]);
+  }
+
+  entradas.sort(
+    function (a, b) {
+      return a[0]
+        .localeCompare(b[0]);
+    }
+  );
+
+  return gerarHashIdentidadeUX211_(
+    JSON.stringify(
+      entradas
+    )
+  );
+}
