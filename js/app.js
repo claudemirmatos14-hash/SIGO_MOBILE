@@ -66116,46 +66116,6 @@ const TELAS_PROTEGIDAS_IDENTIDADE_UX215 =
 /**
  * Estado central em memória.
  */
-function obterEstadoInternoIdentidadeUX215_() {
-  window.SIGO_UX215 =
-    window.SIGO_UX215 || {};
-
-  if (
-    !window.SIGO_UX215.estado
-  ) {
-    window.SIGO_UX215.estado =
-      ESTADOS_IDENTIDADE_UX215
-        .naoIniciada;
-  }
-
-  if (
-    !Object.prototype.hasOwnProperty.call(
-      window.SIGO_UX215,
-      "promessa"
-    )
-  ) {
-    window.SIGO_UX215.promessa =
-      null;
-  }
-
-  window.SIGO_UX215.erro =
-    window.SIGO_UX215.erro ||
-    null;
-
-  window.SIGO_UX215.resultado =
-    window.SIGO_UX215.resultado ||
-    null;
-
-  window.SIGO_UX215.iniciadoEm =
-    window.SIGO_UX215.iniciadoEm ||
-    "";
-
-  window.SIGO_UX215.concluidoEm =
-    window.SIGO_UX215.concluidoEm ||
-    "";
-
-  return window.SIGO_UX215;
-}
 
 
 function textoUX215_(valor) {
