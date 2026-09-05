@@ -59175,13 +59175,6 @@ function obterPermissoesPerfilUX212_(
  *
  * Compatível com os IDs atuais DISP-MOBILE-*.
  */
-function idDispositivoValidoUX212_(
-  idDispositivo
-) {
-  return /^DISP-[A-Z0-9][A-Z0-9_-]{5,}$/i.test(
-    textoUX212_(idDispositivo)
-  );
-}
 
 
 /**

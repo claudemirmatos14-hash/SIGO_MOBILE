@@ -120,3 +120,11 @@ function obterEstadoInternoIdentidadeUX215_() {
 
   return window.SIGO_UX215;
 }
+
+function idDispositivoValidoUX212_(
+  idDispositivo
+) {
+  return /^DISP-[A-Z0-9][A-Z0-9_-]{5,}$/i.test(
+    textoUX212_(idDispositivo)
+  );
+}
