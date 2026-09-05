@@ -152,3 +152,16 @@ function adicionarCandidatoIdentidadeUX211_(
     .get(texto)
     .add(origem);
 }
+
+function normalizarPerfilUX212_(
+  perfil
+) {
+  const normalizado =
+    maiusculoUX212_(perfil);
+
+  return PERFIS_USUARIO_UX212.includes(
+    normalizado
+  )
+    ? normalizado
+    : "";
+}
