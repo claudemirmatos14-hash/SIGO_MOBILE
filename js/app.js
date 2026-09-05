@@ -57578,29 +57578,6 @@ function compararEstadoIdentidadeUX211_(
 /**
  * Adiciona candidato com sua origem.
  */
-function adicionarCandidatoIdentidadeUX211_(
-  mapa,
-  valor,
-  origem
-) {
-  const texto =
-    textoUX211_(valor);
-
-  if (!texto) {
-    return;
-  }
-
-  if (!mapa.has(texto)) {
-    mapa.set(
-      texto,
-      new Set()
-    );
-  }
-
-  mapa
-    .get(texto)
-    .add(origem);
-}
 
 
 /**
