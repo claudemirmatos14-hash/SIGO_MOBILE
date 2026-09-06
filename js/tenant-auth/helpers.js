@@ -268,3 +268,51 @@ function normalizarSnapshotAutoriaUX216_(
       )
   };
 }
+
+function valoresUnicosIdentidadeUX211_(
+  ocorrencias
+) {
+  const valores =
+    [];
+
+  (
+    Array.isArray(ocorrencias)
+      ? ocorrencias
+      : []
+  ).forEach(
+    function (ocorrencia) {
+      const valor =
+        ocorrencia?.valor;
+
+      if (Array.isArray(valor)) {
+        valor.forEach(
+          function (item) {
+            const texto =
+              textoUX211_(item);
+
+            if (texto) {
+              valores.push(texto);
+            }
+          }
+        );
+
+        return;
+      }
+
+      const texto =
+        textoUX211_(valor);
+
+      if (
+        texto &&
+        texto !==
+          "[PRESENTE]"
+      ) {
+        valores.push(texto);
+      }
+    }
+  );
+
+  return Array.from(
+    new Set(valores)
+  );
+}
