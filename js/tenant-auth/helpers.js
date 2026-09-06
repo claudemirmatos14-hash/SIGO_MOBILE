@@ -367,3 +367,80 @@ function gerarHashIdentidadeUX211_(
     .toString(16)
     .padStart(8, "0");
 }
+
+function criarEventoAuditoriaIdentidadeUX213_({
+  tipoEvento,
+  tipoEntidade,
+  idEntidade,
+  idUsuario = "",
+  idDispositivo = "",
+  idSessao = "",
+  resultado = "SUCESSO",
+  origem = "APP_MOBILE",
+  detalhes = {}
+} = {}) {
+  const evento = {
+    versaoContrato:
+      VERSAO_CONTRATO_IDENTIDADE_UX212,
+
+    tipoRegistro:
+      "AUDITORIA_IDENTIDADE",
+
+    idEvento:
+      gerarIdEventoIdentidadeUX213_(),
+
+    tipoEvento:
+      textoUX213_(
+        tipoEvento
+      ),
+
+    tipoEntidade:
+      textoUX213_(
+        tipoEntidade
+      ),
+
+    idEntidade:
+      textoUX213_(
+        idEntidade
+      ),
+
+    idUsuario:
+      textoUX213_(
+        idUsuario
+      ),
+
+    idDispositivo:
+      textoUX213_(
+        idDispositivo
+      ),
+
+    idSessao:
+      textoUX213_(
+        idSessao
+      ),
+
+    resultado:
+      textoUX213_(
+        resultado
+      ),
+
+    origem:
+      textoUX213_(
+        origem
+      ),
+
+    ocorridoEm:
+      new Date().toISOString(),
+
+    detalhes:
+      clonarUX213_(
+        detalhes || {}
+      )
+  };
+
+  validarAusenciaSegredosUX213_(
+    evento
+  );
+
+  return evento;
+}
