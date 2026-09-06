@@ -56323,56 +56323,7 @@ function dispositivoEhPlaceholderUX211_(
 /**
  * Gera uma assinatura simples.
  */
-function gerarHashIdentidadeUX211_(
-  valor
-) {
-  if (
-    typeof gerarHashUX202_ ===
-    "function"
-  ) {
-    return gerarHashUX202_(
-      valor
-    );
-  }
 
-  const texto =
-    String(valor);
-
-  let hash =
-    2166136261;
-
-  for (
-    let indice = 0;
-    indice < texto.length;
-    indice++
-  ) {
-    hash ^=
-      texto.charCodeAt(indice);
-
-    hash +=
-      (
-        hash << 1
-      ) +
-      (
-        hash << 4
-      ) +
-      (
-        hash << 7
-      ) +
-      (
-        hash << 8
-      ) +
-      (
-        hash << 24
-      );
-  }
-
-  return (
-    hash >>> 0
-  )
-    .toString(16)
-    .padStart(8, "0");
-}
 
 
 /**
