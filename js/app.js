@@ -17098,15 +17098,7 @@ function adicionarConflitoUX1956_(
 /**
  * Extrai o ID de um Diário.
  */
-function obterIdDiarioUX1956_(registro) {
-  return normalizarTextoUX1956_(
-    registro && (
-      registro.idDiario ||
-      registro.id ||
-      registro.chave
-    )
-  );
-}
+
 
 
 /**
