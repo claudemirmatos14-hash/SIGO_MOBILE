@@ -8474,29 +8474,6 @@ async function editarOcorrenciaOffline_(idOcorrencia) {
   }
 }
 
-function atualizarModoEdicaoOcorrencia_() {
-  const botao =
-    document.querySelector(".is-success");
-
-  if (!botao) return;
-
-  if (idOcorrenciaEdicao) {
-    botao.innerHTML = "💾 Atualizar";
-
-    botao.setAttribute(
-      "onclick",
-      "atualizarOcorrenciaOffline_()"
-    );
-
-  } else {
-    botao.innerHTML = "💾 Salvar";
-
-    botao.setAttribute(
-      "onclick",
-      "salvarOcorrenciaPremium()"
-    );
-  }
-}
 
 async function atualizarOcorrenciaOffline_() {
   try {
