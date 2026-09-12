@@ -11160,9 +11160,7 @@ async function carregarObrasMobile_() {
   }
 }
 
-function obterObraAtivaMobile_() {
-  return localStorage.getItem("obraAtiva") || "";
-}
+
 
 async function abrirGerenciadorObrasOffline_() {
   const area = document.getElementById("telaApp");
