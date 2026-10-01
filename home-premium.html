@@ -59,7 +59,59 @@
   <script src="js/sigo-remote-cleanup.js"></script>
 
   <script>
-    document.addEventListener("DOMContentLoaded", montarHomePremium);
+    document.addEventListener("DOMContentLoaded", async () => {
+      const app = document.querySelector(".app-premium");
+
+      if (!app) {
+        console.error("[SIGO] Container .app-premium não encontrado.");
+        return;
+      }
+
+      try {
+        if (typeof montarHomePremium !== "function") {
+          throw new Error("montarHomePremium indisponível.");
+        }
+
+        const html = await montarHomePremium();
+
+        if (typeof html !== "string" || !html.trim()) {
+          throw new Error("montarHomePremium não retornou HTML válido.");
+        }
+
+        app.innerHTML = html;
+        localStorage.setItem("telaAtualMobile", "home");
+
+        if (typeof carregarIndicadoresHomePremium === "function") {
+          await carregarIndicadoresHomePremium();
+        }
+
+        if (typeof atualizarIndicadoresMobile_ === "function") {
+          await atualizarIndicadoresMobile_();
+        }
+
+        if (typeof instalarAcaoReidratacaoUX1958_ === "function") {
+          await instalarAcaoReidratacaoUX1958_();
+        }
+      } catch (erro) {
+        console.error("[SIGO] Falha ao iniciar Home Premium:", erro);
+
+        const mensagem =
+          erro && erro.message
+            ? erro.message
+            : String(erro || "Erro desconhecido");
+
+        app.innerHTML =
+          `<main class="home-premium">
+            <section class="sigo-card">
+              <h2>Falha ao iniciar o SIGO Mobile</h2>
+              <p id="sigoBootstrapError"></p>
+            </section>
+          </main>`;
+
+        const erroEl = document.getElementById("sigoBootstrapError");
+        if (erroEl) erroEl.textContent = mensagem;
+      }
+    });
   </script>
 
 </body>

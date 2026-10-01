@@ -1161,7 +1161,7 @@ function montarTelaEvidenciasCompat_() {
 + * nao remonta o DOM; apenas satisfaz o contrato de navegarPara e permite
 + * que o callback depois atualize os indicadores a partir do IndexedDB.
 + */
-function montarHomePremium() {
+function montarHomePremiumIndexCompat_() {
   return null;
 }
 
@@ -1495,7 +1495,11 @@ return `
 }
 
 function voltarHome() {
-  window.location.reload();
+  if (typeof navegarPara === "function") {
+    return navegarPara("home");
+  }
+
+  return false;
 }
 
 function montarTelaDiarioObra_() {
@@ -5059,6 +5063,16 @@ async function sincronizarSIGO() {
 
 async function sincronizarDadosBaseObraMobile() {
   try {
+    if (
+      typeof SIGOUI !== "undefined" &&
+      SIGOUI.feedback &&
+      typeof SIGOUI.feedback.info === "function"
+    ) {
+      SIGOUI.feedback.info(
+        "Atualizando base",
+        "Buscando os dados mais recentes da obra..."
+      );
+    }
     const obraAtiva =
       localStorage.getItem("obraAtiva") ||
       "OBR002";
@@ -11163,44 +11177,64 @@ async function carregarObrasMobile_() {
 
 
 async function abrirGerenciadorObrasOffline_() {
-  const area = document.getElementById("telaApp");
-  document.getElementById("homeApp").style.display = "none";
-  
-  if (!area) return;
+  try {
+    // A Home Premium possui a rota canônica "obras".
+    // O gerenciador legado dependia de #homeApp, elemento que não
+    // existe no shell Premium e quebrava "Baixar Obra" / "Obras".
+    if (typeof navegarPara === "function") {
+      await navegarPara("obras");
+      return true;
+    }
 
-  area.innerHTML = `
-    <div class="tela-card gerenciador-obras">
+    const area = document.getElementById("telaApp");
+    if (!area) {
+      throw new Error("Área de navegação do SIGO Mobile indisponível.");
+    }
 
-      <button class="btn-voltar" onclick="voltarHome()">← Voltar</button>
+    if (typeof montarTelaObrasOffline !== "function") {
+      throw new Error("Tela de Obras Offline indisponível.");
+    }
 
-      <h2>🏗 Obras Offline</h2>
+    const html = await montarTelaObrasOffline();
 
-      <p>Gerencie as obras disponíveis neste dispositivo.</p>
+    if (typeof html !== "string" || !html.trim()) {
+      throw new Error("Tela de Obras Offline não retornou HTML válido.");
+    }
 
-      <section class="obras-bloco">
-        <h3>Obras baixadas</h3>
-        <div id="listaObrasOffline">
-          Carregando obras offline...
-        </div>
-      </section>
+    if (
+      globalThis.SIGOUI &&
+      typeof SIGOUI.render === "function"
+    ) {
+      SIGOUI.render(".app-premium", html);
+    } else {
+      area.innerHTML = html;
+    }
 
-      <section class="obras-bloco">
-        <h3>Obras disponíveis</h3>
-        <div id="listaObrasDisponiveis">
-          Carregando obras disponíveis...
-        </div>
-      </section>
+    if (typeof listarObrasOfflineMobile_ === "function") {
+      await listarObrasOfflineMobile_();
+    }
 
-    </div>
-  `;
+    if (typeof listarObrasDisponiveisMobile_ === "function") {
+      await listarObrasDisponiveisMobile_();
+    }
 
-  await listarObrasOfflineMobile_();
-  await listarObrasDisponiveisMobile_();
+    return true;
+  } catch (erro) {
+    console.error("Erro ao abrir gerenciador de obras:", erro);
 
-  window.scrollTo({
-    top: area.offsetTop,
-    behavior: "smooth"
-  });
+    if (
+      globalThis.SIGOUI &&
+      SIGOUI.feedback &&
+      typeof SIGOUI.feedback.error === "function"
+    ) {
+      SIGOUI.feedback.error(
+        "Erro ao abrir Obras",
+        erro?.message || "Não foi possível abrir o gerenciador de obras."
+      );
+    }
+
+    return false;
+  }
 }
 
 async function listarObrasOfflineMobile_() {
@@ -12280,7 +12314,27 @@ async function listarMedicoesOffline_() {
       loteReferencia =
         await obterLoteMedicaoAberto_();
     }
-    
+
+    if (!loteReferencia) {
+      const lotesHistoricos =
+        await listarRegistrosSIGO("TB_LOTES_MEDICAO");
+
+      loteReferencia =
+        (lotesHistoricos || [])
+          .filter(lote =>
+            String(lote.idObra) === String(obraAtiva)
+          )
+          .sort((a, b) =>
+            new Date(b.criadoEm || b.dataInicio || 0) -
+            new Date(a.criadoEm || a.dataInicio || 0)
+          )[0] || null;
+
+      if (loteReferencia) {
+        idLoteMedicaoSelecionado =
+          loteReferencia.idLoteMedicao;
+      }
+    }
+
     if (!loteReferencia) {
       container.innerHTML = `
         <div class="card-vazio">

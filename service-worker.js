@@ -4,7 +4,7 @@
 // =====================================================
 
 const SIGO_CACHE_VERSION =
-  "sigo-mobile-v96";
+  "sigo-mobile-v99";
 
 const SIGO_BASE_URL =
   new URL("./", self.location.href);
@@ -29,6 +29,15 @@ const SIGO_APP_SHELL = [
   "js/entities.js",
   "js/data-crud.js",
   "js/ui.js",
+  "js/sync/helpers.js",
+  "js/tenant-auth/helpers.js",
+  "js/field-operations/medicoes.js",
+  "js/field-operations/clima.js",
+  "js/field-operations/ocorrencias.js",
+  "js/field-operations/diario.js",
+  "js/data/obras.js",
+  "js/field/operations.js",
+  "js/core/compatibility.js",
   "js/app.js",
   "js/sigo-remote-cleanup.js",
 
