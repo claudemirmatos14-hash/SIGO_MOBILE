@@ -1349,7 +1349,7 @@ localStorage.setItem("telaAtualMobile", tela);
  if (
     app &&
     telasPremium[tela] &&
-    globalThis.SIGOUI &&
+    typeof SIGOUI !== "undefined" &&
     typeof SIGOUI.render === "function"
   ) {
     (async function () {
