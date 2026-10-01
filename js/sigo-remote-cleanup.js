@@ -2530,9 +2530,51 @@
           ACOES.CONSULTAR
       ) {
 
-        throw new Error(
-          "SIGO_REMOTE_CONSULTA_CONTRATO_INVALIDO"
-        );
+        const erroContrato =
+          new Error(
+            "SIGO_REMOTE_CONSULTA_CONTRATO_INVALIDO"
+          );
+
+
+        erroContrato.sigoDiagnostico =
+          Object.freeze({
+
+            tipo:
+              "CONSULTA_CONTRATO_INVALIDO",
+
+            httpStatus:
+              Number(
+                normalizada.httpStatus ||
+                0
+              ),
+
+            httpOk:
+              normalizada.httpOk ===
+              true,
+
+            status:
+              texto_(
+                normalizada.status
+              ),
+
+            acao:
+              texto_(
+                normalizada.acao
+              ),
+
+            resultado:
+              texto_(
+                normalizada.resultado
+              ),
+
+            codigo:
+              texto_(
+                normalizada.codigo
+              )
+          });
+
+
+        throw erroContrato;
       }
 
 
@@ -5398,6 +5440,67 @@
           dados.coalescido ===
           true,
 
+        erro:
+          texto_(
+            dados.erro
+          ),
+
+        diagnostico:
+          dados.diagnostico &&
+          typeof dados.diagnostico ===
+            "object"
+            ? {
+                tipo:
+                  texto_(
+                    dados
+                      .diagnostico
+                      .tipo
+                  ),
+
+                httpStatus:
+                  Number(
+                    dados
+                      .diagnostico
+                      .httpStatus ||
+                    0
+                  ),
+
+                httpOk:
+                  dados
+                    .diagnostico
+                    .httpOk ===
+                  true,
+
+                status:
+                  texto_(
+                    dados
+                      .diagnostico
+                      .status
+                  ),
+
+                acao:
+                  texto_(
+                    dados
+                      .diagnostico
+                      .acao
+                  ),
+
+                resultado:
+                  texto_(
+                    dados
+                      .diagnostico
+                      .resultado
+                  ),
+
+                codigo:
+                  texto_(
+                    dados
+                      .diagnostico
+                      .codigo
+                  )
+              }
+            : null,
+
         comando: {
 
           presente:
@@ -5799,7 +5902,64 @@
                     erro.message
                       ? erro.message
                       : erro
-                  )
+                  ),
+
+                diagnostico:
+                  erro &&
+                  erro.sigoDiagnostico &&
+                  typeof erro.sigoDiagnostico ===
+                    "object"
+                    ? {
+                        tipo:
+                          texto_(
+                            erro
+                              .sigoDiagnostico
+                              .tipo
+                          ),
+
+                        httpStatus:
+                          Number(
+                            erro
+                              .sigoDiagnostico
+                              .httpStatus ||
+                            0
+                          ),
+
+                        httpOk:
+                          erro
+                            .sigoDiagnostico
+                            .httpOk ===
+                          true,
+
+                        status:
+                          texto_(
+                            erro
+                              .sigoDiagnostico
+                              .status
+                          ),
+
+                        acao:
+                          texto_(
+                            erro
+                              .sigoDiagnostico
+                              .acao
+                          ),
+
+                        resultado:
+                          texto_(
+                            erro
+                              .sigoDiagnostico
+                              .resultado
+                          ),
+
+                        codigo:
+                          texto_(
+                            erro
+                              .sigoDiagnostico
+                              .codigo
+                          )
+                      }
+                    : null
               });
             }
           )
