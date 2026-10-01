@@ -1618,14 +1618,22 @@ async function salvarDiarioOffline(event) {
         diario
       );
 
-    // 2. Gera a notificação real da ação
+    // ==========================================
+    // 2. REGISTRAR INSERT NA FILA OFICIAL
+    // ==========================================
+
+    await adicionarNaFilaSyncSIGO({
+      tipo: "INSERT",
+      storeOrigem: "TB_DIARIOS",
+      idRegistro: diarioSalvo.idDiario,
+      idObra: diarioSalvo.idObra
+    });
+
+    // 3. Gera a notificação real da ação
     await registrarEventoSIGO_({
       evento: "DIARIO_SALVO",
       dados: diarioSalvo
     });
-
-    // Não usar adicionarNaFilaSyncSIGO aqui.
-    // salvarRegistroSIGO já integra com SIGOOfflineEngine.
 
     SIGOUI.feedback.success(
       "Diário salvo",
