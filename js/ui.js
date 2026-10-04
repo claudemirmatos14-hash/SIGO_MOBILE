@@ -207,16 +207,6 @@ function criarSecaoTrabalhoCampoSIGO(dados = {}) {
         })}
         
         ${SIGOUI.createModule({
-          acao: "navegarPara('diarioItens')",
-          cor: "is-orange",
-          icone: "📋",
-          titulo: "Itens do Diário",
-          badge: dados.diarioItens.badge,
-          badgeTipo: dados.diarioItens.badgeTipo,
-          descricao: dados.diarioItens.descricao
-        })}
-
-        ${SIGOUI.createModule({
           acao: "navegarPara('medicoes')",
           cor: "is-purple",
           icone: "📏",
