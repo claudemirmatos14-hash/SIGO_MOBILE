@@ -80074,16 +80074,41 @@ async function auditarBloqueioFuncoesReaisUX21964D_() {
     return localStorage.getItem(SIGO_HOME_LOGO_EMPRESA_KEY) || "";
   }
 
+  /* SIGO_HOME_PREMIUM_V112_LOGO_STATE_START */
   function aplicarLogoNosElementosHomePremium_(logo) {
     const imagemHome =
       document.getElementById("logoObraHomePremium");
+
     const placeholder =
       document.getElementById("logoObraPlaceholder");
+
     const imagemConfig =
       document.getElementById("logoObraConfigPreview");
 
+    const cardLogo =
+      imagemHome
+        ? imagemHome.closest(".obra-logo-card")
+        : document.querySelector(".obra-logo-card");
+
+    const temLogo =
+      Boolean(logo);
+
+    if (cardLogo) {
+      cardLogo.classList.toggle(
+        "has-logo-v112",
+        temLogo
+      );
+
+      cardLogo.setAttribute(
+        "data-logo-state",
+        temLogo
+          ? "filled"
+          : "empty"
+      );
+    }
+
     if (imagemHome) {
-      if (logo) {
+      if (temLogo) {
         imagemHome.src = logo;
         imagemHome.hidden = false;
       } else {
@@ -80093,11 +80118,12 @@ async function auditarBloqueioFuncoesReaisUX21964D_() {
     }
 
     if (placeholder) {
-      placeholder.hidden = Boolean(logo);
+      placeholder.hidden =
+        temLogo;
     }
 
     if (imagemConfig) {
-      if (logo) {
+      if (temLogo) {
         imagemConfig.src = logo;
         imagemConfig.hidden = false;
       } else {
@@ -80110,10 +80136,11 @@ async function auditarBloqueioFuncoesReaisUX21964D_() {
       document.getElementById("logoObraConfigPlaceholder");
 
     if (configPlaceholder) {
-      configPlaceholder.hidden = Boolean(logo);
+      configPlaceholder.hidden =
+        temLogo;
     }
   }
-
+  /* SIGO_HOME_PREMIUM_V112_LOGO_STATE_END */
   async function atualizarLogoHomePremium_() {
     const idObra = obterIdObraHomePremium_();
     const logo = await obterLogoAutomaticaHomePremium_(idObra);

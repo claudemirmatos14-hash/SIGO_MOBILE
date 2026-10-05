@@ -2270,3 +2270,38 @@ body {
   pointer-events: none !important;
 }
 /* SIGO_HOME_NOTIFICATION_BADGE_V109_STYLE_END */
+/* SIGO_HOME_PREMIUM_V112_LOGO_FILL_START
+   Filled state uses the full 1:1 reserved area without cropping.
+   Empty state remains under the pre-existing placeholder contract. */
+#homeApp.home-premium-v2 .obra-logo-card.has-logo-v112 {
+  padding: 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: hidden !important;
+}
+
+#homeApp.home-premium-v2 .obra-logo-card.has-logo-v112 .obra-logo-img {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+}
+
+#homeApp.home-premium-v2 .obra-logo-card.has-logo-v112 .obra-logo-placeholder {
+  display: none !important;
+}
+
+#homeApp.home-premium-v2 .obra-logo-card.has-logo-v112::before,
+#homeApp.home-premium-v2 .obra-logo-card.has-logo-v112::after {
+  content: none !important;
+  display: none !important;
+}
+/* SIGO_HOME_PREMIUM_V112_LOGO_FILL_END */
