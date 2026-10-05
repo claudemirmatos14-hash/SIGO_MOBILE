@@ -1157,7 +1157,7 @@ function montarTelaEvidenciasCompat_() {
 }
 
 /* F16_24M2_REV7_ADAPTADOR_MINIMO_MONTAR_HOME
-+ * A Home publicada ja existe no index.html. Este adaptador intencionalmente
++ * A Home canônica já existe no home-premium.html. Este adaptador intencionalmente
 + * nao remonta o DOM; apenas satisfaz o contrato de navegarPara e permite
 + * que o callback depois atualize os indicadores a partir do IndexedDB.
 + */
@@ -1187,7 +1187,7 @@ localStorage.setItem("telaAtualMobile", tela);
 
   const telasPremium = {
   home: {
-    montar: montarHomePremium,
+    montar: montarHomePremiumIndexCompat_,
   
     depois: async function () {
       if (
@@ -1349,17 +1349,20 @@ localStorage.setItem("telaAtualMobile", tela);
  if (
     app &&
     telasPremium[tela] &&
-    typeof SIGOUI !== "undefined" &&
-    typeof SIGOUI.render === "function"
+    typeof renderizarTelaAppMobile_ === "function"
   ) {
     (async function () {
       const htmlTela =
         await telasPremium[tela].montar();
   
-      if (htmlTela !== null && htmlTela !== undefined) {
-        SIGOUI.render(".app-premium", htmlTela);
-      } else {
+      const renderOk =
         renderizarTelaAppMobile_(tela, htmlTela);
+
+      if (!renderOk) {
+        throw new Error(
+          "Falha ao renderizar tela sem substituir o shell Home Premium: " +
+          tela
+        );
       }
   
       setTimeout(async () => {
@@ -11209,13 +11212,8 @@ async function abrirGerenciadorObrasOffline_() {
       throw new Error("Tela de Obras Offline não retornou HTML válido.");
     }
 
-    if (
-      globalThis.SIGOUI &&
-      typeof SIGOUI.render === "function"
-    ) {
-      SIGOUI.render(".app-premium", html);
-    } else {
-      area.innerHTML = html;
+    if (!renderizarTelaAppMobile_("obras", html)) {
+      throw new Error("Falha ao renderizar Obras sem substituir o shell Home Premium.");
     }
 
     if (typeof listarObrasOfflineMobile_ === "function") {
