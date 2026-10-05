@@ -4,7 +4,7 @@
 // =====================================================
 
 const SIGO_CACHE_VERSION =
-  "sigo-mobile-v102";
+  "sigo-mobile-v104";
 
 const SIGO_BASE_URL =
   new URL("./", self.location.href);
@@ -20,10 +20,10 @@ const SIGO_HOME_URL =
 // =====================================================
 const SIGO_APP_SHELL = [
   "home-premium.html",
+  "index.html",
   "manifest.json",
-
   "css/premium.css",
-
+  "css/app.css",
   "js/db.js",
   "js/sigo-ui.js",
   "js/entities.js",
@@ -37,10 +37,9 @@ const SIGO_APP_SHELL = [
   "js/field-operations/diario.js",
   "js/data/obras.js",
   "js/field/operations.js",
-  "js/core/compatibility.js",
   "js/app.js",
+  "js/core/compatibility.js",
   "js/sigo-remote-cleanup.js",
-
   "icons/icon-192.png",
   "icons/icon-512.png",
   "icons/icon-maskable-192.png",

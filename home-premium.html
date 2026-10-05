@@ -1,45 +1,220 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-  <title>SIGO Mobile — Home Premium</title>
-
-  <link rel="stylesheet" href="css/premium.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+  <title>SIGO Mobile</title>
+  <link rel="stylesheet" href="css/premium.css">
+  <link rel="stylesheet" href="css/app.css">
   <link rel="manifest" href="./manifest.json">
-
-    <meta name="theme-color" content="#0b1f36">
-    
-    <meta
-      name="application-name"
-      content="SIGO Mobile"
-    >
-    
-    <meta
-      name="mobile-web-app-capable"
-      content="yes"
-    >
-    
-    <meta
-      name="apple-mobile-web-app-capable"
-      content="yes"
-    >
-    
-    <meta
-      name="apple-mobile-web-app-status-bar-style"
-      content="black-translucent"
-    >
-    
-    <meta
-      name="apple-mobile-web-app-title"
-      content="SIGO Mobile"
-    >
+  <meta name="theme-color" content="#0b1f36">
 </head>
 
 <body>
+  <div class="app app-premium">
 
-  <div class="app app-premium"></div>
+    <section id="homeApp" class="home-premium-v2">
+
+      <header class="topo topo-premium sigo-home-header">
+        <div class="sigo-home-brand">
+          <div class="sigo-home-brand-mark" aria-hidden="true">🏗️</div>
+          <div>
+            <h1>SIGO</h1>
+            <p>Sistema Integrado de Gestão de Obras</p>
+          </div>
+        </div>
+
+        <div class="sigo-home-header-actions">
+          <span class="sigo-home-bell" aria-label="Notificações">🔔<span class="sigo-home-notification-badge">15</span></span>
+          <span id="homeOnlineStatus" class="sigo-home-online">
+            <span class="sigo-home-online-dot"></span>
+            Online
+          </span>
+        </div>
+      </header>
+
+      <section class="obra-premium-card obra-premium-v2">
+        <div class="obra-premium-main">
+          <div class="obra-label"><span class="sigo-home-obra-crane" aria-hidden="true">🏗️</span> OBRA ATIVA</div>
+
+          <select id="obraAtiva">
+            <option value="">Carregando obras...</option>
+          </select>
+
+          <div class="obra-info">
+            <span id="nomeObra">Selecione uma obra offline</span>
+          </div>
+
+          <div class="obra-metricas-v2">
+            <span id="contadorObrasOffline" class="obra-metrica-chip">
+              0 de 3 obras offline
+            </span>
+            <span id="contadorAtividadesOffline" class="obra-metrica-chip">
+              0 atividades offline
+            </span>
+            <span id="contadorEmExecucao" class="obra-metrica-chip obra-metrica-chip-status">
+              0 em execução
+            </span>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          class="obra-logo-card"
+          onclick="selecionarLogoObraHomePremium_()"
+          aria-label="Alterar logo da obra ativa">
+          <img id="logoObraHomePremium"
+               class="obra-logo-img"
+               alt="Logo da obra"
+               hidden>
+          <span id="logoObraPlaceholder" class="obra-logo-placeholder">
+            <span class="obra-logo-placeholder-icone">🏢</span>
+            <strong>Logo da empresa</strong>
+            <small>Toque para adicionar <span class="sigo-home-logo-chevron" aria-hidden="true">›</span></small>
+          </span>
+        </button>
+
+        <input
+          id="logoObraInputHomePremium"
+          type="file"
+          accept="image/*"
+          hidden
+          onchange="salvarLogoObraHomePremium_(event)">
+      </section>
+
+      <section class="operacao-campo operacao-campo-v2">
+        <div class="secao-titulo secao-titulo-v2">
+          <div>
+            <h3>Trabalho de Campo</h3>
+            <span>Registre e acompanhe as informações da obra</span>
+          </div>
+        </div>
+
+        <div class="menu-grid menu-grid-v2">
+
+          <button
+            type="button"
+            class="menu-card menu-card-diario"
+            onclick="navegarPara('diario')">
+            <span class="icone menu-icone-diario" aria-hidden="true">📘</span>
+            <span class="menu-card-conteudo">
+              <strong>Diário de Obra</strong>
+              <small id="homeContadorDiarios">0 diários</small>
+            </span>
+            <span class="menu-card-seta" aria-hidden="true">›</span>
+          </button>
+
+          <button
+            type="button"
+            class="menu-card menu-card-medicoes"
+            onclick="navegarPara('medicoes')">
+            <span class="icone menu-icone-medicoes" aria-hidden="true">📏</span>
+            <span class="menu-card-conteudo">
+              <strong>Medições</strong>
+              <small id="homeContadorMedicoes">0 medições</small>
+            </span>
+            <span class="menu-card-seta" aria-hidden="true">›</span>
+          </button>
+
+          <button
+            type="button"
+            class="menu-card menu-card-ocorrencias"
+            onclick="navegarPara('ocorrencias')">
+            <span class="icone menu-icone-ocorrencias" aria-hidden="true">⚠️</span>
+            <span class="menu-card-conteudo">
+              <strong>Ocorrências</strong>
+              <small id="homeContadorOcorrencias">0 abertas · 0 críticas</small>
+            </span>
+            <span class="menu-card-seta" aria-hidden="true">›</span>
+          </button>
+
+          <button
+            type="button"
+            class="menu-card menu-card-clima"
+            onclick="navegarPara('clima')">
+            <span class="icone menu-icone-clima" aria-hidden="true">🌦️</span>
+            <span class="menu-card-conteudo">
+              <strong>Clima</strong>
+              <small id="homeContadorClima">Sem registro</small>
+            </span>
+            <span class="menu-card-seta" aria-hidden="true">›</span>
+          </button>
+
+          <button
+            type="button"
+            class="menu-card menu-card-evidencias"
+            onclick="navegarPara('evidencias')">
+            <span class="icone menu-icone-evidencias" aria-hidden="true">📷</span>
+            <span class="menu-card-conteudo">
+              <strong>Evidências</strong>
+              <small id="homeContadorEvidencias">0 evidências</small>
+            </span>
+            <span class="menu-card-seta" aria-hidden="true">›</span>
+          </button>
+
+        </div>
+      </section>
+
+      <button
+        type="button"
+        class="sync-resumo-home"
+        onclick="abrirSyncHomePremium_()">
+        <span class="sync-resumo-icone" aria-hidden="true">✓</span>
+        <span class="sync-resumo-conteudo">
+          <span class="sigo-home-sync-title">Status de Sincronização</span>
+          <strong id="syncStatus">Tudo sincronizado</strong>
+          <small>
+            Última atualização:
+            <span id="syncUltima">--</span>
+            ·
+            <span id="syncPendentes">0</span> pendências
+          </small>
+        </span>
+        <span class="sync-resumo-link">Ver Sync ›</span>
+      </button>
+
+    </section>
+
+    <section id="telaApp" class="tela-app"></section>
+
+    <nav class="bottom-nav bottom-nav-v2" aria-label="Navegação principal">
+      <button
+        type="button"
+        data-sigo-nav="home"
+        class="is-active"
+        onclick="voltarHome()">
+        🏠
+        <span>Home</span>
+      </button>
+
+      <button
+        type="button"
+        data-sigo-nav="obras"
+        onclick="abrirGerenciadorObrasOffline_()">
+        🏗
+        <span>Obras</span>
+      </button>
+
+      <button
+        type="button"
+        data-sigo-nav="sync"
+        onclick="abrirSyncHomePremium_()">
+        🔄
+        <span>Sync</span>
+      </button>
+
+      <button
+        type="button"
+        data-sigo-nav="config"
+        onclick="abrirConfigHomePremium_()">
+        ⚙
+        <span>Config</span>
+      </button>
+    </nav>
+
+  </div>
+
 
   <script src="js/db.js"></script>
   <script src="js/sigo-ui.js"></script>
@@ -47,72 +222,15 @@
   <script src="js/data-crud.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/sync/helpers.js"></script>
-<script src="js/tenant-auth/helpers.js"></script>
-<script src="js/field-operations/medicoes.js"></script>
-<script src="js/field-operations/clima.js"></script>
-<script src="js/field-operations/ocorrencias.js"></script>
-<script src="js/field-operations/diario.js"></script>
-<script src="js/data/obras.js"></script>
-<script src="js/field/operations.js"></script>
-<script src="js/app.js"></script>
-<script src="js/core/compatibility.js"></script>
+  <script src="js/tenant-auth/helpers.js"></script>
+  <script src="js/field-operations/medicoes.js"></script>
+  <script src="js/field-operations/clima.js"></script>
+  <script src="js/field-operations/ocorrencias.js"></script>
+  <script src="js/field-operations/diario.js"></script>
+  <script src="js/data/obras.js"></script>
+  <script src="js/field/operations.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/core/compatibility.js"></script>
   <script src="js/sigo-remote-cleanup.js"></script>
-
-  <script>
-    document.addEventListener("DOMContentLoaded", async () => {
-      const app = document.querySelector(".app-premium");
-
-      if (!app) {
-        console.error("[SIGO] Container .app-premium não encontrado.");
-        return;
-      }
-
-      try {
-        if (typeof montarHomePremium !== "function") {
-          throw new Error("montarHomePremium indisponível.");
-        }
-
-        const html = await montarHomePremium();
-
-        if (typeof html !== "string" || !html.trim()) {
-          throw new Error("montarHomePremium não retornou HTML válido.");
-        }
-
-        app.innerHTML = html;
-        localStorage.setItem("telaAtualMobile", "home");
-
-        if (typeof carregarIndicadoresHomePremium === "function") {
-          await carregarIndicadoresHomePremium();
-        }
-
-        if (typeof atualizarIndicadoresMobile_ === "function") {
-          await atualizarIndicadoresMobile_();
-        }
-
-        if (typeof instalarAcaoReidratacaoUX1958_ === "function") {
-          await instalarAcaoReidratacaoUX1958_();
-        }
-      } catch (erro) {
-        console.error("[SIGO] Falha ao iniciar Home Premium:", erro);
-
-        const mensagem =
-          erro && erro.message
-            ? erro.message
-            : String(erro || "Erro desconhecido");
-
-        app.innerHTML =
-          `<main class="home-premium">
-            <section class="sigo-card">
-              <h2>Falha ao iniciar o SIGO Mobile</h2>
-              <p id="sigoBootstrapError"></p>
-            </section>
-          </main>`;
-
-        const erroEl = document.getElementById("sigoBootstrapError");
-        if (erroEl) erroEl.textContent = mensagem;
-      }
-    });
-  </script>
-
 </body>
 </html>
