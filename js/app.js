@@ -80074,7 +80074,253 @@ async function auditarBloqueioFuncoesReaisUX21964D_() {
     return localStorage.getItem(SIGO_HOME_LOGO_EMPRESA_KEY) || "";
   }
 
-  /* SIGO_HOME_PREMIUM_V113_LOGO_CARD_RESOLUTION_START */
+  /* SIGO_HOME_PREMIUM_V114_LOGO_VISUAL_SCALE_START */
+  function calcularEscalaVisualLogoV114_(imagem) {
+    try {
+      if (
+        !imagem ||
+        !imagem.complete ||
+        !imagem.naturalWidth ||
+        !imagem.naturalHeight
+      ) {
+        return 1;
+      }
+
+      const limite =
+        256;
+
+      const proporcao =
+        Math.min(
+          1,
+          limite /
+            Math.max(
+              imagem.naturalWidth,
+              imagem.naturalHeight
+            )
+        );
+
+      const largura =
+        Math.max(
+          1,
+          Math.round(
+            imagem.naturalWidth *
+              proporcao
+          )
+        );
+
+      const altura =
+        Math.max(
+          1,
+          Math.round(
+            imagem.naturalHeight *
+              proporcao
+          )
+        );
+
+      const canvas =
+        document.createElement(
+          "canvas"
+        );
+
+      canvas.width =
+        largura;
+
+      canvas.height =
+        altura;
+
+      const contexto =
+        canvas.getContext(
+          "2d",
+          {
+            willReadFrequently: true
+          }
+        );
+
+      if (!contexto) {
+        return 1;
+      }
+
+      contexto.clearRect(
+        0,
+        0,
+        largura,
+        altura
+      );
+
+      contexto.drawImage(
+        imagem,
+        0,
+        0,
+        largura,
+        altura
+      );
+
+      const pixels =
+        contexto.getImageData(
+          0,
+          0,
+          largura,
+          altura
+        ).data;
+
+      let minX =
+        largura;
+
+      let minY =
+        altura;
+
+      let maxX =
+        -1;
+
+      let maxY =
+        -1;
+
+      for (
+        let y = 0;
+        y < altura;
+        y++
+      ) {
+        for (
+          let x = 0;
+          x < largura;
+          x++
+        ) {
+          const alpha =
+            pixels[
+              (
+                y *
+                largura +
+                x
+              ) *
+                4 +
+              3
+            ];
+
+          if (alpha <= 12) {
+            continue;
+          }
+
+          minX =
+            Math.min(
+              minX,
+              x
+            );
+
+          minY =
+            Math.min(
+              minY,
+              y
+            );
+
+          maxX =
+            Math.max(
+              maxX,
+              x
+            );
+
+          maxY =
+            Math.max(
+              maxY,
+              y
+            );
+        }
+      }
+
+      if (
+        maxX < minX ||
+        maxY < minY
+      ) {
+        return 1;
+      }
+
+      const ocupacaoX =
+        (
+          maxX -
+          minX +
+          1
+        ) /
+        largura;
+
+      const ocupacaoY =
+        (
+          maxY -
+          minY +
+          1
+        ) /
+        altura;
+
+      const alvo =
+        0.84;
+
+      const escala =
+        Math.min(
+          alvo /
+            Math.max(
+              ocupacaoX,
+              0.01
+            ),
+          alvo /
+            Math.max(
+              ocupacaoY,
+              0.01
+            )
+        );
+
+      return Math.max(
+        1,
+        Math.min(
+          1.85,
+          escala
+        )
+      );
+    } catch (erro) {
+      console.warn(
+        "[HOME PREMIUM] Escala visual automática da logo indisponível:",
+        erro
+      );
+
+      return 1.28;
+    }
+  }
+
+  function aplicarEscalaVisualLogoV114_(imagem) {
+    if (!imagem) {
+      return;
+    }
+
+    const aplicar =
+      () => {
+        const escala =
+          calcularEscalaVisualLogoV114_(
+            imagem
+          );
+
+        imagem.style.setProperty(
+          "--sigo-logo-visual-scale",
+          escala.toFixed(3)
+        );
+
+        imagem.dataset.logoVisualScaleV114 =
+          escala.toFixed(3);
+      };
+
+    if (
+      imagem.complete &&
+      imagem.naturalWidth > 0
+    ) {
+      aplicar();
+      return;
+    }
+
+    imagem.addEventListener(
+      "load",
+      aplicar,
+      {
+        once: true
+      }
+    );
+  }
+
   function aplicarLogoNosElementosHomePremium_(logo) {
     const imagemHome =
       document.getElementById("logoObraHomePremium");
@@ -80103,6 +80349,14 @@ async function auditarBloqueioFuncoesReaisUX21964D_() {
         ".obra-logo-card"
       );
 
+    const previewConfig =
+      imagemConfig &&
+      typeof imagemConfig.closest === "function"
+        ? imagemConfig.closest(".config-logo-preview")
+        : document.querySelector(
+            ".config-logo-preview"
+          );
+
     const temLogo =
       Boolean(logo);
 
@@ -80120,13 +80374,45 @@ async function auditarBloqueioFuncoesReaisUX21964D_() {
       );
     }
 
+    if (previewConfig) {
+      previewConfig.classList.toggle(
+        "has-logo-v114",
+        temLogo
+      );
+
+      previewConfig.setAttribute(
+        "data-logo-state",
+        temLogo
+          ? "filled"
+          : "empty"
+      );
+    }
+
     if (imagemHome) {
       if (temLogo) {
-        imagemHome.src = logo;
-        imagemHome.hidden = false;
+        imagemHome.src =
+          logo;
+
+        imagemHome.hidden =
+          false;
+
+        aplicarEscalaVisualLogoV114_(
+          imagemHome
+        );
       } else {
-        imagemHome.removeAttribute("src");
-        imagemHome.hidden = true;
+        imagemHome.removeAttribute(
+          "src"
+        );
+
+        imagemHome.hidden =
+          true;
+
+        imagemHome.style.removeProperty(
+          "--sigo-logo-visual-scale"
+        );
+
+        delete imagemHome.dataset
+          .logoVisualScaleV114;
       }
     }
 
@@ -80137,23 +80423,43 @@ async function auditarBloqueioFuncoesReaisUX21964D_() {
 
     if (imagemConfig) {
       if (temLogo) {
-        imagemConfig.src = logo;
-        imagemConfig.hidden = false;
+        imagemConfig.src =
+          logo;
+
+        imagemConfig.hidden =
+          false;
+
+        aplicarEscalaVisualLogoV114_(
+          imagemConfig
+        );
       } else {
-        imagemConfig.removeAttribute("src");
-        imagemConfig.hidden = true;
+        imagemConfig.removeAttribute(
+          "src"
+        );
+
+        imagemConfig.hidden =
+          true;
+
+        imagemConfig.style.removeProperty(
+          "--sigo-logo-visual-scale"
+        );
+
+        delete imagemConfig.dataset
+          .logoVisualScaleV114;
       }
     }
 
     const configPlaceholder =
-      document.getElementById("logoObraConfigPlaceholder");
+      document.getElementById(
+        "logoObraConfigPlaceholder"
+      );
 
     if (configPlaceholder) {
       configPlaceholder.hidden =
         temLogo;
     }
   }
-  /* SIGO_HOME_PREMIUM_V113_LOGO_CARD_RESOLUTION_END */
+  /* SIGO_HOME_PREMIUM_V114_LOGO_VISUAL_SCALE_END */
   async function atualizarLogoHomePremium_() {
     const idObra = obterIdObraHomePremium_();
     const logo = await obterLogoAutomaticaHomePremium_(idObra);

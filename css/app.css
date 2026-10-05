@@ -2305,3 +2305,39 @@ body {
   display: none !important;
 }
 /* SIGO_HOME_PREMIUM_V112_LOGO_FILL_END */
+/* SIGO_HOME_PREMIUM_V114_LOGO_VISUAL_SCALE_STYLE_START */
+#homeApp.home-premium-v2 .obra-logo-card.has-logo-v112 .obra-logo-img {
+  transform: scale(var(--sigo-logo-visual-scale, 1)) !important;
+  transform-origin: center center !important;
+}
+
+.config-logo-preview.has-logo-v114 {
+  position: relative !important;
+  overflow: hidden !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.config-logo-preview.has-logo-v114 #logoObraConfigPreview {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 10px !important;
+  box-sizing: border-box !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+  transform: scale(var(--sigo-logo-visual-scale, 1)) !important;
+  transform-origin: center center !important;
+}
+
+.config-logo-preview.has-logo-v114 .config-logo-placeholder,
+#logoObraConfigPlaceholder[hidden] {
+  display: none !important;
+}
+/* SIGO_HOME_PREMIUM_V114_LOGO_VISUAL_SCALE_STYLE_END */

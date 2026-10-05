@@ -1070,7 +1070,7 @@ function montarTelaObrasOffline() {
     header: true,
 
     hero: SIGOUI.createHeroCard({
-      titulo: "🏗 OBRAS OFFLINE",
+      titulo: "OBRAS OFFLINE",
       nome: "Gerenciador de obras",
       offline: "Baixar, selecionar e atualizar",
       atividades: "Dados-base da obra",
