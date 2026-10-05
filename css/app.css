@@ -1029,4 +1029,698 @@ body {
 @import url("./buttons.css");
 @import url("./navigation.css");
 @import url("./animations.css");
+/* SIGO_UX_HOME_PREMIUM_IMPLEMENTATION_MACROBLOCK_REV1_START */
 
+/* Home Premium V2 — contrato visual aprovado em 04/10/2026 */
+.home-premium-v2 {
+  padding-bottom: 10px;
+}
+
+.sigo-home-header {
+  min-height: 138px;
+  padding: 26px 20px 44px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  background:
+    radial-gradient(circle at 84% 15%, rgba(59, 130, 246, .20), transparent 32%),
+    linear-gradient(135deg, #07152d 0%, #0a2148 52%, #08295a 100%);
+  border-radius: 0 0 30px 30px;
+  box-shadow: 0 18px 34px rgba(2, 6, 23, .22);
+}
+
+.sigo-home-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sigo-home-brand-mark {
+  font-size: 24px;
+  line-height: 1;
+  filter: saturate(.8);
+}
+
+.sigo-home-header h1 {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: .04em;
+}
+
+.sigo-home-header p {
+  margin: 5px 0 0;
+  max-width: 230px;
+  color: #dbeafe;
+  font-size: 10.5px;
+  line-height: 1.25;
+  font-weight: 600;
+}
+
+.sigo-home-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.sigo-home-bell {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, .10);
+  border: 1px solid rgba(255, 255, 255, .12);
+  font-size: 16px;
+}
+
+.sigo-home-online {
+  min-height: 32px;
+  padding: 0 11px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(22, 163, 74, .18);
+  border: 1px solid rgba(74, 222, 128, .28);
+  color: #dcfce7;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .01em;
+}
+
+.sigo-home-online-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #4ade80;
+  box-shadow: 0 0 0 4px rgba(74, 222, 128, .12);
+}
+
+.sigo-home-online.is-offline {
+  background: rgba(220, 38, 38, .18);
+  border-color: rgba(248, 113, 113, .28);
+  color: #fee2e2;
+}
+
+.sigo-home-online.is-offline .sigo-home-online-dot {
+  background: #f87171;
+  box-shadow: 0 0 0 4px rgba(248, 113, 113, .12);
+}
+
+.obra-premium-v2 {
+  margin-top: -28px;
+  width: calc(100% - 28px);
+  padding: 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px;
+  gap: 14px;
+  align-items: stretch;
+  border: 1px solid rgba(226, 232, 240, .92);
+  border-radius: 20px;
+  box-shadow: 0 16px 34px rgba(15, 23, 42, .12);
+}
+
+.obra-premium-main {
+  min-width: 0;
+}
+
+.obra-premium-v2 .obra-label {
+  margin: 0 0 7px;
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+.obra-premium-v2 #obraAtiva {
+  width: 100%;
+  height: 42px;
+  margin: 0;
+  padding: 0 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 11px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 900;
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, .07);
+}
+
+.obra-premium-v2 .obra-info {
+  margin-top: 7px;
+}
+
+.obra-premium-v2 .obra-info span {
+  display: block;
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 11.5px;
+  line-height: 1.25;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.obra-metricas-v2 {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.obra-metrica-chip {
+  min-height: 24px;
+  padding: 5px 7px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 8.5px;
+  line-height: 1.05;
+  font-weight: 800;
+}
+
+.obra-metrica-chip-status {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.obra-logo-card {
+  width: 96px;
+  min-height: 104px;
+  padding: 8px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 16px;
+  background:
+    linear-gradient(145deg, #f8fafc 0%, #eef2f7 100%);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.obra-logo-card:active {
+  transform: scale(.98);
+}
+
+.obra-logo-img {
+  width: 100%;
+  max-height: 86px;
+  object-fit: contain;
+  border-radius: 10px;
+}
+
+.obra-logo-placeholder {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  color: #64748b;
+  text-align: center;
+}
+
+.obra-logo-placeholder[hidden] {
+  display: none;
+}
+
+.obra-logo-placeholder-icone {
+  font-size: 24px;
+}
+
+.obra-logo-placeholder strong {
+  color: #334155;
+  font-size: 10px;
+}
+
+.obra-logo-placeholder small {
+  max-width: 72px;
+  font-size: 8px;
+  line-height: 1.15;
+}
+
+.operacao-campo-v2 {
+  width: calc(100% - 28px);
+  margin: 20px auto 14px;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.secao-titulo-v2 {
+  display: block;
+  margin: 0 2px 10px;
+}
+
+.secao-titulo-v2 h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.secao-titulo-v2 span {
+  display: block;
+  margin-top: 2px;
+  color: #94a3b8;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.menu-grid-v2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.menu-grid-v2 .menu-card {
+  width: 100%;
+  min-height: 92px;
+  padding: 12px;
+  border: 1px solid rgba(226, 232, 240, .88);
+  border-radius: 17px;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 14px;
+  align-items: center;
+  gap: 9px;
+  color: #0f172a;
+  text-align: left;
+  background: #ffffff;
+  box-shadow: 0 9px 22px rgba(15, 23, 42, .07);
+  cursor: pointer;
+}
+
+.menu-grid-v2 .menu-card:active {
+  transform: scale(.98);
+}
+
+.menu-grid-v2 .icone {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  box-shadow: none;
+}
+
+.menu-card-conteudo {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.menu-card-conteudo strong {
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 11px;
+  line-height: 1.15;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu-card-conteudo small {
+  overflow: hidden;
+  color: #64748b;
+  font-size: 8.5px;
+  line-height: 1.15;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu-card-seta {
+  color: #94a3b8;
+  font-size: 22px;
+  font-weight: 400;
+}
+
+.menu-card-diario {
+  background: linear-gradient(145deg, #ffffff 0%, #f8fbff 100%) !important;
+}
+
+.menu-icone-diario {
+  background: #eaf2ff !important;
+}
+
+.menu-card-medicoes {
+  background: linear-gradient(145deg, #ffffff 0%, #f6fdf8 100%) !important;
+}
+
+.menu-icone-medicoes {
+  background: #e9f8ed !important;
+}
+
+.menu-card-ocorrencias {
+  background: linear-gradient(145deg, #ffffff 0%, #fffaf3 100%) !important;
+  border-color: #fed7aa !important;
+}
+
+.menu-icone-ocorrencias {
+  background: #ffedd5 !important;
+}
+
+.menu-card-clima {
+  background: linear-gradient(145deg, #ffffff 0%, #f5fbff 100%) !important;
+}
+
+.menu-icone-clima {
+  background: #e0f2fe !important;
+}
+
+.menu-card-evidencias {
+  grid-column: 1 / -1;
+  min-height: 78px !important;
+  background: linear-gradient(145deg, #ffffff 0%, #faf5ff 100%) !important;
+  border-color: #e9d5ff !important;
+}
+
+.menu-icone-evidencias {
+  background: #f3e8ff !important;
+}
+
+.sync-resumo-home {
+  width: calc(100% - 28px);
+  min-height: 72px;
+  margin: 2px auto 14px;
+  padding: 12px 13px;
+  border: 1px solid #bbf7d0;
+  border-radius: 17px;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  background: linear-gradient(145deg, #f0fdf4 0%, #ecfdf5 100%);
+  color: #14532d;
+  text-align: left;
+  box-shadow: 0 9px 20px rgba(22, 101, 52, .07);
+  cursor: pointer;
+}
+
+.sync-resumo-icone {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: #dcfce7;
+  color: #15803d;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.sync-resumo-conteudo {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.sync-resumo-conteudo strong {
+  color: #14532d;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.sync-resumo-conteudo small {
+  color: #3f7651;
+  font-size: 8px;
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+.sync-resumo-link {
+  color: #15803d;
+  font-size: 9px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.bottom-nav-v2 {
+  max-width: 430px;
+  padding: 7px 8px calc(8px + env(safe-area-inset-bottom));
+  border-top: 1px solid rgba(226, 232, 240, .92);
+  border-radius: 19px 19px 0 0;
+  background: rgba(255, 255, 255, .97);
+  backdrop-filter: blur(14px);
+}
+
+.bottom-nav-v2 button {
+  min-height: 48px;
+  border-radius: 13px;
+  color: #64748b;
+  opacity: 1;
+  transition:
+    background .15s ease,
+    color .15s ease,
+    transform .15s ease;
+}
+
+.bottom-nav-v2 button span {
+  color: inherit;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.bottom-nav-v2 button.is-active {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.tela-central-home-premium {
+  margin-top: 14px;
+  margin-bottom: 88px;
+}
+
+.tela-central-home-premium__header {
+  margin: 14px 0 16px;
+}
+
+.tela-central-home-premium__header h2 {
+  margin: 0;
+}
+
+.central-sync-resumo {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.central-sync-resumo > div {
+  padding: 13px;
+  border-radius: 14px;
+  display: grid;
+  gap: 3px;
+  background: #f8fafc;
+  text-align: center;
+}
+
+.central-sync-resumo strong {
+  color: #0f172a;
+  font-size: 20px;
+}
+
+.central-sync-resumo span {
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.central-sync-ultima {
+  margin: 12px 0 !important;
+  color: #64748b !important;
+  font-size: 10px !important;
+}
+
+.central-home-acoes {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 9px;
+  margin-top: 12px;
+}
+
+.central-home-acoes button {
+  min-height: 64px;
+  padding: 10px;
+  border: 0;
+  border-radius: 14px;
+  display: grid;
+  justify-items: start;
+  gap: 5px;
+  background: #0f172a;
+  color: #ffffff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.central-home-acoes button.is-secondary {
+  background: #eef2f7;
+  color: #334155;
+}
+
+.central-home-acoes button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.central-home-acoes button span {
+  font-size: 18px;
+}
+
+.central-home-acoes button strong {
+  font-size: 10px;
+}
+
+.config-logo-home-premium {
+  display: grid;
+  gap: 10px;
+}
+
+.config-logo-home-premium h3 {
+  margin: 0;
+  font-size: 13px;
+}
+
+.config-logo-home-premium > p {
+  margin: 0 !important;
+  font-size: 10px !important;
+}
+
+.config-logo-preview {
+  min-height: 120px;
+  padding: 14px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background: #f8fafc;
+}
+
+.config-logo-preview img {
+  max-width: 180px;
+  max-height: 94px;
+  object-fit: contain;
+}
+
+.config-logo-placeholder {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  color: #94a3b8;
+  font-size: 26px;
+}
+
+.config-logo-placeholder span {
+  font-size: 9px;
+  font-weight: 800;
+}
+
+@media (max-width: 360px) {
+  .sigo-home-header {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .sigo-home-online {
+    padding: 0 8px;
+  }
+
+  .obra-premium-v2 {
+    grid-template-columns: minmax(0, 1fr) 82px;
+    gap: 10px;
+  }
+
+  .obra-logo-card {
+    width: 82px;
+  }
+
+  .menu-grid-v2 {
+    gap: 8px;
+  }
+
+  .menu-grid-v2 .menu-card {
+    padding: 10px;
+    grid-template-columns: 32px minmax(0, 1fr) 10px;
+  }
+
+  .menu-grid-v2 .icone {
+    width: 32px;
+    height: 32px;
+  }
+
+  .menu-card-conteudo strong {
+    font-size: 10px;
+  }
+
+  .sync-resumo-link {
+    display: none;
+  }
+}
+
+/* SIGO_UX_HOME_PREMIUM_IMPLEMENTATION_MACROBLOCK_REV1_END */
+
+/* SIGO_UX_HOME_PREMIUM_VISUAL_CONTRACT_GAP_CORRECTION_REV1_START */
+.sigo-home-bell {
+  position: relative;
+  overflow: visible;
+}
+
+.sigo-home-notification-badge {
+  position: absolute;
+  top: -6px;
+  right: -7px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #dc2626;
+  color: #ffffff;
+  border: 2px solid #0b1739;
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 800;
+  box-sizing: border-box;
+}
+
+.sigo-home-obra-crane {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 4px;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.sigo-home-logo-chevron {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  margin-left: 6px;
+  border-radius: 999px;
+  align-items: center;
+  justify-content: center;
+  background: rgba(37, 99, 235, .12);
+  color: #2563eb;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.sigo-home-sync-title {
+  display: block;
+  margin: 0 0 4px;
+  font-size: 12px;
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: #166534;
+}
+/* SIGO_UX_HOME_PREMIUM_VISUAL_CONTRACT_GAP_CORRECTION_REV1_END */

@@ -79689,3 +79689,922 @@ async function auditarBloqueioFuncoesReaisUX21964D_() {
   };
 })();
 /* F16_24H_ORDEM_REIDRATACAO_CONTADOR_HOME - FIM */
+/* SIGO_UX_HOME_PREMIUM_IMPLEMENTATION_MACROBLOCK_REV1_START */
+(function () {
+  "use strict";
+
+  const SIGO_HOME_LOGO_EMPRESA_KEY = "SIGO_LOGO_EMPRESA";
+  const SIGO_HOME_LOGO_OBRA_PREFIX = "SIGO_LOGO_OBRA_";
+
+  function obterIdObraHomePremium_() {
+    try {
+      const valor =
+        typeof obterObraAtivaMobile_ === "function"
+          ? obterObraAtivaMobile_()
+          : (
+              window.SIGOAppContext &&
+              typeof window.SIGOAppContext.getObraAtiva === "function"
+                ? window.SIGOAppContext.getObraAtiva()
+                : localStorage.getItem("obraAtiva")
+            );
+
+      return String(valor || "")
+        .split(" ")[0]
+        .trim();
+    } catch (erro) {
+      return String(localStorage.getItem("obraAtiva") || "")
+        .split(" ")[0]
+        .trim();
+    }
+  }
+
+  function pluralizarHomePremium_(total, singular, plural) {
+    return `${total} ${total === 1 ? singular : plural}`;
+  }
+
+  function normalizarTextoHomePremium_(valor) {
+    return String(valor || "")
+      .trim()
+      .toUpperCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  }
+
+  async function listarStoreHomePremium_(storeName) {
+    try {
+      const registros = await listarRegistrosSIGO(storeName);
+      return Array.isArray(registros) ? registros : [];
+    } catch (erro) {
+      console.warn(
+        `[HOME PREMIUM] Não foi possível ler ${storeName}:`,
+        erro
+      );
+      return [];
+    }
+  }
+
+  function filtrarPorObraHomePremium_(registros, idObra) {
+    return registros.filter(item =>
+      String(item && item.idObra || "").trim() === String(idObra)
+    );
+  }
+
+  function definirTextoHomePremium_(id, texto) {
+    const elemento = document.getElementById(id);
+    if (elemento) {
+      elemento.textContent = texto;
+    }
+  }
+
+  function normalizarOpcoesObraHomePremium_() {
+    const seletor = document.getElementById("obraAtiva");
+    if (!seletor) return;
+
+    Array.from(seletor.options || []).forEach(option => {
+      const valor = String(option.value || "").trim();
+
+      if (valor) {
+        option.textContent = valor;
+      }
+    });
+  }
+
+  async function atualizarContadoresHomePremium_() {
+    const idObra = obterIdObraHomePremium_();
+
+    if (!idObra) {
+      definirTextoHomePremium_("homeContadorDiarios", "0 diários");
+      definirTextoHomePremium_("homeContadorMedicoes", "0 medições");
+      definirTextoHomePremium_("homeContadorOcorrencias", "0 abertas · 0 críticas");
+      definirTextoHomePremium_("homeContadorClima", "Sem registro");
+      definirTextoHomePremium_("homeContadorEvidencias", "0 evidências");
+      definirTextoHomePremium_("contadorEmExecucao", "0 em execução");
+      return;
+    }
+
+    const [
+      diariosTodos,
+      medicoesTodas,
+      ocorrenciasTodas,
+      climasTodos,
+      evidenciasTodas,
+      atividadesTodas
+    ] = await Promise.all([
+      listarStoreHomePremium_("TB_DIARIOS"),
+      listarStoreHomePremium_("TB_MEDICOES"),
+      listarStoreHomePremium_("TB_OCORRENCIAS"),
+      listarStoreHomePremium_("TB_CLIMA"),
+      listarStoreHomePremium_("TB_EVIDENCIAS"),
+      listarStoreHomePremium_("TB_ATIVIDADES_OBRA")
+    ]);
+
+    const diarios = filtrarPorObraHomePremium_(diariosTodos, idObra);
+    const medicoes = filtrarPorObraHomePremium_(medicoesTodas, idObra);
+    const ocorrencias = filtrarPorObraHomePremium_(ocorrenciasTodas, idObra);
+    const climas = filtrarPorObraHomePremium_(climasTodos, idObra);
+    const evidencias = filtrarPorObraHomePremium_(evidenciasTodas, idObra);
+    const atividades = filtrarPorObraHomePremium_(atividadesTodas, idObra);
+
+    const abertas = ocorrencias.filter(item => {
+      const status = normalizarTextoHomePremium_(item.status);
+      return ![
+        "FECHADA",
+        "FECHADO",
+        "ENCERRADA",
+        "ENCERRADO",
+        "RESOLVIDA",
+        "RESOLVIDO"
+      ].includes(status);
+    }).length;
+
+    const criticas = ocorrencias.filter(item => {
+      const prioridade =
+        normalizarTextoHomePremium_(
+          item.prioridade || item.severidade || item.criticidade
+        );
+
+      return prioridade.includes("CRIT");
+    }).length;
+
+    const emExecucao = atividades.filter(item =>
+      normalizarTextoHomePremium_(item.status) === "EM EXECUCAO"
+    ).length;
+
+    definirTextoHomePremium_(
+      "homeContadorDiarios",
+      pluralizarHomePremium_(diarios.length, "diário", "diários")
+    );
+
+    definirTextoHomePremium_(
+      "homeContadorMedicoes",
+      pluralizarHomePremium_(medicoes.length, "medição", "medições")
+    );
+
+    definirTextoHomePremium_(
+      "homeContadorOcorrencias",
+      `${abertas} abertas · ${criticas} críticas`
+    );
+
+    definirTextoHomePremium_(
+      "homeContadorClima",
+      climas.length
+        ? pluralizarHomePremium_(climas.length, "registro", "registros")
+        : "Sem registro"
+    );
+
+    definirTextoHomePremium_(
+      "homeContadorEvidencias",
+      pluralizarHomePremium_(evidencias.length, "evidência", "evidências")
+    );
+
+    definirTextoHomePremium_(
+      "contadorEmExecucao",
+      `${emExecucao} em execução`
+    );
+  }
+
+  async function obterLogoAutomaticaHomePremium_(idObra) {
+    if (!idObra) return "";
+
+    const chaveLocal = SIGO_HOME_LOGO_OBRA_PREFIX + idObra;
+    const logoLocal = localStorage.getItem(chaveLocal);
+
+    if (logoLocal) {
+      return logoLocal;
+    }
+
+    try {
+      const obras = await listarStoreHomePremium_("TB_OBRAS");
+      const obra = obras.find(item =>
+        String(item && item.idObra || "") === String(idObra)
+      );
+
+      if (obra) {
+        const logoObra =
+          obra.logoBase64 ||
+          obra.logo ||
+          obra.logoUrl ||
+          obra.logotipo ||
+          obra.logomarca ||
+          "";
+
+        if (logoObra) {
+          return String(logoObra);
+        }
+      }
+    } catch (erro) {
+      console.warn(
+        "[HOME PREMIUM] Logo automática da obra indisponível:",
+        erro
+      );
+    }
+
+    return localStorage.getItem(SIGO_HOME_LOGO_EMPRESA_KEY) || "";
+  }
+
+  function aplicarLogoNosElementosHomePremium_(logo) {
+    const imagemHome =
+      document.getElementById("logoObraHomePremium");
+    const placeholder =
+      document.getElementById("logoObraPlaceholder");
+    const imagemConfig =
+      document.getElementById("logoObraConfigPreview");
+
+    if (imagemHome) {
+      if (logo) {
+        imagemHome.src = logo;
+        imagemHome.hidden = false;
+      } else {
+        imagemHome.removeAttribute("src");
+        imagemHome.hidden = true;
+      }
+    }
+
+    if (placeholder) {
+      placeholder.hidden = Boolean(logo);
+    }
+
+    if (imagemConfig) {
+      if (logo) {
+        imagemConfig.src = logo;
+        imagemConfig.hidden = false;
+      } else {
+        imagemConfig.removeAttribute("src");
+        imagemConfig.hidden = true;
+      }
+    }
+
+    const configPlaceholder =
+      document.getElementById("logoObraConfigPlaceholder");
+
+    if (configPlaceholder) {
+      configPlaceholder.hidden = Boolean(logo);
+    }
+  }
+
+  async function atualizarLogoHomePremium_() {
+    const idObra = obterIdObraHomePremium_();
+    const logo = await obterLogoAutomaticaHomePremium_(idObra);
+    aplicarLogoNosElementosHomePremium_(logo);
+  }
+
+  window.selecionarLogoObraHomePremium_ = function () {
+    const input =
+      document.getElementById("logoObraInputHomePremium");
+
+    if (!input) {
+      return false;
+    }
+
+    input.value = "";
+    input.click();
+    return true;
+  };
+
+  window.salvarLogoObraHomePremium_ = async function (event) {
+    try {
+      const arquivo =
+        event &&
+        event.target &&
+        event.target.files
+          ? event.target.files[0]
+          : null;
+
+      if (!arquivo) return false;
+
+      if (!String(arquivo.type || "").startsWith("image/")) {
+        throw new Error("Selecione um arquivo de imagem.");
+      }
+
+      if (arquivo.size > 1.5 * 1024 * 1024) {
+        throw new Error(
+          "A logo deve ter no máximo 1,5 MB."
+        );
+      }
+
+      const idObra = obterIdObraHomePremium_();
+
+      if (!idObra) {
+        throw new Error(
+          "Selecione uma obra antes de alterar a logo."
+        );
+      }
+
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () =>
+          reject(new Error("Não foi possível ler a imagem."));
+
+        reader.readAsDataURL(arquivo);
+      });
+
+      localStorage.setItem(
+        SIGO_HOME_LOGO_OBRA_PREFIX + idObra,
+        String(dataUrl)
+      );
+
+      await atualizarLogoHomePremium_();
+
+      if (
+        typeof SIGOUI !== "undefined" &&
+        SIGOUI.feedback &&
+        typeof SIGOUI.feedback.success === "function"
+      ) {
+        SIGOUI.feedback.success(
+          "Logo atualizada",
+          "A logo da obra foi salva neste dispositivo."
+        );
+      }
+
+      return true;
+    } catch (erro) {
+      console.error("[HOME PREMIUM] Erro ao salvar logo:", erro);
+
+      if (
+        typeof SIGOUI !== "undefined" &&
+        SIGOUI.feedback &&
+        typeof SIGOUI.feedback.error === "function"
+      ) {
+        SIGOUI.feedback.error(
+          "Erro ao atualizar logo",
+          erro.message || "Não foi possível salvar a logo."
+        );
+      } else {
+        alert(erro.message || "Não foi possível salvar a logo.");
+      }
+
+      return false;
+    }
+  };
+
+  window.removerLogoObraHomePremium_ = async function () {
+    const idObra = obterIdObraHomePremium_();
+    if (!idObra) return false;
+
+    const confirmou =
+      window.confirm(
+        "Remover a logo personalizada desta obra neste dispositivo?"
+      );
+
+    if (!confirmou) return false;
+
+    localStorage.removeItem(
+      SIGO_HOME_LOGO_OBRA_PREFIX + idObra
+    );
+
+    await atualizarLogoHomePremium_();
+
+    if (
+      String(localStorage.getItem("telaAtualMobile") || "") ===
+      "config"
+    ) {
+      await abrirConfigHomePremium_();
+    }
+
+    return true;
+  };
+
+  function atualizarStatusConexaoHomePremium_() {
+    const status =
+      document.getElementById("homeOnlineStatus");
+
+    if (!status) return;
+
+    const online = navigator.onLine !== false;
+
+    status.classList.toggle("is-offline", !online);
+    status.innerHTML = online
+      ? '<span class="sigo-home-online-dot"></span>Online'
+      : '<span class="sigo-home-online-dot"></span>Offline';
+  }
+
+  async function atualizarResumoSyncHomePremium_() {
+    try {
+      if (typeof obterSaudeSincronizacao_ !== "function") {
+        return;
+      }
+
+      const painel = await obterSaudeSincronizacao_();
+
+      const pendentes = Number(painel && painel.pendentes || 0);
+      const conflitos = Number(painel && painel.conflitos || 0);
+
+      let textoStatus = "Tudo sincronizado";
+
+      if (conflitos > 0) {
+        textoStatus =
+          `${conflitos} conflito${conflitos === 1 ? "" : "s"} · atenção`;
+      } else if (pendentes > 0) {
+        textoStatus =
+          `${pendentes} pendência${pendentes === 1 ? "" : "s"} para sincronizar`;
+      }
+
+      definirTextoHomePremium_(
+        "syncStatus",
+        textoStatus
+      );
+
+      definirTextoHomePremium_(
+        "syncPendentes",
+        String(pendentes)
+      );
+
+      definirTextoHomePremium_(
+        "syncUltima",
+        painel && painel.ultimaSync
+          ? painel.ultimaSync
+          : "--"
+      );
+    } catch (erro) {
+      console.warn(
+        "[HOME PREMIUM] Resumo de sincronização indisponível:",
+        erro
+      );
+    }
+  }
+
+  window.definirNavAtivoHomePremium_ = function (destino) {
+    document
+      .querySelectorAll(".bottom-nav [data-sigo-nav]")
+      .forEach(botao => {
+        botao.classList.toggle(
+          "is-active",
+          botao.getAttribute("data-sigo-nav") === destino
+        );
+      });
+  };
+
+  function montarTelaCentralHomePremium_(
+    titulo,
+    subtitulo,
+    corpo
+  ) {
+    return `
+      <div class="tela-card tela-central-home-premium">
+        <button
+          type="button"
+          class="btn-voltar"
+          onclick="voltarHome()">
+          ← Voltar
+        </button>
+
+        <div class="tela-central-home-premium__header">
+          <h2>${titulo}</h2>
+          <p>${subtitulo}</p>
+        </div>
+
+        ${corpo}
+      </div>
+    `;
+  }
+
+  window.abrirSyncHomePremium_ = async function () {
+    localStorage.setItem("telaAtualMobile", "sync");
+    definirNavAtivoHomePremium_("sync");
+
+    const painelPadrao = {
+      pendentes: 0,
+      sincronizados: 0,
+      conflitos: 0,
+      excessos: 0,
+      ultimaSync: "--"
+    };
+
+    const renderizarCentralSync_ = function (
+      painel,
+      estado = "carregando"
+    ) {
+      const dados =
+        painel && typeof painel === "object"
+          ? painel
+          : painelPadrao;
+
+      const aguardando =
+        estado === "carregando";
+
+      const indisponivel =
+        estado === "indisponivel";
+
+      const formatarMetrica =
+        valor =>
+          aguardando || indisponivel
+            ? "—"
+            : Number(valor || 0);
+
+      const ultimaAtualizacao =
+        aguardando
+          ? "Carregando..."
+          : indisponivel
+            ? "Indisponível"
+            : dados.ultimaSync || "--";
+
+      const corpo = `
+        <section class="central-sync-resumo">
+          <div>
+            <strong>${formatarMetrica(dados.sincronizados)}</strong>
+            <span>Sincronizados</span>
+          </div>
+          <div>
+            <strong>${formatarMetrica(dados.pendentes)}</strong>
+            <span>Pendentes</span>
+          </div>
+          <div>
+            <strong>${formatarMetrica(dados.conflitos)}</strong>
+            <span>Conflitos</span>
+          </div>
+          <div>
+            <strong>${formatarMetrica(dados.excessos)}</strong>
+            <span>Excessos</span>
+          </div>
+        </section>
+
+        <p class="central-sync-ultima">
+          Última atualização:
+          <strong>${ultimaAtualizacao}</strong>
+        </p>
+
+        <div class="central-home-acoes">
+          <button type="button" onclick="sincronizarAgoraHomePremium_()">
+            <span>☁️</span>
+            <strong>Sincronizar Agora</strong>
+          </button>
+
+          <button type="button" onclick="atualizarBaseHomePremium_()">
+            <span>🔄</span>
+            <strong>Atualizar Base</strong>
+          </button>
+        </div>
+      `;
+
+      if (typeof renderizarTelaAppMobile_ === "function") {
+        renderizarTelaAppMobile_(
+          "sync",
+          montarTelaCentralHomePremium_(
+            "Sync",
+            "Sincronização, pendências e atualização da obra",
+            corpo
+          )
+        );
+      }
+    };
+
+    // UX Home Premium:
+    // a navegação para Sync não depende mais da leitura do IndexedDB.
+    // A estrutura e as ações ficam disponíveis imediatamente.
+    renderizarCentralSync_(
+      painelPadrao,
+      "carregando"
+    );
+
+    if (
+      typeof obterSaudeSincronizacao_ ===
+      "function"
+    ) {
+      (async function atualizarCentralSyncEmSegundoPlano_() {
+        try {
+          const painel =
+            await Promise.race([
+              obterSaudeSincronizacao_(),
+
+              new Promise(
+                (
+                  _resolve,
+                  reject
+                ) => {
+                  setTimeout(
+                    () => reject(
+                      new Error(
+                        "SYNC_HEALTH_TIMEOUT_2500MS"
+                      )
+                    ),
+                    2500
+                  );
+                }
+              )
+            ]);
+
+          if (
+            String(
+              localStorage.getItem(
+                "telaAtualMobile"
+              ) || ""
+            ) ===
+            "sync"
+          ) {
+            renderizarCentralSync_(
+              painel,
+              "pronto"
+            );
+          }
+        } catch (erro) {
+          console.warn(
+            "[HOME PREMIUM] Central Sync renderizada sem bloquear; " +
+            "dados de saúde indisponíveis:",
+            erro
+          );
+
+          if (
+            String(
+              localStorage.getItem(
+                "telaAtualMobile"
+              ) || ""
+            ) ===
+            "sync"
+          ) {
+            renderizarCentralSync_(
+              painelPadrao,
+              "indisponivel"
+            );
+          }
+        }
+      })();
+    } else {
+      renderizarCentralSync_(
+        painelPadrao,
+        "indisponivel"
+      );
+    }
+
+    return true;
+  };
+
+
+  window.sincronizarAgoraHomePremium_ = async function () {
+    if (typeof sincronizarSIGO === "function") {
+      await sincronizarSIGO();
+    }
+
+    await atualizarResumoSyncHomePremium_();
+    return abrirSyncHomePremium_();
+  };
+
+  window.atualizarBaseHomePremium_ = async function () {
+    if (typeof sincronizarDadosBaseObraMobile === "function") {
+      await sincronizarDadosBaseObraMobile();
+    }
+
+    await atualizarHomePremiumUX_();
+    return abrirSyncHomePremium_();
+  };
+
+  window.abrirConfigHomePremium_ = async function () {
+    localStorage.setItem("telaAtualMobile", "config");
+    definirNavAtivoHomePremium_("config");
+
+    const idObra = obterIdObraHomePremium_();
+
+    const corpo = `
+      <section class="config-logo-home-premium">
+        <h3>Logo da obra ativa</h3>
+        <p>
+          ${idObra
+            ? `Personalização local da obra <strong>${idObra}</strong>.`
+            : "Selecione uma obra para configurar a logo."}
+        </p>
+
+        <div class="config-logo-preview">
+          <img
+            id="logoObraConfigPreview"
+            alt="Logo da obra"
+            hidden>
+
+          <div
+            id="logoObraConfigPlaceholder"
+            class="config-logo-placeholder">
+            🏢
+            <span>Sem logo personalizada</span>
+          </div>
+        </div>
+
+        <div class="central-home-acoes">
+          <button
+            type="button"
+            onclick="selecionarLogoObraHomePremium_()"
+            ${idObra ? "" : "disabled"}>
+            <span>🖼️</span>
+            <strong>Alterar Logo</strong>
+          </button>
+
+          <button
+            type="button"
+            class="is-secondary"
+            onclick="removerLogoObraHomePremium_()"
+            ${idObra ? "" : "disabled"}>
+            <span>↩️</span>
+            <strong>Usar logo automática</strong>
+          </button>
+        </div>
+      </section>
+    `;
+
+    if (typeof renderizarTelaAppMobile_ === "function") {
+      renderizarTelaAppMobile_(
+        "config",
+        montarTelaCentralHomePremium_(
+          "Config",
+          "Preferências e identidade visual",
+          corpo
+        )
+      );
+    }
+
+    await atualizarLogoHomePremium_();
+    return true;
+  };
+
+  async function atualizarHomePremiumUX_() {
+    normalizarOpcoesObraHomePremium_();
+    atualizarStatusConexaoHomePremium_();
+
+    await Promise.all([
+      atualizarContadoresHomePremium_(),
+      atualizarLogoHomePremium_(),
+      atualizarResumoSyncHomePremium_()
+    ]);
+  }
+
+  window.atualizarHomePremiumUX_ =
+    atualizarHomePremiumUX_;
+
+  function instalarWrappersHomePremium_() {
+    if (
+      typeof carregarObrasMobile_ === "function" &&
+      !carregarObrasMobile_.__SIGO_HOME_PREMIUM_WRAPPED__
+    ) {
+      const originalCarregarObras =
+        carregarObrasMobile_;
+
+      carregarObrasMobile_ =
+        async function (...args) {
+          const retorno =
+            await originalCarregarObras.apply(this, args);
+
+          normalizarOpcoesObraHomePremium_();
+          await atualizarLogoHomePremium_();
+
+          return retorno;
+        };
+
+      carregarObrasMobile_.__SIGO_HOME_PREMIUM_WRAPPED__ =
+        true;
+    }
+
+    if (
+      typeof atualizarIndicadoresMobile_ === "function" &&
+      !atualizarIndicadoresMobile_.__SIGO_HOME_PREMIUM_WRAPPED__
+    ) {
+      const originalIndicadores =
+        atualizarIndicadoresMobile_;
+
+      atualizarIndicadoresMobile_ =
+        async function (...args) {
+          const retorno =
+            await originalIndicadores.apply(this, args);
+
+          await atualizarContadoresHomePremium_();
+          return retorno;
+        };
+
+      atualizarIndicadoresMobile_.__SIGO_HOME_PREMIUM_WRAPPED__ =
+        true;
+    }
+
+    if (
+      typeof atualizarPainelSaudeSync_ === "function" &&
+      !atualizarPainelSaudeSync_.__SIGO_HOME_PREMIUM_WRAPPED__
+    ) {
+      const originalPainel =
+        atualizarPainelSaudeSync_;
+
+      atualizarPainelSaudeSync_ =
+        async function (...args) {
+          const retorno =
+            await originalPainel.apply(this, args);
+
+          await atualizarResumoSyncHomePremium_();
+          return retorno;
+        };
+
+      atualizarPainelSaudeSync_.__SIGO_HOME_PREMIUM_WRAPPED__ =
+        true;
+    }
+
+    if (
+      typeof atualizarHeroObraAtivaMobile_ === "function" &&
+      !atualizarHeroObraAtivaMobile_.__SIGO_HOME_PREMIUM_WRAPPED__
+    ) {
+      const originalHero =
+        atualizarHeroObraAtivaMobile_;
+
+      atualizarHeroObraAtivaMobile_ =
+        async function (...args) {
+          const retorno =
+            await originalHero.apply(this, args);
+
+          normalizarOpcoesObraHomePremium_();
+          await atualizarLogoHomePremium_();
+          await atualizarContadoresHomePremium_();
+
+          return retorno;
+        };
+
+      atualizarHeroObraAtivaMobile_.__SIGO_HOME_PREMIUM_WRAPPED__ =
+        true;
+    }
+
+    if (
+      typeof atualizarHomeMobile_ === "function" &&
+      !atualizarHomeMobile_.__SIGO_HOME_PREMIUM_WRAPPED__
+    ) {
+      const originalHome =
+        atualizarHomeMobile_;
+
+      atualizarHomeMobile_ =
+        async function (...args) {
+          const retorno =
+            await originalHome.apply(this, args);
+
+          await atualizarHomePremiumUX_();
+          return retorno;
+        };
+
+      atualizarHomeMobile_.__SIGO_HOME_PREMIUM_WRAPPED__ =
+        true;
+    }
+
+    if (
+      typeof voltarHome === "function" &&
+      !voltarHome.__SIGO_HOME_PREMIUM_WRAPPED__
+    ) {
+      const originalVoltarHome = voltarHome;
+
+      voltarHome =
+        function (...args) {
+          definirNavAtivoHomePremium_("home");
+
+          const retorno =
+            originalVoltarHome.apply(this, args);
+
+          Promise.resolve(retorno)
+            .finally(() => {
+              atualizarHomePremiumUX_();
+            });
+
+          return retorno;
+        };
+
+      voltarHome.__SIGO_HOME_PREMIUM_WRAPPED__ =
+        true;
+    }
+
+    if (
+      typeof abrirGerenciadorObrasOffline_ === "function" &&
+      !abrirGerenciadorObrasOffline_.__SIGO_HOME_PREMIUM_WRAPPED__
+    ) {
+      const originalObras =
+        abrirGerenciadorObrasOffline_;
+
+      abrirGerenciadorObrasOffline_ =
+        function (...args) {
+          definirNavAtivoHomePremium_("obras");
+          localStorage.setItem("telaAtualMobile", "obras");
+
+          return originalObras.apply(this, args);
+        };
+
+      abrirGerenciadorObrasOffline_.__SIGO_HOME_PREMIUM_WRAPPED__ =
+        true;
+    }
+  }
+
+  window.addEventListener(
+    "online",
+    atualizarStatusConexaoHomePremium_
+  );
+
+  window.addEventListener(
+    "offline",
+    atualizarStatusConexaoHomePremium_
+  );
+
+  document.addEventListener(
+    "DOMContentLoaded",
+    () => {
+      instalarWrappersHomePremium_();
+
+      queueMicrotask(() => {
+        atualizarHomePremiumUX_();
+      });
+    },
+    { once: true }
+  );
+
+  instalarWrappersHomePremium_();
+
+  queueMicrotask(() => {
+    atualizarHomePremiumUX_();
+  });
+})();
+/* SIGO_UX_HOME_PREMIUM_IMPLEMENTATION_MACROBLOCK_REV1_END */
