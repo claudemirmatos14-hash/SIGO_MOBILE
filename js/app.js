@@ -80074,7 +80074,7 @@ async function auditarBloqueioFuncoesReaisUX21964D_() {
     return localStorage.getItem(SIGO_HOME_LOGO_EMPRESA_KEY) || "";
   }
 
-  /* SIGO_HOME_PREMIUM_V112_LOGO_STATE_START */
+  /* SIGO_HOME_PREMIUM_V113_LOGO_CARD_RESOLUTION_START */
   function aplicarLogoNosElementosHomePremium_(logo) {
     const imagemHome =
       document.getElementById("logoObraHomePremium");
@@ -80085,10 +80085,23 @@ async function auditarBloqueioFuncoesReaisUX21964D_() {
     const imagemConfig =
       document.getElementById("logoObraConfigPreview");
 
-    const cardLogo =
-      imagemHome
+    const cardLogoPorImagem =
+      imagemHome &&
+      typeof imagemHome.closest === "function"
         ? imagemHome.closest(".obra-logo-card")
-        : document.querySelector(".obra-logo-card");
+        : null;
+
+    const cardLogo =
+      cardLogoPorImagem ||
+      document.querySelector(
+        "#homeApp.home-premium-v2 .obra-logo-card"
+      ) ||
+      document.querySelector(
+        "#homeApp .obra-logo-card"
+      ) ||
+      document.querySelector(
+        ".obra-logo-card"
+      );
 
     const temLogo =
       Boolean(logo);
@@ -80140,7 +80153,7 @@ async function auditarBloqueioFuncoesReaisUX21964D_() {
         temLogo;
     }
   }
-  /* SIGO_HOME_PREMIUM_V112_LOGO_STATE_END */
+  /* SIGO_HOME_PREMIUM_V113_LOGO_CARD_RESOLUTION_END */
   async function atualizarLogoHomePremium_() {
     const idObra = obterIdObraHomePremium_();
     const logo = await obterLogoAutomaticaHomePremium_(idObra);
