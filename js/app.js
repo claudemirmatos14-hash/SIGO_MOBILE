@@ -81231,3 +81231,902 @@ async function auditarBloqueioFuncoesReaisUX21964D_() {
   });
 })();
 /* SIGO_UX_HOME_PREMIUM_IMPLEMENTATION_MACROBLOCK_REV1_END */
+/* SIGO_ANDROID_BACK_NAVIGATION_V115_START */
+(function instalarNavegacaoAndroidV115_() {
+  "use strict";
+
+  const ROTAS_V115 =
+    new Set([
+      "home",
+      "obras",
+      "diario",
+      "diarioItens",
+      "medicoes",
+      "ocorrencias",
+      "clima",
+      "evidencias",
+      "sync",
+      "config"
+    ]);
+
+  const JANELA_SAIDA_MS_V115 =
+    2200;
+
+  const estadoV115 = {
+    instalado: false,
+    restaurando: false,
+    rotaAtual: "home",
+    ultimaTentativaSaida: 0,
+    originalNavegarPara: null,
+    originalAbrirSync: null,
+    originalAbrirConfig: null,
+    originalAbrirObras: null,
+    originalVoltarHome: null,
+    originalShowDrawer: null,
+    observadorOverlay: null
+  };
+
+  function normalizarRotaV115_(rota) {
+    const valor =
+      String(
+        rota ||
+        "home"
+      ).trim();
+
+    return ROTAS_V115.has(valor)
+      ? valor
+      : "home";
+  }
+
+  function estadoHistoricoV115_(
+    kind,
+    rota,
+    extra = {}
+  ) {
+    return {
+      sigoV115: true,
+      kind,
+      route:
+        normalizarRotaV115_(rota),
+      ts:
+        Date.now(),
+      ...extra
+    };
+  }
+
+  function rotaPersistidaV115_() {
+    try {
+      return normalizarRotaV115_(
+        localStorage.getItem(
+          "telaAtualMobile"
+        ) ||
+        "home"
+      );
+    } catch (_) {
+      return "home";
+    }
+  }
+
+  function registrarRotaV115_(rota) {
+    if (
+      estadoV115.restaurando
+    ) {
+      return;
+    }
+
+    const destino =
+      normalizarRotaV115_(
+        rota
+      );
+
+    estadoV115.rotaAtual =
+      destino;
+
+    const atual =
+      history.state;
+
+    if (
+      atual?.sigoV115 === true &&
+      atual.kind === "route" &&
+      atual.route === destino
+    ) {
+      return;
+    }
+
+    if (
+      atual?.sigoV115 === true &&
+      atual.kind === "home-guard" &&
+      destino === "home"
+    ) {
+      return;
+    }
+
+    history.pushState(
+      estadoHistoricoV115_(
+        "route",
+        destino
+      ),
+      "",
+      location.href
+    );
+  }
+
+  function mostrarAvisoSaidaV115_() {
+    const titulo =
+      "Sair do SIGO";
+
+    const mensagem =
+      "Pressione voltar novamente para sair.";
+
+    try {
+      if (
+        window.SIGOUI?.feedback &&
+        typeof window.SIGOUI.feedback.info ===
+          "function"
+      ) {
+        window.SIGOUI.feedback.info(
+          titulo,
+          mensagem
+        );
+
+        return;
+      }
+    } catch (_) {}
+
+    let toast =
+      document.getElementById(
+        "sigoBackExitToastV115"
+      );
+
+    if (!toast) {
+      toast =
+        document.createElement(
+          "div"
+        );
+
+      toast.id =
+        "sigoBackExitToastV115";
+
+      toast.setAttribute(
+        "role",
+        "status"
+      );
+
+      Object.assign(
+        toast.style,
+        {
+          position: "fixed",
+          left: "50%",
+          bottom: "92px",
+          transform: "translateX(-50%)",
+          zIndex: "2147483647",
+          maxWidth: "calc(100vw - 32px)",
+          padding: "12px 18px",
+          borderRadius: "999px",
+          background: "rgba(15,23,42,.94)",
+          color: "#fff",
+          fontSize: "14px",
+          fontWeight: "700",
+          textAlign: "center",
+          boxShadow:
+            "0 10px 30px rgba(15,23,42,.22)"
+        }
+      );
+
+      document.body.appendChild(
+        toast
+      );
+    }
+
+    toast.textContent =
+      mensagem;
+
+    toast.hidden =
+      false;
+
+    window.setTimeout(
+      () => {
+        if (toast) {
+          toast.hidden =
+            true;
+        }
+      },
+      1900
+    );
+  }
+
+  function elementoVisivelV115_(
+    elemento
+  ) {
+    if (!elemento) {
+      return false;
+    }
+
+    const estilo =
+      getComputedStyle(
+        elemento
+      );
+
+    if (
+      estilo.display === "none" ||
+      estilo.visibility === "hidden" ||
+      Number(estilo.opacity) === 0
+    ) {
+      return false;
+    }
+
+    const rect =
+      elemento.getBoundingClientRect();
+
+    return (
+      rect.width > 0 &&
+      rect.height > 0
+    );
+  }
+
+  function overlayVisivelV115_() {
+    const seletores = [
+      ".sigo-drawer-overlay",
+      ".drawer-overlay",
+      ".sigo-drawer-backdrop",
+      ".sigo-drawer",
+      ".drawer",
+      "[role='dialog']"
+    ];
+
+    return seletores.some(
+      seletor =>
+        Array.from(
+          document.querySelectorAll(
+            seletor
+          )
+        ).some(
+          elementoVisivelV115_
+        )
+    );
+  }
+
+  function fecharOverlayVisivelV115_() {
+    try {
+      if (
+        window.SIGOUI &&
+        typeof window.SIGOUI.closeDrawer ===
+          "function"
+      ) {
+        window.SIGOUI.closeDrawer();
+        return true;
+      }
+
+      if (
+        window.SIGOUI &&
+        typeof window.SIGOUI.hideDrawer ===
+          "function"
+      ) {
+        window.SIGOUI.hideDrawer();
+        return true;
+      }
+    } catch (_) {}
+
+    const botoes =
+      Array.from(
+        document.querySelectorAll(
+          [
+            "[data-sigo-drawer-close]",
+            ".sigo-drawer-close",
+            ".drawer-close",
+            "button[aria-label*='Fechar' i]",
+            "button[aria-label*='Close' i]",
+            "button"
+          ].join(",")
+        )
+      )
+        .filter(
+          elementoVisivelV115_
+        );
+
+    const botao =
+      botoes.find(item => {
+        const texto =
+          String(
+            item.textContent ||
+            ""
+          )
+            .replace(/\s+/g, " ")
+            .trim();
+
+        const aria =
+          String(
+            item.getAttribute(
+              "aria-label"
+            ) ||
+            ""
+          ).trim();
+
+        return (
+          /^(fechar|cancelar|×|✕|x)$/i.test(
+            texto
+          ) ||
+          /(fechar|close)/i.test(
+            aria
+          )
+        );
+      });
+
+    if (botao) {
+      botao.click();
+      return true;
+    }
+
+    return false;
+  }
+
+  async function renderizarRotaSemHistoricoV115_(
+    rota
+  ) {
+    const destino =
+      normalizarRotaV115_(
+        rota
+      );
+
+    estadoV115.restaurando =
+      true;
+
+    try {
+      if (
+        destino === "sync" &&
+        typeof estadoV115.originalAbrirSync ===
+          "function"
+      ) {
+        await estadoV115.originalAbrirSync();
+      } else if (
+        destino === "config" &&
+        typeof estadoV115.originalAbrirConfig ===
+          "function"
+      ) {
+        await estadoV115.originalAbrirConfig();
+      } else if (
+        destino === "obras" &&
+        typeof estadoV115.originalAbrirObras ===
+          "function"
+      ) {
+        await estadoV115.originalAbrirObras();
+      } else if (
+        typeof estadoV115.originalNavegarPara ===
+          "function"
+      ) {
+        await estadoV115.originalNavegarPara(
+          destino
+        );
+      }
+
+      estadoV115.rotaAtual =
+        destino;
+    } finally {
+      estadoV115.restaurando =
+        false;
+    }
+  }
+
+  async function tratarPopStateV115_(
+    evento
+  ) {
+    const destino =
+      evento?.state;
+
+    if (
+      overlayVisivelV115_()
+    ) {
+      fecharOverlayVisivelV115_();
+
+      const rotaOverlay =
+        normalizarRotaV115_(
+          destino?.route ||
+          estadoV115.rotaAtual
+        );
+
+      estadoV115.rotaAtual =
+        rotaOverlay;
+
+      return;
+    }
+
+    if (
+      destino?.sigoV115 === true &&
+      destino.kind === "home-root"
+    ) {
+      const agora =
+        Date.now();
+
+      if (
+        agora -
+          estadoV115.ultimaTentativaSaida <=
+        JANELA_SAIDA_MS_V115
+      ) {
+        estadoV115.ultimaTentativaSaida =
+          0;
+
+        window.setTimeout(
+          () => {
+            history.back();
+          },
+          0
+        );
+
+        return;
+      }
+
+      estadoV115.ultimaTentativaSaida =
+        agora;
+
+      await renderizarRotaSemHistoricoV115_(
+        "home"
+      );
+
+      history.pushState(
+        estadoHistoricoV115_(
+          "home-guard",
+          "home"
+        ),
+        "",
+        location.href
+      );
+
+      mostrarAvisoSaidaV115_();
+
+      return;
+    }
+
+    if (
+      destino?.sigoV115 === true &&
+      (
+        destino.kind === "route" ||
+        destino.kind === "home-guard"
+      )
+    ) {
+      await renderizarRotaSemHistoricoV115_(
+        destino.route
+      );
+
+      return;
+    }
+
+    await renderizarRotaSemHistoricoV115_(
+      "home"
+    );
+  }
+
+  function registrarOverlayV115_() {
+    if (
+      estadoV115.restaurando
+    ) {
+      return;
+    }
+
+    const atual =
+      history.state;
+
+    if (
+      atual?.sigoV115 === true &&
+      atual.kind === "overlay"
+    ) {
+      return;
+    }
+
+    history.pushState(
+      estadoHistoricoV115_(
+        "overlay",
+        estadoV115.rotaAtual
+      ),
+      "",
+      location.href
+    );
+  }
+
+  function sincronizarFechamentoManualOverlayV115_() {
+    if (
+      overlayVisivelV115_()
+    ) {
+      return;
+    }
+
+    const atual =
+      history.state;
+
+    if (
+      atual?.sigoV115 === true &&
+      atual.kind === "overlay"
+    ) {
+      history.back();
+    }
+  }
+
+  function instalarObservadorOverlayV115_() {
+    if (
+      estadoV115.observadorOverlay
+    ) {
+      return;
+    }
+
+    let haviaOverlay =
+      overlayVisivelV115_();
+
+    const observador =
+      new MutationObserver(
+        () => {
+          const existeOverlay =
+            overlayVisivelV115_();
+
+          if (
+            haviaOverlay &&
+            !existeOverlay
+          ) {
+            sincronizarFechamentoManualOverlayV115_();
+          }
+
+          haviaOverlay =
+            existeOverlay;
+        }
+      );
+
+    observador.observe(
+      document.documentElement,
+      {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: [
+          "class",
+          "style",
+          "hidden",
+          "aria-hidden"
+        ]
+      }
+    );
+
+    estadoV115.observadorOverlay =
+      observador;
+  }
+
+  function instalarWrappersV115_() {
+    if (
+      typeof window.navegarPara ===
+        "function" &&
+      !window.navegarPara
+        .__sigoBackV115
+    ) {
+      estadoV115.originalNavegarPara =
+        window.navegarPara;
+
+      const original =
+        estadoV115.originalNavegarPara;
+
+      const wrapper =
+        async function (
+          rota,
+          ...args
+        ) {
+          const resultado =
+            await original.call(
+              this,
+              rota,
+              ...args
+            );
+
+          registrarRotaV115_(
+            rota
+          );
+
+          return resultado;
+        };
+
+      wrapper.__sigoBackV115 =
+        true;
+
+      window.navegarPara =
+        wrapper;
+    }
+
+    if (
+      typeof window.abrirSyncHomePremium_ ===
+        "function" &&
+      !window.abrirSyncHomePremium_
+        .__sigoBackV115
+    ) {
+      estadoV115.originalAbrirSync =
+        window.abrirSyncHomePremium_;
+
+      const original =
+        estadoV115.originalAbrirSync;
+
+      const wrapper =
+        async function (...args) {
+          const resultado =
+            await original.apply(
+              this,
+              args
+            );
+
+          registrarRotaV115_(
+            "sync"
+          );
+
+          return resultado;
+        };
+
+      wrapper.__sigoBackV115 =
+        true;
+
+      window.abrirSyncHomePremium_ =
+        wrapper;
+    }
+
+    if (
+      typeof window.abrirConfigHomePremium_ ===
+        "function" &&
+      !window.abrirConfigHomePremium_
+        .__sigoBackV115
+    ) {
+      estadoV115.originalAbrirConfig =
+        window.abrirConfigHomePremium_;
+
+      const original =
+        estadoV115.originalAbrirConfig;
+
+      const wrapper =
+        async function (...args) {
+          const resultado =
+            await original.apply(
+              this,
+              args
+            );
+
+          registrarRotaV115_(
+            "config"
+          );
+
+          return resultado;
+        };
+
+      wrapper.__sigoBackV115 =
+        true;
+
+      window.abrirConfigHomePremium_ =
+        wrapper;
+    }
+
+    if (
+      typeof window.abrirGerenciadorObrasOffline_ ===
+        "function" &&
+      !window.abrirGerenciadorObrasOffline_
+        .__sigoBackV115
+    ) {
+      estadoV115.originalAbrirObras =
+        window.abrirGerenciadorObrasOffline_;
+
+      const original =
+        estadoV115.originalAbrirObras;
+
+      const wrapper =
+        async function (...args) {
+          const resultado =
+            await original.apply(
+              this,
+              args
+            );
+
+          registrarRotaV115_(
+            "obras"
+          );
+
+          return resultado;
+        };
+
+      wrapper.__sigoBackV115 =
+        true;
+
+      window.abrirGerenciadorObrasOffline_ =
+        wrapper;
+    }
+
+    if (
+      typeof window.voltarHome ===
+        "function" &&
+      !window.voltarHome
+        .__sigoBackV115
+    ) {
+      estadoV115.originalVoltarHome =
+        window.voltarHome;
+    }
+
+    const voltarWrapper =
+      function () {
+        if (
+          estadoV115.rotaAtual ===
+          "home"
+        ) {
+          return false;
+        }
+
+        history.back();
+        return true;
+      };
+
+    voltarWrapper.__sigoBackV115 =
+      true;
+
+    window.voltarHome =
+      voltarWrapper;
+
+    if (
+      window.SIGOUI &&
+      typeof window.SIGOUI.showDrawer ===
+        "function" &&
+      !window.SIGOUI.showDrawer
+        .__sigoBackV115
+    ) {
+      estadoV115.originalShowDrawer =
+        window.SIGOUI.showDrawer;
+
+      const original =
+        estadoV115.originalShowDrawer;
+
+      const wrapper =
+        function (...args) {
+          const resultado =
+            original.apply(
+              this,
+              args
+            );
+
+          registrarOverlayV115_();
+
+          return resultado;
+        };
+
+      wrapper.__sigoBackV115 =
+        true;
+
+      window.SIGOUI.showDrawer =
+        wrapper;
+    }
+  }
+
+  function inicializarHistoricoV115_() {
+    const rotaInicial =
+      rotaPersistidaV115_();
+
+    estadoV115.rotaAtual =
+      rotaInicial;
+
+    history.replaceState(
+      estadoHistoricoV115_(
+        "home-root",
+        "home"
+      ),
+      "",
+      location.href
+    );
+
+    history.pushState(
+      estadoHistoricoV115_(
+        "home-guard",
+        "home"
+      ),
+      "",
+      location.href
+    );
+
+    if (
+      rotaInicial !== "home"
+    ) {
+      history.pushState(
+        estadoHistoricoV115_(
+          "route",
+          rotaInicial
+        ),
+        "",
+        location.href
+      );
+    }
+  }
+
+  function instalarV115_() {
+    if (
+      estadoV115.instalado
+    ) {
+      return;
+    }
+
+    instalarWrappersV115_();
+    instalarObservadorOverlayV115_();
+    inicializarHistoricoV115_();
+
+    window.addEventListener(
+      "popstate",
+      evento => {
+        Promise.resolve(
+          tratarPopStateV115_(
+            evento
+          )
+        ).catch(
+          erro => {
+            console.error(
+              "[V115] Falha ao processar Voltar:",
+              erro
+            );
+          }
+        );
+      }
+    );
+
+    estadoV115.instalado =
+      true;
+  }
+
+  window.SIGOBackNavigationV115 = {
+    version: "V115",
+    routes:
+      Array.from(
+        ROTAS_V115
+      ),
+    install:
+      instalarV115_,
+    currentRoute:
+      () =>
+        estadoV115.rotaAtual,
+    overlayVisible:
+      overlayVisivelV115_,
+    closeOverlay:
+      fecharOverlayVisivelV115_,
+    back:
+      () => {
+        if (
+          estadoV115.rotaAtual ===
+          "home"
+        ) {
+          history.back();
+          return true;
+        }
+
+        history.back();
+        return true;
+      },
+    getState:
+      () => ({
+        installed:
+          estadoV115.instalado,
+        currentRoute:
+          estadoV115.rotaAtual,
+        historyState:
+          history.state,
+        lastExitAttempt:
+          estadoV115.ultimaTentativaSaida,
+        overlayVisible:
+          overlayVisivelV115_()
+      })
+  };
+
+  if (
+    document.readyState ===
+    "complete"
+  ) {
+    window.setTimeout(
+      instalarV115_,
+      0
+    );
+  } else {
+    window.addEventListener(
+      "load",
+      () => {
+        window.setTimeout(
+          instalarV115_,
+          0
+        );
+      },
+      {
+        once: true
+      }
+    );
+  }
+})();
+/* SIGO_ANDROID_BACK_NAVIGATION_V115_END */
