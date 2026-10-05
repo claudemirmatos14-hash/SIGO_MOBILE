@@ -13873,39 +13873,77 @@ window.criarNotificacaoSIGO_ = async function (dados = {}) {
   return notificacao;
 };
 
+/* SIGO_HOME_NOTIFICATION_BADGE_V109_START */
 window.atualizarBadgeNotificacoes_ = async function () {
-  const badge = document.getElementById("badgeNotificacoes");
-
-  if (!badge) return;
-
   try {
-    const obraAtiva = obterObraAtivaMobile_();
+    const obraAtiva =
+      String(
+        obterObraAtivaMobile_() ||
+        ""
+      )
+        .split(" ")[0]
+        .trim();
 
     const notificacoes =
-      await listarRegistrosSIGO("TB_NOTIFICACOES");
-
-    const naoLidas =
-      notificacoes.filter(item =>
-        String(item.idObra) === String(obraAtiva) &&
-        item.lida === false
+      await listarRegistrosSIGO(
+        "TB_NOTIFICACOES"
       );
 
-    const total = naoLidas.length;
+    const lista =
+      Array.isArray(notificacoes)
+        ? notificacoes
+        : [];
 
-    badge.textContent = total;
+    const naoLidas =
+      lista.filter(item =>
+        String(
+          item?.idObra ||
+          ""
+        )
+          .split(" ")[0]
+          .trim() ===
+          obraAtiva &&
+        item?.lida === false
+      );
 
-    badge.style.display =
-      total > 0 ? "inline-flex" : "none";
+    const total =
+      naoLidas.length;
 
+    const badges =
+      Array.from(
+        document.querySelectorAll(
+          "#badgeNotificacoes"
+        )
+      );
+
+    for (const badge of badges) {
+      badge.textContent =
+        String(total);
+
+      badge.style.display =
+        total > 0
+          ? "inline-flex"
+          : "none";
+
+      badge.setAttribute(
+        "aria-label",
+        total === 1
+          ? "1 notificação não lida"
+          : `${total} notificações não lidas`
+      );
+    }
+
+    return total;
   } catch (erro) {
     console.error(
       "Erro ao atualizar badge de notificações:",
       erro
     );
+
+    return null;
   }
 };
-
-// =====================================================
+/* SIGO_HOME_NOTIFICATION_BADGE_V109_END */
 // UX.08.2.6 — EVENTOS DO SISTEMA SIGO
 // =====================================================
 
@@ -80552,10 +80590,70 @@ async function auditarBloqueioFuncoesReaisUX21964D_() {
     return true;
   }
   /* SIGO_HOME_BELL_NOTIFICATIONS_V107_END */
+  /* SIGO_HOME_NOTIFICATION_BADGE_ELEMENT_V109_START */
+  function instalarBadgeNotificacoesHomePremiumV109_() {
+    const sino =
+      document.querySelector(
+        ".sigo-home-bell"
+      );
+
+    if (!sino) {
+      return null;
+    }
+
+    let badge =
+      sino.querySelector(
+        "#badgeNotificacoes"
+      );
+
+    if (!badge) {
+      badge =
+        document.createElement(
+          "span"
+        );
+
+      badge.id =
+        "badgeNotificacoes";
+
+      badge.className =
+        "notification-badge sigo-home-notification-badge";
+
+      badge.textContent =
+        "0";
+
+      badge.style.display =
+        "none";
+
+      badge.setAttribute(
+        "aria-live",
+        "polite"
+      );
+
+      badge.setAttribute(
+        "aria-atomic",
+        "true"
+      );
+
+      sino.appendChild(
+        badge
+      );
+    }
+
+    return badge;
+  }
+  /* SIGO_HOME_NOTIFICATION_BADGE_ELEMENT_V109_END */
   async function atualizarHomePremiumUX_() {
     normalizarOpcoesObraHomePremium_();
     atualizarStatusConexaoHomePremium_();
     instalarSinoNotificacoesHomePremium_();
+    instalarBadgeNotificacoesHomePremiumV109_();
+
+    if (
+      typeof window.atualizarBadgeNotificacoes_ ===
+      "function"
+    ) {
+      await window.atualizarBadgeNotificacoes_();
+    }
 
     await Promise.all([
       atualizarContadoresHomePremium_(),
