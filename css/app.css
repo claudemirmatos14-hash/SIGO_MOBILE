@@ -2197,3 +2197,37 @@ body {
   }
 }
 /* SIGO_HOME_PREMIUM_V107_COMPACT_LOGO_1X1_END */
+/* SIGO_HOME_PREMIUM_V108_LOGO_1X1_PRECEDENCE_FIX_START */
+#homeApp.home-premium-v2 .obra-premium-v2 .obra-logo-card {
+  width: 124px !important;
+  min-width: 124px !important;
+  max-width: 124px !important;
+  height: 124px !important;
+  min-height: 124px !important;
+  max-height: 124px !important;
+  aspect-ratio: 1 / 1 !important;
+  right: 18px !important;
+  bottom: 18px !important;
+  padding: 10px !important;
+  box-sizing: border-box !important;
+}
+
+#homeApp.home-premium-v2 .obra-premium-v2 .obra-logo-img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+}
+
+@media (max-width: 380px) {
+  #homeApp.home-premium-v2 .obra-premium-v2 .obra-logo-card {
+    width: 116px !important;
+    min-width: 116px !important;
+    max-width: 116px !important;
+    height: 116px !important;
+    min-height: 116px !important;
+    max-height: 116px !important;
+    right: 16px !important;
+    bottom: 16px !important;
+  }
+}
+/* SIGO_HOME_PREMIUM_V108_LOGO_1X1_PRECEDENCE_FIX_END */
