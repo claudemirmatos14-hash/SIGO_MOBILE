@@ -13873,9 +13873,57 @@ window.criarNotificacaoSIGO_ = async function (dados = {}) {
   return notificacao;
 };
 
-/* SIGO_HOME_NOTIFICATION_BADGE_V109_START */
+/* SIGO_HOME_NOTIFICATION_BADGE_V110_START */
 window.atualizarBadgeNotificacoes_ = async function () {
   try {
+    const sino =
+      document.querySelector(
+        ".sigo-home-bell"
+      );
+
+    let badge =
+      sino
+        ? sino.querySelector(
+            "#badgeNotificacoes"
+          )
+        : null;
+
+    if (
+      sino &&
+      !badge
+    ) {
+      badge =
+        document.createElement(
+          "span"
+        );
+
+      badge.id =
+        "badgeNotificacoes";
+
+      badge.className =
+        "notification-badge sigo-home-notification-badge";
+
+      badge.textContent =
+        "0";
+
+      badge.style.display =
+        "none";
+
+      badge.setAttribute(
+        "aria-live",
+        "polite"
+      );
+
+      badge.setAttribute(
+        "aria-atomic",
+        "true"
+      );
+
+      sino.appendChild(
+        badge
+      );
+    }
+
     const obraAtiva =
       String(
         obterObraAtivaMobile_() ||
@@ -13916,16 +13964,16 @@ window.atualizarBadgeNotificacoes_ = async function () {
         )
       );
 
-    for (const badge of badges) {
-      badge.textContent =
+    for (const elemento of badges) {
+      elemento.textContent =
         String(total);
 
-      badge.style.display =
+      elemento.style.display =
         total > 0
           ? "inline-flex"
           : "none";
 
-      badge.setAttribute(
+      elemento.setAttribute(
         "aria-label",
         total === 1
           ? "1 notificação não lida"
@@ -13943,7 +13991,7 @@ window.atualizarBadgeNotificacoes_ = async function () {
     return null;
   }
 };
-/* SIGO_HOME_NOTIFICATION_BADGE_V109_END */
+/* SIGO_HOME_NOTIFICATION_BADGE_V110_END */
 // UX.08.2.6 — EVENTOS DO SISTEMA SIGO
 // =====================================================
 
@@ -80590,63 +80638,10 @@ async function auditarBloqueioFuncoesReaisUX21964D_() {
     return true;
   }
   /* SIGO_HOME_BELL_NOTIFICATIONS_V107_END */
-  /* SIGO_HOME_NOTIFICATION_BADGE_ELEMENT_V109_START */
-  function instalarBadgeNotificacoesHomePremiumV109_() {
-    const sino =
-      document.querySelector(
-        ".sigo-home-bell"
-      );
-
-    if (!sino) {
-      return null;
-    }
-
-    let badge =
-      sino.querySelector(
-        "#badgeNotificacoes"
-      );
-
-    if (!badge) {
-      badge =
-        document.createElement(
-          "span"
-        );
-
-      badge.id =
-        "badgeNotificacoes";
-
-      badge.className =
-        "notification-badge sigo-home-notification-badge";
-
-      badge.textContent =
-        "0";
-
-      badge.style.display =
-        "none";
-
-      badge.setAttribute(
-        "aria-live",
-        "polite"
-      );
-
-      badge.setAttribute(
-        "aria-atomic",
-        "true"
-      );
-
-      sino.appendChild(
-        badge
-      );
-    }
-
-    return badge;
-  }
-  /* SIGO_HOME_NOTIFICATION_BADGE_ELEMENT_V109_END */
   async function atualizarHomePremiumUX_() {
     normalizarOpcoesObraHomePremium_();
     atualizarStatusConexaoHomePremium_();
     instalarSinoNotificacoesHomePremium_();
-    instalarBadgeNotificacoesHomePremiumV109_();
 
     if (
       typeof window.atualizarBadgeNotificacoes_ ===
