@@ -14917,42 +14917,63 @@ window.SIGONotificacoesState = {
   categoriaAtual: "TODAS"
 };
 
+/* SIGO_NOTIFICATION_FILTER_ACTIVE_STATE_V111_START */
 window.definirFiltroNotificacoesSIGO_ = async function (filtro = "TODAS") {
-  console.log("Filtro:", filtro);
-  SIGONotificacoesState.filtroAtual = filtro;
+  const filtroNormalizado =
+    String(filtro || "TODAS")
+      .trim()
+      .toUpperCase();
 
-  if (filtro === "NAO_LIDAS") {
-    SIGONotificacoesState.somenteNaoLidas = true;
-    SIGONotificacoesState.categoriaAtual = "TODAS";
+  SIGONotificacoesState.filtroAtual =
+    filtroNormalizado;
+
+  if (filtroNormalizado === "NAO_LIDAS") {
+    SIGONotificacoesState.somenteNaoLidas =
+      true;
+
+    SIGONotificacoesState.categoriaAtual =
+      "TODAS";
   } else {
-    SIGONotificacoesState.somenteNaoLidas = false;
-    SIGONotificacoesState.categoriaAtual = filtro;
+    SIGONotificacoesState.somenteNaoLidas =
+      false;
+
+    SIGONotificacoesState.categoriaAtual =
+      filtroNormalizado;
   }
 
-  document
-    .querySelectorAll(".notificacao-filtro-chip")
-    .forEach(botao => {
-      botao.classList.remove("ativo");
-    });
+  const botoes =
+    Array.from(
+      document.querySelectorAll(
+        ".notificacao-filtro-chip"
+      )
+    );
 
-  document
-    .querySelectorAll(".notificacao-filtro-chip")
-    .forEach(botao => {
-      if (
-        botao.textContent.trim().toUpperCase() ===
-        filtro.replace("_", " ").toUpperCase()
-      ) {
-        botao.classList.add("ativo");
-      }
-    });
-  console.log(SIGONotificacoesState);
+  for (const botao of botoes) {
+    const ativo =
+      String(
+        botao.dataset.filtro ||
+        ""
+      ).toUpperCase() ===
+      filtroNormalizado;
 
-  console.log("Atualizando drawer...");
-  
+    botao.classList.toggle(
+      "ativo",
+      ativo
+    );
+
+    botao.setAttribute(
+      "aria-pressed",
+      ativo
+        ? "true"
+        : "false"
+    );
+  }
+
   await atualizarCentralNotificacoesAbertaSIGO_();
-  console.log("Drawer atualizado.");
-};
 
+  return filtroNormalizado;
+};
+/* SIGO_NOTIFICATION_FILTER_ACTIVE_STATE_V111_END */
 window.atualizarBotaoMarcarTodasLidasSIGO_ =
   function (totalNaoLidas = 0) {
 
@@ -14995,6 +15016,12 @@ window.criarFiltrosNotificacoesSIGO_ = function () {
       ${filtros.map(filtro => `
         <button
           type="button"
+          data-filtro="${filtro.id}"
+          aria-pressed="${
+            SIGONotificacoesState.filtroAtual === filtro.id
+              ? "true"
+              : "false"
+          }"
           class="notificacao-filtro-chip ${
             SIGONotificacoesState.filtroAtual === filtro.id
               ? "ativo"
