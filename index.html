@@ -1,230 +1,183 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
   <meta charset="UTF-8">
+
   <meta name="viewport"
         content="width=device-width, initial-scale=1.0">
+
   <title>SIGO Mobile</title>
-  <link rel="stylesheet" href="css/app.css">
-  <link rel="manifest" href="./manifest.json">
-  <meta name="theme-color" content="#0b1f36">
+    <link rel="stylesheet" href="css/app.css">
+  
+  <style id="sigo-home-diario-span-style">
+    .sigo-home-diario-span { grid-column: 1 / -1; }
+  </style>
 </head>
+  
+  <body>
+  
+    <div class="app">
+  
+      <section id="homeApp">
 
-<body>
-  <div class="app">
+  <header class="topo topo-premium">
+    <div>
+      <h1>SIGO</h1>
+      <p>Sistema Integrado de Gestão de Obras</p>
+    </div>
+  </header>
 
-    <section id="homeApp" class="home-premium-v2">
-
-      <header class="topo topo-premium sigo-home-header">
-        <div class="sigo-home-brand">
-          <div class="sigo-home-brand-mark" aria-hidden="true">🏗️</div>
-          <div>
-            <h1>SIGO</h1>
-            <p>Sistema Integrado de Gestão de Obras</p>
-          </div>
-        </div>
-
-        <div class="sigo-home-header-actions">
-          <span class="sigo-home-bell" aria-label="Notificações">🔔<span class="sigo-home-notification-badge">15</span></span>
-          <span id="homeOnlineStatus" class="sigo-home-online">
-            <span class="sigo-home-online-dot"></span>
-            Online
-          </span>
-        </div>
-      </header>
-
-      <section class="obra-premium-card obra-premium-v2">
-        <div class="obra-premium-main">
-          <div class="obra-label"><span class="sigo-home-obra-crane" aria-hidden="true">🏗️</span> OBRA ATIVA</div>
-
-          <select id="obraAtiva">
-            <option value="">Carregando obras...</option>
-          </select>
-
-          <div class="obra-info">
-            <span id="nomeObra">Selecione uma obra offline</span>
-          </div>
-
-          <div class="obra-metricas-v2">
-            <span id="contadorObrasOffline" class="obra-metrica-chip">
-              0 de 3 obras offline
-            </span>
-            <span id="contadorAtividadesOffline" class="obra-metrica-chip">
-              0 atividades offline
-            </span>
-            <span id="contadorEmExecucao" class="obra-metrica-chip obra-metrica-chip-status">
-              0 em execução
-            </span>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          class="obra-logo-card"
-          onclick="selecionarLogoObraHomePremium_()"
-          aria-label="Alterar logo da obra ativa">
-          <img id="logoObraHomePremium"
-               class="obra-logo-img"
-               alt="Logo da obra"
-               hidden>
-          <span id="logoObraPlaceholder" class="obra-logo-placeholder">
-            <span class="obra-logo-placeholder-icone">🏢</span>
-            <strong>Logo da empresa</strong>
-            <small>Toque para adicionar <span class="sigo-home-logo-chevron" aria-hidden="true">›</span></small>
-          </span>
-        </button>
-
-        <input
-          id="logoObraInputHomePremium"
-          type="file"
-          accept="image/*"
-          hidden
-          onchange="salvarLogoObraHomePremium_(event)">
-      </section>
-
-      <section class="operacao-campo operacao-campo-v2">
-        <div class="secao-titulo secao-titulo-v2">
-          <div>
-            <h3>Trabalho de Campo</h3>
-            <span>Registre e acompanhe as informações da obra</span>
-          </div>
-        </div>
-
-        <div class="menu-grid menu-grid-v2">
-
-          <button
-            type="button"
-            class="menu-card menu-card-diario"
-            onclick="navegarPara('diario')">
-            <span class="icone menu-icone-diario" aria-hidden="true">📘</span>
-            <span class="menu-card-conteudo">
-              <strong>Diário de Obra</strong>
-              <small id="homeContadorDiarios">0 diários</small>
-            </span>
-            <span class="menu-card-seta" aria-hidden="true">›</span>
-          </button>
-
-          <button
-            type="button"
-            class="menu-card menu-card-medicoes"
-            onclick="navegarPara('medicoes')">
-            <span class="icone menu-icone-medicoes" aria-hidden="true">📏</span>
-            <span class="menu-card-conteudo">
-              <strong>Medições</strong>
-              <small id="homeContadorMedicoes">0 medições</small>
-            </span>
-            <span class="menu-card-seta" aria-hidden="true">›</span>
-          </button>
-
-          <button
-            type="button"
-            class="menu-card menu-card-ocorrencias"
-            onclick="navegarPara('ocorrencias')">
-            <span class="icone menu-icone-ocorrencias" aria-hidden="true">⚠️</span>
-            <span class="menu-card-conteudo">
-              <strong>Ocorrências</strong>
-              <small id="homeContadorOcorrencias">0 abertas · 0 críticas</small>
-            </span>
-            <span class="menu-card-seta" aria-hidden="true">›</span>
-          </button>
-
-          <button
-            type="button"
-            class="menu-card menu-card-clima"
-            onclick="navegarPara('clima')">
-            <span class="icone menu-icone-clima" aria-hidden="true">🌦️</span>
-            <span class="menu-card-conteudo">
-              <strong>Clima</strong>
-              <small id="homeContadorClima">Sem registro</small>
-            </span>
-            <span class="menu-card-seta" aria-hidden="true">›</span>
-          </button>
-
-          <button
-            type="button"
-            class="menu-card menu-card-evidencias"
-            onclick="navegarPara('evidencias')">
-            <span class="icone menu-icone-evidencias" aria-hidden="true">📷</span>
-            <span class="menu-card-conteudo">
-              <strong>Evidências</strong>
-              <small id="homeContadorEvidencias">0 evidências</small>
-            </span>
-            <span class="menu-card-seta" aria-hidden="true">›</span>
-          </button>
-
+      <section class="obra-premium-card">
+        <div class="obra-label">🏗 OBRA ATIVA</div>
+    
+        <select id="obraAtiva">
+          <option value="">Carregando obras...</option>
+        </select>
+    
+        <div class="obra-info">
+          <span id="nomeObra">Selecione uma obra offline</span>
+          <small id="contadorObrasOffline">0 de 3 obras offline</small>
+          <small id="contadorAtividadesOffline">0 atividades offline</small>
         </div>
       </section>
-
-      <button
-        type="button"
-        class="sync-resumo-home"
-        onclick="abrirSyncHomePremium_()">
-        <span class="sync-resumo-icone" aria-hidden="true">✓</span>
-        <span class="sync-resumo-conteudo">
-          <span class="sigo-home-sync-title">Status de Sincronização</span>
-          <strong id="syncStatus">Tudo sincronizado</strong>
-          <small>
-            Última atualização:
-            <span id="syncUltima">--</span>
-            ·
-            <span id="syncPendentes">0</span> pendências
-          </small>
-        </span>
-        <span class="sync-resumo-link">Ver Sync ›</span>
-      </button>
-
+    
+      <section class="operacao-campo">
+        <div class="secao-titulo">
+          <h3>👷 Trabalho de Campo</h3>
+          <span>Acompanhe a execução da obra</span>
+        </div>
+    
+        <div class="menu-grid">
+          <div class="menu-card sigo-home-diario-span" onclick="navegarPara('diario')">
+            <div class="icone">📘</div>
+            <h3>Diário de Obra</h3>
+            <span class="badge badge-verde">Hoje</span>
+            <p>Registrar produção diária</p>
+          </div>
+    
+          
+    
+          <div class="menu-card" onclick="navegarPara('medicoes')">
+            <div class="icone">📏</div>
+            <h3>Medições</h3>
+            <span class="badge badge-amarelo">MED.05</span>
+            <p>Acompanhar medições</p>
+          </div>
+    
+          <div class="menu-card" onclick="navegarPara('ocorrencias')">
+            <div class="icone">⚠️</div>
+            <h3>Ocorrências</h3>
+            <span class="badge badge-vermelho">Abertas</span>
+            <p>Registrar problemas</p>
+          </div>
+    
+          <div class="menu-card" onclick="navegarPara('clima')">
+            <div class="icone">🌦️</div>
+            <h3>Clima</h3>
+            <span class="badge badge-azul">Hoje</span>
+            <p>Condição climática</p>
+          </div>
+    
+          <div class="menu-card" onclick="navegarPara('evidencias')">
+            <div class="icone">📎</div>
+            <h3>Evidências</h3>
+            <span class="badge badge-verde">Fotos</span>
+            <p>Fotos e documentos</p>
+          </div>
+        </div>
+      </section>
+    
+      <section class="sync-saude-card">
+        <div class="secao-titulo">
+          <h3>🌐 Situação da Obra</h3>
+          <span>
+            Última Sync:
+            <strong id="syncUltima">--</strong>
+          </span>
+        </div>
+    
+        <div class="sync-grid">
+          <div>
+            <strong id="syncSincronizados">0</strong>
+            <span>Sincronizados</span>
+          </div>
+    
+          <div>
+            <strong id="syncPendentes">0</strong>
+            <span>Pendentes</span>
+          </div>
+    
+          <div>
+            <strong id="syncConflitos">0</strong>
+            <span>Conflitos</span>
+          </div>
+    
+          <div>
+            <strong id="syncExcessos">0</strong>
+            <span>Excessos</span>
+          </div>
+        </div>
+    
+        <div id="syncStatus" class="sync-status">
+          🟢 OPERAÇÃO NORMAL
+        </div>
+      </section>
+    
+      <section class="acoes-rapidas-card">
+        <div class="secao-titulo">
+          <h3>⚙ Ferramentas</h3>
+          <span>Utilitários do sistema</span>
+        </div>
+    
+        <div class="acoes-grid">
+          <button onclick="sincronizarDadosBaseObraMobile()">
+            <strong>🔄</strong>
+            <span>Atualizar<br>Base</span>
+          </button>
+    
+          <button onclick="sincronizarSIGO()">
+            <strong>☁</strong>
+            <span>Sincronizar<br>Agora</span>
+          </button>
+    
+          <button onclick="abrirGerenciadorObrasOffline_()">
+            <strong>⬇</strong>
+            <span>Baixar<br>Obra</span>
+          </button>
+    
+          <button onclick="alert('Configurações será implementado futuramente.')">
+            <strong>⚙</strong>
+            <span>Configurar<br>App</span>
+          </button>
+        </div>
+      </section>
+    
     </section>
+  
+      <section id="telaApp" class="tela-app"></section>
+  
+      <nav class="bottom-nav">
+        <button onclick="voltarHome()">🏠<span>Home</span></button>
+        <button onclick="abrirGerenciadorObrasOffline_()">🏗<span>Obras</span></button>
+        <button onclick="sincronizarSIGO()">🔄<span>Sync</span></button>
+        <button onclick="alert('Configurações será implementado futuramente.')">⚙<span>Config</span></button>
+      </nav>
+  
+    </div>
+  
+    <script src="js/db.js"></script>
+    <script src="js/sync/helpers.js"></script>
+<script src="js/tenant-auth/helpers.js"></script>
+<script src="js/field-operations/medicoes.js"></script>
+<script src="js/field-operations/clima.js"></script>
+<script src="js/field-operations/ocorrencias.js"></script>
+<script src="js/field-operations/diario.js"></script>
+<script src="js/data/obras.js"></script>
+<script src="js/field/operations.js"></script>
+<script src="js/app.js"></script>
+<script src="js/core/compatibility.js"></script>
+  
+  </body>
 
-    <section id="telaApp" class="tela-app"></section>
-
-    <nav class="bottom-nav bottom-nav-v2" aria-label="Navegação principal">
-      <button
-        type="button"
-        data-sigo-nav="home"
-        class="is-active"
-        onclick="voltarHome()">
-        🏠
-        <span>Home</span>
-      </button>
-
-      <button
-        type="button"
-        data-sigo-nav="obras"
-        onclick="abrirGerenciadorObrasOffline_()">
-        🏗
-        <span>Obras</span>
-      </button>
-
-      <button
-        type="button"
-        data-sigo-nav="sync"
-        onclick="abrirSyncHomePremium_()">
-        🔄
-        <span>Sync</span>
-      </button>
-
-      <button
-        type="button"
-        data-sigo-nav="config"
-        onclick="abrirConfigHomePremium_()">
-        ⚙
-        <span>Config</span>
-      </button>
-    </nav>
-
-  </div>
-
-  <script src="js/db.js"></script>
-  <script src="js/sync/helpers.js"></script>
-  <script src="js/tenant-auth/helpers.js"></script>
-  <script src="js/field-operations/medicoes.js"></script>
-  <script src="js/field-operations/clima.js"></script>
-  <script src="js/field-operations/ocorrencias.js"></script>
-  <script src="js/field-operations/diario.js"></script>
-  <script src="js/data/obras.js"></script>
-  <script src="js/field/operations.js"></script>
-  <script src="js/app.js"></script>
-  <script src="js/core/compatibility.js"></script>
-
-</body>
 </html>
