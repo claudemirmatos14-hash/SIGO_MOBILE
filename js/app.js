@@ -1000,24 +1000,48 @@ function formatarDataMedicao_(data) {
 
 
 function renderizarTelaAppMobile_(tela, html) {
-  const home =
+  const homeApp =
     document.getElementById("homeApp");
 
   const area =
     document.getElementById("telaApp");
 
-  if (tela === "home") {
-    if (home) home.style.display = "";
-    if (area) area.innerHTML = "";
-    return true;
-  }
-
-  if (!area || typeof html !== "string") {
+  if (!area) {
     return false;
   }
 
-  if (home) home.style.display = "none";
+  if (tela === "home") {
+    if (homeApp) {
+      homeApp.style.display = "";
+      homeApp.classList.remove(
+        "sigo-route-active-v106"
+      );
+    }
+
+    area.innerHTML = "";
+    area.removeAttribute("data-sigo-tela");
+
+    return true;
+  }
+
+  if (typeof html !== "string") {
+    return false;
+  }
+
+  if (homeApp) {
+    homeApp.style.display = "";
+    homeApp.classList.add(
+      "sigo-route-active-v106"
+    );
+  }
+
+  area.setAttribute(
+    "data-sigo-tela",
+    String(tela || "")
+  );
+
   area.innerHTML = html;
+
   return true;
 }
 
@@ -1188,31 +1212,38 @@ localStorage.setItem("telaAtualMobile", tela);
   const telasPremium = {
   home: {
     montar: montarHomePremiumIndexCompat_,
-  
+
     depois: async function () {
-      if (
-        typeof carregarIndicadoresHomePremium ===
-        "function"
-      ) {
-        await carregarIndicadoresHomePremium();
-      }
-  
       if (
         typeof atualizarIndicadoresMobile_ ===
         "function"
       ) {
         await atualizarIndicadoresMobile_();
       }
-  
+
+      if (
+        typeof atualizarHomePremiumUX_ ===
+        "function"
+      ) {
+        await atualizarHomePremiumUX_();
+      }
+
       if (
         typeof instalarAcaoReidratacaoUX1958_ ===
         "function"
       ) {
         await instalarAcaoReidratacaoUX1958_();
       }
+
+      if (
+        typeof definirNavAtivoHomePremium_ ===
+        "function"
+      ) {
+        definirNavAtivoHomePremium_("home");
+      }
     }
   },
-    
+
     obras: {
       montar: () => montarTelaObrasOffline(),
       depois: async function () {
@@ -1346,49 +1377,79 @@ localStorage.setItem("telaAtualMobile", tela);
     }
   };
 
- if (
+   if (
     app &&
     telasPremium[tela] &&
     typeof renderizarTelaAppMobile_ === "function"
   ) {
-    (async function () {
-      const htmlTela =
-        await telasPremium[tela].montar();
-  
-      const renderOk =
-        renderizarTelaAppMobile_(tela, htmlTela);
+    const htmlTela =
+      await telasPremium[tela].montar();
 
-      if (!renderOk) {
+    const renderOk =
+      renderizarTelaAppMobile_(
+        tela,
+        htmlTela
+      );
+
+    if (!renderOk) {
+      throw new Error(
+        "Falha ao renderizar tela preservando o shell Home Premium: " +
+        tela
+      );
+    }
+
+    await new Promise(
+      function (resolve) {
+        setTimeout(resolve, 100);
+      }
+    );
+
+    if (
+      tela !== "home" &&
+      typeof carregarObrasMobile_ === "function"
+    ) {
+      await carregarObrasMobile_();
+    }
+
+    await telasPremium[tela].depois();
+
+    if (
+      typeof atualizarBadgeNotificacoes_ ===
+      "function"
+    ) {
+      await atualizarBadgeNotificacoes_();
+    }
+
+    if (tela === "home") {
+      if (
+        typeof atualizarHomePremiumUX_ ===
+        "function"
+      ) {
+        await atualizarHomePremiumUX_();
+      }
+
+      const homeFinalOk =
+        renderizarTelaAppMobile_(
+          "home",
+          null
+        );
+
+      if (!homeFinalOk) {
         throw new Error(
-          "Falha ao renderizar tela sem substituir o shell Home Premium: " +
-          tela
+          "Falha na barreira final de retorno à Home Premium."
         );
       }
-  
-      setTimeout(async () => {
-        if (typeof carregarObrasMobile_ === "function") {
-          await carregarObrasMobile_();
-        }
-  
-        await telasPremium[tela].depois();
-        
-// Atualiza o contador de notificações
-  if (typeof atualizarBadgeNotificacoes_ === "function") {
-    await atualizarBadgeNotificacoes_();
-  }
-        
-      }, 100);
-      
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth"
-     });
-  })();
+    }
 
-  return;
-}
-  
-  if (!area) return;
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+
+    return true;
+  }
+
+  if (!area) return false;
 
   const htmlFallback =
     await montarTela(tela);
@@ -66092,6 +66153,7 @@ function instalarEstilosIndicadorIdentidadeUX215_() {
 
 function localizarAncoraIndicadorIdentidadeUX215_() {
   const seletores = [
+    ".sigo-home-header-actions",
     ".header-actions",
     ".topbar-actions",
     ".home-header-actions",
@@ -66117,7 +66179,6 @@ function localizarAncoraIndicadorIdentidadeUX215_() {
 
   return null;
 }
-
 
 function montarIndicadorIdentidadeUX215_() {
   instalarEstilosIndicadorIdentidadeUX215_();
@@ -80532,23 +80593,41 @@ async function auditarBloqueioFuncoesReaisUX21964D_() {
         true;
     }
 
-    if (
+        if (
       typeof voltarHome === "function" &&
       !voltarHome.__SIGO_HOME_PREMIUM_WRAPPED__
     ) {
-      const originalVoltarHome = voltarHome;
+      const originalVoltarHome =
+        voltarHome;
 
       voltarHome =
-        function (...args) {
+        async function (...args) {
           definirNavAtivoHomePremium_("home");
 
           const retorno =
-            originalVoltarHome.apply(this, args);
+            await originalVoltarHome.apply(
+              this,
+              args
+            );
 
-          Promise.resolve(retorno)
-            .finally(() => {
-              atualizarHomePremiumUX_();
-            });
+          if (
+            typeof atualizarHomePremiumUX_ ===
+            "function"
+          ) {
+            await atualizarHomePremiumUX_();
+          }
+
+          const homeFinalOk =
+            renderizarTelaAppMobile_(
+              "home",
+              null
+            );
+
+          if (!homeFinalOk) {
+            throw new Error(
+              "Falha na finalização determinística da Home Premium."
+            );
+          }
 
           return retorno;
         };

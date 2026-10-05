@@ -1803,3 +1803,331 @@ body {
   font-weight: 600;
 }
 /* SIGO_HOME_PREMIUM_READABILITY_TYPOGRAPHY_REV1_END */
+
+/* ================================================================
+   SIGO_HOME_PREMIUM_V106_VISUAL_CONTRACT_START
+   Cabeçalho único + logo horizontal + títulos completos
+   ================================================================ */
+
+/* O header estático permanece visível nas rotas. */
+#homeApp.sigo-route-active-v106 {
+  display: block !important;
+}
+
+#homeApp.sigo-route-active-v106 > :not(.sigo-home-header) {
+  display: none !important;
+}
+
+/* As telas legadas podem trazer seu próprio header.
+   O header canônico V106 é o .sigo-home-header estático. */
+#telaApp .sigo-header,
+#telaApp .topo-premium,
+#telaApp header.sigo-header {
+  display: none !important;
+}
+
+/* Header canônico: marca à esquerda, ações compactas à direita. */
+.sigo-home-header {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: start !important;
+  column-gap: 12px !important;
+  row-gap: 8px !important;
+  padding-left: 20px !important;
+  padding-right: 18px !important;
+  box-sizing: border-box !important;
+}
+
+.sigo-home-brand {
+  min-width: 0 !important;
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr) !important;
+  align-items: start !important;
+  column-gap: 12px !important;
+}
+
+.sigo-home-brand > div:last-child {
+  min-width: 0 !important;
+}
+
+.sigo-home-brand h1 {
+  margin: 0 !important;
+  line-height: 1 !important;
+}
+
+.sigo-home-brand p {
+  margin: 10px 0 0 !important;
+  max-width: 205px !important;
+  white-space: normal !important;
+  overflow: hidden !important;
+  text-overflow: clip !important;
+  line-height: 1.25 !important;
+  display: -webkit-box !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 2 !important;
+}
+
+.sigo-home-header-actions {
+  min-width: 0 !important;
+  width: auto !important;
+  max-width: 174px !important;
+  display: grid !important;
+  grid-template-columns: auto auto !important;
+  grid-template-areas:
+    "bell online"
+    "identity identity" !important;
+  align-items: center !important;
+  justify-content: end !important;
+  justify-items: end !important;
+  gap: 7px 8px !important;
+}
+
+.sigo-home-bell {
+  grid-area: bell !important;
+  flex: 0 0 auto !important;
+}
+
+.sigo-home-online {
+  grid-area: online !important;
+  min-height: 34px !important;
+  padding: 0 11px !important;
+  font-size: 13px !important;
+  white-space: nowrap !important;
+}
+
+/* O indicador UX215 deve ficar DENTRO do grupo de ações,
+   sem usar posição fixa nem ocupar a largura do brand. */
+.sigo-home-header-actions #statusIdentidadeUX215,
+.sigo-home-header-actions #statusIdentidadeUX215.ux215-fixo {
+  grid-area: identity !important;
+  position: static !important;
+  top: auto !important;
+  right: auto !important;
+  z-index: auto !important;
+  justify-self: end !important;
+  max-width: 158px !important;
+  min-height: 27px !important;
+  padding: 4px 9px !important;
+  gap: 6px !important;
+  font-size: 10.5px !important;
+  line-height: 1.1 !important;
+  box-shadow: none !important;
+  white-space: nowrap !important;
+}
+
+/* Card OBRA ATIVA: a logo deixa de ser uma coluna alta.
+   Ela passa para a zona horizontal inferior direita. */
+.obra-premium-v2 {
+  position: relative !important;
+  display: block !important;
+  min-height: 330px !important;
+  padding: 20px !important;
+  box-sizing: border-box !important;
+}
+
+.obra-premium-v2 .obra-premium-main {
+  width: 100% !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.obra-premium-v2 #obraAtiva {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+.obra-premium-v2 .obra-info {
+  max-width: 100% !important;
+  padding-right: 0 !important;
+}
+
+.obra-premium-v2 .obra-metricas-v2 {
+  width: 50% !important;
+  max-width: 210px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 7px !important;
+  padding-bottom: 2px !important;
+}
+
+.obra-premium-v2 .obra-logo-card {
+  position: absolute !important;
+  right: 20px !important;
+  bottom: 20px !important;
+  width: 43% !important;
+  max-width: 176px !important;
+  min-width: 136px !important;
+  height: 116px !important;
+  min-height: 116px !important;
+  padding: 12px 13px !important;
+  border-radius: 18px !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+
+.obra-premium-v2 .obra-logo-placeholder {
+  width: 100% !important;
+  height: 100% !important;
+  display: grid !important;
+  grid-template-columns: 34px minmax(0, 1fr) !important;
+  grid-template-rows: auto auto !important;
+  column-gap: 9px !important;
+  row-gap: 2px !important;
+  align-content: center !important;
+  align-items: center !important;
+  text-align: left !important;
+}
+
+.obra-premium-v2 .obra-logo-placeholder-icone {
+  grid-column: 1 !important;
+  grid-row: 1 / 3 !important;
+  align-self: center !important;
+  justify-self: center !important;
+}
+
+.obra-premium-v2 .obra-logo-placeholder strong {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  margin: 0 !important;
+  white-space: normal !important;
+  line-height: 1.12 !important;
+}
+
+.obra-premium-v2 .obra-logo-placeholder small {
+  grid-column: 2 !important;
+  grid-row: 2 !important;
+  margin: 0 !important;
+  white-space: normal !important;
+  line-height: 1.15 !important;
+}
+
+.obra-premium-v2 .obra-logo-img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+}
+
+/* Cards de campo: nenhum título ou contador é abreviado com "...". */
+.menu-grid-v2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+}
+
+.menu-grid-v2 .menu-card {
+  min-width: 0 !important;
+  padding: 14px 12px !important;
+  gap: 10px !important;
+}
+
+.menu-grid-v2 .menu-card .icone {
+  flex: 0 0 auto !important;
+}
+
+.menu-grid-v2 .menu-card-conteudo {
+  min-width: 0 !important;
+  flex: 1 1 auto !important;
+  overflow: visible !important;
+}
+
+.menu-grid-v2 .menu-card-conteudo strong {
+  display: block !important;
+  min-width: 0 !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  -webkit-line-clamp: unset !important;
+  line-clamp: unset !important;
+  line-height: 1.15 !important;
+  overflow-wrap: normal !important;
+  word-break: normal !important;
+}
+
+.menu-grid-v2 .menu-card-conteudo small {
+  display: block !important;
+  min-width: 0 !important;
+  margin-top: 5px !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  -webkit-line-clamp: unset !important;
+  line-clamp: unset !important;
+  line-height: 1.18 !important;
+}
+
+.menu-grid-v2 .menu-card-seta {
+  flex: 0 0 auto !important;
+}
+
+/* Evidências continua ocupando toda a largura. */
+.menu-grid-v2 .menu-card-evidencias {
+  grid-column: 1 / -1 !important;
+}
+
+/* Ajustes responsivos sem reduzir legibilidade. */
+@media (max-width: 410px) {
+  .sigo-home-header {
+    column-gap: 9px !important;
+    padding-left: 16px !important;
+    padding-right: 14px !important;
+  }
+
+  .sigo-home-brand {
+    column-gap: 9px !important;
+  }
+
+  .sigo-home-brand p {
+    max-width: 174px !important;
+    font-size: 12.5px !important;
+  }
+
+  .sigo-home-header-actions {
+    max-width: 154px !important;
+    gap: 6px !important;
+  }
+
+  .sigo-home-online {
+    padding: 0 9px !important;
+    font-size: 12px !important;
+  }
+
+  .sigo-home-header-actions #statusIdentidadeUX215,
+  .sigo-home-header-actions #statusIdentidadeUX215.ux215-fixo {
+    max-width: 148px !important;
+    font-size: 10px !important;
+  }
+
+  .obra-premium-v2 {
+    min-height: 326px !important;
+    padding: 18px !important;
+  }
+
+  .obra-premium-v2 .obra-logo-card {
+    right: 18px !important;
+    bottom: 18px !important;
+    width: 44% !important;
+    min-width: 132px !important;
+    height: 112px !important;
+    min-height: 112px !important;
+  }
+
+  .obra-premium-v2 .obra-metricas-v2 {
+    width: 49% !important;
+  }
+
+  .menu-grid-v2 .menu-card {
+    padding: 13px 10px !important;
+    gap: 8px !important;
+  }
+
+  .menu-grid-v2 .menu-card-conteudo strong {
+    font-size: 15px !important;
+  }
+
+  .menu-grid-v2 .menu-card-conteudo small {
+    font-size: 12.5px !important;
+  }
+}
+
+/* SIGO_HOME_PREMIUM_V106_VISUAL_CONTRACT_END */
