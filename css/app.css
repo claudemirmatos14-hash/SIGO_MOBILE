@@ -2131,3 +2131,69 @@ body {
 }
 
 /* SIGO_HOME_PREMIUM_V106_VISUAL_CONTRACT_END */
+/* SIGO_HOME_PREMIUM_V107_COMPACT_LOGO_1X1_START */
+.home-premium-v2 .obra-premium-v2 {
+  min-height: 300px;
+}
+
+.home-premium-v2 .obra-premium-v2 .obra-metricas-v2 {
+  max-width: calc(100% - 154px);
+}
+
+.home-premium-v2 .obra-premium-v2 .obra-logo-card {
+  width: 132px;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  right: 18px;
+  bottom: 18px;
+  padding: 10px;
+}
+
+.home-premium-v2 .obra-premium-v2 .obra-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.home-premium-v2 .obra-premium-v2 .obra-logo-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.home-premium-v2 .obra-premium-v2 .obra-logo-placeholder-icone {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.home-premium-v2 .obra-premium-v2 .obra-logo-placeholder strong {
+  font-size: 14px;
+  line-height: 1.08;
+}
+
+.home-premium-v2 .obra-premium-v2 .obra-logo-placeholder small {
+  font-size: 11.5px;
+  line-height: 1.18;
+}
+
+@media (max-width: 380px) {
+  .home-premium-v2 .obra-premium-v2 {
+    min-height: 292px;
+  }
+
+  .home-premium-v2 .obra-premium-v2 .obra-metricas-v2 {
+    max-width: calc(100% - 144px);
+  }
+
+  .home-premium-v2 .obra-premium-v2 .obra-logo-card {
+    width: 124px;
+    right: 16px;
+    bottom: 16px;
+  }
+}
+/* SIGO_HOME_PREMIUM_V107_COMPACT_LOGO_1X1_END */

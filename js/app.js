@@ -79837,7 +79837,7 @@ async function auditarBloqueioFuncoesReaisUX21964D_() {
       definirTextoHomePremium_("homeContadorOcorrencias", "0 abertas · 0 críticas");
       definirTextoHomePremium_("homeContadorClima", "Sem registro");
       definirTextoHomePremium_("homeContadorEvidencias", "0 evidências");
-      definirTextoHomePremium_("contadorEmExecucao", "0 em execução");
+      definirTextoHomePremium_("contadorEmExecucao", "0 atividades em execução");
       return;
     }
 
@@ -79918,7 +79918,7 @@ async function auditarBloqueioFuncoesReaisUX21964D_() {
 
     definirTextoHomePremium_(
       "contadorEmExecucao",
-      `${emExecucao} em execução`
+      `${emExecucao} ${emExecucao === 1 ? "atividade" : "atividades"} em execução`
     );
   }
 
@@ -80473,9 +80473,89 @@ async function auditarBloqueioFuncoesReaisUX21964D_() {
     return true;
   };
 
+  /* SIGO_HOME_BELL_NOTIFICATIONS_V107_START */
+  function instalarSinoNotificacoesHomePremium_() {
+    const sino =
+      document.querySelector(
+        ".sigo-home-bell"
+      );
+
+    if (!sino) {
+      return false;
+    }
+
+    sino.setAttribute(
+      "role",
+      "button"
+    );
+
+    sino.setAttribute(
+      "tabindex",
+      "0"
+    );
+
+    sino.setAttribute(
+      "aria-label",
+      "Abrir Central de Notificações"
+    );
+
+    sino.setAttribute(
+      "aria-haspopup",
+      "dialog"
+    );
+
+    sino.style.cursor =
+      "pointer";
+
+    if (
+      sino.__SIGO_HOME_BELL_NOTIFICATIONS_V107__ ===
+      true
+    ) {
+      return true;
+    }
+
+    const acionarCentral =
+      event => {
+        if (
+          event.type === "keydown" &&
+          event.key !== "Enter" &&
+          event.key !== " "
+        ) {
+          return;
+        }
+
+        if (event.type === "keydown") {
+          event.preventDefault();
+        }
+
+        if (
+          typeof window.abrirCentralNotificacoes_ ===
+          "function"
+        ) {
+          void window.abrirCentralNotificacoes_();
+        }
+      };
+
+    sino.addEventListener(
+      "click",
+      acionarCentral
+    );
+
+    sino.addEventListener(
+      "keydown",
+      acionarCentral
+    );
+
+    sino.__SIGO_HOME_BELL_NOTIFICATIONS_V107__ =
+      true;
+
+    return true;
+  }
+  /* SIGO_HOME_BELL_NOTIFICATIONS_V107_END */
   async function atualizarHomePremiumUX_() {
     normalizarOpcoesObraHomePremium_();
     atualizarStatusConexaoHomePremium_();
+    instalarSinoNotificacoesHomePremium_();
 
     await Promise.all([
       atualizarContadoresHomePremium_(),
