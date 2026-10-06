@@ -83245,537 +83245,305 @@ globalThis.cancelarItemMedicaoV116_ = cancelarItemMedicaoV116_;
   }
 })();
 
-/* === SIGO MOBILE V2 V118 CONSOLIDATED UI PATCH ===
- * Scope:
- * - Diario: complete "Novo Diario" visual state and hide child area until parent exists.
- * - Medicoes: residual labels only.
- * - Secondary screens: obra context inherited from global active obra, read-only.
- * - No IndexedDB/schema/sync/domain mutation.
- */
-(function sigoV118Install(global) {
+/* === SIGO MOBILE V2 V119 SOURCE-AWARE UI PATCH ===
+   Scope:
+   - exact Obra label only on five secondary modules
+   - restore native non-obra selects
+   - Diario draft/child hierarchy correction
+   - Medicoes residual labels
+   - Home/Obras untouched
+*/
+(() => {
   "use strict";
 
-  if (
-    global.__SIGO_V118_UI_PATCH_INSTALLED__ === true
-  ) {
+  if (globalThis["__SIGO_V119_UI_PATCH_INSTALLED__"] === true) {
     return;
   }
 
-  global.__SIGO_V118_UI_PATCH_INSTALLED__ = true;
+  globalThis["__SIGO_V119_UI_PATCH_INSTALLED__"] = true;
 
-  const PATCH = "SIGO_V118_CONSOLIDATED_UI_GLOBAL_OBRA_CONTEXT";
-
-  const normalizeText = value =>
-    String(value == null ? "" : value)
+  const norm = (value) =>
+    String(value ?? "")
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/\s+/g, " ")
       .trim()
       .toLowerCase();
 
-  const textOf = element =>
-    normalizeText(
-      element && (
-        element.innerText ||
-        element.textContent ||
-        ""
+  const SECONDARY_TITLES = new Map([
+    ["diario de obra", "DIARIO"],
+    ["medicoes", "MEDICOES"],
+    ["ocorrencias", "OCORRENCIAS"],
+    ["clima", "CLIMA"],
+    ["evidencias", "EVIDENCIAS"]
+  ]);
+
+  const headingNodes = (root = document) =>
+    Array.from(
+      root.querySelectorAll(
+        "h1,h2,h3,h4,[role='heading'],.page-title,.screen-title,.module-title"
       )
     );
 
-  function moduleKind() {
-    const headings = Array.from(
-      document.querySelectorAll(
-        "h1,h2,h3,.page-title,.screen-title,.module-title,.app-title"
+  const exactTextNodes = (root, text) => {
+    const target = norm(text);
+    return Array.from(
+      root.querySelectorAll(
+        "label,h1,h2,h3,h4,button,span,strong,p,legend,[role='heading']"
       )
-    );
+    ).filter((el) => norm(el.textContent) === target);
+  };
 
-    const texts = headings
-      .map(textOf)
-      .filter(Boolean);
+  const visible = (el) => {
+    if (!el || !el.isConnected) return false;
+    const style = getComputedStyle(el);
+    return style.display !== "none" && style.visibility !== "hidden";
+  };
 
-    const checks = [
-      ["diario", /diario de obra|diario\b/],
-      ["medicoes", /medicoes|medicao\b/],
-      ["ocorrencias", /ocorrencias|ocorrencia\b/],
-      ["clima", /\bclima\b/],
-      ["evidencias", /evidencias|evidencia\b/]
-    ];
+  const nearestModuleRoot = (heading) => {
+    if (!heading) return null;
 
-    for (const [kind, regex] of checks) {
-      if (texts.some(text => regex.test(text))) {
-        return kind;
-      }
-    }
+    const candidates = [
+      heading.closest("[data-screen]"),
+      heading.closest("[data-page]"),
+      heading.closest(".screen"),
+      heading.closest(".page"),
+      heading.closest("main"),
+      heading.closest("section"),
+      heading.closest("article")
+    ].filter(Boolean);
 
-    return "";
-  }
+    return candidates[0] || document.body;
+  };
 
-  function activeObraId() {
-    try {
-      if (
-        typeof global.obterObraAtivaMobile_ ===
-        "function"
-      ) {
-        const value =
-          global.obterObraAtivaMobile_();
+  const moduleRoots = () => {
+    const found = [];
 
-        if (value) {
-          return String(value);
-        }
-      }
-    } catch (_) {
-      // visual compatibility layer only
-    }
+    for (const heading of headingNodes()) {
+      const key = SECONDARY_TITLES.get(norm(heading.textContent));
+      if (!key || !visible(heading)) continue;
 
-    const storageCandidates = [
-      "obraAtiva",
-      "obraAtivaMobile",
-      "idObraAtiva",
-      "sigoObraAtiva"
-    ];
-
-    for (const key of storageCandidates) {
-      const value =
-        localStorage.getItem(key);
-
-      if (value) {
-        try {
-          const parsed = JSON.parse(value);
-
-          if (
-            parsed &&
-            typeof parsed === "object"
-          ) {
-            const candidate =
-              parsed.idObra ||
-              parsed.id ||
-              parsed.codigo ||
-              parsed.code;
-
-            if (candidate) {
-              return String(candidate);
-            }
-          }
-        } catch (_) {
-          // raw string fallback
-        }
-
-        if (/^OBR[\w-]*$/i.test(value)) {
-          return String(value);
-        }
-      }
-    }
-
-    const selects =
-      Array.from(
-        document.querySelectorAll("select")
-      );
-
-    for (const select of selects) {
-      const value =
-        String(select.value || "");
-
-      if (/^OBR[\w-]*$/i.test(value)) {
-        return value;
-      }
-    }
-
-    return "";
-  }
-
-  function installStyle() {
-    if (
-      document.getElementById(
-        "sigo-v118-style"
-      )
-    ) {
-      return;
-    }
-
-    const style =
-      document.createElement("style");
-
-    style.id = "sigo-v118-style";
-    style.textContent = `
-      .sigo-v118-hidden {
-        display: none !important;
-      }
-
-      .sigo-v118-obra-context-readonly {
-        min-height: 44px;
-        box-sizing: border-box;
-        display: flex;
-        align-items: center;
-        width: 100%;
-        padding: 0 14px;
-        border: 1px solid rgba(148, 163, 184, .38);
-        border-radius: 10px;
-        background: rgba(248, 250, 252, .96);
-        color: #0f172a;
-        font: inherit;
-        font-weight: 600;
-        cursor: default;
-        user-select: text;
-      }
-
-      .sigo-v118-obra-select-source {
-        display: none !important;
-      }
-    `;
-
-    document.head.appendChild(style);
-  }
-
-  function closestVisualBlock(element) {
-    if (!element) {
-      return null;
-    }
-
-    return (
-      element.closest(
-        "section,.card,.panel,.box,.form-section,.content-section,.accordion,.drawer-content"
-      ) ||
-      element.parentElement
-    );
-  }
-
-  function findTextElements(
-    selector,
-    exactNormalizedText
-  ) {
-    return Array
-      .from(
-        document.querySelectorAll(selector)
-      )
-      .filter(
-        element =>
-          textOf(element) ===
-          exactNormalizedText
-      );
-  }
-
-  function replaceExactText(
-    selector,
-    from,
-    to
-  ) {
-    const source =
-      normalizeText(from);
-
-    for (
-      const element of
-      document.querySelectorAll(selector)
-    ) {
-      if (textOf(element) !== source) {
-        continue;
-      }
+      const root = nearestModuleRoot(heading);
 
       if (
-        element.children &&
-        element.children.length > 0
-      ) {
-        continue;
-      }
-
-      if (
-        element.textContent !== to
-      ) {
-        element.textContent = to;
-      }
-    }
-  }
-
-  function normalizeSecondaryObraContext() {
-    const kind =
-      moduleKind();
-
-    if (!kind) {
-      return;
-    }
-
-    const obra =
-      activeObraId();
-
-    const selects =
-      Array.from(
-        document.querySelectorAll("select")
-      );
-
-    for (const select of selects) {
-      if (
-        select.dataset
-          .sigoV118ObraProcessed ===
-        "1"
-      ) {
-        const peer =
-          select.parentElement &&
-          select.parentElement.querySelector(
-            ".sigo-v118-obra-context-readonly"
-          );
-
-        if (
-          peer &&
-          obra &&
-          peer.textContent !== obra
-        ) {
-          peer.textContent = obra;
-        }
-
-        continue;
-      }
-
-      const id =
-        String(select.id || "");
-
-      const name =
-        String(
-          select.getAttribute("name") ||
-          ""
-        );
-
-      let labelText = "";
-
-      if (id) {
-        const label =
-          document.querySelector(
-            `label[for="${CSS.escape(id)}"]`
-          );
-
-        if (label) {
-          labelText +=
-            " " +
-            textOf(label);
-        }
-      }
-
-      const parentText =
-        textOf(
-          select.closest(
-            ".field,.form-group,.input-group,.select-group,.control-group,.row,div"
-          )
-        );
-
-      const optionValues =
-        Array.from(select.options || [])
-          .map(
-            option =>
-              String(
-                option.value ||
-                option.textContent ||
-                ""
-              )
-          )
-          .join(" ");
-
-      const signature =
-        normalizeText(
-          [
-            id,
-            name,
-            labelText,
-            parentText,
-            optionValues
-          ].join(" ")
-        );
-
-      const looksLikeObra =
-        /\bobra\b|idobra|obraativa|obra ativa/.test(
-          signature
-        ) ||
-        /OBR[\w-]*/i.test(
-          optionValues
-        );
-
-      if (!looksLikeObra) {
-        continue;
-      }
-
-      if (
-        obra &&
-        Array.from(select.options || [])
-          .some(
-            option =>
-              String(option.value) === obra
-          )
-      ) {
-        if (select.value !== obra) {
-          select.value = obra;
-          select.dispatchEvent(
-            new Event(
-              "change",
-              { bubbles: true }
-            )
-          );
-        }
-      }
-
-      select.dataset
-        .sigoV118ObraProcessed =
-        "1";
-
-      select.classList.add(
-        "sigo-v118-obra-select-source"
-      );
-
-      const readonly =
-        document.createElement("div");
-
-      readonly.className =
-        "sigo-v118-obra-context-readonly";
-
-      readonly.setAttribute(
-        "role",
-        "status"
-      );
-
-      readonly.setAttribute(
-        "aria-label",
-        "Obra ativa"
-      );
-
-      readonly.textContent =
-        obra ||
-        String(
-          select.value ||
-          ""
-        ) ||
-        "—";
-
-      select.insertAdjacentElement(
-        "afterend",
-        readonly
-      );
-    }
-  }
-
-  function setBlockVisible(
-    element,
-    visible
-  ) {
-    const block =
-      closestVisualBlock(element);
-
-    if (!block) {
-      return;
-    }
-
-    block.classList.toggle(
-      "sigo-v118-hidden",
-      !visible
-    );
-  }
-
-  function revealLabelField(labelName) {
-    const target =
-      normalizeText(labelName);
-
-    const labels =
-      Array.from(
-        document.querySelectorAll(
-          "label,.label,.field-label,.form-label"
+        root &&
+        !found.some(
+          (item) =>
+            item.key === key &&
+            item.root === root
         )
-      );
+      ) {
+        found.push({ key, root, heading });
+      }
+    }
+
+    return found;
+  };
+
+  const fieldWrapper = (label, root) => {
+    if (!label) return null;
+
+    let node = label;
+
+    while (node && node !== root && node !== document.body) {
+      const controls = node.querySelectorAll
+        ? node.querySelectorAll("select,input,textarea")
+        : [];
+
+      if (controls.length > 0) {
+        return node;
+      }
+
+      node = node.parentElement;
+    }
+
+    return label.parentElement;
+  };
+
+  const exactLabeledControl = (root, labelText) => {
+    const labels = Array.from(root.querySelectorAll("label,legend,.form-label,.field-label"))
+      .filter((el) => norm(el.textContent) === norm(labelText));
 
     for (const label of labels) {
-      const current =
-        textOf(label);
-
-      if (
-        current !== target &&
-        !current.startsWith(
-          target + " "
-        )
-      ) {
-        continue;
+      if (label.htmlFor) {
+        const byFor = document.getElementById(label.htmlFor);
+        if (
+          byFor &&
+          root.contains(byFor) &&
+          /^(SELECT|INPUT|TEXTAREA)$/.test(byFor.tagName)
+        ) {
+          return { label, control: byFor, wrapper: fieldWrapper(label, root) };
+        }
       }
 
-      let node =
-        label.closest(
-          ".field,.form-group,.input-group,.control-group,.row"
-        );
+      const wrapper = fieldWrapper(label, root);
 
-      if (!node) {
-        node =
-          label.parentElement;
-      }
-
-      if (!node) {
-        continue;
-      }
-
-      node.hidden = false;
-      node.classList.remove(
-        "sigo-v118-hidden"
-      );
-
-      if (
-        node.style &&
-        node.style.display === "none"
-      ) {
-        node.style.removeProperty(
-          "display"
-        );
+      if (wrapper) {
+        const control = wrapper.querySelector("select,input,textarea");
+        if (control && root.contains(control)) {
+          return { label, control, wrapper };
+        }
       }
     }
-  }
 
-  function diaryHasActiveParent() {
-    const body =
-      normalizeText(
-        document.body
-          ? document.body.innerText
-          : ""
-      );
+    return null;
+  };
 
-    if (
-      body.includes("diario ativo")
-    ) {
+  const activeObraId = (control) => {
+    const direct = String(control?.value ?? "").trim();
+
+    if (/^OBR\d+$/i.test(direct)) {
+      return direct;
+    }
+
+    const candidates = [
+      globalThis.obterObraAtivaMobile_,
+      globalThis.obterObraAtiva_,
+      globalThis.getObraAtiva
+    ];
+
+    for (const fn of candidates) {
+      if (typeof fn !== "function") continue;
+
+      try {
+        const value = fn();
+
+        if (typeof value === "string" && /^OBR\d+$/i.test(value.trim())) {
+          return value.trim();
+        }
+
+        const id = value?.idObra ?? value?.id ?? value?.obraId;
+
+        if (typeof id === "string" && /^OBR\d+$/i.test(id.trim())) {
+          return id.trim();
+        }
+      } catch (_) {}
+    }
+
+    for (const key of ["obraAtiva", "idObraAtiva", "SIGO_OBRA_ATIVA", "obra_ativa"]) {
+      try {
+        const value = localStorage.getItem(key);
+        if (value && /^OBR\d+$/i.test(value.trim())) {
+          return value.trim();
+        }
+      } catch (_) {}
+    }
+
+    return direct || "—";
+  };
+
+  const normalizeExactObraField = (root) => {
+    const binding = exactLabeledControl(root, "Obra");
+    if (!binding) return false;
+
+    const { control, wrapper } = binding;
+
+    if (control.dataset.sigoV119ObraSource === "true") {
+      const readonly = wrapper?.querySelector?.("[data-sigo-v119-obra-readonly='true']");
+      if (readonly) {
+        readonly.textContent = activeObraId(control);
+      }
       return true;
     }
 
-    const activeMarker =
-      document.querySelector(
-        '[data-diario-id]:not([data-diario-id=""]),[data-id-diario]:not([data-id-diario=""])'
-      );
+    control.dataset.sigoV119ObraSource = "true";
+    control.style.display = "none";
+    control.setAttribute("aria-hidden", "true");
 
-    if (activeMarker) {
-      return true;
+    const readonly = document.createElement("div");
+    readonly.dataset.sigoV119ObraReadonly = "true";
+    readonly.className = "sigo-v119-obra-readonly";
+    readonly.textContent = activeObraId(control);
+    readonly.style.minHeight = "46px";
+    readonly.style.display = "flex";
+    readonly.style.alignItems = "center";
+    readonly.style.padding = "0 14px";
+    readonly.style.border = "1px solid rgba(148,163,184,.45)";
+    readonly.style.borderRadius = "10px";
+    readonly.style.background = "rgba(15,23,42,.55)";
+    readonly.style.color = "inherit";
+    readonly.style.fontWeight = "600";
+    readonly.style.pointerEvents = "none";
+
+    control.insertAdjacentElement("afterend", readonly);
+
+    return true;
+  };
+
+  const setWrapperVisible = (binding) => {
+    if (!binding) return;
+
+    for (const el of [binding.wrapper, binding.label, binding.control]) {
+      if (!el) continue;
+      el.hidden = false;
+      el.removeAttribute("aria-hidden");
+
+      if (el.style) {
+        if (el.style.display === "none") {
+          el.style.display = "";
+        }
+        el.style.visibility = "";
+        el.style.opacity = "";
+      }
+    }
+  };
+
+  const exactButton = (root, text) =>
+    Array.from(root.querySelectorAll("button,a,[role='button']"))
+      .find((el) => norm(el.textContent) === norm(text)) || null;
+
+  const exactHeading = (root, text) =>
+    Array.from(root.querySelectorAll("h1,h2,h3,h4,legend,strong,[role='heading']"))
+      .find((el) => norm(el.textContent) === norm(text)) || null;
+
+  const safeSectionContainer = (node, root) => {
+    if (!node) return null;
+
+    let current = node.parentElement;
+
+    while (current && current !== root && current !== document.body) {
+      const text = norm(current.textContent);
+
+      if (
+        text.includes("atividades deste diario") &&
+        !text.includes("nenhum diario ativo") &&
+        !text.includes("novo diario")
+      ) {
+        return current;
+      }
+
+      current = current.parentElement;
     }
 
-    return false;
-  }
+    return node.parentElement;
+  };
 
-  function diaryIsNewDraft() {
-    const body =
-      normalizeText(
-        document.body
-          ? document.body.innerText
-          : ""
-      );
-
-    return (
-      body.includes(
-        "preencha os dados gerais do dia"
-      ) ||
-      body.includes(
-        "novo diario ainda nao salvo"
-      )
-    );
-  }
-
-  function normalizeDiario() {
-    if (moduleKind() !== "diario") {
-      return;
-    }
+  const normalizeDiario = (root) => {
+    const draftOpen =
+      exactTextNodes(root, "Preencha os dados gerais do dia").length > 0 ||
+      Boolean(exactButton(root, "Salvar Diário"));
 
     const active =
-      diaryHasActiveParent();
+      exactTextNodes(root, "DIÁRIO ATIVO").length > 0 ||
+      exactTextNodes(root, "Diário Ativo").length > 0;
 
-    const draft =
-      diaryIsNewDraft();
+    const novo = exactButton(root, "Novo Diário");
 
-    if (draft && !active) {
-      [
+    if (novo && novo.dataset.sigoV119Bound !== "true") {
+      novo.dataset.sigoV119Bound = "true";
+      novo.addEventListener(
+        "click",
+        () => {
+          setTimeout(normalizeAll, 0);
+          setTimeout(normalizeAll, 80);
+          setTimeout(normalizeAll, 250);
+        },
+        { passive: true }
+      );
+    }
+
+    if (draftOpen) {
+      for (const field of [
         "Data",
         "Responsável",
         "Equipe",
@@ -83783,213 +83551,117 @@ globalThis.cancelarItemMedicaoV116_ = cancelarItemMedicaoV116_;
         "Clima",
         "Ocorrências gerais",
         "Observações"
-      ].forEach(revealLabelField);
-
-      replaceExactText(
-        "button,a,.btn",
-        "Salvar",
-        "Salvar Diário"
-      );
-
-      const activitiesHeadings =
-        Array.from(
-          document.querySelectorAll(
-            "h2,h3,h4,.section-title,.card-title,strong"
-          )
-        )
-        .filter(
-          element => {
-            const value =
-              textOf(element);
-
-            return (
-              value ===
-                "atividades deste diario" ||
-              value ===
-                "producao executada"
-            );
-          }
-        );
-
-      for (
-        const heading of
-        activitiesHeadings
-      ) {
-        setBlockVisible(
-          heading,
-          false
-        );
+      ]) {
+        setWrapperVisible(exactLabeledControl(root, field));
       }
+    }
 
-      const activityButtons =
-        Array.from(
-          document.querySelectorAll(
-            "button,a,.btn"
-          )
-        )
-        .filter(
-          element =>
-            /adicionar atividade|novo item|adicionar item/.test(
-              textOf(element)
-            )
-        );
+    const childHeading = exactHeading(root, "Atividades deste Diário");
+    const childContainer = safeSectionContainer(childHeading, root);
 
-      for (
-        const button of
-        activityButtons
-      ) {
-        button.classList.add(
-          "sigo-v118-hidden"
-        );
+    if (childContainer) {
+      if (active) {
+        childContainer.hidden = false;
+        childContainer.removeAttribute("aria-hidden");
+        if (childContainer.style.display === "none") {
+          childContainer.style.display = "";
+        }
+      } else {
+        childContainer.hidden = true;
+        childContainer.setAttribute("aria-hidden", "true");
       }
-
-      return;
     }
 
     if (active) {
-      const activitiesHeadings =
-        Array.from(
-          document.querySelectorAll(
-            "h2,h3,h4,.section-title,.card-title,strong"
-          )
-        )
-        .filter(
-          element => {
-            const value =
-              textOf(element);
+      const productionHeading =
+        exactHeading(root, "Atividades deste Diário");
 
-            return (
-              value ===
-                "atividades deste diario" ||
-              value ===
-                "producao executada"
-            );
-          }
-        );
-
-      for (
-        const heading of
-        activitiesHeadings
-      ) {
-        const block =
-          closestVisualBlock(heading);
-
-        if (block) {
-          block.classList.remove(
-            "sigo-v118-hidden"
-          );
-        }
-
-        if (
-          heading.children.length === 0 &&
-          heading.textContent !==
-            "PRODUÇÃO EXECUTADA"
-        ) {
-          heading.textContent =
-            "PRODUÇÃO EXECUTADA";
-        }
+      if (productionHeading) {
+        productionHeading.textContent = "PRODUÇÃO EXECUTADA";
       }
 
-      replaceExactText(
-        "button,a,.btn",
-        "Adicionar Item",
-        "Adicionar atividade"
-      );
+      const addItem =
+        exactButton(root, "Adicionar Item") ||
+        exactButton(root, "Novo Item");
 
-      replaceExactText(
-        "button,a,.btn",
-        "Novo Item",
-        "Adicionar atividade"
-      );
+      if (addItem) {
+        addItem.textContent = "Adicionar atividade";
+      }
     }
-  }
+  };
 
-  function normalizeMedicoes() {
-    if (
-      moduleKind() !== "medicoes"
-    ) {
-      return;
+  const replaceExactText = (root, from, to, selector) => {
+    for (const el of Array.from(root.querySelectorAll(selector))) {
+      if (norm(el.textContent) === norm(from)) {
+        el.textContent = to;
+      }
     }
+  };
 
+  const normalizeMedicoes = (root) => {
     replaceExactText(
-      "h2,h3,h4,.section-title,.card-title,strong",
+      root,
       "Dados da Medição",
-      "Adicionar item à medição"
+      "Adicionar item à medição",
+      "h1,h2,h3,h4,legend,strong,[role='heading']"
     );
 
     replaceExactText(
-      "button,a,.btn",
+      root,
       "Gerenciar",
-      "Gerenciar Medição"
+      "Gerenciar Medição",
+      "button,a,[role='button']"
     );
-  }
 
-  let running = false;
+    replaceExactText(
+      root,
+      "Quantidade executada",
+      "Quantidade medida",
+      "label,span,strong,p"
+    );
+  };
 
-  function normalizeAll() {
-    if (running) {
-      return;
+  const normalizeAll = () => {
+    for (const item of moduleRoots()) {
+      normalizeExactObraField(item.root);
+
+      if (item.key === "DIARIO") {
+        normalizeDiario(item.root);
+      }
+
+      if (item.key === "MEDICOES") {
+        normalizeMedicoes(item.root);
+      }
     }
+  };
 
-    running = true;
+  let scheduled = false;
 
-    try {
-      installStyle();
-      normalizeSecondaryObraContext();
-      normalizeDiario();
-      normalizeMedicoes();
-    } finally {
-      running = false;
-    }
-  }
+  const schedule = () => {
+    if (scheduled) return;
+    scheduled = true;
 
-  function schedule() {
-    Promise.resolve()
-      .then(normalizeAll)
-      .catch(
-        error => {
-          console.warn(
-            PATCH,
-            error
-          );
-        }
-      );
-  }
+    queueMicrotask(() => {
+      scheduled = false;
+      normalizeAll();
+    });
+  };
 
-  if (
-    document.readyState ===
-    "loading"
-  ) {
-    document.addEventListener(
-      "DOMContentLoaded",
-      schedule,
-      { once: true }
-    );
-  } else {
-    schedule();
-  }
+  const observer = new MutationObserver(schedule);
 
-  const observer =
-    new MutationObserver(
-      schedule
-    );
+  const start = () => {
+    normalizeAll();
 
-  observer.observe(
-    document.documentElement,
-    {
-      subtree: true,
+    observer.observe(document.documentElement, {
       childList: true,
-      attributes: true,
-      attributeFilter: [
-        "class",
-        "hidden",
-        "style",
-        "value"
-      ]
-    }
-  );
+      subtree: true
+    });
+  };
 
-  global.__SIGO_V118_UI_NORMALIZE__ =
-    normalizeAll;
-})(globalThis);
-/* === END SIGO MOBILE V2 V118 CONSOLIDATED UI PATCH === */
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", start, { once: true });
+  } else {
+    start();
+  }
+})();
+/* === END SIGO MOBILE V2 V119 SOURCE-AWARE UI PATCH === */
