@@ -8916,11 +8916,12 @@ function montarTelaEvidencias() {
         type: "file"
       })}
 
-      ${SIGOUI.createInput({
-        id: "evidenciaAtividade",
-        label: "Atividade Vinculada",
-        placeholder: "Opcional"
-      })}
+      <div class="sigo-v121-field">
+        <label for="evidenciaAtividade">Atividade Vinculada</label>
+        <select id="evidenciaAtividade">
+          <option value="">Selecione uma atividade</option>
+        </select>
+      </div>
 
       ${SIGOUI.createInput({
         id: "evidenciaOrigem",
@@ -11293,7 +11294,10 @@ function encerrarModoEdicaoItemDiario_() {
 }
 
 async function carregarObrasMobile_() {
-  const select = document.getElementById("obraAtiva");
+  const select =
+    document.querySelector("#telaApp #obraAtiva") ||
+    document.querySelector("#homeApp #obraAtiva") ||
+    document.getElementById("obraAtiva");
 
   if (!select) return;
 
@@ -15219,7 +15223,9 @@ async function atualizarHeroObraAtivaMobile_() {
   if (!obraSelecionada) return;
   
   // Mantém o seletor sincronizado com a obra ativa
-  const seletor = document.getElementById("obraAtiva");
+  const seletor = document.querySelector("#telaApp #obraAtiva") ||
+    document.querySelector("#homeApp #obraAtiva") ||
+    document.getElementById("obraAtiva");
   
   if (seletor && seletor.value !== idObraAtiva) {
     seletor.value = idObraAtiva;
@@ -15246,7 +15252,10 @@ async function atualizarHeroObraAtivaMobile_() {
 }
 
 async function definirObraAtivaPeloSeletor_() {
-  const select = document.getElementById("obraAtiva");
+  const select =
+    document.querySelector("#telaApp #obraAtiva") ||
+    document.querySelector("#homeApp #obraAtiva") ||
+    document.getElementById("obraAtiva");
   if (!select || !select.value) return;
 
   const idObra = select.value;
@@ -82589,6 +82598,19 @@ async function aplicarContratoDiarioV116_() {
         '<strong>Preencha os dados gerais do dia</strong>' +
         '<p>Salve o Diário antes de registrar atividades.</p>';
       definirVisibilidadeV116_(cardDados, true);
+
+      // SIGO V121 — native draft correction
+      if (cardDados) {
+        cardDados.hidden = false;
+        cardDados.classList.remove("hidden", "d-none", "is-hidden");
+        cardDados.style.setProperty("display", "block", "important");
+        cardDados.style.removeProperty("visibility");
+        cardDados.style.removeProperty("opacity");
+      }
+
+      if (typeof globalThis.ajustarDiarioV121_ === "function") {
+        globalThis.ajustarDiarioV121_("draft");
+      }
     } else {
       estado.innerHTML =
         '<div class="sigo-contract-kicker-v116">DIÁRIO DE OBRA</div>' +
@@ -83245,27 +83267,11 @@ globalThis.cancelarItemMedicaoV116_ = cancelarItemMedicaoV116_;
   }
 })();
 
-/* === SIGO MOBILE V2 V120 FOUR-GAPS UI PATCH ===
-   OPEN GAPS ONLY:
-   1) Diario draft form + child hierarchy
-   2) Evidencias Atividade Vinculada as activity selector
-   3) top Obra selector readonly on five secondary screens
-   4) Obras selector populated from all TB_OBRAS offline records
-
-   FROZEN / DO NOT TOUCH:
-   - Medicoes activity selector
-   - Ocorrencias internal controls
-   - Clima internal controls
-   - Evidencias Categoria
-   - Home
-*/
+/* === SIGO MOBILE V2 V121 EXACT NATIVE HELPERS === */
 (() => {
   "use strict";
 
-  if (globalThis["__SIGO_V120_UI_PATCH_INSTALLED__"] === true) return;
-  globalThis["__SIGO_V120_UI_PATCH_INSTALLED__"] = true;
-
-  const norm = (value) =>
+  const norm = value =>
     String(value == null ? "" : value)
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
@@ -83273,52 +83279,14 @@ globalThis.cancelarItemMedicaoV116_ = cancelarItemMedicaoV116_;
       .trim()
       .toLowerCase();
 
-  const SECONDARY = new Map([
-    ["diario de obra", "DIARIO"],
-    ["medicoes", "MEDICOES"],
-    ["ocorrencias", "OCORRENCIAS"],
-    ["clima", "CLIMA"],
-    ["evidencias", "EVIDENCIAS"]
-  ]);
+  function nearestSection(el) {
+    let node = el;
 
-  const allText = (root, selector) =>
-    Array.from((root || document).querySelectorAll(selector || "*"));
-
-  const exactText = (root, text, selector) =>
-    allText(
-      root,
-      selector || "label,h1,h2,h3,h4,button,span,strong,p,legend,[role='heading']"
-    ).filter((el) => norm(el.textContent) === norm(text));
-
-  const exactOne = (root, text, selector) =>
-    exactText(root, text, selector)[0] || null;
-
-  const visible = (el) => {
-    if (!el || !el.isConnected) return false;
-    const style = getComputedStyle(el);
-    return style.display !== "none" && style.visibility !== "hidden";
-  };
-
-  const findModuleHeading = (title) =>
-    allText(document, "h1,h2,h3,h4,[role='heading'],.page-title,.screen-title,.module-title")
-      .find((el) => visible(el) && norm(el.textContent) === norm(title)) || null;
-
-  const findHeroRoot = (heading) => {
-    if (!heading) return null;
-
-    let node = heading;
-
-    while (node && node !== document.body) {
-      const selectCount = node.querySelectorAll
-        ? node.querySelectorAll("select").length
-        : 0;
-
-      const text = norm(node.textContent);
-
+    for (let depth = 0; node && depth < 7; depth += 1) {
       if (
-        selectCount === 1 &&
-        !text.includes("dados da") &&
-        !text.includes("historico")
+        node.tagName === "SECTION" ||
+        node.tagName === "ARTICLE" ||
+        /card|panel|section|box|lista/i.test(String(node.className || ""))
       ) {
         return node;
       }
@@ -83326,41 +83294,148 @@ globalThis.cancelarItemMedicaoV116_ = cancelarItemMedicaoV116_;
       node = node.parentElement;
     }
 
-    return null;
-  };
+    return el ? el.parentElement : null;
+  }
 
-  const activeObraId = (select) => {
-    const direct = String(select && select.value ? select.value : "").trim();
-    if (/^OBR\d+$/i.test(direct)) return direct;
+  function ajustarDiarioV121_(mode) {
+    const root = document.getElementById("telaApp");
+    if (!root) return false;
 
-    for (const key of ["obraAtiva", "idObraAtiva", "SIGO_OBRA_ATIVA", "obra_ativa"]) {
-      try {
-        const value = localStorage.getItem(key);
-        if (value && /^OBR\d+$/i.test(value.trim())) return value.trim();
-      } catch (_) {}
+    const heading = Array.from(
+      root.querySelectorAll("h1,h2,h3,h4,strong,[role='heading']")
+    ).find(el =>
+      norm(el.textContent).includes(norm("Atividades deste Diário"))
+    );
+
+    if (!heading) return false;
+
+    const section = nearestSection(heading);
+
+    if (mode === "draft") {
+      if (section) {
+        section.hidden = true;
+        section.style.display = "none";
+      }
+      return true;
     }
 
-    return direct || "—";
-  };
+    if (section) {
+      section.hidden = false;
+      section.style.removeProperty("display");
+    }
 
-  const makeReadonlyFromSelect = (select) => {
+    heading.textContent = "PRODUÇÃO EXECUTADA";
+    return true;
+  }
+
+  async function carregarAtividadesEvidenciaV121_() {
+    const select = document.querySelector("#telaApp #evidenciaAtividade");
+    if (!select || select.tagName !== "SELECT") return false;
+
+    const obraAtiva =
+      typeof globalThis.obterObraAtivaMobile_ === "function"
+        ? String(globalThis.obterObraAtivaMobile_() || "").trim()
+        : (
+            typeof obterObraAtivaMobile_ === "function"
+              ? String(obterObraAtivaMobile_() || "").trim()
+              : String(localStorage.getItem("obraAtiva") || "").trim()
+          );
+
+    const listar =
+      typeof globalThis.listarRegistrosSIGO === "function"
+        ? globalThis.listarRegistrosSIGO
+        : (
+            typeof listarRegistrosSIGO === "function"
+              ? listarRegistrosSIGO
+              : null
+          );
+
+    const todas =
+      listar
+        ? await listar("TB_ATIVIDADES_OBRA")
+        : [];
+
+    const atividades = (Array.isArray(todas) ? todas : []).filter(item =>
+      !obraAtiva ||
+      !item ||
+      !item.idObra ||
+      String(item.idObra).trim() === obraAtiva
+    );
+
+    const atual = String(select.value || "").trim();
+
+    select.replaceChildren();
+
+    const empty = document.createElement("option");
+    empty.value = "";
+    empty.textContent = "Selecione uma atividade";
+    select.appendChild(empty);
+
+    for (const item of atividades) {
+      const value = String(
+        item?.idAtividade ??
+        item?.eap ??
+        item?.id ??
+        ""
+      ).trim();
+
+      if (!value) continue;
+
+      const descricao = String(
+        item?.descricao ??
+        item?.servico ??
+        item?.nome ??
+        item?.atividade ??
+        ""
+      ).trim();
+
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = descricao
+        ? value + " — " + descricao
+        : value;
+
+      select.appendChild(option);
+    }
+
+    if (
+      atual &&
+      Array.from(select.options).some(option => option.value === atual)
+    ) {
+      select.value = atual;
+    }
+
+    return true;
+  }
+
+  function tornarObraReadonlyV121_(tela) {
+    const permitidas = new Set([
+      "diario",
+      "medicoes",
+      "ocorrencias",
+      "clima",
+      "evidencias"
+    ]);
+
+    if (!permitidas.has(String(tela || "").toLowerCase())) return false;
+
+    const select = document.querySelector("#telaApp #obraAtiva");
     if (!select) return false;
 
-    const parent = select.parentElement;
-    if (!parent) return false;
-
-    let readonly = parent.querySelector("[data-sigo-v120-top-obra-readonly='true']");
+    let readonly = select.parentElement?.querySelector(
+      "[data-sigo-v121-obra-readonly='true']"
+    );
 
     if (!readonly) {
       readonly = document.createElement("div");
-      readonly.dataset.sigoV120TopObraReadonly = "true";
-      readonly.className = "sigo-v120-top-obra-readonly";
+      readonly.dataset.sigoV121ObraReadonly = "true";
 
       const style = getComputedStyle(select);
 
-      readonly.style.minHeight = style.height && style.height !== "auto"
-        ? style.height
-        : "52px";
+      readonly.style.minHeight =
+        style.height && style.height !== "auto"
+          ? style.height
+          : "52px";
       readonly.style.display = "flex";
       readonly.style.alignItems = "center";
       readonly.style.padding = style.padding || "0 16px";
@@ -83371,457 +83446,92 @@ globalThis.cancelarItemMedicaoV116_ = cancelarItemMedicaoV116_;
       readonly.style.font = style.font || "inherit";
       readonly.style.fontWeight = "600";
       readonly.style.boxSizing = "border-box";
-      readonly.style.pointerEvents = "none";
 
       select.insertAdjacentElement("afterend", readonly);
     }
 
-    readonly.textContent = activeObraId(select);
+    const selected =
+      select.selectedOptions && select.selectedOptions[0]
+        ? String(select.selectedOptions[0].textContent || "").trim()
+        : "";
 
-    select.dataset.sigoV120TopObraSource = "true";
+    const id =
+      String(select.value || "").trim() ||
+      (selected.match(/OBR\d+/i)?.[0] || "") ||
+      String(localStorage.getItem("obraAtiva") || "").trim();
+
+    readonly.textContent = id.match(/OBR\d+/i)?.[0] || id || "—";
+
+    select.hidden = true;
     select.style.display = "none";
     select.setAttribute("aria-hidden", "true");
     select.tabIndex = -1;
 
     return true;
-  };
+  }
 
-  const normalizeSecondaryTopObra = () => {
-    for (const entry of SECONDARY.entries()) {
-      const title = entry[0];
-      const heading = findModuleHeading(title);
-      const hero = findHeroRoot(heading);
-
-      if (!hero) continue;
-
-      const selects = Array.from(hero.querySelectorAll("select"));
-
-      if (selects.length === 1) {
-        makeReadonlyFromSelect(selects[0]);
-      }
-    }
-  };
-
-  const findFieldByExactLabel = (root, labelText) => {
-    const labels = allText(root, "label,legend,.form-label,.field-label")
-      .filter((el) => norm(el.textContent) === norm(labelText));
-
-    for (const label of labels) {
-      if (label.htmlFor) {
-        const control = document.getElementById(label.htmlFor);
-        if (control && root.contains(control)) {
-          return { label, control, wrapper: control.parentElement };
-        }
-      }
-
-      let node = label.parentElement;
-
-      for (let depth = 0; node && depth < 5; depth += 1) {
-        const control = node.querySelector("select,input,textarea");
-        if (control && root.contains(control)) {
-          return { label, control, wrapper: node };
-        }
-        node = node.parentElement;
-      }
-    }
-
-    return null;
-  };
-
-  const unhideField = (binding) => {
-    if (!binding) return false;
-
-    for (const el of [binding.label, binding.control, binding.wrapper]) {
-      if (!el) continue;
-      el.hidden = false;
-      el.removeAttribute("aria-hidden");
-      if (el.style) {
-        if (el.style.display === "none") el.style.display = "";
-        el.style.visibility = "";
-        el.style.opacity = "";
-      }
-    }
-
-    return true;
-  };
-
-  const setDisplay = (el, show) => {
-    if (!el) return;
-    el.hidden = !show;
-    el.setAttribute("aria-hidden", show ? "false" : "true");
-    if (el.style) el.style.display = show ? "" : "none";
-  };
-
-  const nearestCard = (node) => {
-    let current = node;
-
-    while (current && current !== document.body) {
-      const cls = String(current.className || "");
-      if (
-        /card|panel|section|box/i.test(cls) ||
-        /^(SECTION|ARTICLE)$/i.test(current.tagName)
-      ) {
-        return current;
-      }
-      current = current.parentElement;
-    }
-
-    return node ? node.parentElement : null;
-  };
-
-  const normalizeDiario = () => {
-    const heading = findModuleHeading("Diário de Obra");
-    if (!heading) return;
-
-    const pageRoot = heading.closest("main") || document.body;
-
-    const draftMessage =
-      exactOne(pageRoot, "Preencha os dados gerais do dia") ||
-      exactOne(pageRoot, "Salve o Diário antes de registrar atividades.");
-
-    const active =
-      exactOne(pageRoot, "DIÁRIO ATIVO") ||
-      exactOne(pageRoot, "Diário Ativo");
-
-    if (draftMessage) {
-      for (const label of [
-        "Data",
-        "Responsável",
-        "Equipe",
-        "Horas do dia",
-        "Clima",
-        "Ocorrências gerais",
-        "Observações"
-      ]) {
-        unhideField(findFieldByExactLabel(pageRoot, label));
-      }
-
-      const saveButton = exactOne(
-        pageRoot,
-        "Salvar Diário",
-        "button,a,[role='button']"
-      );
-
-      if (saveButton) setDisplay(saveButton, true);
-    }
-
-    const childHeading = exactOne(
-      pageRoot,
-      "Atividades deste Diário",
-      "h1,h2,h3,h4,strong,[role='heading']"
-    );
-
-    const infoText = exactOne(
-      pageRoot,
-      "Somente os itens vinculados ao Diário ativo serão exibidos."
-    );
-
-    const noActiveText = exactOne(
-      pageRoot,
-      "Nenhum Diário ativo."
-    );
-
-    const createFirstText = exactOne(
-      pageRoot,
-      "Crie ou abra um Diário antes de registrar atividades."
-    );
-
-    const addActivity =
-      exactOne(pageRoot, "Adicionar atividade", "button,a,[role='button']") ||
-      exactOne(pageRoot, "Adicionar Item", "button,a,[role='button']") ||
-      exactOne(pageRoot, "Novo Item", "button,a,[role='button']");
-
-    if (active) {
-      if (childHeading) {
-        childHeading.textContent = "PRODUÇÃO EXECUTADA";
-        setDisplay(childHeading, true);
-      }
-      setDisplay(infoText, true);
-      setDisplay(noActiveText, false);
-      setDisplay(createFirstText, false);
-
-      if (addActivity) {
-        addActivity.textContent = "Adicionar atividade";
-        setDisplay(addActivity, true);
-      }
-    } else {
-      setDisplay(childHeading, false);
-      setDisplay(infoText, false);
-      setDisplay(noActiveText, false);
-      setDisplay(createFirstText, false);
-      setDisplay(addActivity, false);
-    }
-  };
-
-  const idbGetAllFromStore = async (storeName) => {
-    if (!indexedDB || typeof indexedDB.databases !== "function") return [];
-
-    const dbInfos = await indexedDB.databases();
-
-    for (const info of dbInfos) {
-      if (!info || !info.name) continue;
-
-      const db = await new Promise((resolve, reject) => {
-        const req = indexedDB.open(info.name);
-        req.onerror = () => reject(req.error);
-        req.onsuccess = () => resolve(req.result);
-      }).catch(() => null);
-
-      if (!db) continue;
-
-      try {
-        if (!db.objectStoreNames.contains(storeName)) {
-          db.close();
-          continue;
-        }
-
-        const rows = await new Promise((resolve, reject) => {
-          const tx = db.transaction(storeName, "readonly");
-          const store = tx.objectStore(storeName);
-          const req = store.getAll();
-          req.onerror = () => reject(req.error);
-          req.onsuccess = () => resolve(req.result || []);
-        }).catch(() => []);
-
-        db.close();
-
-        if (rows.length > 0) return rows;
-      } catch (_) {
-        try { db.close(); } catch (_) {}
-      }
-    }
-
-    return [];
-  };
-
-  const rowObraId = (row) =>
-    String(
-      row &&
-      (
-        row.idObra ||
-        row.obraId ||
-        row.id_obra ||
-        row.codigoObra ||
-        row.codigo
-      ) || ""
-    ).trim();
-
-  const activityValue = (row) =>
-    String(
-      row &&
-      (
-        row.idAtividade ||
-        row.atividadeId ||
-        row.id_atividade ||
-        row.id ||
-        row.codigo
-      ) || ""
-    ).trim();
-
-  const activityLabel = (row) =>
-    String(
-      row &&
-      (
-        row.nome ||
-        row.descricao ||
-        row.atividade ||
-        row.servico ||
-        row.titulo ||
-        row.nomeAtividade ||
-        row.descricaoAtividade ||
-        activityValue(row)
-      ) || ""
-    ).trim();
-
-  const normalizeEvidenciasActivity = async () => {
-    const heading = findModuleHeading("Evidências");
-    if (!heading) return;
-
-    const pageRoot = heading.closest("main") || document.body;
-    const binding = findFieldByExactLabel(pageRoot, "Atividade Vinculada");
-
-    if (!binding || !binding.control) return;
+  async function aposRenderV121_(tela) {
+    const key = String(tela || "").toLowerCase();
 
     if (
-      binding.control.tagName === "SELECT" &&
-      binding.control.dataset.sigoV120ActivitySelect === "true"
+      ["diario", "medicoes", "ocorrencias", "clima", "evidencias"].includes(key)
     ) {
-      return;
+      tornarObraReadonlyV121_(key);
     }
 
-    const rows = await idbGetAllFromStore("TB_ATIVIDADES_OBRA");
-    const obraId = activeObraId(
-      findHeroRoot(heading)
-        ? findHeroRoot(heading).querySelector("select")
-        : null
-    );
-
-    const filtered = rows.filter((row) => {
-      const id = rowObraId(row);
-      return !obraId || obraId === "—" || !id || id === obraId;
-    });
-
-    if (filtered.length === 0) return;
-
-    const select = document.createElement("select");
-
-    for (const attr of Array.from(binding.control.attributes || [])) {
-      if (attr.name === "type") continue;
-      select.setAttribute(attr.name, attr.value);
+    if (key === "evidencias") {
+      await carregarAtividadesEvidenciaV121_();
     }
 
-    if (binding.control.id) select.id = binding.control.id;
-    if (binding.control.name) select.name = binding.control.name;
+    if (key === "obras") {
+      if (typeof globalThis.carregarObrasMobile_ === "function") {
+        await globalThis.carregarObrasMobile_();
+      } else if (typeof carregarObrasMobile_ === "function") {
+        await carregarObrasMobile_();
+      }
 
-    select.dataset.sigoV120ActivitySelect = "true";
-    select.className = binding.control.className || "";
-
-    const placeholder = document.createElement("option");
-    placeholder.value = "";
-    placeholder.textContent = "Selecione uma atividade";
-    select.appendChild(placeholder);
-
-    const seen = new Set();
-
-    for (const row of filtered) {
-      const value = activityValue(row);
-      const label = activityLabel(row);
-      if (!value || !label || seen.has(value)) continue;
-      seen.add(value);
-
-      const option = document.createElement("option");
-      option.value = value;
-      option.textContent = label;
-      select.appendChild(option);
+      if (typeof globalThis.listarObrasOfflineMobile_ === "function") {
+        await globalThis.listarObrasOfflineMobile_();
+      } else if (typeof listarObrasOfflineMobile_ === "function") {
+        await listarObrasOfflineMobile_();
+      }
     }
-
-    if (select.options.length <= 1) return;
-
-    const oldValue = String(binding.control.value || "").trim();
-    binding.control.replaceWith(select);
-
-    if (oldValue && Array.from(select.options).some((o) => o.value === oldValue)) {
-      select.value = oldValue;
-    }
-
-    select.addEventListener("change", () => {
-      select.dispatchEvent(new Event("input", { bubbles: true }));
-    });
-  };
-
-  const obraId = (row) =>
-    String(
-      row &&
-      (
-        row.idObra ||
-        row.obraId ||
-        row.id_obra ||
-        row.id ||
-        row.codigo
-      ) || ""
-    ).trim();
-
-  const obraLabel = (row) => {
-    const id = obraId(row);
-    const name = String(
-      row &&
-      (
-        row.nomeObra ||
-        row.nome ||
-        row.descricao ||
-        row.titulo
-      ) || ""
-    ).trim();
-
-    return name && name !== id ? `${id} — ${name}` : id;
-  };
-
-  const normalizeObrasSelector = async () => {
-    const heading = findModuleHeading("OBRAS OFFLINE");
-    if (!heading) return;
-
-    const hero = findHeroRoot(heading);
-    if (!hero) return;
-
-    const selects = Array.from(hero.querySelectorAll("select"));
-    if (selects.length !== 1) return;
-
-    const select = selects[0];
-    const rows = await idbGetAllFromStore("TB_OBRAS");
-
-    const unique = [];
-    const seen = new Set();
-
-    for (const row of rows) {
-      const id = obraId(row);
-      if (!id || seen.has(id)) continue;
-      seen.add(id);
-      unique.push({ id, label: obraLabel(row) });
-    }
-
-    if (unique.length < 2) return;
-
-    const current = String(select.value || "").trim();
-
-    select.innerHTML = "";
-
-    for (const item of unique) {
-      const option = document.createElement("option");
-      option.value = item.id;
-      option.textContent = item.label;
-      select.appendChild(option);
-    }
-
-    if (current && unique.some((item) => item.id === current)) {
-      select.value = current;
-    }
-
-    select.dataset.sigoV120MultiobraPopulated = "true";
-  };
-
-  let normalizing = false;
-
-  const normalizeAll = async () => {
-    if (normalizing) return;
-    normalizing = true;
-
-    try {
-      normalizeSecondaryTopObra();
-      normalizeDiario();
-      await normalizeEvidenciasActivity();
-      await normalizeObrasSelector();
-    } finally {
-      normalizing = false;
-    }
-  };
-
-  let scheduled = false;
-
-  const schedule = () => {
-    if (scheduled) return;
-    scheduled = true;
-
-    setTimeout(() => {
-      scheduled = false;
-      normalizeAll();
-    }, 0);
-  };
-
-  const observer = new MutationObserver(schedule);
-
-  const start = () => {
-    normalizeAll();
-
-    observer.observe(document.documentElement, {
-      childList: true,
-      subtree: true
-    });
-  };
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", start, { once: true });
-  } else {
-    start();
   }
+
+  globalThis.ajustarDiarioV121_ = ajustarDiarioV121_;
+  globalThis.carregarAtividadesEvidenciaV121_ =
+    carregarAtividadesEvidenciaV121_;
+  globalThis.tornarObraReadonlyV121_ = tornarObraReadonlyV121_;
+  globalThis.aposRenderV121_ = aposRenderV121_;
+
+  const renderBase =
+    typeof globalThis.renderizarTelaAppMobile_ === "function"
+      ? globalThis.renderizarTelaAppMobile_
+      : (
+          typeof renderizarTelaAppMobile_ === "function"
+            ? renderizarTelaAppMobile_
+            : null
+        );
+
+  if (typeof renderBase !== "function") {
+    throw new Error("SIGO_V121_RENDERIZAR_TELA_BASE_UNAVAILABLE");
+  }
+
+  globalThis.__SIGO_V121_RENDER_BASE__ = renderBase;
+
+  globalThis.renderizarTelaAppMobile_ = function (tela, html) {
+    const result = renderBase.apply(this, arguments);
+
+    Promise.resolve()
+      .then(() => aposRenderV121_(tela))
+      .catch(error => {
+        console.error("[SIGO V121 post-render]", error);
+      });
+
+    return result;
+  };
+
+  globalThis.__SIGO_V121_RENDER_WRAPPED__ = true;
+  globalThis.__SIGO_V121_EXACT_NATIVE_INSTALLED__ = true;
 })();
-/* === END SIGO MOBILE V2 V120 FOUR-GAPS UI PATCH === */
+/* === END SIGO MOBILE V2 V121 EXACT NATIVE HELPERS === */
