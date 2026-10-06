@@ -83245,32 +83245,35 @@ globalThis.cancelarItemMedicaoV116_ = cancelarItemMedicaoV116_;
   }
 })();
 
-/* === SIGO MOBILE V2 V119 SOURCE-AWARE UI PATCH ===
-   Scope:
-   - exact Obra label only on five secondary modules
-   - restore native non-obra selects
-   - Diario draft/child hierarchy correction
-   - Medicoes residual labels
-   - Home/Obras untouched
+/* === SIGO MOBILE V2 V120 FOUR-GAPS UI PATCH ===
+   OPEN GAPS ONLY:
+   1) Diario draft form + child hierarchy
+   2) Evidencias Atividade Vinculada as activity selector
+   3) top Obra selector readonly on five secondary screens
+   4) Obras selector populated from all TB_OBRAS offline records
+
+   FROZEN / DO NOT TOUCH:
+   - Medicoes activity selector
+   - Ocorrencias internal controls
+   - Clima internal controls
+   - Evidencias Categoria
+   - Home
 */
 (() => {
   "use strict";
 
-  if (globalThis["__SIGO_V119_UI_PATCH_INSTALLED__"] === true) {
-    return;
-  }
-
-  globalThis["__SIGO_V119_UI_PATCH_INSTALLED__"] = true;
+  if (globalThis["__SIGO_V120_UI_PATCH_INSTALLED__"] === true) return;
+  globalThis["__SIGO_V120_UI_PATCH_INSTALLED__"] = true;
 
   const norm = (value) =>
-    String(value ?? "")
+    String(value == null ? "" : value)
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/\s+/g, " ")
       .trim()
       .toLowerCase();
 
-  const SECONDARY_TITLES = new Map([
+  const SECONDARY = new Map([
     ["diario de obra", "DIARIO"],
     ["medicoes", "MEDICOES"],
     ["ocorrencias", "OCORRENCIAS"],
@@ -83278,21 +83281,17 @@ globalThis.cancelarItemMedicaoV116_ = cancelarItemMedicaoV116_;
     ["evidencias", "EVIDENCIAS"]
   ]);
 
-  const headingNodes = (root = document) =>
-    Array.from(
-      root.querySelectorAll(
-        "h1,h2,h3,h4,[role='heading'],.page-title,.screen-title,.module-title"
-      )
-    );
+  const allText = (root, selector) =>
+    Array.from((root || document).querySelectorAll(selector || "*"));
 
-  const exactTextNodes = (root, text) => {
-    const target = norm(text);
-    return Array.from(
-      root.querySelectorAll(
-        "label,h1,h2,h3,h4,button,span,strong,p,legend,[role='heading']"
-      )
-    ).filter((el) => norm(el.textContent) === target);
-  };
+  const exactText = (root, text, selector) =>
+    allText(
+      root,
+      selector || "label,h1,h2,h3,h4,button,span,strong,p,legend,[role='heading']"
+    ).filter((el) => norm(el.textContent) === norm(text));
+
+  const exactOne = (root, text, selector) =>
+    exactText(root, text, selector)[0] || null;
 
   const visible = (el) => {
     if (!el || !el.isConnected) return false;
@@ -83300,250 +83299,192 @@ globalThis.cancelarItemMedicaoV116_ = cancelarItemMedicaoV116_;
     return style.display !== "none" && style.visibility !== "hidden";
   };
 
-  const nearestModuleRoot = (heading) => {
+  const findModuleHeading = (title) =>
+    allText(document, "h1,h2,h3,h4,[role='heading'],.page-title,.screen-title,.module-title")
+      .find((el) => visible(el) && norm(el.textContent) === norm(title)) || null;
+
+  const findHeroRoot = (heading) => {
     if (!heading) return null;
 
-    const candidates = [
-      heading.closest("[data-screen]"),
-      heading.closest("[data-page]"),
-      heading.closest(".screen"),
-      heading.closest(".page"),
-      heading.closest("main"),
-      heading.closest("section"),
-      heading.closest("article")
-    ].filter(Boolean);
+    let node = heading;
 
-    return candidates[0] || document.body;
-  };
+    while (node && node !== document.body) {
+      const selectCount = node.querySelectorAll
+        ? node.querySelectorAll("select").length
+        : 0;
 
-  const moduleRoots = () => {
-    const found = [];
-
-    for (const heading of headingNodes()) {
-      const key = SECONDARY_TITLES.get(norm(heading.textContent));
-      if (!key || !visible(heading)) continue;
-
-      const root = nearestModuleRoot(heading);
+      const text = norm(node.textContent);
 
       if (
-        root &&
-        !found.some(
-          (item) =>
-            item.key === key &&
-            item.root === root
-        )
+        selectCount === 1 &&
+        !text.includes("dados da") &&
+        !text.includes("historico")
       ) {
-        found.push({ key, root, heading });
-      }
-    }
-
-    return found;
-  };
-
-  const fieldWrapper = (label, root) => {
-    if (!label) return null;
-
-    let node = label;
-
-    while (node && node !== root && node !== document.body) {
-      const controls = node.querySelectorAll
-        ? node.querySelectorAll("select,input,textarea")
-        : [];
-
-      if (controls.length > 0) {
         return node;
       }
 
       node = node.parentElement;
     }
 
-    return label.parentElement;
-  };
-
-  const exactLabeledControl = (root, labelText) => {
-    const labels = Array.from(root.querySelectorAll("label,legend,.form-label,.field-label"))
-      .filter((el) => norm(el.textContent) === norm(labelText));
-
-    for (const label of labels) {
-      if (label.htmlFor) {
-        const byFor = document.getElementById(label.htmlFor);
-        if (
-          byFor &&
-          root.contains(byFor) &&
-          /^(SELECT|INPUT|TEXTAREA)$/.test(byFor.tagName)
-        ) {
-          return { label, control: byFor, wrapper: fieldWrapper(label, root) };
-        }
-      }
-
-      const wrapper = fieldWrapper(label, root);
-
-      if (wrapper) {
-        const control = wrapper.querySelector("select,input,textarea");
-        if (control && root.contains(control)) {
-          return { label, control, wrapper };
-        }
-      }
-    }
-
     return null;
   };
 
-  const activeObraId = (control) => {
-    const direct = String(control?.value ?? "").trim();
-
-    if (/^OBR\d+$/i.test(direct)) {
-      return direct;
-    }
-
-    const candidates = [
-      globalThis.obterObraAtivaMobile_,
-      globalThis.obterObraAtiva_,
-      globalThis.getObraAtiva
-    ];
-
-    for (const fn of candidates) {
-      if (typeof fn !== "function") continue;
-
-      try {
-        const value = fn();
-
-        if (typeof value === "string" && /^OBR\d+$/i.test(value.trim())) {
-          return value.trim();
-        }
-
-        const id = value?.idObra ?? value?.id ?? value?.obraId;
-
-        if (typeof id === "string" && /^OBR\d+$/i.test(id.trim())) {
-          return id.trim();
-        }
-      } catch (_) {}
-    }
+  const activeObraId = (select) => {
+    const direct = String(select && select.value ? select.value : "").trim();
+    if (/^OBR\d+$/i.test(direct)) return direct;
 
     for (const key of ["obraAtiva", "idObraAtiva", "SIGO_OBRA_ATIVA", "obra_ativa"]) {
       try {
         const value = localStorage.getItem(key);
-        if (value && /^OBR\d+$/i.test(value.trim())) {
-          return value.trim();
-        }
+        if (value && /^OBR\d+$/i.test(value.trim())) return value.trim();
       } catch (_) {}
     }
 
     return direct || "—";
   };
 
-  const normalizeExactObraField = (root) => {
-    const binding = exactLabeledControl(root, "Obra");
-    if (!binding) return false;
+  const makeReadonlyFromSelect = (select) => {
+    if (!select) return false;
 
-    const { control, wrapper } = binding;
+    const parent = select.parentElement;
+    if (!parent) return false;
 
-    if (control.dataset.sigoV119ObraSource === "true") {
-      const readonly = wrapper?.querySelector?.("[data-sigo-v119-obra-readonly='true']");
-      if (readonly) {
-        readonly.textContent = activeObraId(control);
-      }
-      return true;
+    let readonly = parent.querySelector("[data-sigo-v120-top-obra-readonly='true']");
+
+    if (!readonly) {
+      readonly = document.createElement("div");
+      readonly.dataset.sigoV120TopObraReadonly = "true";
+      readonly.className = "sigo-v120-top-obra-readonly";
+
+      const style = getComputedStyle(select);
+
+      readonly.style.minHeight = style.height && style.height !== "auto"
+        ? style.height
+        : "52px";
+      readonly.style.display = "flex";
+      readonly.style.alignItems = "center";
+      readonly.style.padding = style.padding || "0 16px";
+      readonly.style.border = style.border || "1px solid rgba(148,163,184,.45)";
+      readonly.style.borderRadius = style.borderRadius || "12px";
+      readonly.style.background = style.backgroundColor || "transparent";
+      readonly.style.color = style.color || "inherit";
+      readonly.style.font = style.font || "inherit";
+      readonly.style.fontWeight = "600";
+      readonly.style.boxSizing = "border-box";
+      readonly.style.pointerEvents = "none";
+
+      select.insertAdjacentElement("afterend", readonly);
     }
 
-    control.dataset.sigoV119ObraSource = "true";
-    control.style.display = "none";
-    control.setAttribute("aria-hidden", "true");
+    readonly.textContent = activeObraId(select);
 
-    const readonly = document.createElement("div");
-    readonly.dataset.sigoV119ObraReadonly = "true";
-    readonly.className = "sigo-v119-obra-readonly";
-    readonly.textContent = activeObraId(control);
-    readonly.style.minHeight = "46px";
-    readonly.style.display = "flex";
-    readonly.style.alignItems = "center";
-    readonly.style.padding = "0 14px";
-    readonly.style.border = "1px solid rgba(148,163,184,.45)";
-    readonly.style.borderRadius = "10px";
-    readonly.style.background = "rgba(15,23,42,.55)";
-    readonly.style.color = "inherit";
-    readonly.style.fontWeight = "600";
-    readonly.style.pointerEvents = "none";
-
-    control.insertAdjacentElement("afterend", readonly);
+    select.dataset.sigoV120TopObraSource = "true";
+    select.style.display = "none";
+    select.setAttribute("aria-hidden", "true");
+    select.tabIndex = -1;
 
     return true;
   };
 
-  const setWrapperVisible = (binding) => {
-    if (!binding) return;
+  const normalizeSecondaryTopObra = () => {
+    for (const entry of SECONDARY.entries()) {
+      const title = entry[0];
+      const heading = findModuleHeading(title);
+      const hero = findHeroRoot(heading);
 
-    for (const el of [binding.wrapper, binding.label, binding.control]) {
+      if (!hero) continue;
+
+      const selects = Array.from(hero.querySelectorAll("select"));
+
+      if (selects.length === 1) {
+        makeReadonlyFromSelect(selects[0]);
+      }
+    }
+  };
+
+  const findFieldByExactLabel = (root, labelText) => {
+    const labels = allText(root, "label,legend,.form-label,.field-label")
+      .filter((el) => norm(el.textContent) === norm(labelText));
+
+    for (const label of labels) {
+      if (label.htmlFor) {
+        const control = document.getElementById(label.htmlFor);
+        if (control && root.contains(control)) {
+          return { label, control, wrapper: control.parentElement };
+        }
+      }
+
+      let node = label.parentElement;
+
+      for (let depth = 0; node && depth < 5; depth += 1) {
+        const control = node.querySelector("select,input,textarea");
+        if (control && root.contains(control)) {
+          return { label, control, wrapper: node };
+        }
+        node = node.parentElement;
+      }
+    }
+
+    return null;
+  };
+
+  const unhideField = (binding) => {
+    if (!binding) return false;
+
+    for (const el of [binding.label, binding.control, binding.wrapper]) {
       if (!el) continue;
       el.hidden = false;
       el.removeAttribute("aria-hidden");
-
       if (el.style) {
-        if (el.style.display === "none") {
-          el.style.display = "";
-        }
+        if (el.style.display === "none") el.style.display = "";
         el.style.visibility = "";
         el.style.opacity = "";
       }
     }
+
+    return true;
   };
 
-  const exactButton = (root, text) =>
-    Array.from(root.querySelectorAll("button,a,[role='button']"))
-      .find((el) => norm(el.textContent) === norm(text)) || null;
+  const setDisplay = (el, show) => {
+    if (!el) return;
+    el.hidden = !show;
+    el.setAttribute("aria-hidden", show ? "false" : "true");
+    if (el.style) el.style.display = show ? "" : "none";
+  };
 
-  const exactHeading = (root, text) =>
-    Array.from(root.querySelectorAll("h1,h2,h3,h4,legend,strong,[role='heading']"))
-      .find((el) => norm(el.textContent) === norm(text)) || null;
+  const nearestCard = (node) => {
+    let current = node;
 
-  const safeSectionContainer = (node, root) => {
-    if (!node) return null;
-
-    let current = node.parentElement;
-
-    while (current && current !== root && current !== document.body) {
-      const text = norm(current.textContent);
-
+    while (current && current !== document.body) {
+      const cls = String(current.className || "");
       if (
-        text.includes("atividades deste diario") &&
-        !text.includes("nenhum diario ativo") &&
-        !text.includes("novo diario")
+        /card|panel|section|box/i.test(cls) ||
+        /^(SECTION|ARTICLE)$/i.test(current.tagName)
       ) {
         return current;
       }
-
       current = current.parentElement;
     }
 
-    return node.parentElement;
+    return node ? node.parentElement : null;
   };
 
-  const normalizeDiario = (root) => {
-    const draftOpen =
-      exactTextNodes(root, "Preencha os dados gerais do dia").length > 0 ||
-      Boolean(exactButton(root, "Salvar Diário"));
+  const normalizeDiario = () => {
+    const heading = findModuleHeading("Diário de Obra");
+    if (!heading) return;
+
+    const pageRoot = heading.closest("main") || document.body;
+
+    const draftMessage =
+      exactOne(pageRoot, "Preencha os dados gerais do dia") ||
+      exactOne(pageRoot, "Salve o Diário antes de registrar atividades.");
 
     const active =
-      exactTextNodes(root, "DIÁRIO ATIVO").length > 0 ||
-      exactTextNodes(root, "Diário Ativo").length > 0;
+      exactOne(pageRoot, "DIÁRIO ATIVO") ||
+      exactOne(pageRoot, "Diário Ativo");
 
-    const novo = exactButton(root, "Novo Diário");
-
-    if (novo && novo.dataset.sigoV119Bound !== "true") {
-      novo.dataset.sigoV119Bound = "true";
-      novo.addEventListener(
-        "click",
-        () => {
-          setTimeout(normalizeAll, 0);
-          setTimeout(normalizeAll, 80);
-          setTimeout(normalizeAll, 250);
-        },
-        { passive: true }
-      );
-    }
-
-    if (draftOpen) {
-      for (const field of [
+    if (draftMessage) {
+      for (const label of [
         "Data",
         "Responsável",
         "Equipe",
@@ -83552,86 +83493,305 @@ globalThis.cancelarItemMedicaoV116_ = cancelarItemMedicaoV116_;
         "Ocorrências gerais",
         "Observações"
       ]) {
-        setWrapperVisible(exactLabeledControl(root, field));
+        unhideField(findFieldByExactLabel(pageRoot, label));
       }
+
+      const saveButton = exactOne(
+        pageRoot,
+        "Salvar Diário",
+        "button,a,[role='button']"
+      );
+
+      if (saveButton) setDisplay(saveButton, true);
     }
 
-    const childHeading = exactHeading(root, "Atividades deste Diário");
-    const childContainer = safeSectionContainer(childHeading, root);
+    const childHeading = exactOne(
+      pageRoot,
+      "Atividades deste Diário",
+      "h1,h2,h3,h4,strong,[role='heading']"
+    );
 
-    if (childContainer) {
-      if (active) {
-        childContainer.hidden = false;
-        childContainer.removeAttribute("aria-hidden");
-        if (childContainer.style.display === "none") {
-          childContainer.style.display = "";
-        }
-      } else {
-        childContainer.hidden = true;
-        childContainer.setAttribute("aria-hidden", "true");
-      }
-    }
+    const infoText = exactOne(
+      pageRoot,
+      "Somente os itens vinculados ao Diário ativo serão exibidos."
+    );
+
+    const noActiveText = exactOne(
+      pageRoot,
+      "Nenhum Diário ativo."
+    );
+
+    const createFirstText = exactOne(
+      pageRoot,
+      "Crie ou abra um Diário antes de registrar atividades."
+    );
+
+    const addActivity =
+      exactOne(pageRoot, "Adicionar atividade", "button,a,[role='button']") ||
+      exactOne(pageRoot, "Adicionar Item", "button,a,[role='button']") ||
+      exactOne(pageRoot, "Novo Item", "button,a,[role='button']");
 
     if (active) {
-      const productionHeading =
-        exactHeading(root, "Atividades deste Diário");
-
-      if (productionHeading) {
-        productionHeading.textContent = "PRODUÇÃO EXECUTADA";
+      if (childHeading) {
+        childHeading.textContent = "PRODUÇÃO EXECUTADA";
+        setDisplay(childHeading, true);
       }
+      setDisplay(infoText, true);
+      setDisplay(noActiveText, false);
+      setDisplay(createFirstText, false);
 
-      const addItem =
-        exactButton(root, "Adicionar Item") ||
-        exactButton(root, "Novo Item");
-
-      if (addItem) {
-        addItem.textContent = "Adicionar atividade";
+      if (addActivity) {
+        addActivity.textContent = "Adicionar atividade";
+        setDisplay(addActivity, true);
       }
+    } else {
+      setDisplay(childHeading, false);
+      setDisplay(infoText, false);
+      setDisplay(noActiveText, false);
+      setDisplay(createFirstText, false);
+      setDisplay(addActivity, false);
     }
   };
 
-  const replaceExactText = (root, from, to, selector) => {
-    for (const el of Array.from(root.querySelectorAll(selector))) {
-      if (norm(el.textContent) === norm(from)) {
-        el.textContent = to;
+  const idbGetAllFromStore = async (storeName) => {
+    if (!indexedDB || typeof indexedDB.databases !== "function") return [];
+
+    const dbInfos = await indexedDB.databases();
+
+    for (const info of dbInfos) {
+      if (!info || !info.name) continue;
+
+      const db = await new Promise((resolve, reject) => {
+        const req = indexedDB.open(info.name);
+        req.onerror = () => reject(req.error);
+        req.onsuccess = () => resolve(req.result);
+      }).catch(() => null);
+
+      if (!db) continue;
+
+      try {
+        if (!db.objectStoreNames.contains(storeName)) {
+          db.close();
+          continue;
+        }
+
+        const rows = await new Promise((resolve, reject) => {
+          const tx = db.transaction(storeName, "readonly");
+          const store = tx.objectStore(storeName);
+          const req = store.getAll();
+          req.onerror = () => reject(req.error);
+          req.onsuccess = () => resolve(req.result || []);
+        }).catch(() => []);
+
+        db.close();
+
+        if (rows.length > 0) return rows;
+      } catch (_) {
+        try { db.close(); } catch (_) {}
       }
     }
+
+    return [];
   };
 
-  const normalizeMedicoes = (root) => {
-    replaceExactText(
-      root,
-      "Dados da Medição",
-      "Adicionar item à medição",
-      "h1,h2,h3,h4,legend,strong,[role='heading']"
+  const rowObraId = (row) =>
+    String(
+      row &&
+      (
+        row.idObra ||
+        row.obraId ||
+        row.id_obra ||
+        row.codigoObra ||
+        row.codigo
+      ) || ""
+    ).trim();
+
+  const activityValue = (row) =>
+    String(
+      row &&
+      (
+        row.idAtividade ||
+        row.atividadeId ||
+        row.id_atividade ||
+        row.id ||
+        row.codigo
+      ) || ""
+    ).trim();
+
+  const activityLabel = (row) =>
+    String(
+      row &&
+      (
+        row.nome ||
+        row.descricao ||
+        row.atividade ||
+        row.servico ||
+        row.titulo ||
+        row.nomeAtividade ||
+        row.descricaoAtividade ||
+        activityValue(row)
+      ) || ""
+    ).trim();
+
+  const normalizeEvidenciasActivity = async () => {
+    const heading = findModuleHeading("Evidências");
+    if (!heading) return;
+
+    const pageRoot = heading.closest("main") || document.body;
+    const binding = findFieldByExactLabel(pageRoot, "Atividade Vinculada");
+
+    if (!binding || !binding.control) return;
+
+    if (
+      binding.control.tagName === "SELECT" &&
+      binding.control.dataset.sigoV120ActivitySelect === "true"
+    ) {
+      return;
+    }
+
+    const rows = await idbGetAllFromStore("TB_ATIVIDADES_OBRA");
+    const obraId = activeObraId(
+      findHeroRoot(heading)
+        ? findHeroRoot(heading).querySelector("select")
+        : null
     );
 
-    replaceExactText(
-      root,
-      "Gerenciar",
-      "Gerenciar Medição",
-      "button,a,[role='button']"
-    );
+    const filtered = rows.filter((row) => {
+      const id = rowObraId(row);
+      return !obraId || obraId === "—" || !id || id === obraId;
+    });
 
-    replaceExactText(
-      root,
-      "Quantidade executada",
-      "Quantidade medida",
-      "label,span,strong,p"
-    );
+    if (filtered.length === 0) return;
+
+    const select = document.createElement("select");
+
+    for (const attr of Array.from(binding.control.attributes || [])) {
+      if (attr.name === "type") continue;
+      select.setAttribute(attr.name, attr.value);
+    }
+
+    if (binding.control.id) select.id = binding.control.id;
+    if (binding.control.name) select.name = binding.control.name;
+
+    select.dataset.sigoV120ActivitySelect = "true";
+    select.className = binding.control.className || "";
+
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "Selecione uma atividade";
+    select.appendChild(placeholder);
+
+    const seen = new Set();
+
+    for (const row of filtered) {
+      const value = activityValue(row);
+      const label = activityLabel(row);
+      if (!value || !label || seen.has(value)) continue;
+      seen.add(value);
+
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label;
+      select.appendChild(option);
+    }
+
+    if (select.options.length <= 1) return;
+
+    const oldValue = String(binding.control.value || "").trim();
+    binding.control.replaceWith(select);
+
+    if (oldValue && Array.from(select.options).some((o) => o.value === oldValue)) {
+      select.value = oldValue;
+    }
+
+    select.addEventListener("change", () => {
+      select.dispatchEvent(new Event("input", { bubbles: true }));
+    });
   };
 
-  const normalizeAll = () => {
-    for (const item of moduleRoots()) {
-      normalizeExactObraField(item.root);
+  const obraId = (row) =>
+    String(
+      row &&
+      (
+        row.idObra ||
+        row.obraId ||
+        row.id_obra ||
+        row.id ||
+        row.codigo
+      ) || ""
+    ).trim();
 
-      if (item.key === "DIARIO") {
-        normalizeDiario(item.root);
-      }
+  const obraLabel = (row) => {
+    const id = obraId(row);
+    const name = String(
+      row &&
+      (
+        row.nomeObra ||
+        row.nome ||
+        row.descricao ||
+        row.titulo
+      ) || ""
+    ).trim();
 
-      if (item.key === "MEDICOES") {
-        normalizeMedicoes(item.root);
-      }
+    return name && name !== id ? `${id} — ${name}` : id;
+  };
+
+  const normalizeObrasSelector = async () => {
+    const heading = findModuleHeading("OBRAS OFFLINE");
+    if (!heading) return;
+
+    const hero = findHeroRoot(heading);
+    if (!hero) return;
+
+    const selects = Array.from(hero.querySelectorAll("select"));
+    if (selects.length !== 1) return;
+
+    const select = selects[0];
+    const rows = await idbGetAllFromStore("TB_OBRAS");
+
+    const unique = [];
+    const seen = new Set();
+
+    for (const row of rows) {
+      const id = obraId(row);
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      unique.push({ id, label: obraLabel(row) });
+    }
+
+    if (unique.length < 2) return;
+
+    const current = String(select.value || "").trim();
+
+    select.innerHTML = "";
+
+    for (const item of unique) {
+      const option = document.createElement("option");
+      option.value = item.id;
+      option.textContent = item.label;
+      select.appendChild(option);
+    }
+
+    if (current && unique.some((item) => item.id === current)) {
+      select.value = current;
+    }
+
+    select.dataset.sigoV120MultiobraPopulated = "true";
+  };
+
+  let normalizing = false;
+
+  const normalizeAll = async () => {
+    if (normalizing) return;
+    normalizing = true;
+
+    try {
+      normalizeSecondaryTopObra();
+      normalizeDiario();
+      await normalizeEvidenciasActivity();
+      await normalizeObrasSelector();
+    } finally {
+      normalizing = false;
     }
   };
 
@@ -83641,10 +83801,10 @@ globalThis.cancelarItemMedicaoV116_ = cancelarItemMedicaoV116_;
     if (scheduled) return;
     scheduled = true;
 
-    queueMicrotask(() => {
+    setTimeout(() => {
       scheduled = false;
       normalizeAll();
-    });
+    }, 0);
   };
 
   const observer = new MutationObserver(schedule);
@@ -83664,4 +83824,4 @@ globalThis.cancelarItemMedicaoV116_ = cancelarItemMedicaoV116_;
     start();
   }
 })();
-/* === END SIGO MOBILE V2 V119 SOURCE-AWARE UI PATCH === */
+/* === END SIGO MOBILE V2 V120 FOUR-GAPS UI PATCH === */
