@@ -699,9 +699,15 @@ function montarTelaDiarioObra() {
       "Informações gerais e produção do dia",
 
     form:
-      formDiario +
-      contextoDiario +
-      formItemDiario,
+      '<div id="diarioCabecalhoV122">' +
+        formDiario +
+      '</div>' +
+      '<div id="diarioContextoV122">' +
+        contextoDiario +
+      '</div>' +
+      '<div id="diarioAtividadeV122">' +
+        formItemDiario +
+      '</div>',
 
     listTitle:
       "📊 Registros do Diário",
@@ -1161,11 +1167,11 @@ async function montarTelaMedicoes() {
         acao: acaoBotao.acao
       },
       {
-        id: "btnSalvarMedicao",
+        id: "btnSalvarItemMedicaoV122",
         icone: "💾",
-        texto: "Salvar",
+        texto: "Salvar item medido",
         tipo: "is-success",
-        acao: "salvarMedicaoPremium()"
+        acao: "salvarItemMedicaoV122_()"
       }
     ],
 

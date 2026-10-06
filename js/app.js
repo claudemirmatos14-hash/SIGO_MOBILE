@@ -11293,11 +11293,52 @@ function encerrarModoEdicaoItemDiario_() {
   }
 }
 
+/* === SIGO MOBILE V2 V122 CONTEXTUAL OBRA SELECTOR === */
+function resolverSeletorObraV122_() {
+  const foco = document.activeElement;
+
+  if (
+    foco &&
+    foco.id === "obraAtiva" &&
+    foco.isConnected
+  ) {
+    return foco;
+  }
+
+  const tela =
+    String(
+      localStorage.getItem("telaAtualMobile") ||
+      "home"
+    ).toLowerCase();
+
+  const home =
+    document.querySelector("#homeApp #obraAtiva");
+
+  const telaApp =
+    document.querySelector("#telaApp #obraAtiva");
+
+  if (tela === "home") {
+    return (
+      home ||
+      telaApp ||
+      document.getElementById("obraAtiva")
+    );
+  }
+
+  return (
+    telaApp ||
+    home ||
+    document.getElementById("obraAtiva")
+  );
+}
+
+globalThis.resolverSeletorObraV122_ =
+  resolverSeletorObraV122_;
+/* === END SIGO MOBILE V2 V122 CONTEXTUAL OBRA SELECTOR === */
+
 async function carregarObrasMobile_() {
   const select =
-    document.querySelector("#telaApp #obraAtiva") ||
-    document.querySelector("#homeApp #obraAtiva") ||
-    document.getElementById("obraAtiva");
+    resolverSeletorObraV122_();
 
   if (!select) return;
 
@@ -15223,9 +15264,8 @@ async function atualizarHeroObraAtivaMobile_() {
   if (!obraSelecionada) return;
   
   // Mantém o seletor sincronizado com a obra ativa
-  const seletor = document.querySelector("#telaApp #obraAtiva") ||
-    document.querySelector("#homeApp #obraAtiva") ||
-    document.getElementById("obraAtiva");
+  const seletor =
+    resolverSeletorObraV122_();
   
   if (seletor && seletor.value !== idObraAtiva) {
     seletor.value = idObraAtiva;
@@ -15253,9 +15293,7 @@ async function atualizarHeroObraAtivaMobile_() {
 
 async function definirObraAtivaPeloSeletor_() {
   const select =
-    document.querySelector("#telaApp #obraAtiva") ||
-    document.querySelector("#homeApp #obraAtiva") ||
-    document.getElementById("obraAtiva");
+    resolverSeletorObraV122_();
   if (!select || !select.value) return;
 
   const idObra = select.value;
@@ -82417,6 +82455,100 @@ function adicionarCancelarV116_(botaoSalvar, id, texto, acao) {
   return cancelar;
 }
 
+/* === SIGO MOBILE V2 V122 DIARIO STRUCTURAL CONTROL === */
+function aplicarEstruturaDiarioV122_() {
+  const cabecalho =
+    document.getElementById("diarioCabecalhoV122");
+
+  const contexto =
+    document.getElementById("diarioContextoV122");
+
+  const atividade =
+    document.getElementById("diarioAtividadeV122");
+
+  const cardDados =
+    typeof localizarCardCampoV116_ === "function"
+      ? localizarCardCampoV116_("diarioData")
+      : null;
+
+  const cabecalhoAberto =
+    globalThis.SIGO_DIARIO_NOVO_RASCUNHO_V116 === true ||
+    globalThis.SIGO_DIARIO_CABECALHO_ABERTO_V116 === true ||
+    (
+      typeof idDiarioEdicao !== "undefined" &&
+      Boolean(idDiarioEdicao)
+    );
+
+  const atividadeAberta =
+    globalThis.SIGO_DIARIO_ATIVIDADE_FORM_V116 === true ||
+    (
+      typeof idItemDiarioEdicao !== "undefined" &&
+      Boolean(idItemDiarioEdicao)
+    );
+
+  if (cabecalho) {
+    definirVisibilidadeV116_(
+      cabecalho,
+      cabecalhoAberto
+    );
+  }
+
+  if (contexto) {
+    definirVisibilidadeV116_(contexto, false);
+  }
+
+  if (atividade) {
+    definirVisibilidadeV116_(
+      atividade,
+      atividadeAberta
+    );
+  }
+
+  if (cardDados) {
+    definirVisibilidadeV116_(
+      cardDados,
+      cabecalhoAberto || atividadeAberta
+    );
+  }
+
+  const botoes =
+    Array.from(document.querySelectorAll("button[onclick]"));
+
+  const salvarCabecalho =
+    botoes.find(function (botao) {
+      const acao =
+        String(botao.getAttribute("onclick") || "")
+          .replace(/\s+/g, "");
+
+      return (
+        acao === "salvarDiarioPremium()" ||
+        acao === "atualizarDiarioOffline_()"
+      );
+    }) || null;
+
+  if (
+    salvarCabecalho &&
+    cabecalho &&
+    cabecalhoAberto &&
+    !cabecalho.contains(salvarCabecalho)
+  ) {
+    cabecalho.appendChild(salvarCabecalho);
+  }
+
+  if (salvarCabecalho) {
+    definirVisibilidadeV116_(
+      salvarCabecalho,
+      cabecalhoAberto
+    );
+  }
+
+  return true;
+}
+
+globalThis.aplicarEstruturaDiarioV122_ =
+  aplicarEstruturaDiarioV122_;
+/* === END SIGO MOBILE V2 V122 DIARIO STRUCTURAL CONTROL === */
+
 async function iniciarNovoDiarioContratoV116_() {
   globalThis.SIGO_DIARIO_NOVO_RASCUNHO_V116 = true;
   globalThis.SIGO_DIARIO_CABECALHO_ABERTO_V116 = true;
@@ -82624,6 +82756,11 @@ async function aplicarContratoDiarioV116_() {
     definirVisibilidadeV116_(cardProducao, false);
     definirVisibilidadeV116_(botaoSalvarDiario, rascunho);
     definirVisibilidadeV116_(cancelarDiario, rascunho);
+
+    if (typeof aplicarEstruturaDiarioV122_ === "function") {
+      aplicarEstruturaDiarioV122_();
+    }
+
     return;
   }
 
@@ -82702,6 +82839,10 @@ async function aplicarContratoDiarioV116_() {
   definirVisibilidadeV116_(formItem, mostrarFormItem);
   definirVisibilidadeV116_(botaoSalvarItem, mostrarFormItem);
   definirVisibilidadeV116_(cancelarItem, mostrarFormItem);
+
+  if (typeof aplicarEstruturaDiarioV122_ === "function") {
+    aplicarEstruturaDiarioV122_();
+  }
 }
 
 async function abrirFormularioItemMedicaoV116_() {
@@ -82741,6 +82882,21 @@ async function cancelarItemMedicaoV116_() {
   await aplicarContratoMedicoesV116_();
 }
 
+/* === SIGO MOBILE V2 V122 MEDICAO ITEM PERSIST ACTION === */
+async function salvarItemMedicaoV122_() {
+  if (typeof salvarMedicaoPremium !== "function") {
+    throw new Error(
+      "Persistência nativa de item medido indisponível."
+    );
+  }
+
+  return await salvarMedicaoPremium();
+}
+
+globalThis.salvarItemMedicaoV122_ =
+  salvarItemMedicaoV122_;
+/* === END SIGO MOBILE V2 V122 MEDICAO ITEM PERSIST ACTION === */
+
 async function aplicarContratoMedicoesV116_() {
   const lote = await obterLoteMedicaoAberto_();
   const cardFormulario = localizarCardCampoV116_("medicaoData");
@@ -82749,7 +82905,8 @@ async function aplicarContratoMedicoesV116_() {
 
   const botaoSalvar = localizarBotaoAcaoV116_([
     "salvarMedicaoPremium()",
-    "atualizarMedicaoOffline_()"
+    "atualizarMedicaoOffline_()",
+    "salvarItemMedicaoV122_()"
   ]);
 
   if (botaoSalvar && formItem && !formItem.contains(botaoSalvar)) {
@@ -82761,9 +82918,14 @@ async function aplicarContratoMedicoesV116_() {
     Boolean(idMedicaoEdicao);
 
   if (botaoSalvar) {
+    botaoSalvar.id = "btnSalvarItemMedicaoV122";
     botaoSalvar.innerHTML = editando
-      ? "💾 Atualizar item"
-      : "➕ Adicionar item";
+      ? "💾 Atualizar item medido"
+      : "💾 Salvar item medido";
+    botaoSalvar.setAttribute(
+      "onclick",
+      "salvarItemMedicaoV122_()"
+    );
   }
 
   const cancelar = adicionarCancelarV116_(
@@ -83535,3 +83697,7 @@ globalThis.cancelarItemMedicaoV116_ = cancelarItemMedicaoV116_;
   globalThis.__SIGO_V121_EXACT_NATIVE_INSTALLED__ = true;
 })();
 /* === END SIGO MOBILE V2 V121 EXACT NATIVE HELPERS === */
+
+/* === SIGO MOBILE V2 V122 TARGETED CANDIDATE === */
+globalThis.__SIGO_V122_DIARIO_HOME_MEDICOES_PERSIST__ = true;
+/* === END SIGO MOBILE V2 V122 TARGETED CANDIDATE === */
