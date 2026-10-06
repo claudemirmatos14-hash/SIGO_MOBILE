@@ -13631,7 +13631,7 @@ async function criarTimelineLotesMedicao_() {
           <h2>HISTÓRICO DE MEDIÇÕES</h2>
         </div>
 
-        <p>Nenhum lote de medição criado.</p>
+        <p>Nenhuma medição criada.</p>
       </section>
     `;
   }
@@ -13727,7 +13727,7 @@ async function selecionarLoteMedicaoTimeline_(idLoteMedicao) {
 
   SIGOUI.feedback.info(
     "Medição selecionada",
-    "Histórico atualizado para o lote selecionado."
+    "Histórico atualizado para a medição selecionada."
   );
 }
 
@@ -13761,7 +13761,7 @@ async function abrirDrawerHistoricoMedicoes_() {
 
     SIGOUI.showDrawer({
       titulo: "📚 Histórico de Medições",
-      subtitulo: "Todos os lotes da obra ativa",
+      subtitulo: "Todas as medições da obra ativa",
       conteudo: conteudo,
       textoFechar: "Fechar"
     });
@@ -13877,7 +13877,7 @@ async function selecionarLoteHistoricoDrawer_(idLoteMedicao) {
 
   SIGOUI.feedback.info(
     "Medição selecionada",
-    "Histórico atualizado para o lote selecionado."
+    "Histórico atualizado para a medição selecionada."
   );
 }
 
@@ -13912,7 +13912,7 @@ async function atualizarCabecalhoHistoricoMedicao_() {
 
   document.getElementById("subtituloHistoricoMedicao").textContent =
     lote
-      ? "Itens vinculados a este lote"
+      ? "Itens medidos nesta medição"
       : "Nenhuma medição selecionada";
 }
 
@@ -82841,3 +82841,406 @@ globalThis.abrirFormularioAtividadeDiarioV116_ = abrirFormularioAtividadeDiarioV
 globalThis.cancelarAtividadeDiarioV116_ = cancelarAtividadeDiarioV116_;
 globalThis.abrirFormularioItemMedicaoV116_ = abrirFormularioItemMedicaoV116_;
 globalThis.cancelarItemMedicaoV116_ = cancelarItemMedicaoV116_;
+
+
+/* =========================================================
+ * SIGO_V117_CONSOLIDATED_UI_RUNTIME_NORMALIZER
+ * Consolidação pós-revisão humana do V116.
+ *
+ * Somente UI:
+ * - remove/oculta ações legadas do Diário sem pai ativo;
+ * - padroniza Adicionar/Atualizar atividade;
+ * - oculta o bloco de itens de medição sem medição ativa;
+ * - elimina terminologia visível de "lote" nos pontos herdados.
+ *
+ * Não altera IndexedDB, sync, IDs, payloads ou regras persistidas.
+ * ========================================================= */
+(function instalarNormalizadorVisualV117_() {
+  const CHAVE =
+    "__SIGO_V117_UI_NORMALIZER_INSTALLED__";
+
+  if (window[CHAVE] === true) {
+    return;
+  }
+
+  window[CHAVE] = true;
+
+  function textoNormalizado_(valor) {
+    return String(valor || "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function obterArea_() {
+    return (
+      document.getElementById("telaApp") ||
+      document.querySelector(".app-premium") ||
+      document.body
+    );
+  }
+
+  function definirDisplay_(elemento, valor) {
+    if (!elemento) return;
+
+    if (elemento.style.display !== valor) {
+      elemento.style.display = valor;
+    }
+  }
+
+  function normalizarDiario_() {
+    const area = obterArea_();
+
+    if (!area) {
+      return;
+    }
+
+    const obraAtiva =
+      String(
+        typeof obterObraAtivaMobile_ === "function"
+          ? obterObraAtivaMobile_()
+          : ""
+      ).trim();
+
+    const idDiarioAtivo =
+      String(
+        obraAtiva &&
+        typeof obterDiarioAtivoSIGO_ === "function"
+          ? obterDiarioAtivoSIGO_(obraAtiva)
+          : ""
+      ).trim();
+
+    const botoes =
+      Array.from(
+        area.querySelectorAll("button")
+      );
+
+    botoes.forEach(botao => {
+      const texto =
+        textoNormalizado_(
+          botao.textContent
+        );
+
+      const acao =
+        textoNormalizado_(
+          botao.getAttribute("onclick")
+        )
+          .replace(/\s+/g, "");
+
+      if (
+        /^(?:🧹\s*)?Novo Item$/i
+          .test(texto)
+      ) {
+        definirDisplay_(botao, "none");
+
+        if (
+          botao.getAttribute("aria-hidden") !==
+          "true"
+        ) {
+          botao.setAttribute(
+            "aria-hidden",
+            "true"
+          );
+        }
+
+        return;
+      }
+
+      const ehAcaoAtividade =
+        acao ===
+          "salvarItemDiarioPremium()" ||
+        acao ===
+          "atualizarItemDiarioOffline_()" ||
+        /Adicionar Item$/i.test(texto) ||
+        /Adicionar atividade$/i.test(texto) ||
+        /Atualizar Item$/i.test(texto) ||
+        /Atualizar atividade$/i.test(texto);
+
+      if (!ehAcaoAtividade) {
+        return;
+      }
+
+      if (!idDiarioAtivo) {
+        definirDisplay_(botao, "none");
+
+        if (
+          botao.getAttribute("aria-hidden") !==
+          "true"
+        ) {
+          botao.setAttribute(
+            "aria-hidden",
+            "true"
+          );
+        }
+
+        return;
+      }
+
+      definirDisplay_(botao, "");
+
+      if (
+        botao.hasAttribute("aria-hidden")
+      ) {
+        botao.removeAttribute(
+          "aria-hidden"
+        );
+      }
+
+      const editando =
+        typeof idItemDiarioEdicao !==
+          "undefined" &&
+        Boolean(idItemDiarioEdicao);
+
+      const textoAlvo =
+        editando
+          ? "💾 Atualizar atividade"
+          : "➕ Adicionar atividade";
+
+      if (
+        textoNormalizado_(
+          botao.textContent
+        ) !== textoAlvo
+      ) {
+        botao.textContent =
+          textoAlvo;
+      }
+    });
+
+    const campoAtividade =
+      document.getElementById(
+        "itemDiarioAtividade"
+      );
+
+    if (campoAtividade) {
+      const formulario =
+        campoAtividade.closest("form");
+
+      if (formulario) {
+        definirDisplay_(
+          formulario,
+          idDiarioAtivo
+            ? ""
+            : "none"
+        );
+      }
+    }
+  }
+
+  function normalizarTextoMedicoes_(
+    area
+  ) {
+    const walker =
+      document.createTreeWalker(
+        area,
+        NodeFilter.SHOW_TEXT
+      );
+
+    const substituicoes = [
+      [
+        "Nenhum " + "lote de medição criado.",
+        "Nenhuma medição criada."
+      ],
+      [
+        "Todos os " + "lotes da obra ativa",
+        "Todas as medições da obra ativa"
+      ],
+      [
+        "Itens vinculados a este " + "lote",
+        "Itens medidos nesta medição"
+      ],
+      [
+        "Histórico atualizado para o " + "lote selecionado.",
+        "Histórico atualizado para a medição selecionada."
+      ]
+    ];
+
+    let node;
+
+    while (
+      (node = walker.nextNode())
+    ) {
+      let valor =
+        String(
+          node.nodeValue || ""
+        );
+
+      let atualizado = valor;
+
+      substituicoes.forEach(
+        ([antigo, novo]) => {
+          atualizado =
+            atualizado.split(
+              antigo
+            ).join(
+              novo
+            );
+        }
+      );
+
+      if (atualizado !== valor) {
+        node.nodeValue =
+          atualizado;
+      }
+    }
+  }
+
+  function normalizarMedicoes_() {
+    const area = obterArea_();
+
+    if (!area) {
+      return;
+    }
+
+    normalizarTextoMedicoes_(area);
+
+    const textoArea =
+      textoNormalizado_(
+        area.innerText ||
+        area.textContent
+      );
+
+    const semMedicaoAtiva =
+      textoArea.includes(
+        "NENHUMA MEDIÇÃO ABERTA"
+      );
+
+    const titulo =
+      document.getElementById(
+        "tituloHistoricoMedicao"
+      );
+
+    const subtitulo =
+      document.getElementById(
+        "subtituloHistoricoMedicao"
+      );
+
+    const lista =
+      document.getElementById(
+        "listaMedicoesOffline"
+      );
+
+    const bloco =
+      titulo
+        ? titulo.closest(
+            ".sigo-card, section, .tela-card"
+          )
+        : lista
+          ? lista.closest(
+              ".sigo-card, section, .tela-card"
+            )
+          : null;
+
+    if (semMedicaoAtiva) {
+      if (bloco) {
+        definirDisplay_(
+          bloco,
+          "none"
+        );
+      }
+
+      return;
+    }
+
+    if (bloco) {
+      definirDisplay_(bloco, "");
+    }
+
+    if (
+      titulo &&
+      textoNormalizado_(
+        titulo.textContent
+      ) !== "📋 ITENS DA MEDIÇÃO"
+    ) {
+      titulo.textContent =
+        "📋 ITENS DA MEDIÇÃO";
+    }
+
+    if (
+      subtitulo &&
+      /lote/i.test(
+        textoNormalizado_(
+          subtitulo.textContent
+        )
+      )
+    ) {
+      subtitulo.textContent =
+        "Itens medidos nesta medição";
+    }
+  }
+
+  function normalizarTudo_() {
+    try {
+      normalizarDiario_();
+      normalizarMedicoes_();
+    } catch (erro) {
+      console.warn(
+        "[V117] Falha não fatal no normalizador visual:",
+        erro
+      );
+    }
+  }
+
+  let agendado = false;
+
+  function agendar_() {
+    if (agendado) {
+      return;
+    }
+
+    agendado = true;
+
+    setTimeout(
+      function () {
+        agendado = false;
+        normalizarTudo_();
+      },
+      0
+    );
+  }
+
+  function iniciar_() {
+    normalizarTudo_();
+
+    const alvo =
+      document.querySelector(
+        ".app-premium"
+      ) ||
+      document.body;
+
+    if (!alvo) {
+      return;
+    }
+
+    const observer =
+      new MutationObserver(
+        function () {
+          agendar_();
+        }
+      );
+
+    observer.observe(
+      alvo,
+      {
+        childList: true,
+        subtree: true,
+        characterData: true
+      }
+    );
+
+    window.__SIGO_V117_UI_OBSERVER__ =
+      observer;
+  }
+
+  if (
+    document.readyState === "loading"
+  ) {
+    document.addEventListener(
+      "DOMContentLoaded",
+      iniciar_,
+      {
+        once: true
+      }
+    );
+  } else {
+    iniciar_();
+  }
+})();
