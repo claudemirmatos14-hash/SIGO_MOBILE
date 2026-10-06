@@ -1315,6 +1315,10 @@ localStorage.setItem("telaAtualMobile", tela);
       ) {
         await atualizarContextoDiarioAtivoUX19_();
       }
+
+      if (typeof aplicarContratoDiarioV116_ === "function") {
+        await aplicarContratoDiarioV116_();
+      }
     }
   },
 
@@ -1345,6 +1349,10 @@ localStorage.setItem("telaAtualMobile", tela);
     
         if (typeof listarMedicoesOffline_ === "function") {
           await listarMedicoesOffline_();
+        }
+
+        if (typeof aplicarContratoMedicoesV116_ === "function") {
+          await aplicarContratoMedicoesV116_();
         }
       }
     },
@@ -1645,6 +1653,55 @@ async function salvarDiarioOffline(event) {
     event.preventDefault();
   }
 
+  // SIGO_DIARIO_MEDICOES_V116 — unicidade funcional idObra + data
+  const idObraContratoV116 =
+    String(obterObraAtivaMobile_() || "").trim();
+
+  const dataContratoV116 =
+    String(document.getElementById("diarioData")?.value || "").trim();
+
+  if (!idObraContratoV116 || !dataContratoV116) {
+    SIGOUI.feedback.warning(
+      "Dados do Diário",
+      "Informe a obra e a data antes de salvar."
+    );
+    return null;
+  }
+
+  const diariosContratoV116 =
+    await listarRegistrosSIGO("TB_DIARIOS");
+
+  const diarioExistenteContratoV116 =
+    diariosContratoV116.find(item =>
+      String(item.idObra || "").trim() === idObraContratoV116 &&
+      String(item.data || item.dataDiario || "").slice(0, 10) === dataContratoV116
+    ) || null;
+
+  if (diarioExistenteContratoV116) {
+    if (typeof definirDiarioAtivoSIGO_ === "function") {
+      definirDiarioAtivoSIGO_(
+        diarioExistenteContratoV116.idDiario,
+        diarioExistenteContratoV116.idObra
+      );
+    }
+
+    globalThis.SIGO_DIARIO_NOVO_RASCUNHO_V116 = false;
+    globalThis.SIGO_DIARIO_CABECALHO_ABERTO_V116 = true;
+
+    if (typeof editarDiarioOffline_ === "function") {
+      await editarDiarioOffline_(
+        diarioExistenteContratoV116.idDiario
+      );
+    }
+
+    SIGOUI.feedback.info(
+      "Diário já existente",
+      "Já existe um Diário para esta obra e data. O registro existente foi aberto."
+    );
+
+    return diarioExistenteContratoV116;
+  }
+
   const diario = {
     idDiario: "DIA-" + Date.now(),
 
@@ -1681,6 +1738,16 @@ async function salvarDiarioOffline(event) {
         "TB_DIARIOS",
         diario
       );
+
+    if (typeof definirDiarioAtivoSIGO_ === "function") {
+      definirDiarioAtivoSIGO_(
+        diarioSalvo.idDiario,
+        diarioSalvo.idObra
+      );
+    }
+
+    globalThis.SIGO_DIARIO_NOVO_RASCUNHO_V116 = false;
+    globalThis.SIGO_DIARIO_CABECALHO_ABERTO_V116 = false;
 
     // ==========================================
     // 2. REGISTRAR INSERT NA FILA OFICIAL
@@ -2364,6 +2431,9 @@ async function editarDiarioOffline_(
     idDiarioEdicao =
       diario.idDiario;
 
+    globalThis.SIGO_DIARIO_CABECALHO_ABERTO_V116 = true;
+    globalThis.SIGO_DIARIO_NOVO_RASCUNHO_V116 = false;
+
     if (
       typeof definirDiarioAtivoSIGO_ ===
         "function"
@@ -2469,6 +2539,10 @@ async function editarDiarioOffline_(
     // ==========================================
     // 8. RETORNAR AO TOPO DO DIÁRIO
     // ==========================================
+
+    if (typeof aplicarContratoDiarioV116_ === "function") {
+      await aplicarContratoDiarioV116_();
+    }
 
     window.scrollTo({
       top: 0,
@@ -2653,6 +2727,20 @@ async function atualizarDiarioOffline_() {
       await SIGOEntities.diario.validate({
         ...dadosAtualizados
       });
+    }
+
+    const diarioConflitanteV116 =
+      diarios.find(item =>
+        String(item.idDiario || "") !== String(diarioAtual.idDiario || "") &&
+        String(item.idObra || "").trim() === String(diarioAtual.idObra || "").trim() &&
+        String(item.data || item.dataDiario || "").slice(0, 10) ===
+          String(dadosAtualizados.data || "").slice(0, 10)
+      ) || null;
+
+    if (diarioConflitanteV116) {
+      throw new Error(
+        "Já existe outro Diário para esta obra e data."
+      );
     }
 
     // ==========================================
@@ -5613,6 +5701,11 @@ async function salvarMedicaoOffline(event) {
   };
 
   try {
+    validarDataItemNoPeriodoMedicaoV116_(
+      medicao,
+      loteAberto
+    );
+
     await validarSaldoOfflineMedicao_(medicao);
     
     await salvarRegistroSIGO("TB_MEDICOES", medicao);
@@ -9893,6 +9986,8 @@ async function editarItemDiarioOffline_(
       item.idItemDiario ||
       item.idItem;
 
+    globalThis.SIGO_DIARIO_ATIVIDADE_FORM_V116 = true;
+
     if (
       typeof atualizarModoEdicaoItemDiario_ ===
         "function"
@@ -9903,6 +9998,10 @@ async function editarItemDiarioOffline_(
     // ==========================================
     // 9. POSICIONAR A TELA
     // ==========================================
+
+    if (typeof aplicarContratoDiarioV116_ === "function") {
+      await aplicarContratoDiarioV116_();
+    }
 
     window.scrollTo({
       top: 0,
@@ -9979,7 +10078,7 @@ function atualizarModoEdicaoItemDiario_() {
   if (idItemDiarioEdicao) {
 
     botao.innerHTML =
-      "💾 Atualizar Item";
+      "💾 Atualizar atividade";
 
     botao.setAttribute(
       "onclick",
@@ -9989,7 +10088,7 @@ function atualizarModoEdicaoItemDiario_() {
   } else {
 
     botao.innerHTML =
-      "➕ Adicionar Item";
+      "➕ Adicionar atividade";
 
     botao.setAttribute(
       "onclick",
@@ -12298,6 +12397,17 @@ async function atualizarMedicaoOffline_() {
       statusSync: "PENDENTE"
     };
 
+    const loteItemV116 =
+      await obterLoteMedicaoPorIdV116_(
+        medicaoAtualizada.idLoteMedicao,
+        medicaoAtualizada.idObra
+      );
+
+    validarDataItemNoPeriodoMedicaoV116_(
+      medicaoAtualizada,
+      loteItemV116
+    );
+
     await validarSaldoOfflineMedicao_(medicaoAtualizada);
 
     await salvarRegistroSIGO(
@@ -12710,6 +12820,7 @@ async function editarMedicaoOffline_(idMedicao) {
     }
 
     idMedicaoEdicao = medicao.idMedicao;
+    globalThis.SIGO_MEDICAO_ITEM_FORM_V116 = true;
 
     preencherFormularioMedicao_(medicao);
 
@@ -12719,6 +12830,10 @@ async function editarMedicaoOffline_(idMedicao) {
       "Modo edição",
       "A medição foi carregada para edição."
     );
+
+    if (typeof aplicarContratoMedicoesV116_ === "function") {
+      await aplicarContratoMedicoesV116_();
+    }
 
     const campoData =
       document.getElementById("medicaoData");
@@ -13035,6 +13150,10 @@ async function salvarLoteMedicao_(dados = {}) {
 
   validarLoteMedicao_(lote);
 
+  if (!novoLote) {
+    await validarPeriodoLoteComItensV116_(lote);
+  }
+
   await salvarRegistroSIGO(
     "TB_LOTES_MEDICAO",
     lote
@@ -13321,7 +13440,7 @@ function montarFormularioLoteMedicao_(lote = null) {
           class="sigo-action-btn is-success"
           onclick="salvarLoteMedicaoDrawer_()">
           <span>💾</span>
-          <strong>Definir / Salvar</strong>
+          <strong>${lote ? "Salvar alterações" : "Criar Medição"}</strong>
         </button>
       </div>
 
@@ -82130,3 +82249,595 @@ async function auditarBloqueioFuncoesReaisUX21964D_() {
   }
 })();
 /* SIGO_ANDROID_BACK_NAVIGATION_V115_END */
+
+/* ============================================================
+ * SIGO_DIARIO_MEDICOES_V116
+ * CONTRATO_VISUAL_FUNCIONAL_DIARIO_MEDICOES_V1
+ * Candidate local — sem alteração de stores/sync.
+ * ============================================================ */
+
+function obterLoteMedicaoPorIdV116_(idLoteMedicao, idObra) {
+  return listarRegistrosSIGO("TB_LOTES_MEDICAO")
+    .then(lotes =>
+      (lotes || []).find(lote =>
+        String(lote.idLoteMedicao || "") === String(idLoteMedicao || "") &&
+        String(lote.idObra || "") === String(idObra || "")
+      ) || null
+    )
+    .then(lote => {
+      if (!lote) {
+        throw new Error("A Medição vinculada ao item não foi localizada.");
+      }
+      return lote;
+    });
+}
+
+function validarDataItemNoPeriodoMedicaoV116_(item, lote) {
+  if (!lote) {
+    throw new Error("Nenhuma Medição válida foi localizada para o item.");
+  }
+
+  const dataItem = String(item?.data || "").slice(0, 10);
+  const dataInicio = String(lote.dataInicio || "").slice(0, 10);
+  const dataFim = String(lote.dataFim || "").slice(0, 10);
+
+  if (!dataItem || !dataInicio || !dataFim) {
+    throw new Error("Data do item ou período da Medição não informado.");
+  }
+
+  if (dataItem < dataInicio || dataItem > dataFim) {
+    throw new Error(
+      "A data do item medido deve estar dentro do período da Medição (" +
+      formatarDataMedicao_(dataInicio) + " a " +
+      formatarDataMedicao_(dataFim) + ")."
+    );
+  }
+
+  return true;
+}
+
+async function validarPeriodoLoteComItensV116_(lote) {
+  const itens = await listarRegistrosSIGO("TB_MEDICOES");
+
+  const filhos = (itens || []).filter(item =>
+    String(item.idObra || "") === String(lote.idObra || "") &&
+    String(item.idLoteMedicao || "") === String(lote.idLoteMedicao || "")
+  );
+
+  const dataInicio = String(lote.dataInicio || "").slice(0, 10);
+  const dataFim = String(lote.dataFim || "").slice(0, 10);
+
+  const fora = filhos.filter(item => {
+    const data = String(item.data || "").slice(0, 10);
+    return !data || data < dataInicio || data > dataFim;
+  });
+
+  if (fora.length) {
+    throw new Error(
+      "O novo período deixaria " + fora.length +
+      " item(ns) medido(s) fora do intervalo. Ajuste os itens antes de alterar a Medição."
+    );
+  }
+
+  return true;
+}
+
+function normalizarTextoBotaoV116_(valor) {
+  return String(valor || "")
+    .replace(/s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function localizarBotaoAcaoV116_(acoes) {
+  const lista = Array.isArray(acoes) ? acoes : [acoes];
+
+  return [...document.querySelectorAll("button")].find(botao => {
+    const onclick = String(botao.getAttribute("onclick") || "")
+      .replace(/s+/g, "");
+    return lista.some(acao =>
+      onclick === String(acao || "").replace(/s+/g, "")
+    );
+  }) || null;
+}
+
+function localizarCardCampoV116_(idCampo) {
+  const campo = document.getElementById(idCampo);
+  if (!campo) return null;
+
+  return (
+    campo.closest(".sigo-card") ||
+    campo.closest(".card") ||
+    campo.closest(".formulario") ||
+    campo.closest("form") ||
+    campo.parentElement
+  );
+}
+
+function localizarFormularioCampoV116_(idCampo) {
+  const campo = document.getElementById(idCampo);
+  if (!campo) return null;
+
+  return (
+    campo.closest("form") ||
+    campo.closest(".sigo-form") ||
+    campo.closest(".formulario") ||
+    campo.parentElement
+  );
+}
+
+function definirVisibilidadeV116_(elemento, visivel) {
+  if (!elemento) return;
+  elemento.hidden = !visivel;
+  elemento.style.display = visivel ? "" : "none";
+}
+
+function criarOuObterEstadoV116_(id, referencia) {
+  let card = document.getElementById(id);
+
+  if (!card) {
+    card = document.createElement("section");
+    card.id = id;
+    card.className = "sigo-card sigo-contract-state-v116";
+
+    if (referencia?.parentNode) {
+      referencia.parentNode.insertBefore(card, referencia);
+    } else {
+      const area = document.getElementById("telaApp");
+      if (area) area.prepend(card);
+    }
+  }
+
+  return card;
+}
+
+function adicionarCancelarV116_(botaoSalvar, id, texto, acao) {
+  if (!botaoSalvar || !botaoSalvar.parentElement) return null;
+
+  let cancelar = document.getElementById(id);
+  if (!cancelar) {
+    cancelar = document.createElement("button");
+    cancelar.type = "button";
+    cancelar.id = id;
+    cancelar.className = "sigo-action-btn is-secondary sigo-contract-cancel-v116";
+    cancelar.textContent = texto;
+    cancelar.setAttribute("onclick", acao);
+    botaoSalvar.insertAdjacentElement("afterend", cancelar);
+  }
+
+  return cancelar;
+}
+
+async function iniciarNovoDiarioContratoV116_() {
+  globalThis.SIGO_DIARIO_NOVO_RASCUNHO_V116 = true;
+  globalThis.SIGO_DIARIO_CABECALHO_ABERTO_V116 = true;
+  globalThis.SIGO_DIARIO_ATIVIDADE_FORM_V116 = false;
+
+  if (typeof iniciarNovoDiarioUnificadoUX19_ === "function") {
+    await iniciarNovoDiarioUnificadoUX19_();
+  }
+
+  await aplicarContratoDiarioV116_();
+}
+
+async function editarDadosDiarioAtivoContratoV116_() {
+  const obra = String(obterObraAtivaMobile_() || "").trim();
+  const idDiario = String(
+    typeof obterDiarioAtivoSIGO_ === "function"
+      ? obterDiarioAtivoSIGO_(obra)
+      : ""
+  ).trim();
+
+  if (!idDiario) {
+    SIGOUI.feedback.warning(
+      "Nenhum Diário aberto",
+      "Abra um Diário antes de editar seus dados."
+    );
+    return;
+  }
+
+  globalThis.SIGO_DIARIO_CABECALHO_ABERTO_V116 = true;
+
+  if (typeof editarDiarioOffline_ === "function") {
+    await editarDiarioOffline_(idDiario);
+  }
+
+  await aplicarContratoDiarioV116_();
+}
+
+async function cancelarDadosDiarioContratoV116_() {
+  globalThis.SIGO_DIARIO_NOVO_RASCUNHO_V116 = false;
+  globalThis.SIGO_DIARIO_CABECALHO_ABERTO_V116 = false;
+
+  if (typeof idDiarioEdicao !== "undefined") {
+    idDiarioEdicao = null;
+  }
+
+  if (typeof navegarPara === "function") {
+    await navegarPara("diario");
+  }
+}
+
+async function abrirFormularioAtividadeDiarioV116_() {
+  const obra = String(obterObraAtivaMobile_() || "").trim();
+  const idDiario = String(
+    typeof obterDiarioAtivoSIGO_ === "function"
+      ? obterDiarioAtivoSIGO_(obra)
+      : ""
+  ).trim();
+
+  if (!idDiario) {
+    SIGOUI.feedback.warning(
+      "Nenhum Diário aberto",
+      "Crie ou abra um Diário antes de adicionar atividades."
+    );
+    return;
+  }
+
+  if (typeof encerrarModoEdicaoItemDiario_ === "function") {
+    encerrarModoEdicaoItemDiario_();
+  } else if (typeof limparFormularioItemDiario === "function") {
+    limparFormularioItemDiario();
+  }
+
+  globalThis.SIGO_DIARIO_ATIVIDADE_FORM_V116 = true;
+
+  if (typeof atualizarContextoDiarioAtivoUX19_ === "function") {
+    await atualizarContextoDiarioAtivoUX19_();
+  }
+
+  await aplicarContratoDiarioV116_();
+
+  document.getElementById("itemDiarioAtividade")
+    ?.scrollIntoView({behavior:"smooth", block:"center"});
+}
+
+async function cancelarAtividadeDiarioV116_() {
+  globalThis.SIGO_DIARIO_ATIVIDADE_FORM_V116 = false;
+
+  if (typeof encerrarModoEdicaoItemDiario_ === "function") {
+    encerrarModoEdicaoItemDiario_();
+  }
+
+  await aplicarContratoDiarioV116_();
+}
+
+async function aplicarContratoDiarioV116_() {
+  const obra = String(obterObraAtivaMobile_() || "").trim();
+  const idDiario = String(
+    obra && typeof obterDiarioAtivoSIGO_ === "function"
+      ? obterDiarioAtivoSIGO_(obra)
+      : ""
+  ).trim();
+
+  const diarios = await listarRegistrosSIGO("TB_DIARIOS");
+  const itens = await listarRegistrosSIGO("TB_DIARIO_ITENS");
+
+  const diario = (diarios || []).find(item =>
+    String(item.idObra || "") === obra &&
+    String(item.idDiario || "") === idDiario
+  ) || null;
+
+  const totalItens = diario
+    ? (itens || []).filter(item =>
+        String(item.idObra || "") === obra &&
+        String(item.idDiario || "") === String(diario.idDiario || "")
+      ).length
+    : 0;
+
+  const cardDados = localizarCardCampoV116_("diarioData");
+  const cardProducao = localizarCardCampoV116_("itemDiarioAtividade");
+  const formItem = localizarFormularioCampoV116_("itemDiarioAtividade");
+
+  const botaoNovoOriginal = [...document.querySelectorAll("button")].find(botao => {
+    const txt = normalizarTextoBotaoV116_(botao.textContent);
+    const acao = String(botao.getAttribute("onclick") || "");
+    return txt === "novo diário" ||
+      txt === "+ novo diário" ||
+      acao.includes("iniciarNovoDiarioUnificadoUX19_");
+  }) || null;
+
+  if (botaoNovoOriginal) {
+    botaoNovoOriginal.hidden = true;
+    botaoNovoOriginal.style.display = "none";
+  }
+
+  [...document.querySelectorAll("button")].forEach(botao => {
+    const txt = normalizarTextoBotaoV116_(botao.textContent);
+    if (txt === "novo item") {
+      botao.hidden = true;
+      botao.style.display = "none";
+    }
+  });
+
+  const botaoSalvarDiario = localizarBotaoAcaoV116_([
+    "salvarDiarioPremium()",
+    "atualizarDiarioOffline_()"
+  ]);
+
+  if (botaoSalvarDiario && cardDados && !cardDados.contains(botaoSalvarDiario)) {
+    cardDados.appendChild(botaoSalvarDiario);
+  }
+
+  const cancelarDiario = adicionarCancelarV116_(
+    botaoSalvarDiario,
+    "cancelarDadosDiarioV116",
+    "Cancelar",
+    "cancelarDadosDiarioContratoV116_()"
+  );
+
+  const estado = criarOuObterEstadoV116_(
+    "diarioEstadoContratoV116",
+    cardDados || cardProducao
+  );
+
+  const rascunho =
+    globalThis.SIGO_DIARIO_NOVO_RASCUNHO_V116 === true;
+
+  const editandoCabecalho =
+    rascunho ||
+    globalThis.SIGO_DIARIO_CABECALHO_ABERTO_V116 === true ||
+    (
+      typeof idDiarioEdicao !== "undefined" &&
+      Boolean(idDiarioEdicao)
+    );
+
+  if (!diario) {
+    if (rascunho) {
+      estado.innerHTML =
+        '<div class="sigo-contract-kicker-v116">NOVO DIÁRIO</div>' +
+        '<strong>Preencha os dados gerais do dia</strong>' +
+        '<p>Salve o Diário antes de registrar atividades.</p>';
+      definirVisibilidadeV116_(cardDados, true);
+    } else {
+      estado.innerHTML =
+        '<div class="sigo-contract-kicker-v116">DIÁRIO DE OBRA</div>' +
+        '<strong>Nenhum Diário aberto</strong>' +
+        '<p>Crie um Diário para registrar a produção executada.</p>' +
+        '<button type="button" class="sigo-action-btn is-primary" ' +
+        'onclick="iniciarNovoDiarioContratoV116_()">➕ Novo Diário</button>';
+      definirVisibilidadeV116_(cardDados, false);
+    }
+
+    definirVisibilidadeV116_(cardProducao, false);
+    definirVisibilidadeV116_(botaoSalvarDiario, rascunho);
+    definirVisibilidadeV116_(cancelarDiario, rascunho);
+    return;
+  }
+
+  estado.innerHTML =
+    '<div class="sigo-contract-kicker-v116">DIÁRIO ATIVO</div>' +
+    '<div class="sigo-contract-title-row-v116">' +
+      '<strong>' + formatarDataMedicao_(diario.data) + '</strong>' +
+      '<span class="sigo-contract-badge-v116">🟢 ' +
+        String(diario.statusDiario || "ABERTO") +
+      '</span>' +
+    '</div>' +
+    '<p>' + obra + ' • ' + totalItens + ' atividade(s) registrada(s)</p>' +
+    '<div class="sigo-contract-actions-v116">' +
+      '<button type="button" class="sigo-action-btn is-secondary" ' +
+        'onclick="editarDadosDiarioAtivoContratoV116_()">Editar dados do Diário</button>' +
+      '<button type="button" class="sigo-action-btn is-primary" ' +
+        'onclick="iniciarNovoDiarioContratoV116_()">➕ Novo Diário</button>' +
+    '</div>';
+
+  definirVisibilidadeV116_(cardDados, editandoCabecalho);
+  definirVisibilidadeV116_(botaoSalvarDiario, editandoCabecalho);
+  definirVisibilidadeV116_(cancelarDiario, editandoCabecalho);
+  definirVisibilidadeV116_(cardProducao, true);
+
+  if (cardProducao) {
+    const titulo = [...cardProducao.querySelectorAll("h1,h2,h3,h4,strong")].find(el =>
+      normalizarTextoBotaoV116_(el.textContent).includes("produção executada")
+    );
+    if (titulo) titulo.textContent = "PRODUÇÃO EXECUTADA";
+  }
+
+  let acaoAtividade = document.getElementById("acaoAtividadeDiarioV116");
+  if (!acaoAtividade && formItem?.parentNode) {
+    acaoAtividade = document.createElement("div");
+    acaoAtividade.id = "acaoAtividadeDiarioV116";
+    acaoAtividade.className = "sigo-contract-section-action-v116";
+    formItem.parentNode.insertBefore(acaoAtividade, formItem);
+  }
+
+  if (acaoAtividade) {
+    acaoAtividade.innerHTML =
+      '<button type="button" class="sigo-action-btn is-primary" ' +
+      'onclick="abrirFormularioAtividadeDiarioV116_()">➕ Adicionar atividade</button>';
+  }
+
+  const botaoSalvarItem = localizarBotaoAcaoV116_([
+    "salvarItemDiarioPremium()",
+    "atualizarItemDiarioOffline_()"
+  ]);
+
+  if (botaoSalvarItem && formItem && !formItem.contains(botaoSalvarItem)) {
+    formItem.appendChild(botaoSalvarItem);
+  }
+
+  if (botaoSalvarItem) {
+    botaoSalvarItem.innerHTML =
+      (typeof idItemDiarioEdicao !== "undefined" && idItemDiarioEdicao)
+        ? "💾 Atualizar atividade"
+        : "➕ Adicionar atividade";
+  }
+
+  const cancelarItem = adicionarCancelarV116_(
+    botaoSalvarItem,
+    "cancelarAtividadeDiarioV116",
+    "Cancelar edição",
+    "cancelarAtividadeDiarioV116_()"
+  );
+
+  const mostrarFormItem =
+    globalThis.SIGO_DIARIO_ATIVIDADE_FORM_V116 === true ||
+    (
+      typeof idItemDiarioEdicao !== "undefined" &&
+      Boolean(idItemDiarioEdicao)
+    );
+
+  definirVisibilidadeV116_(formItem, mostrarFormItem);
+  definirVisibilidadeV116_(botaoSalvarItem, mostrarFormItem);
+  definirVisibilidadeV116_(cancelarItem, mostrarFormItem);
+}
+
+async function abrirFormularioItemMedicaoV116_() {
+  const lote = await obterLoteMedicaoAberto_();
+
+  if (!lote) {
+    SIGOUI.feedback.warning(
+      "Nenhuma medição aberta",
+      "Crie uma Medição antes de adicionar itens."
+    );
+    return;
+  }
+
+  globalThis.SIGO_MEDICAO_ITEM_FORM_V116 = true;
+
+  if (typeof novaMedicaoPremium === "function") {
+    novaMedicaoPremium();
+  }
+
+  await aplicarContratoMedicoesV116_();
+
+  document.getElementById("medicaoData")
+    ?.scrollIntoView({behavior:"smooth", block:"center"});
+}
+
+async function cancelarItemMedicaoV116_() {
+  globalThis.SIGO_MEDICAO_ITEM_FORM_V116 = false;
+
+  if (typeof idMedicaoEdicao !== "undefined") {
+    idMedicaoEdicao = null;
+  }
+
+  if (typeof novaMedicaoPremium === "function") {
+    novaMedicaoPremium();
+  }
+
+  await aplicarContratoMedicoesV116_();
+}
+
+async function aplicarContratoMedicoesV116_() {
+  const lote = await obterLoteMedicaoAberto_();
+  const cardFormulario = localizarCardCampoV116_("medicaoData");
+  const formItem = localizarFormularioCampoV116_("medicaoData");
+  const lista = document.getElementById("listaMedicoesOffline");
+
+  const botaoSalvar = localizarBotaoAcaoV116_([
+    "salvarMedicaoPremium()",
+    "atualizarMedicaoOffline_()"
+  ]);
+
+  if (botaoSalvar && formItem && !formItem.contains(botaoSalvar)) {
+    formItem.appendChild(botaoSalvar);
+  }
+
+  const editando =
+    typeof idMedicaoEdicao !== "undefined" &&
+    Boolean(idMedicaoEdicao);
+
+  if (botaoSalvar) {
+    botaoSalvar.innerHTML = editando
+      ? "💾 Atualizar item"
+      : "➕ Adicionar item";
+  }
+
+  const cancelar = adicionarCancelarV116_(
+    botaoSalvar,
+    "cancelarItemMedicaoV116",
+    "Cancelar edição",
+    "cancelarItemMedicaoV116_()"
+  );
+
+  const campoQuantidade =
+    document.getElementById("medicaoQtdeExecutada");
+
+  if (campoQuantidade) {
+    const container =
+      campoQuantidade.closest(".sigo-field") ||
+      campoQuantidade.parentElement;
+
+    if (container) {
+      const label = container.querySelector("label");
+      if (label) label.textContent = "Quantidade medida";
+    }
+
+    const labelFor = document.querySelector(
+      'label[for="medicaoQtdeExecutada"]'
+    );
+    if (labelFor) labelFor.textContent = "Quantidade medida";
+  }
+
+  if (cardFormulario) {
+    const heading =
+      [...cardFormulario.querySelectorAll("h1,h2,h3,h4,strong")]
+        .find(el =>
+          normalizarTextoBotaoV116_(el.textContent) === "dados da medição"
+        );
+
+    if (heading) {
+      heading.textContent = editando
+        ? "Editar item medido"
+        : "Adicionar item à medição";
+    }
+  }
+
+  let secaoItens =
+    document.getElementById("medicaoItensContratoV116");
+
+  if (!secaoItens) {
+    secaoItens = document.createElement("section");
+    secaoItens.id = "medicaoItensContratoV116";
+    secaoItens.className = "sigo-card sigo-contract-items-v116";
+
+    const referencia = cardFormulario || lista;
+    if (referencia?.parentNode) {
+      referencia.parentNode.insertBefore(secaoItens, referencia);
+    }
+  }
+
+  if (!lote) {
+    if (secaoItens) {
+      secaoItens.innerHTML = "";
+      definirVisibilidadeV116_(secaoItens, false);
+    }
+
+    definirVisibilidadeV116_(cardFormulario, false);
+    definirVisibilidadeV116_(formItem, false);
+    definirVisibilidadeV116_(botaoSalvar, false);
+    definirVisibilidadeV116_(cancelar, false);
+    globalThis.SIGO_MEDICAO_ITEM_FORM_V116 = false;
+    return;
+  }
+
+  if (secaoItens) {
+    secaoItens.innerHTML =
+      '<div class="sigo-contract-kicker-v116">ITENS DA MEDIÇÃO</div>' +
+      '<p>Registre os serviços medidos dentro de ' +
+        String(lote.numeroMedicao || "Medição ativa") + '.</p>' +
+      '<button type="button" class="sigo-action-btn is-primary" ' +
+        'onclick="abrirFormularioItemMedicaoV116_()">➕ Adicionar item medido</button>';
+    definirVisibilidadeV116_(secaoItens, true);
+  }
+
+  const mostrarFormulario =
+    globalThis.SIGO_MEDICAO_ITEM_FORM_V116 === true ||
+    editando;
+
+  definirVisibilidadeV116_(cardFormulario, mostrarFormulario);
+  definirVisibilidadeV116_(formItem, mostrarFormulario);
+  definirVisibilidadeV116_(botaoSalvar, mostrarFormulario);
+  definirVisibilidadeV116_(cancelar, mostrarFormulario);
+}
+
+globalThis.aplicarContratoDiarioV116_ = aplicarContratoDiarioV116_;
+globalThis.aplicarContratoMedicoesV116_ = aplicarContratoMedicoesV116_;
+globalThis.iniciarNovoDiarioContratoV116_ = iniciarNovoDiarioContratoV116_;
+globalThis.editarDadosDiarioAtivoContratoV116_ = editarDadosDiarioAtivoContratoV116_;
+globalThis.cancelarDadosDiarioContratoV116_ = cancelarDadosDiarioContratoV116_;
+globalThis.abrirFormularioAtividadeDiarioV116_ = abrirFormularioAtividadeDiarioV116_;
+globalThis.cancelarAtividadeDiarioV116_ = cancelarAtividadeDiarioV116_;
+globalThis.abrirFormularioItemMedicaoV116_ = abrirFormularioItemMedicaoV116_;
+globalThis.cancelarItemMedicaoV116_ = cancelarItemMedicaoV116_;

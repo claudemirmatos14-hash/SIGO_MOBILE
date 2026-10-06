@@ -2341,3 +2341,73 @@ body {
   display: none !important;
 }
 /* SIGO_HOME_PREMIUM_V114_LOGO_VISUAL_SCALE_STYLE_END */
+
+/* ============================================================
+   SIGO_DIARIO_MEDICOES_V116
+   Hierarquia pai -> filhos para Diário e Medições
+   ============================================================ */
+.sigo-contract-state-v116,
+.sigo-contract-items-v116 {
+  margin: 14px 0;
+  padding: 16px;
+  border-radius: 16px;
+}
+
+.sigo-contract-kicker-v116 {
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.72;
+  margin-bottom: 6px;
+}
+
+.sigo-contract-title-row-v116 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.sigo-contract-badge-v116 {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.sigo-contract-actions-v116,
+.sigo-contract-section-action-v116 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.sigo-contract-section-action-v116 {
+  margin-bottom: 12px;
+}
+
+.sigo-contract-cancel-v116 {
+  margin-left: 8px;
+}
+
+@media (max-width: 560px) {
+  .sigo-contract-title-row-v116 {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .sigo-contract-actions-v116 > button,
+  .sigo-contract-section-action-v116 > button {
+    width: 100%;
+  }
+
+  .sigo-contract-cancel-v116 {
+    margin-left: 0;
+    margin-top: 8px;
+    width: 100%;
+  }
+}
