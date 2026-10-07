@@ -84789,3 +84789,365 @@ globalThis.__SIGO_V126_DIARIO_PRODUCTION_SURFACE__ =
   true;
 
 /* === END SIGO MOBILE V2 V126 === */
+
+
+/* =========================================================
+ * SIGO MOBILE V2 — V127
+ * DIARIO ACTIVITY FORM REPARENT — STRUCTURE ONLY
+ *
+ * The existing activity form is functional and is preserved.
+ * V127 only moves that existing form from Dados do Diario to
+ * PRODUCAO EXECUTADA, keeps one external OPEN action, and
+ * preserves the internal SAVE/UPDATE action of the form.
+ * ========================================================= */
+
+function definirVisibilidadeDiarioV127_(elemento, mostrar) {
+  if (!elemento) return;
+
+  elemento.hidden = !mostrar;
+  elemento.classList.toggle("hidden", !mostrar);
+  elemento.classList.toggle("d-none", !mostrar);
+  elemento.classList.toggle("is-hidden", !mostrar);
+
+  if (mostrar) {
+    elemento.style.removeProperty("display");
+    elemento.style.removeProperty("visibility");
+    elemento.style.removeProperty("opacity");
+  } else {
+    elemento.style.setProperty("display", "none", "important");
+  }
+}
+
+function localizarFormularioAtividadeDiarioV127_() {
+  const campo =
+    document.getElementById("itemDiarioData");
+
+  if (!campo) {
+    return null;
+  }
+
+  const form =
+    campo.closest(".sigo-form");
+
+  if (form) {
+    return form;
+  }
+
+  let atual = campo.parentElement;
+
+  for (
+    let nivel = 0;
+    atual &&
+    atual !== document.body &&
+    nivel < 8;
+    nivel += 1
+  ) {
+    if (
+      atual.querySelector("#itemDiarioAtividade") &&
+      atual.querySelector("#itemDiarioEap") &&
+      atual.querySelector("#itemDiarioServico") &&
+      atual.querySelector("#itemDiarioQtde")
+    ) {
+      return atual;
+    }
+
+    atual = atual.parentElement;
+  }
+
+  return null;
+}
+
+function localizarCardDadosDiarioV127_() {
+  if (
+    typeof localizarCardDadosDiarioV125_ === "function"
+  ) {
+    const card = localizarCardDadosDiarioV125_();
+
+    if (card) {
+      return card;
+    }
+  }
+
+  const campo =
+    document.getElementById("diarioData");
+
+  if (!campo) {
+    return null;
+  }
+
+  let atual = campo;
+
+  for (
+    let nivel = 0;
+    atual &&
+    atual !== document.body &&
+    nivel < 10;
+    nivel += 1
+  ) {
+    if (
+      atual.querySelector("#diarioResponsavel") &&
+      atual.querySelector("#diarioEquipe")
+    ) {
+      return atual;
+    }
+
+    atual = atual.parentElement;
+  }
+
+  return null;
+}
+
+function localizarOuCriarHostAtividadeDiarioV127_() {
+  const superficie =
+    typeof localizarSuperficieProducaoDiarioV126_ === "function"
+      ? localizarSuperficieProducaoDiarioV126_()
+      : null;
+
+  if (
+    !superficie ||
+    !superficie.raiz ||
+    !superficie.lista
+  ) {
+    return null;
+  }
+
+  let host =
+    document.getElementById(
+      "sigoV127FormularioAtividadeHost"
+    );
+
+  if (!host) {
+    host = document.createElement("div");
+    host.id = "sigoV127FormularioAtividadeHost";
+    host.setAttribute(
+      "data-sigo-v127-activity-form-host",
+      "true"
+    );
+
+    const ancora =
+      superficie.tituloAtividades ||
+      superficie.lista;
+
+    const parent =
+      ancora &&
+      ancora.parentElement &&
+      superficie.raiz.contains(ancora.parentElement)
+        ? ancora.parentElement
+        : superficie.raiz;
+
+    parent.insertBefore(host, ancora);
+  }
+
+  return {
+    host,
+    superficie
+  };
+}
+
+function localizarAcaoAbrirAtividadeExternaV127_(superficie) {
+  if (!superficie || !superficie.raiz) {
+    return null;
+  }
+
+  let botao =
+    document.getElementById(
+      "sigoV126AdicionarAtividade"
+    );
+
+  if (
+    botao &&
+    superficie.raiz.contains(botao)
+  ) {
+    return botao;
+  }
+
+  return (
+    Array.from(
+      superficie.raiz.querySelectorAll(
+        'button[onclick*="abrirFormularioAtividadeDiarioV116_"]'
+      )
+    )[0] ||
+    null
+  );
+}
+
+function ocultarAcoesAbrirAtividadeInternasV127_(
+  botaoExterno
+) {
+  const botoes =
+    Array.from(
+      document.querySelectorAll(
+        'button[onclick*="abrirFormularioAtividadeDiarioV116_"]'
+      )
+    );
+
+  for (const botao of botoes) {
+    if (botao === botaoExterno) {
+      continue;
+    }
+
+    definirVisibilidadeDiarioV127_(
+      botao,
+      false
+    );
+
+    botao.setAttribute(
+      "data-sigo-v127-duplicate-open-action",
+      "hidden"
+    );
+  }
+}
+
+function ocultarCabecalhoProducaoInternoV127_(
+  cardDados,
+  formItem
+) {
+  if (!cardDados || !formItem) {
+    return;
+  }
+
+  const headings =
+    Array.from(
+      cardDados.querySelectorAll(
+        "h1,h2,h3,h4,strong"
+      )
+    );
+
+  for (const heading of headings) {
+    const texto =
+      String(heading.textContent || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/\s+/g, " ")
+        .trim();
+
+    if (texto === "producao executada") {
+      definirVisibilidadeDiarioV127_(
+        heading,
+        false
+      );
+    }
+  }
+}
+
+async function aplicarEstruturaAtividadeDiarioV127_() {
+  const obra =
+    String(
+      obterObraAtivaMobile_() || ""
+    ).trim();
+
+  const idDiario =
+    obra &&
+    typeof obterDiarioAtivoSIGO_ === "function"
+      ? String(
+          obterDiarioAtivoSIGO_(obra) || ""
+        ).trim()
+      : "";
+
+  if (!idDiario) {
+    return false;
+  }
+
+  const formItem =
+    localizarFormularioAtividadeDiarioV127_();
+
+  const destino =
+    localizarOuCriarHostAtividadeDiarioV127_();
+
+  if (!formItem || !destino) {
+    return false;
+  }
+
+  const cardDados =
+    localizarCardDadosDiarioV127_();
+
+  if (
+    formItem.parentElement !==
+    destino.host
+  ) {
+    destino.host.appendChild(formItem);
+  }
+
+  const botaoExterno =
+    localizarAcaoAbrirAtividadeExternaV127_(
+      destino.superficie
+    );
+
+  if (botaoExterno) {
+    botaoExterno.id =
+      "sigoV127AdicionarAtividade";
+
+    botaoExterno.textContent =
+      "➕ Adicionar atividade";
+
+    botaoExterno.setAttribute(
+      "onclick",
+      "abrirFormularioAtividadeDiarioV116_()"
+    );
+  }
+
+  ocultarAcoesAbrirAtividadeInternasV127_(
+    botaoExterno
+  );
+
+  ocultarCabecalhoProducaoInternoV127_(
+    cardDados,
+    formItem
+  );
+
+  const formAberto =
+    globalThis.SIGO_DIARIO_ATIVIDADE_FORM_V116 === true ||
+    (
+      typeof idItemDiarioEdicao !== "undefined" &&
+      Boolean(idItemDiarioEdicao)
+    );
+
+  definirVisibilidadeDiarioV127_(
+    destino.host,
+    formAberto
+  );
+
+  definirVisibilidadeDiarioV127_(
+    formItem,
+    formAberto
+  );
+
+  definirVisibilidadeDiarioV127_(
+    botaoExterno,
+    !formAberto
+  );
+
+  destino.superficie.raiz.setAttribute(
+    "data-sigo-v127-diario-activity-structure",
+    "ready"
+  );
+
+  return true;
+}
+
+const __SIGO_V127_BASE_APLICAR_CONTRATO_DIARIO__ =
+  aplicarContratoDiarioV116_;
+
+aplicarContratoDiarioV116_ =
+  async function (...args) {
+    const resultado =
+      await __SIGO_V127_BASE_APLICAR_CONTRATO_DIARIO__(
+        ...args
+      );
+
+    await aplicarEstruturaAtividadeDiarioV127_();
+
+    return resultado;
+  };
+
+globalThis.aplicarContratoDiarioV116_ =
+  aplicarContratoDiarioV116_;
+
+globalThis.aplicarEstruturaAtividadeDiarioV127_ =
+  aplicarEstruturaAtividadeDiarioV127_;
+
+globalThis.__SIGO_V127_DIARIO_ACTIVITY_FORM_REPARENT__ =
+  true;
+
+/* === END SIGO MOBILE V2 V127 === */
