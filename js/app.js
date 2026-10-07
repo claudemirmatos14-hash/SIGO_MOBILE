@@ -83701,3 +83701,247 @@ globalThis.cancelarItemMedicaoV116_ = cancelarItemMedicaoV116_;
 /* === SIGO MOBILE V2 V122 TARGETED CANDIDATE === */
 globalThis.__SIGO_V122_DIARIO_HOME_MEDICOES_PERSIST__ = true;
 /* === END SIGO MOBILE V2 V122 TARGETED CANDIDATE === */
+
+/* === SIGO MOBILE V2 V123 DIARIO STATE + UNIQUENESS === */
+const __SIGO_V123_BASE_APLICAR_CONTRATO_DIARIO__ =
+  aplicarContratoDiarioV116_;
+
+aplicarContratoDiarioV116_ = async function (...args) {
+  const obraV123 = String(
+    obterObraAtivaMobile_() || ""
+  ).trim();
+
+  let ativoV123 = String(
+    typeof obterDiarioAtivoSIGO_ === "function"
+      ? obterDiarioAtivoSIGO_(obraV123)
+      : ""
+  ).trim();
+
+  if (
+    obraV123 &&
+    !ativoV123 &&
+    typeof listarRegistrosSIGO === "function" &&
+    typeof definirDiarioAtivoSIGO_ === "function"
+  ) {
+    const diariosV123 =
+      await listarRegistrosSIGO("TB_DIARIOS");
+
+    const candidatosV123 =
+      (diariosV123 || [])
+        .filter(item =>
+          String(item.idObra || "") === obraV123
+        )
+        .sort((a, b) => {
+          const ta = Date.parse(
+            a.atualizadoEm ||
+            a.criadoEm ||
+            a.data ||
+            0
+          ) || 0;
+
+          const tb = Date.parse(
+            b.atualizadoEm ||
+            b.criadoEm ||
+            b.data ||
+            0
+          ) || 0;
+
+          return tb - ta;
+        });
+
+    const abertoV123 =
+      candidatosV123.find(item =>
+        String(
+          item.statusDiario || "ABERTO"
+        ).toUpperCase() === "ABERTO"
+      ) ||
+      candidatosV123[0] ||
+      null;
+
+    if (abertoV123?.idDiario) {
+      definirDiarioAtivoSIGO_(
+        abertoV123.idDiario,
+        abertoV123.idObra || obraV123
+      );
+
+      ativoV123 = String(
+        abertoV123.idDiario
+      );
+    }
+  }
+
+  const resultadoV123 =
+    await __SIGO_V123_BASE_APLICAR_CONTRATO_DIARIO__(
+      ...args
+    );
+
+  const botoesNovoV123 =
+    Array.from(
+      document.querySelectorAll("button[onclick]")
+    ).filter(botao => {
+      const acao = String(
+        botao.getAttribute("onclick") || ""
+      ).replace(/\s+/g, "");
+
+      return (
+        acao ===
+          "iniciarNovoDiarioContratoV116_()" ||
+        acao ===
+          "iniciarNovoDiarioUnificadoUX19_()"
+      );
+    });
+
+  if (ativoV123) {
+    botoesNovoV123.forEach(botao => {
+      if (
+        typeof definirVisibilidadeV116_ === "function"
+      ) {
+        definirVisibilidadeV116_(
+          botao,
+          false
+        );
+      } else {
+        botao.hidden = true;
+      }
+    });
+  }
+
+  return resultadoV123;
+};
+
+globalThis.aplicarContratoDiarioV116_ =
+  aplicarContratoDiarioV116_;
+
+const __SIGO_V123_BASE_SALVAR_DIARIO_PREMIUM__ =
+  salvarDiarioPremium;
+
+salvarDiarioPremium = async function (...args) {
+  const obraV123 = String(
+    obterObraAtivaMobile_() || ""
+  ).trim();
+
+  const dataV123 = String(
+    document.getElementById("diarioData")?.value ||
+    ""
+  ).slice(0, 10);
+
+  if (
+    obraV123 &&
+    dataV123 &&
+    typeof listarRegistrosSIGO === "function"
+  ) {
+    const diariosAntesV123 =
+      await listarRegistrosSIGO("TB_DIARIOS");
+
+    const existenteV123 =
+      (diariosAntesV123 || []).find(item =>
+        String(item.idObra || "") === obraV123 &&
+        String(item.data || "").slice(0, 10) ===
+          dataV123
+      ) || null;
+
+    if (existenteV123) {
+      idDiarioEdicao =
+        existenteV123.idDiario;
+
+      if (
+        typeof definirDiarioAtivoSIGO_ === "function"
+      ) {
+        definirDiarioAtivoSIGO_(
+          existenteV123.idDiario,
+          existenteV123.idObra
+        );
+      }
+
+      let resultadoExistenteV123 =
+        existenteV123;
+
+      if (
+        typeof atualizarDiarioOffline_ === "function"
+      ) {
+        resultadoExistenteV123 =
+          await atualizarDiarioOffline_();
+      }
+
+      globalThis.SIGO_DIARIO_NOVO_RASCUNHO_V116 =
+        false;
+
+      globalThis.SIGO_DIARIO_CABECALHO_ABERTO_V116 =
+        false;
+
+      globalThis.SIGO_DIARIO_ATIVIDADE_FORM_V116 =
+        false;
+
+      await aplicarContratoDiarioV116_();
+
+      return resultadoExistenteV123;
+    }
+  }
+
+  const resultadoNovoV123 =
+    await __SIGO_V123_BASE_SALVAR_DIARIO_PREMIUM__(
+      ...args
+    );
+
+  if (
+    obraV123 &&
+    dataV123 &&
+    typeof listarRegistrosSIGO === "function"
+  ) {
+    const diariosDepoisV123 =
+      await listarRegistrosSIGO("TB_DIARIOS");
+
+    const salvoV123 =
+      (diariosDepoisV123 || [])
+        .filter(item =>
+          String(item.idObra || "") === obraV123 &&
+          String(item.data || "").slice(0, 10) ===
+            dataV123
+        )
+        .sort((a, b) => {
+          const ta = Date.parse(
+            a.criadoEm ||
+            a.atualizadoEm ||
+            0
+          ) || 0;
+
+          const tb = Date.parse(
+            b.criadoEm ||
+            b.atualizadoEm ||
+            0
+          ) || 0;
+
+          return tb - ta;
+        })[0] || null;
+
+    if (
+      salvoV123?.idDiario &&
+      typeof definirDiarioAtivoSIGO_ === "function"
+    ) {
+      definirDiarioAtivoSIGO_(
+        salvoV123.idDiario,
+        salvoV123.idObra || obraV123
+      );
+    }
+  }
+
+  globalThis.SIGO_DIARIO_NOVO_RASCUNHO_V116 =
+    false;
+
+  globalThis.SIGO_DIARIO_CABECALHO_ABERTO_V116 =
+    false;
+
+  globalThis.SIGO_DIARIO_ATIVIDADE_FORM_V116 =
+    false;
+
+  await aplicarContratoDiarioV116_();
+
+  return resultadoNovoV123;
+};
+
+globalThis.salvarDiarioPremium =
+  salvarDiarioPremium;
+
+globalThis.__SIGO_V123_DIARIO_HOME_TARGETED__ =
+  true;
+/* === END SIGO MOBILE V2 V123 DIARIO STATE + UNIQUENESS === */

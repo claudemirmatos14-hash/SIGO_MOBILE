@@ -1314,10 +1314,26 @@ function montarFormularioMedicao() {
 }
 
 
-function voltarHome() {
+async function voltarHome() {
+  localStorage.setItem("telaAtualMobile", "home");
+
+  if (typeof navegarPara === "function") {
+    await navegarPara("home");
+    return;
+  }
+
   if (typeof montarHomePremium === "function") {
-    montarHomePremium();
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    await montarHomePremium();
+
+    if (typeof carregarObrasMobile_ === "function") {
+      await carregarObrasMobile_();
+    }
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+
     return;
   }
 }
