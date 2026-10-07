@@ -1265,7 +1265,18 @@ localStorage.setItem("telaAtualMobile", tela);
     },
 
    diario: {
-    montar: () => montarTelaDiarioObra(),
+    montar: async () => {
+      const htmlV125 =
+        await montarTelaDiarioObra();
+
+      return (
+        '<div id="sigoV125DiarioRenderGate" ' +
+        'data-sigo-v125-render-state="pending" ' +
+        'style="visibility:hidden">' +
+        htmlV125 +
+        '</div>'
+      );
+    },
   
     depois: async function () {
 
@@ -1354,7 +1365,18 @@ localStorage.setItem("telaAtualMobile", tela);
     },
 
     medicoes: {
-      montar: () => montarTelaMedicoes(),
+      montar: async () => {
+      const htmlV125 =
+        await montarTelaMedicoes();
+
+      return (
+        '<div id="sigoV125MedicoesRenderGate" ' +
+        'data-sigo-v125-render-state="pending" ' +
+        'style="visibility:hidden">' +
+        htmlV125 +
+        '</div>'
+      );
+    },
       depois: async function () {
 
         if (typeof fecharLotesVencidosMedicao_ === "function") {
@@ -1437,7 +1459,59 @@ localStorage.setItem("telaAtualMobile", tela);
       await carregarObrasMobile_();
     }
 
-    await telasPremium[tela].depois();
+            await telasPremium[tela].depois();
+
+        if (
+          tela === "diario" &&
+          typeof aplicarContratoDiarioV116_ ===
+            "function"
+        ) {
+          await aplicarContratoDiarioV116_();
+        }
+
+        if (
+          tela === "medicoes" &&
+          typeof aplicarContratoMedicoesV116_ ===
+            "function"
+        ) {
+          await aplicarContratoMedicoesV116_();
+        }
+
+        if (tela === "diario") {
+          const gateV125 =
+            document.getElementById(
+              "sigoV125DiarioRenderGate"
+            );
+
+          if (gateV125) {
+            gateV125.style.removeProperty(
+              "visibility"
+            );
+
+            gateV125.setAttribute(
+              "data-sigo-v125-render-state",
+              "ready"
+            );
+          }
+        }
+
+        if (tela === "medicoes") {
+          const gateV125 =
+            document.getElementById(
+              "sigoV125MedicoesRenderGate"
+            );
+
+          if (gateV125) {
+            gateV125.style.removeProperty(
+              "visibility"
+            );
+
+            gateV125.setAttribute(
+              "data-sigo-v125-render-state",
+              "ready"
+            );
+          }
+        }
 
     if (
       typeof atualizarBadgeNotificacoes_ ===
@@ -84157,3 +84231,164 @@ globalThis.__SIGO_V124_HOME_DIARIO_TARGETED__ =
   true;
 
 /* === END SIGO MOBILE V2 V124 HOME + DIARIO VISUAL STATE === */
+
+/* === SIGO MOBILE V2 V125 DIARIO OUTER CARD RESOLVER === */
+
+function localizarCardDadosDiarioV125_() {
+  const campo =
+    document.getElementById(
+      "diarioData"
+    );
+
+  if (!campo) {
+    return null;
+  }
+
+  const normalizarV125 =
+    function (valor) {
+      return String(
+        valor || ""
+      )
+        .normalize("NFD")
+        .replace(
+          /[\u0300-\u036f]/g,
+          ""
+        )
+        .toLowerCase()
+        .replace(
+          /[^a-z0-9 ]+/g,
+          " "
+        )
+        .replace(
+          /\s+/g,
+          " "
+        )
+        .trim();
+    };
+
+  let atual =
+    campo.parentElement;
+
+  while (
+    atual &&
+    atual !== document.body
+  ) {
+    const titulos =
+      Array.from(
+        atual.querySelectorAll(
+          "h1,h2,h3,h4,strong"
+        )
+      );
+
+    const possuiTitulo =
+      titulos.some(
+        elemento =>
+          normalizarV125(
+            elemento.textContent
+          ) ===
+          "dados do diario"
+      );
+
+    if (possuiTitulo) {
+      return atual;
+    }
+
+    atual =
+      atual.parentElement;
+  }
+
+  if (
+    typeof localizarCardCampoV116_ ===
+      "function"
+  ) {
+    return localizarCardCampoV116_(
+      "diarioData"
+    );
+  }
+
+  return null;
+}
+
+globalThis.localizarCardDadosDiarioV125_ =
+  localizarCardDadosDiarioV125_;
+
+globalThis.__SIGO_V125_ROUTE_RENDER_CONSOLIDATION__ =
+  true;
+
+/* === END SIGO MOBILE V2 V125 DIARIO OUTER CARD RESOLVER === */
+
+/* === SIGO MOBILE V2 V125 DIARIO FINAL VISUAL STATE === */
+
+const __SIGO_V125_BASE_APLICAR_CONTRATO_DIARIO__ =
+  aplicarContratoDiarioV116_;
+
+aplicarContratoDiarioV116_ =
+  async function (...args) {
+
+    const resultadoV125 =
+      await __SIGO_V125_BASE_APLICAR_CONTRATO_DIARIO__(
+        ...args
+      );
+
+    const obraV125 = String(
+      obterObraAtivaMobile_() || ""
+    ).trim();
+
+    const diarioAtivoV125 = String(
+      typeof obterDiarioAtivoSIGO_ ===
+        "function"
+        ? obterDiarioAtivoSIGO_(
+            obraV125
+          )
+        : ""
+    ).trim();
+
+    if (!diarioAtivoV125) {
+      return resultadoV125;
+    }
+
+    const editandoCabecalhoV125 =
+      globalThis
+        .SIGO_DIARIO_CABECALHO_ABERTO_V116 ===
+      true;
+
+    const cardDadosV125 =
+      localizarCardDadosDiarioV125_();
+
+    if (cardDadosV125) {
+      cardDadosV125.style.removeProperty(
+        "display"
+      );
+
+      cardDadosV125.style.removeProperty(
+        "visibility"
+      );
+
+      cardDadosV125.style.removeProperty(
+        "opacity"
+      );
+
+      if (
+        typeof definirVisibilidadeV116_ ===
+          "function"
+      ) {
+        definirVisibilidadeV116_(
+          cardDadosV125,
+          editandoCabecalhoV125
+        );
+      } else {
+        cardDadosV125.hidden =
+          !editandoCabecalhoV125;
+      }
+    }
+
+    return resultadoV125;
+  };
+
+globalThis.aplicarContratoDiarioV116_ =
+  aplicarContratoDiarioV116_;
+
+globalThis.__SIGO_V125_DIARIO_FINAL_VISUAL_STATE__ =
+  true;
+
+/* === END SIGO MOBILE V2 V125 DIARIO FINAL VISUAL STATE === */
