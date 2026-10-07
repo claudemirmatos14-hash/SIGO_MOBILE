@@ -1219,6 +1219,13 @@ localStorage.setItem("telaAtualMobile", tela);
         "function"
       ) {
         await atualizarIndicadoresMobile_();
+
+        if (
+          typeof carregarObrasMobile_ ===
+            "function"
+        ) {
+          await carregarObrasMobile_();
+        }
       }
 
       if (
@@ -1261,6 +1268,10 @@ localStorage.setItem("telaAtualMobile", tela);
     montar: () => montarTelaDiarioObra(),
   
     depois: async function () {
+
+      globalThis.SIGO_DIARIO_NOVO_RASCUNHO_V116 = false;
+      globalThis.SIGO_DIARIO_CABECALHO_ABERTO_V116 = false;
+      globalThis.SIGO_DIARIO_ATIVIDADE_FORM_V116 = false;
   
       // ==========================================
       // 1. CARREGAR ATIVIDADES DISPONÍVEIS
@@ -1314,6 +1325,13 @@ localStorage.setItem("telaAtualMobile", tela);
           "function"
       ) {
         await atualizarContextoDiarioAtivoUX19_();
+
+      if (
+        typeof aplicarContratoDiarioV116_ ===
+          "function"
+      ) {
+        await aplicarContratoDiarioV116_();
+      }
       }
 
       if (typeof aplicarContratoDiarioV116_ === "function") {
@@ -83945,3 +83963,197 @@ globalThis.salvarDiarioPremium =
 globalThis.__SIGO_V123_DIARIO_HOME_TARGETED__ =
   true;
 /* === END SIGO MOBILE V2 V123 DIARIO STATE + UNIQUENESS === */
+
+/* === SIGO MOBILE V2 V124 HOME + DIARIO VISUAL STATE === */
+
+const __SIGO_V124_BASE_APLICAR_CONTRATO_DIARIO__ =
+  aplicarContratoDiarioV116_;
+
+aplicarContratoDiarioV116_ =
+  async function (...args) {
+
+    const resultadoV124 =
+      await __SIGO_V124_BASE_APLICAR_CONTRATO_DIARIO__(
+        ...args
+      );
+
+    const obraV124 = String(
+      obterObraAtivaMobile_() || ""
+    ).trim();
+
+    const ativoV124 = String(
+      typeof obterDiarioAtivoSIGO_ === "function"
+        ? obterDiarioAtivoSIGO_(obraV124)
+        : ""
+    ).trim();
+
+    if (!ativoV124) {
+      return resultadoV124;
+    }
+
+    const editandoCabecalhoV124 =
+      globalThis.SIGO_DIARIO_CABECALHO_ABERTO_V116 === true;
+
+    const cardDadosV124 =
+      typeof localizarCardCampoV116_ === "function"
+        ? localizarCardCampoV116_("diarioData")
+        : null;
+
+    const formDadosV124 =
+      typeof localizarFormularioCampoV116_ === "function"
+        ? localizarFormularioCampoV116_("diarioData")
+        : null;
+
+    const limparForcaDraftV124 =
+      function (elemento) {
+
+        if (!elemento) {
+          return;
+        }
+
+        elemento.style.removeProperty("display");
+        elemento.style.removeProperty("visibility");
+        elemento.style.removeProperty("opacity");
+
+        elemento.classList.remove(
+          "hidden",
+          "d-none",
+          "is-hidden"
+        );
+      };
+
+    limparForcaDraftV124(cardDadosV124);
+    limparForcaDraftV124(formDadosV124);
+
+    if (
+      typeof definirVisibilidadeV116_ === "function"
+    ) {
+      definirVisibilidadeV116_(
+        cardDadosV124,
+        editandoCabecalhoV124
+      );
+
+      definirVisibilidadeV116_(
+        formDadosV124,
+        editandoCabecalhoV124
+      );
+    } else {
+      if (cardDadosV124) {
+        cardDadosV124.hidden =
+          !editandoCabecalhoV124;
+      }
+
+      if (formDadosV124) {
+        formDadosV124.hidden =
+          !editandoCabecalhoV124;
+      }
+    }
+
+    const botaoSalvarCabecalhoV124 =
+      typeof localizarBotaoAcaoV116_ === "function"
+        ? localizarBotaoAcaoV116_([
+            "salvarDiarioPremium()",
+            "atualizarDiarioOffline_()"
+          ])
+        : null;
+
+    if (
+      botaoSalvarCabecalhoV124 &&
+      typeof definirVisibilidadeV116_ === "function"
+    ) {
+      definirVisibilidadeV116_(
+        botaoSalvarCabecalhoV124,
+        editandoCabecalhoV124
+      );
+    }
+
+    const botaoAdicionarAtividadeV124 =
+      document.querySelector(
+        'button[onclick="abrirFormularioAtividadeDiarioV116_()"]'
+      );
+
+    if (botaoAdicionarAtividadeV124) {
+      const producaoV124 =
+        botaoAdicionarAtividadeV124.closest(
+          "section, .sigo-section, .sigo-card, .card"
+        ) ||
+        botaoAdicionarAtividadeV124.parentElement;
+
+      if (producaoV124) {
+        producaoV124.hidden = false;
+
+        producaoV124.classList.remove(
+          "hidden",
+          "d-none",
+          "is-hidden"
+        );
+
+        producaoV124.style.removeProperty("display");
+        producaoV124.style.removeProperty("visibility");
+        producaoV124.style.removeProperty("opacity");
+
+        if (
+          typeof definirVisibilidadeV116_ === "function"
+        ) {
+          definirVisibilidadeV116_(
+            producaoV124,
+            true
+          );
+        }
+      }
+    }
+
+    return resultadoV124;
+  };
+
+globalThis.aplicarContratoDiarioV116_ =
+  aplicarContratoDiarioV116_;
+
+const __SIGO_V124_BASE_EDITAR_DADOS_DIARIO__ =
+  editarDadosDiarioAtivoContratoV116_;
+
+editarDadosDiarioAtivoContratoV116_ =
+  async function (...args) {
+
+    globalThis.SIGO_DIARIO_CABECALHO_ABERTO_V116 =
+      true;
+
+    const resultadoV124 =
+      await __SIGO_V124_BASE_EDITAR_DADOS_DIARIO__(
+        ...args
+      );
+
+    await aplicarContratoDiarioV116_();
+
+    return resultadoV124;
+  };
+
+globalThis.editarDadosDiarioAtivoContratoV116_ =
+  editarDadosDiarioAtivoContratoV116_;
+
+const __SIGO_V124_BASE_CANCELAR_DADOS_DIARIO__ =
+  cancelarDadosDiarioContratoV116_;
+
+cancelarDadosDiarioContratoV116_ =
+  async function (...args) {
+
+    globalThis.SIGO_DIARIO_CABECALHO_ABERTO_V116 =
+      false;
+
+    const resultadoV124 =
+      await __SIGO_V124_BASE_CANCELAR_DADOS_DIARIO__(
+        ...args
+      );
+
+    await aplicarContratoDiarioV116_();
+
+    return resultadoV124;
+  };
+
+globalThis.cancelarDadosDiarioContratoV116_ =
+  cancelarDadosDiarioContratoV116_;
+
+globalThis.__SIGO_V124_HOME_DIARIO_TARGETED__ =
+  true;
+
+/* === END SIGO MOBILE V2 V124 HOME + DIARIO VISUAL STATE === */
